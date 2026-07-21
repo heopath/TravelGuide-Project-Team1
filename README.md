@@ -1,12 +1,12 @@
-<img src="https://capsule-render.vercel.app/api?type=waving&color==0:4FACFE,100:00C9A7&theme=navy&height=250&section=header&text=TripGuide%20Project&fontSize=55&animation=fadeIn&desc=TripGuide%20Web%20Application%20Development&descSize=20&descAlignY=65" width="100%" />
+<img src="https://capsule-render.vercel.app/api?type=waving&color=0:4FACFE,100:00C9A7&theme=navy&height=250&section=header&text=TripGuide%20Project&fontSize=55&animation=fadeIn&desc=TripGuide%20Web%20Application%20Development&descSize=20&descAlignY=65" width="100%" />
 
 <div align="center">
-      
+
 # ✈️ TripPilot
 
-### AI 기반 맞춤형 여행 가이드 & 여행 일정 플래닝 서비스
+### 🌍 AI-Powered Travel Guide & Planner
 
-**AI가 추천하고, 사용자가 완성하는 여행 플래너**
+**AI가 추천하고, 사용자가 완성하는 맞춤형 여행 플래너**
 
 <br>
 
@@ -14,7 +14,9 @@
 <img src="https://img.shields.io/badge/Status-Planning-00C9A7?style=for-the-badge" />
 <img src="https://img.shields.io/badge/AI-Travel%20Planner-8A2BE2?style=for-the-badge" />
 
-<br><br>
+<br>
+
+<br>
 
 <img src="https://img.shields.io/badge/Java-17-007396?style=flat-square&logo=openjdk&logoColor=white" />
 <img src="https://img.shields.io/badge/Spring%20Boot-6DB33F?style=flat-square&logo=springboot&logoColor=white" />
@@ -22,16 +24,19 @@
 <img src="https://img.shields.io/badge/Redis-DC382D?style=flat-square&logo=redis&logoColor=white" />
 <img src="https://img.shields.io/badge/AWS-FF9900?style=flat-square&logo=amazonaws&logoColor=white" />
 
+<br>
+
+
 </div>
 
----
+
 
 ## 🌍 About TripPilot
 
 TripPilot은 사용자의 **여행 기간, 목적지, 동행자, 여행 스타일, 예산**을 기반으로  
 AI가 맞춤형 여행 일정을 추천하고, 사용자가 직접 수정하여 자신만의 여행 계획을 완성할 수 있는 여행 플랫폼입니다.
 
-단순한 여행지 추천을 넘어 아래와 같은 흐름으로 서비스를 확장하는 것을 목표로 합니다.
+단순한 여행지 추천을 넘어 다음과 같은 흐름으로 서비스를 확장하는 것을 목표로 합니다.
 
 ```text
 AI 여행 추천
@@ -46,7 +51,19 @@ AI 여행 추천
       ↓
 RAG 기반 개인화 AI 여행 가이드
 ```
-> ✈️ **Plan smarter, travel better with TripPilot.**
+
+---
+
+## ✈️ How TripPilot Works
+
+| Step | Journey             |
+| :--: | ------------------- |
+| `01` | 📍 여행 조건 입력         |
+| `02` | 🤖 AI 맞춤 여행 일정 생성   |
+| `03` | 🗓️ 사용자 일정 수정 및 저장  |
+| `04` | 🌤️ 실시간 여행 정보 확인    |
+| `05` | 🎫 숙박 · 교통 · 티켓 예약  |
+| `06` | 🧠 RAG 기반 개인화 여행 추천 |
 
 ---
 
@@ -76,6 +93,7 @@ AI가 만든 일정은 사용자가 자유롭게 수정할 수 있으며,
 * 실시간 날씨와 지도 정보 제공
 * 여행 일정 저장 및 관리
 * 예약 시스템과 대기열 기능 구현
+* 대규모 트래픽 및 동시성 문제 해결
 * RAG 기반 개인화 AI 여행 가이드 구현
 
 ---
@@ -87,15 +105,17 @@ AI가 만든 일정은 사용자가 자유롭게 수정할 수 있으며,
       ↓
 "무엇을 할까?"
       ↓
-"어떻게 이동할까?"
+"어떤 일정으로 움직일까?"
       ↓
 "어디에서 머물까?"
       ↓
-"내 일정에 맞게 수정"
+"내 취향에 맞게 수정"
+      ↓
+"나만의 여행 계획 완성"
 ```
 
-TripPilot은 여행 계획의 시작부터 실제 여행 준비까지
-하나의 서비스 안에서 해결하는 것을 목표로 합니다.
+> TripPilot은 여행 계획의 시작부터 실제 여행 준비까지
+> 하나의 서비스 안에서 해결하는 것을 목표로 합니다.
 
 </details>
 
@@ -155,7 +175,7 @@ DAY 4
 
 ---
 
-## 🗓 여행 일정 직접 편집
+## 🗓️ 여행 일정 직접 편집
 
 AI가 만든 일정을 그대로 사용하는 것이 아니라
 사용자가 직접 여행 계획을 수정하고 완성할 수 있습니다.
@@ -187,6 +207,18 @@ AI가 만든 일정을 그대로 사용하는 것이 아니라
 
 관심 있는 장소를 저장해두고
 추후 여행 일정에 간편하게 추가할 수 있습니다.
+
+---
+
+## 🌤️ 실시간 여행 정보
+
+외부 API를 활용하여 여행에 필요한 실시간 정보를 제공합니다.
+
+* 현재 날씨
+* 여행 기간 날씨 예보
+* 관광 정보
+* 지도 및 위치 정보
+* 교통 정보
 
 ---
 
@@ -233,6 +265,9 @@ AI 여행 일정 생성
 TripPilot의 첫 화면은
 Google 검색 페이지처럼 복잡하지 않고 직관적인 UI를 목표로 합니다.
 
+사용자가 사이트에 접속한 후 별도의 복잡한 탐색 없이
+바로 여행 조건을 입력하고 AI 여행 계획을 생성할 수 있도록 구성합니다.
+
 ```text
               ✈️ TripPilot
 
@@ -257,95 +292,201 @@ Google 검색 페이지처럼 복잡하지 않고 직관적인 UI를 목표로 �
 
 ### 추가 설정
 
-필요한 사용자만 펼쳐서 설정할 수 있도록 구성합니다.
+기본 화면을 복잡하게 만들지 않기 위해
+필요한 사용자만 추가 옵션을 펼쳐 설정할 수 있도록 구성합니다.
 
 * 예상 예산
 * 이동 수단
 * 선호 음식
 * 여행 강도
 * 숙박 스타일
-* 관심 테마
+* 관심 여행 테마
+
+</details>
+
+---
+
+## 🚀 Development Roadmap
+
+| Phase | 목표               | 핵심 기능                           |
+| :---: | ---------------- | ------------------------------- |
+|  `1차` | 🤖 AI 여행 플래너 MVP | AI 일정 생성, 일정 관리, 즐겨찾기           |
+|  `2차` | ⚡ 실서비스 기능 확장     | 실시간 API, 예약, Redis, 대기열, 부하 테스트 |
+|  `3차` | 🧠 AI 개인화 고도화    | RAG, Vector DB, 일정 분석, 동선 최적화   |
+
+---
+
+<details>
+<summary><b>1️⃣ 4-1. 1차 구현 - MVP</b></summary>
+
+<br>
+
+## AI 여행 가이드 & 여행 일정 관리
+
+TripPilot의 핵심 서비스를 먼저 구현하는 단계입니다.
+
+### 주요 기능
+
+* 메인 화면
+* AI 여행 일정 생성
+* 일정 생성 / 조회 / 수정 / 삭제
+* 사용자 직접 일정 작성
+* 여행지 탐색
+* 즐겨찾기
+* 회원 기능
+* 마이페이지
+
+### 핵심 목표
+
+> **AI가 추천하고, 사용자가 직접 완성하는 여행 플래너**
+
+1차 구현에서는 TripPilot 서비스의 핵심 가치인
+**AI 추천 + 사용자 일정 관리** 기능을 완성하는 것을 목표로 합니다.
 
 </details>
 
 ---
 
 <details>
-<summary><b>🚀 4. 개발 로드맵</b></summary>
+<summary><b>2️⃣ 4-2. 2차 구현 - 서비스 확장</b></summary>
 
 <br>
 
-# 1️⃣ 1차 구현
+## 실시간 여행 정보 & 예약 시스템
 
-## MVP - AI 여행 가이드 & 일정 관리
+1차 구현에서 만든 여행 일정 서비스를
+실제 여행 서비스에 가까운 형태로 확장합니다.
 
-### 구현 기능
-
-* 메인 화면
-* AI 여행 일정 생성
-* 일정 생성 / 조회 / 수정 / 삭제
-* 회원 기능
-* 즐겨찾기
-* 여행지 탐색
-
-### 목표
-
-> **AI 추천 + 사용자 직접 일정 관리**
-
-TripPilot의 핵심 가치를 먼저 구현합니다.
-
----
-
-# 2️⃣ 2차 구현
-
-## 실시간 정보 & 예약 시스템
-
-### 구현 기능
+### 🌤️ 실시간 API
 
 * 날씨 API
 * 지도 API
 * 관광 정보 API
-* 숙박 정보
-* 항공 / 교통 정보
-* 관광지 티켓 예약
-* 대기열 시스템
-* 동시성 제어
-* 부하 테스트
-
-### 기술 목표
-
-```text
-대규모 사용자 접속
-      ↓
-대기열 시스템
-      ↓
-예약 요청 제어
-      ↓
-동시성 제어
-      ↓
-안정적인 예약 처리
-```
-
-### 목표
-
-> **실제 서비스 환경에서 발생할 수 있는 트래픽 및 동시성 문제 해결**
+* 위치 기반 검색
+* 교통 정보 API
 
 ---
 
-# 3️⃣ 3차 구현
+### 🏨 숙박 및 교통 정보
 
-## RAG 기반 AI 여행 서비스
+* 지역별 숙소 검색
+* 숙소 상세 정보
+* 숙소 위치 확인
+* 항공편 정보
+* 기차 / 버스 정보
+* 이동 경로 확인
 
-### 구현 기능
+---
 
-* AI 여행 챗봇
-* RAG
-* Vector Database
-* 사용자 일정 분석
-* 여행 동선 최적화
-* 개인 맞춤형 여행 추천
+### 🎫 관광지 티켓 예약
 
-### RAG Flow
+관광지, 축제, 체험 상품 등의 티켓을 예약할 수 있는 기능을 구현합니다.
+
+```text
+제주 아쿠아플라넷
+
+예약 가능 수량 : 100
+
+[ 예약하기 ]
+```
+
+---
+
+## ⚡ 대규모 트래픽 테스트
+
+한정 수량의 티켓에 많은 사용자가 동시에 접근하는 상황을 구현합니다.
+
+```text
+한정 수량 관광 티켓
+
+티켓 수량 : 100개
+동시 요청 사용자 : 10,000명
+```
+
+### 해결하고자 하는 문제
+
+* 동시 예약 요청
+* 중복 예약
+* 재고 초과 판매
+* DB Lock 문제
+* 서버 과부하
+
+---
+
+## 🔒 동시성 제어
+
+검토 기술
+
+```text
+Redis
+Distributed Lock
+Optimistic Lock
+Pessimistic Lock
+```
+
+---
+
+## 🚦 대기열 시스템
+
+대규모 사용자가 동시에 예약 페이지에 접근하는 경우
+서버 부하를 줄이기 위한 대기열 시스템을 구현합니다.
+
+```text
+현재 접속자가 많습니다.
+
+현재 대기 순번
+324명
+
+예상 대기 시간
+약 2분
+```
+
+검토 기술
+
+```text
+Redis
+Queue
+Kafka
+WebSocket
+SSE
+```
+
+---
+
+## 📊 부하 테스트
+
+검토 도구
+
+```text
+JMeter
+k6
+nGrinder
+```
+
+### 핵심 목표
+
+> **실제 서비스 환경에서 발생할 수 있는 트래픽과 동시성 문제를 직접 재현하고 해결**
+
+</details>
+
+---
+
+<details>
+<summary><b>3️⃣ 4-3. 3차 구현 - AI 고도화</b></summary>
+
+<br>
+
+## RAG 기반 AI 여행 가이드
+
+AI 기능을 단순한 LLM 응답에서
+실제 여행 데이터를 기반으로 답변할 수 있는 구조로 발전시킵니다.
+
+---
+
+## 🧠 RAG 기반 여행 AI
+
+사용자 질문과 관련된 여행 데이터를 먼저 검색한 후
+해당 데이터를 기반으로 LLM이 답변을 생성합니다.
 
 ```text
 사용자 질문
@@ -361,9 +502,90 @@ LLM
 맞춤형 여행 답변
 ```
 
-### 목표
+---
 
-> **사용자의 여행 데이터를 이해하는 AI Travel Assistant 구현**
+## 🗄️ Vector Database
+
+활용 데이터
+
+* 관광지 정보
+* 맛집 정보
+* 여행 후기
+* 지역별 여행 가이드
+* 여행 일정 데이터
+
+검토 기술
+
+```text
+FAISS
+ChromaDB
+Pinecone
+Milvus
+```
+
+---
+
+## 💬 AI 여행 챗봇
+
+```text
+"서울에서 비 오는 날 갈만한 곳 추천해줘"
+
+"제주도 3박 4일 가족 여행 일정 만들어줘"
+
+"부산에서 회 말고 먹을 만한 음식 추천해줘"
+
+"현재 여행 일정에서 이동 동선을 줄여줘"
+
+"오늘 날씨에 맞게 일정을 변경해줘"
+```
+
+---
+
+## 🔄 AI 여행 일정 최적화
+
+사용자가 만든 여행 일정의 위치와 이동 거리를 분석하여
+더 효율적인 여행 동선을 추천합니다.
+
+### 기존 일정
+
+```text
+09:00 성산일출봉
+11:00 협재해수욕장
+13:00 우도
+```
+
+### AI 분석
+
+```text
+현재 일정은 장소 간 이동 거리가 길어
+효율적이지 않을 수 있습니다.
+
+성산일출봉
+→ 우도
+→ 섭지코지
+
+순서로 변경하는 것을 추천합니다.
+```
+
+---
+
+## 👤 사용자 맞춤형 추천
+
+사용자의 기존 여행 기록과 선호도를 분석하여
+향후 여행 일정 생성 시 개인화된 추천을 제공합니다.
+
+```text
+사용자 여행 선호도
+
+맛집      40%
+카페      30%
+관광      20%
+액티비티  10%
+```
+
+### 핵심 목표
+
+> **사용자의 여행 데이터를 이해하고 개인화된 추천을 제공하는 AI Travel Assistant 구현**
 
 </details>
 
@@ -521,7 +743,7 @@ TripPilot/
 
 <br>
 
-## Web Development
+## 🌐 Web Development
 
 * Spring Boot 기반 웹 서비스 설계
 * REST API 설계
@@ -529,7 +751,7 @@ TripPilot/
 * DB 모델링
 * 외부 API 연동
 
-## AI
+## 🤖 AI
 
 * AI API 연동
 * Local LLM 활용
@@ -537,14 +759,15 @@ TripPilot/
 * Embedding 활용
 * Vector Database 활용
 
-## Performance
+## ⚡ Performance
 
 * Redis 활용
 * 예약 동시성 문제 해결
 * 대규모 트래픽 부하 테스트
 * 대기열 시스템 설계
+* 서비스 성능 개선
 
-## Infrastructure
+## ☁️ Infrastructure
 
 * AWS 서버 배포
 * Nginx 구성
@@ -587,18 +810,16 @@ TripPilot/
 
 <div align="center">
 
-### 🌍 Start Your Journey with TripPilot
+### ✈️ TripPilot
 
-**AI-powered travel planning for your perfect journey.**
+**Plan Smarter. Travel Better.**
 
-<br>
+🗺️　📍　✈️　🏨　🌴
 
-✈️   🗺️   🌴   🏨   📍
-
-<br><br>
-
-**TripPilot Team**
+**AI-Powered Travel Guide & Planner**
 
 </div>
+```
 
-<img src="https://capsule-render.vercel.app/api?type=waving&color=00C9A7&height=160&section=footer&text=Ready%20for%20Your%20Next%20Journey&fontSize=26&animation=fadeIn" width="100%" />
+
+<img src="https://capsule-render.vercel.app/api?type=waving&color=0:4FACFE,100:00C9A7&height=160&section=footer&text=Ready%20for%20Your%20Next%20Journey&fontSize=26&animation=fadeIn" width="100%" />
