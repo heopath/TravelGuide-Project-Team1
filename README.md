@@ -14,9 +14,7 @@
 <img src="https://img.shields.io/badge/Status-Planning-00C9A7?style=for-the-badge" />
 <img src="https://img.shields.io/badge/AI-Travel%20Planner-8A2BE2?style=for-the-badge" />
 
-<br>
-
-<br>
+<br><br>
 
 <img src="https://img.shields.io/badge/Java-17-007396?style=flat-square&logo=openjdk&logoColor=white" />
 <img src="https://img.shields.io/badge/Spring%20Boot-6DB33F?style=flat-square&logo=springboot&logoColor=white" />
@@ -24,12 +22,9 @@
 <img src="https://img.shields.io/badge/Redis-DC382D?style=flat-square&logo=redis&logoColor=white" />
 <img src="https://img.shields.io/badge/AWS-FF9900?style=flat-square&logo=amazonaws&logoColor=white" />
 
-<br>
-
-
 </div>
 
-
+---
 
 ## 🌍 About TripPilot
 
@@ -688,7 +683,36 @@ Milvus
 ---
 
 <details>
-<summary><b>📂 7. 프로젝트 구조</b></summary>
+<summary><b>🗄️ 7. 데이터베이스 설계</b></summary>
+
+<br>
+
+<details>
+<summary><b>📊 7-1. 테이블 생성 SQL (DDL)</b></summary>
+
+<br>
+
+<!-- DDL 작성 예정 -->
+
+</details>
+
+<br>
+
+<details>
+<summary><b>📋 7-2. DB 테이블 구조 및 컬럼 설명</b></summary>
+
+<br>
+
+<!-- DB 테이블 구조 및 컬럼 설명 작성 예정 -->
+
+</details>
+
+</details>
+
+---
+
+<details>
+<summary><b>📂 8. 프로젝트 구조</b></summary>
 
 <br>
 
@@ -723,7 +747,7 @@ TripPilot/
 ---
 
 <details>
-<summary><b>👥 8. 팀원 구성</b></summary>
+<summary><b>👥 9. 팀원 구성</b></summary>
 
 <br>
 
@@ -739,7 +763,7 @@ TripPilot/
 ---
 
 <details>
-<summary><b>📈 9. 프로젝트를 통해 얻고자 하는 경험</b></summary>
+<summary><b>📈 10. 프로젝트를 통해 얻고자 하는 경험</b></summary>
 
 <br>
 
@@ -779,7 +803,7 @@ TripPilot/
 ---
 
 <details>
-<summary><b>🔮 10. 향후 확장 기능</b></summary>
+<summary><b>🔮 11. 향후 확장 기능</b></summary>
 
 <br>
 
@@ -815,6 +839,7 @@ TripPilot/
 **Plan Smarter. Travel Better.**
 
 </div>
+
 
 
 <img src="https://capsule-render.vercel.app/api?type=waving&color=0:4FACFE,100:00C9A7&height=160&section=footer&text=Ready%20for%20Your%20Next%20Journey&fontSize=26&animation=fadeIn" width="100%" />
