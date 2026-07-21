@@ -1,8 +1,8 @@
-<img src="https://capsule-render.vercel.app/api?type=waving&color=0:4FACFE,100:00C9A7&theme=navy&height=250&section=header&text=TripGuide%20Project&fontSize=55&animation=fadeIn&desc=TripGuide%20Web%20Application%20Development&descSize=20&descAlignY=65" width="100%" />
+<img src="https://capsule-render.vercel.app/api?type=waving&color=0:4FACFE,100:00C9A7&theme=navy&height=250&section=header&text=All%20My%20Trip&fontSize=55&animation=fadeIn&desc=All%20My%20Trip%20Web%20Application%20Development&descSize=20&descAlignY=65" width="100%" />
 
 <div align="center">
 
-# ✈️ TripPilot
+# ✈️ All My Trip
 
 ### 🌍 AI-Powered Travel Guide & Planner
 
@@ -10,7 +10,7 @@
 
 <br>
 
-<img src="https://img.shields.io/badge/Project-TripPilot-4FACFE?style=for-the-badge" />
+<img src="https://img.shields.io/badge/Project-All%20My%20Trip-4FACFE?style=for-the-badge" />
 <img src="https://img.shields.io/badge/Status-Planning-00C9A7?style=for-the-badge" />
 <img src="https://img.shields.io/badge/AI-Travel%20Planner-8A2BE2?style=for-the-badge" />
 
@@ -26,9 +26,9 @@
 
 ---
 
-## 🌍 About TripPilot
+## 🌍 About All My Trip
 
-TripPilot은 사용자의 **여행 기간, 목적지, 동행자, 여행 스타일, 예산**을 기반으로  
+All My Trip은 사용자의 **여행 기간, 목적지, 동행자, 여행 스타일, 예산**을 기반으로
 AI가 맞춤형 여행 일정을 추천하고, 사용자가 직접 수정하여 자신만의 여행 계획을 완성할 수 있는 여행 플랫폼입니다.
 
 단순한 여행지 추천을 넘어 다음과 같은 흐름으로 서비스를 확장하는 것을 목표로 합니다.
@@ -49,7 +49,7 @@ RAG 기반 개인화 AI 여행 가이드
 
 ---
 
-## ✈️ How TripPilot Works
+## ✈️ How All My Trip Works
 
 | Step | Journey             |
 | :--: | ------------------- |
@@ -72,7 +72,7 @@ RAG 기반 개인화 AI 여행 가이드
 여행을 준비할 때 사용자는 관광지, 맛집, 숙박, 날씨, 교통 등
 여러 정보를 각각 다른 서비스에서 찾아야 합니다.
 
-TripPilot은 이러한 여행 준비 과정을 하나의 서비스로 통합하고,
+All My Trip은 이러한 여행 준비 과정을 하나의 서비스로 통합하고,
 사용자가 몇 가지 조건만 입력하면 AI가 맞춤형 여행 계획을 제안하도록 설계합니다.
 
 AI가 만든 일정은 사용자가 자유롭게 수정할 수 있으며,
@@ -109,7 +109,7 @@ AI가 만든 일정은 사용자가 자유롭게 수정할 수 있으며,
 "나만의 여행 계획 완성"
 ```
 
-> TripPilot은 여행 계획의 시작부터 실제 여행 준비까지
+> All My Trip은 여행 계획의 시작부터 실제 여행 준비까지
 > 하나의 서비스 안에서 해결하는 것을 목표로 합니다.
 
 </details>
@@ -257,14 +257,14 @@ AI 여행 일정 생성
 
 ## Main Page Concept
 
-TripPilot의 첫 화면은
+All My Trip의 첫 화면은
 Google 검색 페이지처럼 복잡하지 않고 직관적인 UI를 목표로 합니다.
 
 사용자가 사이트에 접속한 후 별도의 복잡한 탐색 없이
 바로 여행 조건을 입력하고 AI 여행 계획을 생성할 수 있도록 구성합니다.
 
 ```text
-              ✈️ TripPilot
+              ✈️ All My Trip
 
        어디로 여행을 떠나시나요?
 
@@ -318,7 +318,7 @@ Google 검색 페이지처럼 복잡하지 않고 직관적인 UI를 목표로 �
 
 ## AI 여행 가이드 & 여행 일정 관리
 
-TripPilot의 핵심 서비스를 먼저 구현하는 단계입니다.
+All My Trip의 핵심 서비스를 먼저 구현하는 단계입니다.
 
 ### 주요 기능
 
@@ -335,7 +335,7 @@ TripPilot의 핵심 서비스를 먼저 구현하는 단계입니다.
 
 > **AI가 추천하고, 사용자가 직접 완성하는 여행 플래너**
 
-1차 구현에서는 TripPilot 서비스의 핵심 가치인
+1차 구현에서는 All My Trip 서비스의 핵심 가치인
 **AI 추천 + 사용자 일정 관리** 기능을 완성하는 것을 목표로 합니다.
 
 </details>
@@ -692,7 +692,7 @@ Milvus
 
 <br>
 
-[📄 TripPilot DDL 초안 보기](docs/database/trippilot_schema.sql)
+[📄 All My Trip DDL 초안 보기](docs/database/trippilot_schema.sql)
 
 </details>
 
@@ -719,7 +719,7 @@ Milvus
 <br>
 
 ```text
-TripPilot/
+AllMyTrip/
 │
 ├── backend/
 │   ├── controller/
@@ -836,7 +836,7 @@ TripPilot/
 
 <div align="center">
 
-### ✈️ TripPilot
+### ✈️ All My Trip
 
 **Plan Smarter. Travel Better.**
 
