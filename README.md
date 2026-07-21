@@ -692,7 +692,7 @@ Milvus
 
 <br>
 
-<!-- DDL 작성 예정 -->
+[📄 TripPilot DDL 초안 보기](docs/database/trippilot_schema.sql)
 
 </details>
 
@@ -703,7 +703,9 @@ Milvus
 
 <br>
 
-<!-- DB 테이블 구조 및 컬럼 설명 작성 예정 -->
+[📐 ERD 초안 및 테이블·컬럼 설계서 보기](docs/database/trippilot_database.md)
+
+> 현재 문서는 서비스 설계 과정에서 변경될 수 있는 초안이며, 변경 이력은 Git으로 관리합니다.
 
 </details>
 
