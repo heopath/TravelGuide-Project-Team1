@@ -601,5 +601,4 @@ TripPilot/
 
 </div>
 
-<img src="https://capsule-render.vercel.app/api?type=waving&color=00C9A7&height=160&section=footer&text=Ready%20for%20Your%20Next%20Journey&fontSize=26&fontColor=ffffff&animation=fadeIn" width="100%" />
-```
+<img src="https://capsule-render.vercel.app/api?type=waving&color=00C9A7&height=160&section=footer&text=Ready%20for%20Your%20Next%20Journey&fontSize=26&animation=fadeIn" width="100%" />
