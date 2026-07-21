@@ -107,6 +107,23 @@ CREATE TABLE place_images (
     CONSTRAINT fk_place_images_place FOREIGN KEY (place_id) REFERENCES places (place_id) ON DELETE CASCADE
 ) ENGINE=InnoDB COMMENT='Place image metadata';
 
+CREATE TABLE place_travel_styles (
+    place_travel_style_id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT 'Place travel style identifier',
+    place_id              BIGINT UNSIGNED NOT NULL COMMENT 'Place identifier',
+    travel_style_id       SMALLINT UNSIGNED NOT NULL COMMENT 'Travel style identifier',
+    relevance_score       DECIMAL(5,2) NOT NULL DEFAULT 50.00 COMMENT 'Style relevance score from 0 to 100',
+    source                VARCHAR(20) NOT NULL DEFAULT 'MANUAL' COMMENT 'Tag source (MANUAL, AI, BEHAVIOR)',
+    created_at            DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) COMMENT 'Creation time',
+    updated_at            DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6) COMMENT 'Last update time',
+    PRIMARY KEY (place_travel_style_id),
+    UNIQUE KEY uk_place_travel_styles_place_style (place_id, travel_style_id),
+    KEY idx_place_travel_styles_style_score (travel_style_id, relevance_score),
+    CONSTRAINT fk_place_travel_styles_place FOREIGN KEY (place_id) REFERENCES places (place_id) ON DELETE CASCADE,
+    CONSTRAINT fk_place_travel_styles_style FOREIGN KEY (travel_style_id) REFERENCES travel_styles (travel_style_id),
+    CONSTRAINT ck_place_travel_styles_score CHECK (relevance_score BETWEEN 0 AND 100),
+    CONSTRAINT ck_place_travel_styles_source CHECK (source IN ('MANUAL', 'AI', 'BEHAVIOR'))
+) ENGINE=InnoDB COMMENT='Travel style relevance tags for places';
+
 CREATE TABLE favorites (
     favorite_id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT 'Favorite identifier',
     user_id     BIGINT UNSIGNED NOT NULL COMMENT 'User identifier',
@@ -243,8 +260,100 @@ CREATE TABLE ai_generation_requests (
     CONSTRAINT ck_ai_requests_completed CHECK (completed_at IS NULL OR completed_at >= requested_at)
 ) ENGINE=InnoDB COMMENT='AI itinerary, optimization, and chat request history';
 
+CREATE TABLE recommendation_events (
+    recommendation_event_id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT 'Recommendation behavior event identifier',
+    user_id                  BIGINT UNSIGNED NOT NULL COMMENT 'Acting user identifier',
+    place_id                 BIGINT UNSIGNED NOT NULL COMMENT 'Recommended place identifier',
+    trip_id                  BIGINT UNSIGNED NULL COMMENT 'Related trip identifier',
+    ai_generation_request_id BIGINT UNSIGNED NULL COMMENT 'Related AI recommendation request identifier',
+    event_type               VARCHAR(30) NOT NULL COMMENT 'Behavior type (IMPRESSION, CLICK, FAVORITE, ADD_TO_TRIP, REMOVE_FROM_TRIP, DISMISS)',
+    session_id               VARCHAR(100) NULL COMMENT 'Client or recommendation session identifier',
+    metadata                 JSON NULL COMMENT 'Additional event context such as rank and score',
+    occurred_at              DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) COMMENT 'Event occurrence time',
+    PRIMARY KEY (recommendation_event_id),
+    KEY idx_recommendation_events_user_occurred (user_id, occurred_at),
+    KEY idx_recommendation_events_place_type_occurred (place_id, event_type, occurred_at),
+    KEY idx_recommendation_events_trip (trip_id),
+    KEY idx_recommendation_events_ai_request (ai_generation_request_id),
+    KEY idx_recommendation_events_session (session_id),
+    CONSTRAINT fk_recommendation_events_user FOREIGN KEY (user_id) REFERENCES users (user_id),
+    CONSTRAINT fk_recommendation_events_place FOREIGN KEY (place_id) REFERENCES places (place_id),
+    CONSTRAINT fk_recommendation_events_trip FOREIGN KEY (trip_id) REFERENCES trips (trip_id) ON DELETE SET NULL,
+    CONSTRAINT fk_recommendation_events_ai_request FOREIGN KEY (ai_generation_request_id) REFERENCES ai_generation_requests (ai_generation_request_id) ON DELETE SET NULL,
+    CONSTRAINT ck_recommendation_events_type CHECK (event_type IN ('IMPRESSION', 'CLICK', 'FAVORITE', 'ADD_TO_TRIP', 'REMOVE_FROM_TRIP', 'DISMISS'))
+) ENGINE=InnoDB COMMENT='User behavior events for recommendation evaluation and preference inference';
+
 -- =========================================================
--- 5. Ticket, reservation, and payment domain
+-- 5. Administration and place data operation domain
+-- =========================================================
+
+CREATE TABLE place_sync_jobs (
+    place_sync_job_id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT 'Place synchronization job identifier',
+    requested_by      BIGINT UNSIGNED NULL COMMENT 'Administrator user identifier; NULL for scheduled jobs',
+    provider          VARCHAR(30) NOT NULL COMMENT 'External place data provider name',
+    job_type          VARCHAR(20) NOT NULL COMMENT 'Synchronization type (FULL, INCREMENTAL, MANUAL)',
+    status            VARCHAR(20) NOT NULL DEFAULT 'PENDING' COMMENT 'Job status (PENDING, RUNNING, SUCCEEDED, PARTIAL_FAILED, FAILED)',
+    requested_count   INT UNSIGNED NOT NULL DEFAULT 0 COMMENT 'Number of source records requested or discovered',
+    processed_count   INT UNSIGNED NOT NULL DEFAULT 0 COMMENT 'Number of source records processed',
+    created_count     INT UNSIGNED NOT NULL DEFAULT 0 COMMENT 'Number of places created',
+    updated_count     INT UNSIGNED NOT NULL DEFAULT 0 COMMENT 'Number of places updated',
+    failed_count      INT UNSIGNED NOT NULL DEFAULT 0 COMMENT 'Number of records that failed',
+    error_summary     VARCHAR(1000) NULL COMMENT 'Summary of job-level failure',
+    started_at        DATETIME(6) NULL COMMENT 'Job start time',
+    completed_at      DATETIME(6) NULL COMMENT 'Job completion time',
+    created_at        DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) COMMENT 'Job request creation time',
+    PRIMARY KEY (place_sync_job_id),
+    KEY idx_place_sync_jobs_status_created (status, created_at),
+    KEY idx_place_sync_jobs_provider_created (provider, created_at),
+    KEY idx_place_sync_jobs_requested_by (requested_by),
+    CONSTRAINT fk_place_sync_jobs_requester FOREIGN KEY (requested_by) REFERENCES users (user_id) ON DELETE SET NULL,
+    CONSTRAINT ck_place_sync_jobs_type CHECK (job_type IN ('FULL', 'INCREMENTAL', 'MANUAL')),
+    CONSTRAINT ck_place_sync_jobs_status CHECK (status IN ('PENDING', 'RUNNING', 'SUCCEEDED', 'PARTIAL_FAILED', 'FAILED')),
+    CONSTRAINT ck_place_sync_jobs_counts CHECK (processed_count <= requested_count AND created_count + updated_count + failed_count <= processed_count),
+    CONSTRAINT ck_place_sync_jobs_period CHECK (completed_at IS NULL OR started_at IS NULL OR completed_at >= started_at)
+) ENGINE=InnoDB COMMENT='External place data synchronization job history';
+
+CREATE TABLE place_sync_errors (
+    place_sync_error_id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT 'Place synchronization error identifier',
+    place_sync_job_id   BIGINT UNSIGNED NOT NULL COMMENT 'Synchronization job identifier',
+    external_place_id   VARCHAR(100) NULL COMMENT 'Failed source place identifier',
+    error_code          VARCHAR(100) NULL COMMENT 'Machine-readable error code',
+    error_message       VARCHAR(1000) NOT NULL COMMENT 'Error description',
+    raw_payload         JSON NULL COMMENT 'Failed source payload for diagnosis and retry',
+    retry_status        VARCHAR(20) NOT NULL DEFAULT 'PENDING' COMMENT 'Retry status (PENDING, RETRIED, RESOLVED, IGNORED)',
+    retry_count         SMALLINT UNSIGNED NOT NULL DEFAULT 0 COMMENT 'Number of retry attempts',
+    last_retried_at     DATETIME(6) NULL COMMENT 'Most recent retry time',
+    resolved_at         DATETIME(6) NULL COMMENT 'Resolution time',
+    created_at          DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) COMMENT 'Creation time',
+    PRIMARY KEY (place_sync_error_id),
+    KEY idx_place_sync_errors_job_status (place_sync_job_id, retry_status),
+    KEY idx_place_sync_errors_external (external_place_id),
+    CONSTRAINT fk_place_sync_errors_job FOREIGN KEY (place_sync_job_id) REFERENCES place_sync_jobs (place_sync_job_id) ON DELETE CASCADE,
+    CONSTRAINT ck_place_sync_errors_retry_status CHECK (retry_status IN ('PENDING', 'RETRIED', 'RESOLVED', 'IGNORED'))
+) ENGINE=InnoDB COMMENT='Record-level failures from place synchronization jobs';
+
+CREATE TABLE admin_audit_logs (
+    admin_audit_log_id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT 'Administrator audit log identifier',
+    admin_user_id      BIGINT UNSIGNED NULL COMMENT 'Administrator user identifier; NULL for system actions',
+    action_type        VARCHAR(30) NOT NULL COMMENT 'Administrative action type',
+    target_type        VARCHAR(50) NOT NULL COMMENT 'Changed entity or resource type',
+    target_id          VARCHAR(100) NULL COMMENT 'Changed entity identifier',
+    before_data        JSON NULL COMMENT 'Data snapshot before the change',
+    after_data         JSON NULL COMMENT 'Data snapshot after the change',
+    request_id         VARCHAR(100) NULL COMMENT 'Request correlation identifier',
+    ip_address         VARCHAR(45) NULL COMMENT 'Administrator IPv4 or IPv6 address',
+    user_agent         VARCHAR(500) NULL COMMENT 'Administrator client user agent',
+    occurred_at        DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) COMMENT 'Action occurrence time',
+    PRIMARY KEY (admin_audit_log_id),
+    KEY idx_admin_audit_logs_admin_occurred (admin_user_id, occurred_at),
+    KEY idx_admin_audit_logs_target (target_type, target_id, occurred_at),
+    KEY idx_admin_audit_logs_request (request_id),
+    CONSTRAINT fk_admin_audit_logs_admin FOREIGN KEY (admin_user_id) REFERENCES users (user_id) ON DELETE SET NULL
+) ENGINE=InnoDB COMMENT='Immutable administrator and system action audit trail';
+
+-- =========================================================
+-- 6. Ticket, reservation, and payment domain
+
 -- =========================================================
 
 CREATE TABLE ticket_products (
@@ -349,6 +458,58 @@ CREATE TABLE payments (
     CONSTRAINT ck_payments_status CHECK (status IN ('READY', 'PAID', 'FAILED', 'CANCELLED', 'REFUNDED')),
     CONSTRAINT ck_payments_amount CHECK (amount >= 0)
 ) ENGINE=InnoDB COMMENT='Reservation payment attempts and results';
+
+CREATE TABLE issued_tickets (
+    issued_ticket_id       BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT 'Issued ticket identifier',
+    reservation_item_id    BIGINT UNSIGNED NOT NULL COMMENT 'Reservation line item identifier',
+    ticket_number          VARCHAR(50) NOT NULL COMMENT 'Public ticket number',
+    verification_token_hash CHAR(64) NOT NULL COMMENT 'SHA-256 hash of the ticket verification token',
+    issue_method           VARCHAR(20) NOT NULL DEFAULT 'MOBILE' COMMENT 'Issue method (MOBILE, EMAIL, PRINT, ONSITE)',
+    status                 VARCHAR(20) NOT NULL DEFAULT 'ISSUED' COMMENT 'Ticket status (ISSUED, USED, CANCELLED, EXPIRED, REPLACED)',
+    valid_from             DATETIME(6) NOT NULL COMMENT 'Ticket validity start time',
+    valid_until            DATETIME(6) NOT NULL COMMENT 'Ticket validity end time',
+    issued_at              DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) COMMENT 'Issue time',
+    used_at                DATETIME(6) NULL COMMENT 'Successful validation time',
+    cancelled_at           DATETIME(6) NULL COMMENT 'Cancellation time',
+    replaced_by_ticket_id  BIGINT UNSIGNED NULL COMMENT 'Replacement ticket identifier after reissue',
+    created_at             DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) COMMENT 'Creation time',
+    updated_at             DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6) COMMENT 'Last update time',
+    PRIMARY KEY (issued_ticket_id),
+    UNIQUE KEY uk_issued_tickets_number (ticket_number),
+    UNIQUE KEY uk_issued_tickets_token_hash (verification_token_hash),
+    UNIQUE KEY uk_issued_tickets_replaced_by (replaced_by_ticket_id),
+    KEY idx_issued_tickets_reservation_item (reservation_item_id),
+    KEY idx_issued_tickets_status_valid_until (status, valid_until),
+    CONSTRAINT fk_issued_tickets_reservation_item FOREIGN KEY (reservation_item_id) REFERENCES reservation_items (reservation_item_id),
+    CONSTRAINT fk_issued_tickets_replacement FOREIGN KEY (replaced_by_ticket_id) REFERENCES issued_tickets (issued_ticket_id) ON DELETE SET NULL,
+    CONSTRAINT ck_issued_tickets_method CHECK (issue_method IN ('MOBILE', 'EMAIL', 'PRINT', 'ONSITE')),
+    CONSTRAINT ck_issued_tickets_status CHECK (status IN ('ISSUED', 'USED', 'CANCELLED', 'EXPIRED', 'REPLACED')),
+    CONSTRAINT ck_issued_tickets_validity CHECK (valid_until > valid_from),
+    CONSTRAINT ck_issued_tickets_used_at CHECK (used_at IS NULL OR used_at >= issued_at),
+    CONSTRAINT ck_issued_tickets_cancelled_at CHECK (cancelled_at IS NULL OR cancelled_at >= issued_at)
+) ENGINE=InnoDB COMMENT='Individually issued mock electronic tickets';
+
+CREATE TABLE ticket_validation_logs (
+    ticket_validation_log_id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT 'Ticket validation log identifier',
+    issued_ticket_id         BIGINT UNSIGNED NULL COMMENT 'Matched issued ticket identifier; NULL when no ticket matched',
+    validator_user_id        BIGINT UNSIGNED NULL COMMENT 'Administrator who performed validation',
+    presented_token_fingerprint CHAR(64) NULL COMMENT 'Non-reversible fingerprint of the presented token',
+    validation_result       VARCHAR(20) NOT NULL COMMENT 'Validation result (SUCCESS, NOT_FOUND, ALREADY_USED, CANCELLED, EXPIRED)',
+    validation_channel      VARCHAR(20) NOT NULL DEFAULT 'ADMIN_WEB' COMMENT 'Validation channel (ADMIN_WEB, MOCK_SCANNER, API)',
+    device_id               VARCHAR(100) NULL COMMENT 'Mock scanner or client device identifier',
+    failure_reason          VARCHAR(500) NULL COMMENT 'Validation failure explanation',
+    metadata                JSON NULL COMMENT 'Additional validation context',
+    validated_at            DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) COMMENT 'Validation attempt time',
+    PRIMARY KEY (ticket_validation_log_id),
+    KEY idx_ticket_validation_logs_ticket_time (issued_ticket_id, validated_at),
+    KEY idx_ticket_validation_logs_validator_time (validator_user_id, validated_at),
+    KEY idx_ticket_validation_logs_result_time (validation_result, validated_at),
+    KEY idx_ticket_validation_logs_fingerprint (presented_token_fingerprint),
+    CONSTRAINT fk_ticket_validation_logs_ticket FOREIGN KEY (issued_ticket_id) REFERENCES issued_tickets (issued_ticket_id),
+    CONSTRAINT fk_ticket_validation_logs_validator FOREIGN KEY (validator_user_id) REFERENCES users (user_id) ON DELETE SET NULL,
+    CONSTRAINT ck_ticket_validation_logs_result CHECK (validation_result IN ('SUCCESS', 'NOT_FOUND', 'ALREADY_USED', 'CANCELLED', 'EXPIRED')),
+    CONSTRAINT ck_ticket_validation_logs_channel CHECK (validation_channel IN ('ADMIN_WEB', 'MOCK_SCANNER', 'API'))
+) ENGINE=InnoDB COMMENT='Mock QR and barcode ticket validation attempts';
 
 -- Seed values used by the planning UI and recommendation model.
 INSERT INTO travel_styles (code, name, description, sort_order) VALUES
