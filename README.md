@@ -1,5 +1,7 @@
 <img src="https://capsule-render.vercel.app/api?type=waving&color==0:4FACFE,100:00C9A7&theme=navy&height=250&section=header&text=TripGuide%20Project&fontSize=55&animation=fadeIn&desc=TripGuide%20Web%20Application%20Development&descSize=20&descAlignY=65" width="100%" />
 
+<div align="center">
+      
 # ✈️ TripPilot
 
 ### AI 기반 맞춤형 여행 가이드 & 여행 일정 플래닝 서비스
