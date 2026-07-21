@@ -1,12 +1,12 @@
--- TripPilot database schema
+-- All My Trip database schema
 -- Target: MySQL 8.0+
 -- Character set: utf8mb4
 
-CREATE DATABASE IF NOT EXISTS trippilot
+CREATE DATABASE IF NOT EXISTS all_my_trip
     DEFAULT CHARACTER SET utf8mb4
     DEFAULT COLLATE utf8mb4_0900_ai_ci;
 
-USE trippilot;
+USE all_my_trip;
 
 -- =========================================================
 -- 1. Member and preference domain
