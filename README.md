@@ -814,12 +814,7 @@ TripPilot/
 
 **Plan Smarter. Travel Better.**
 
-🗺️　📍　✈️　🏨　🌴
-
-**AI-Powered Travel Guide & Planner**
-
 </div>
-```
 
 
 <img src="https://capsule-render.vercel.app/api?type=waving&color=0:4FACFE,100:00C9A7&height=160&section=footer&text=Ready%20for%20Your%20Next%20Journey&fontSize=26&animation=fadeIn" width="100%" />
