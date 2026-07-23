@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="All My Trips 메인 화면" />
+    <title>메인 화면 — All My Trips</title>
+    <link rel="icon" th:href="@{/images/icons/app-icon.png}" href="/images/icons/app-icon.png" />
+    <link rel="stylesheet" th:href="@{/css/common/reset.css}" href="/css/common/reset.css" />
+    <link rel="stylesheet" th:href="@{/css/common/layout.css}" href="/css/common/layout.css" />
+    <link rel="stylesheet" th:href="@{/css/common/components.css}" href="/css/common/components.css" />
+    <link rel="stylesheet" th:href="@{/css/pages/home/home.css}" href="/css/pages/home/home.css" />
+  </head>
+  <body class="page-home" data-route="/home">
+    <div class="app">
+      <div th:replace="~{fragments/header :: header('home')}"></div>
+      <main id="page-content">
+        <section class="home-page">
+      <div class="home-hero">
+        <div class="flight-orbit"><span>✈</span></div>
+        <div class="hero-logo">
+          <img th:src="@{/images/icons/app-icon.png}" src="/images/icons/app-icon.png" alt="" />
+          <h1>All My Trips</h1>
+          <p>마이티와 함께하는 여행~</p>
+        </div>
+        <div class="home-search">
+          <button type="button" data-modal="destination"><span>✈</span><b>어디로 가세요?</b></button>
+          <button type="button" data-modal="date"><span>▣</span><b>가는 날</b></button>
+          <button type="button" data-modal="guests"><span>♙</span><b>여행 인원</b></button>
+          <button class="search-submit" type="button" data-route="/trips/new/basic" aria-label="검색">⌕</button>
+        </div>
+        <p class="hero-caption">목적지, 날짜, 인원만 알려주면 마이티가 취향에 맞는 여행을 제안해요.</p>
+        <div class="wave wave-one"></div><div class="wave wave-two"></div>
+      </div>
+    </section>
+      </main>
+      <div th:replace="~{fragments/modals :: modalRoots}"></div>
+      <div th:replace="~{fragments/footer :: footer}"></div>
+    </div>
+    <script th:src="@{/js/common/api.js}" src="/js/common/api.js" defer></script>
+    <script th:src="@{/js/common/navigation.js}" src="/js/common/navigation.js" defer></script>
+    <script th:src="@{/js/common/modal.js}" src="/js/common/modal.js" defer></script>
+    <script th:src="@{/js/pages/home/home.js}" src="/js/pages/home/home.js" defer></script>
+  </body>
+</html>

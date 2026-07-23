@@ -1,0 +1,10 @@
+/* 항공편 검색 전용 스타일 */
+body.page-flights #page-content {
+  min-height: calc(100vh - 78px);
+}
+
+@media (max-width: 760px) {
+  body.page-flights #page-content {
+    min-height: calc(100vh - 64px);
+  }
+}
