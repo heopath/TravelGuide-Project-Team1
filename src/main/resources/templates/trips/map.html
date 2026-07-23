@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="All My Trips 지도 기반 경로" />
+    <title>지도 기반 경로 — All My Trips</title>
+    <link rel="icon" th:href="@{/images/icons/app-icon.png}" href="/images/icons/app-icon.png" />
+    <link rel="stylesheet" th:href="@{/css/common/reset.css}" href="/css/common/reset.css" />
+    <link rel="stylesheet" th:href="@{/css/common/layout.css}" href="/css/common/layout.css" />
+    <link rel="stylesheet" th:href="@{/css/common/components.css}" href="/css/common/components.css" />
+    <link rel="stylesheet" th:href="@{/css/pages/trips/map.css}" href="/css/pages/trips/map.css" />
+  </head>
+  <body class="page-map" data-route="/trips/busan/map">
+    <div class="app">
+      <div th:replace="~{fragments/header :: header('schedule')}"></div>
+      <main id="page-content">
+        <section class="map-page">
+      <aside class="map-sidebar"><span class="section-eyebrow">10 지도 기반 경로</span><h1>DAY 1 · 부산</h1><p>도보와 대중교통을 고려한 최적 동선입니다.</p>
+        <div class="map-route-list"><button><span>1</span><div><strong>부산역 도착</strong><small>10:20 · KTX 101</small></div></button><button><span>2</span><div><strong>감천문화마을</strong><small>11:30 · 2시간</small></div></button><button><span>3</span><div><strong>자갈치시장</strong><small>14:00 · 점심</small></div></button><button><span>4</span><div><strong>광안리 해변</strong><small>18:30 · 야경</small></div></button></div>
+        <button class="primary-button wide" data-route="/trips/busan/optimize">AI로 일정 최적화</button><button class="outline-button wide" data-modal="add-place">장소 추가</button>
+      </aside>
+      <section class="large-map">
+    <div class="mini-map large">
+      <i class="road road-a"></i><i class="road road-b"></i><i class="road road-c"></i>
+      <b class="pin pin-1">1</b><b class="pin pin-2">2</b><b class="pin pin-3">3</b><b class="pin pin-4">4</b>
+    </div>
+  <div class="map-chip">이동 18.4km · 예상 1시간 25분</div></section>
+    </section>
+      </main>
+      <div th:replace="~{fragments/modals :: modalRoots}"></div>
+      <div th:replace="~{fragments/footer :: footer}"></div>
+    </div>
+    <script th:src="@{/js/common/api.js}" src="/js/common/api.js" defer></script>
+    <script th:src="@{/js/common/navigation.js}" src="/js/common/navigation.js" defer></script>
+    <script th:src="@{/js/common/modal.js}" src="/js/common/modal.js" defer></script>
+    <script th:src="@{/js/pages/trips/map.js}" src="/js/pages/trips/map.js" defer></script>
+  </body>
+</html>

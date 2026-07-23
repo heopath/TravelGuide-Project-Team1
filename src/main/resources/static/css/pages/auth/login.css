@@ -1,0 +1,10 @@
+/* 로그인 전용 스타일 */
+body.page-login #page-content {
+  min-height: calc(100vh - 78px);
+}
+
+@media (max-width: 760px) {
+  body.page-login #page-content {
+    min-height: calc(100vh - 64px);
+  }
+}
