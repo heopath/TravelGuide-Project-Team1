@@ -1,9 +1,9 @@
-# All My Trip 데이터베이스 설계서
+# All My Trips 데이터베이스 설계서
 
 ## 1. 설계 기준
 
 - 대상 DBMS: MySQL 8.0 이상, InnoDB, `utf8mb4`
-- 물리 데이터베이스 스키마명: `all_my_trip`
+- 물리 데이터베이스 스키마명: `all_my_trips`
 - 식별자는 숫자형 대리 키를 기본으로 하고, 외부 노출 예약에는 별도 예약번호를 사용한다.
 - 금액은 `DECIMAL(15,2)`와 ISO 4217 통화 코드를 함께 저장한다.
 - 회원과 여행은 `deleted_at`을 이용해 소프트 삭제하며, 일정의 하위 데이터는 부모 삭제 시 함께 삭제한다.
@@ -19,6 +19,7 @@
 | `users` → `trips` → `trip_days` → `itinerary_items`, `trips` + `travel_styles` → `trip_travel_styles` (여행 일정) | 여행 입력 조건, 날짜별 구획, 순서가 있는 활동을 계층화한다. 일정 항목은 장소를 선택적으로 참조해 장소가 삭제되어도 제목 스냅샷을 보존한다. |
 | `users` → `ai_generation_requests` → `trips` (AI) | 일정 생성, 동선 최적화, 챗봇 요청의 입력·결과·모델·토큰·상태를 감사 가능하게 기록한다. 실패하거나 아직 여행이 만들어지지 않은 요청은 `trip_id`가 없을 수 있다. |
 | `users` + `places` → `recommendation_events`, `recommendation_events` → `trips`, `ai_generation_requests` (추천 행동) | 추천 노출·클릭·즐겨찾기·일정 추가·제거·숨김 행동을 기록해 추천 성과를 측정하고 `user_preferences`의 추론 점수 갱신 근거로 사용한다. |
+| `users` + `trips` → `travel_records` → `travel_record_images`, `travel_record_comments`, `travel_record_likes`, `travel_record_shares`, `travel_record_reports` (여행 기록·소셜) | 완료 여행의 후기와 이미지, 댓글·답글, 좋아요, 공유 이벤트, 신고 및 관리자 처리 이력을 관리한다. |
 | `users` → `place_sync_jobs` → `place_sync_errors`, `users` → `admin_audit_logs` (관리자·장소 수집 운영) | 관리자 또는 스케줄러가 실행한 장소 수집 작업과 레코드별 실패를 기록하고, 관리자·시스템의 데이터 변경 이력을 감사 로그로 보존한다. |
 | `places` → `ticket_products` → `ticket_inventory`, `users` → `reservations` → `reservation_items` ← `ticket_products`, `reservations` → `payments`, `reservation_items` → `issued_tickets` → `ticket_validation_logs` (예약·결제·발권) | 장소별 모의 티켓, 단일 집계 재고, 주문·결제, 개별 전자 티켓 발급과 검표 이력을 관리한다. 재고와 티켓 상태는 원자적으로 변경해 초과 판매와 중복 사용을 방지한다. |
 
@@ -32,13 +33,15 @@
 | 1차 MVP — 장소·추천 기반 | `places`, `place_images`, `place_travel_styles`, `favorites` | 여행지 탐색, 장소 상세, 즐겨찾기, 장소별 여행 스타일 적합도 |
 | 1차 MVP — 여행 일정 | `trips`, `trip_travel_styles`, `trip_days`, `itinerary_items` | AI·수동 여행 생성, 날짜별 일정 편집, 장소 순서와 메모 관리 |
 | 1차 MVP — AI·개인화 기반 | `ai_generation_requests`, `recommendation_events` | AI 일정 생성 이력, 추천 노출·클릭·즐겨찾기·일정 추가 행동 수집 |
+| 1차 여행 기록 P0 | `travel_records`, `travel_record_images` | 완료 여행 후기, 공개 범위, 평점과 외부 이미지 관리 |
+| 1차 여행 기록 P1·P2 | `travel_record_comments`, `travel_record_likes`, `travel_record_shares`, `travel_record_reports` | 댓글·답글, 좋아요, 공유 집계, 신고 및 관리자 처리 |
 | 1차 관리자 운영 | `place_sync_jobs`, `place_sync_errors`, `admin_audit_logs` | 장소 데이터 수집 작업, 실패 재처리, 운영자 변경 이력 관리 |
 | 2차 예약·동시성 확장 | `ticket_products`, `ticket_inventory`, `reservations`, `reservation_items`, `payments`, `issued_tickets`, `ticket_validation_logs` | 모의 티켓 판매, 재고 동시성 제어, 예약·결제, 전자 발권과 중복 검표 방지 |
 | 3차 AI 고도화 | 1차의 `user_preferences`, `place_travel_styles`, `recommendation_events`, `ai_generation_requests` 재사용 | 행동 기반 선호 추론, 개인화 추천, 동선 최적화와 RAG 응답 품질 개선 |
 
 ### 단계별 적용 원칙
 
-- 1차 핵심 MVP는 관리자 테이블을 제외한 13개 테이블을 사용한다.
+- V1~V5의 19개 테이블로 회원·장소·일정·AI 이력과 여행 기록·소셜 기능을 구성하며, P0/P1/P2 기능 활성화 시점은 분리한다.
 - 외부 장소 데이터를 자동 수집하거나 운영자가 직접 검수하는 시점에는 관리자 운영 3개 테이블을 1차 범위에 함께 적용한다.
 - 2차의 예약·결제·발권 7개 테이블은 1차 기능과 분리된 마이그레이션으로 배포할 수 있다.
 - 3차는 현재 별도의 MySQL 전용 테이블을 요구하지 않는다. 1차부터 누적한 선호·장소 스타일·추천 행동·AI 요청 데이터를 재사용한다.
@@ -50,6 +53,9 @@
 - 회원 이메일·닉네임, 여행 스타일 코드, 외부 제공자별 장소 ID, 즐겨찾기 `(user_id, place_id)`는 중복될 수 없다.
 - 장소별 여행 스타일은 `(place_id, travel_style_id)` 조합당 하나만 존재하며 적합도는 0~100 범위다.
 - 추천 행동은 회원과 장소를 필수로 참조하고, 관련 여행과 AI 요청은 선택적으로 참조한다.
+- 여행 기록은 `COMPLETED` 여행에만 생성하고 작성자는 해당 여행 소유자와 같아야 하며, 여행과 작성자 조합당 하나만 존재한다.
+- 여행 기록 대표 이미지는 기록당 최대 1개로 운영하고, 답글은 같은 여행 기록의 댓글만 부모로 참조하도록 서비스와 검증 SQL에서 확인한다.
+- 좋아요는 `(travel_record_id, user_id)` 조합을 유일하게 유지하고 공유는 집계를 위해 중복 이벤트를 누적한다.
 - 여행 종료일은 시작일보다 빠를 수 없고, 여행별 일차 번호 및 날짜는 각각 유일하다.
 - 일차 안의 `sort_order`는 유일하며 순서 변경 시 관련 행을 한 트랜잭션에서 갱신한다.
 - 장소 동기화 작업의 처리·생성·수정·실패 건수는 CHECK 제약 범위 안에서 누적하며, 레코드별 실패는 해당 작업의 하위 오류로 저장한다.
@@ -423,8 +429,85 @@
 | `metadata` | 추가 검표 문맥 JSON |
 | `validated_at` | 검표 시도 일시 |
 
+### 4.24 `travel_records` — 완료 여행 기록
+
+| 컬럼이름 | 설명 |
+| --- | --- |
+| `travel_record_id` | 여행 기록 PK |
+| `trip_id` | 완료된 여행 FK |
+| `user_id` | 기록 작성자 FK |
+| `title` | 여행 기록 제목 |
+| `content` | 여행 후기 본문 |
+| `rating` | 0~5 여행 평점 |
+| `visibility` | `PRIVATE`, `PUBLIC` 중 하나 |
+| `created_at` | 생성 일시 |
+| `updated_at` | 최종 수정 일시 |
+| `deleted_at` | 소프트 삭제 일시 |
+
+### 4.25 `travel_record_images` — 여행 기록 이미지
+
+| 컬럼이름 | 설명 |
+| --- | --- |
+| `travel_record_image_id` | 기록 이미지 PK |
+| `travel_record_id` | 여행 기록 FK |
+| `image_url` | 외부 이미지 URL |
+| `alt_text` | 이미지 대체 텍스트 |
+| `sort_order` | 기록 내 표시 순서 |
+| `is_cover` | 대표 이미지 여부 |
+| `created_at` | 생성 일시 |
+
+### 4.26 `travel_record_comments` — 여행 기록 댓글·답글
+
+| 컬럼이름 | 설명 |
+| --- | --- |
+| `travel_record_comment_id` | 댓글 PK |
+| `travel_record_id` | 댓글이 속한 여행 기록 FK |
+| `user_id` | 댓글 작성자 FK |
+| `parent_comment_id` | 답글의 부모 댓글 FK |
+| `content` | 댓글 본문 |
+| `status` | `ACTIVE`, `HIDDEN`, `DELETED` 중 하나 |
+| `created_at` | 생성 일시 |
+| `updated_at` | 최종 수정 일시 |
+| `deleted_at` | 소프트 삭제 일시 |
+
+### 4.27 `travel_record_likes` — 여행 기록 좋아요
+
+| 컬럼이름 | 설명 |
+| --- | --- |
+| `travel_record_like_id` | 좋아요 PK |
+| `travel_record_id` | 여행 기록 FK |
+| `user_id` | 좋아요를 누른 회원 FK |
+| `created_at` | 생성 일시 |
+
+### 4.28 `travel_record_shares` — 여행 기록 공유 이벤트
+
+| 컬럼이름 | 설명 |
+| --- | --- |
+| `travel_record_share_id` | 공유 이벤트 PK |
+| `travel_record_id` | 공유된 여행 기록 FK |
+| `user_id` | 공유 회원 FK, 비로그인 공유이면 NULL |
+| `channel` | `LINK`, `KAKAO`, `FACEBOOK`, `X`, `OTHER` 중 하나 |
+| `shared_at` | 공유 일시 |
+
+### 4.29 `travel_record_reports` — 여행 기록 신고
+
+| 컬럼이름 | 설명 |
+| --- | --- |
+| `travel_record_report_id` | 신고 PK |
+| `travel_record_id` | 신고 대상 여행 기록 FK |
+| `reporter_user_id` | 신고 회원 FK |
+| `reason` | `SPAM`, `ABUSE`, `INAPPROPRIATE`, `COPYRIGHT`, `PRIVACY`, `OTHER` 중 하나 |
+| `detail` | 신고 상세 내용 |
+| `status` | `PENDING`, `REVIEWING`, `RESOLVED`, `REJECTED` 중 하나 |
+| `processed_by` | 처리 관리자 FK |
+| `processed_at` | 처리 일시 |
+| `resolution_note` | 관리자 처리 메모 |
+| `created_at` | 생성 일시 |
+
 ## 5. 구현 시 주의사항
 
+- 여행 기록 생성·수정은 여행 소유자만 허용하고, 완료 여행 여부와 답글의 동일 기록 소속을 서비스 트랜잭션에서 재검증한다.
+- 여행 기록과 댓글은 소프트 삭제하며 일반 사용자 조회에서는 deleted_at이 NULL인 데이터만 노출한다.
 - `trips` 생성 시 시작일부터 종료일까지의 `trip_days`를 생성하고, 날짜 범위 유효성은 서비스 계층에서도 검사한다. 서로 다른 행을 참조하는 규칙은 CHECK만으로 보장할 수 없다.
 - 본 프로젝트의 예약·결제·발권은 팀 프로젝트용 모의 시스템이며 실제 티켓 공급사나 PG사와 연동하지 않는다.
 - 모의 결제가 확정되면 구매 수량만큼 개별 전자 티켓을 발급하고, 모바일 QR과 인쇄 티켓은 같은 검증 체계를 사용한다.
@@ -474,7 +557,6 @@
 
 | 추가 후보 테이블·컬럼 | 필요 목적 | 도입 시점 |
 | --- | --- | --- |
-
 | `place_travel_styles.review_status` 및 검수자 컬럼 | AI 생성 태그의 대기·승인·반려 상태와 검수자 추적 | AI 태그 승인 워크플로 도입 시 |
 | 장소 병합 이력 구조 | 중복 장소의 대표 장소 지정과 기존 참조 이전 기록 | 중복 병합 기능 구현 시 |
 
@@ -519,3 +601,30 @@ ISSUED → USED 원자적 상태 변경
       ↓
 성공·실패를 포함한 모든 검표 시도 기록
 ```
+
+## 8. 실행 SQL 폴더 구조
+
+실행 기준 파일은 저장소 루트의 `database/`에 있으며, 이 문서는 설계 사전이다. 전체 통합 DDL은 `docs/database/all_my_trips_schema.sql`에서 확인한다.
+
+```text
+database/
+├── init/       # all_my_trips 데이터베이스 생성 DDL
+├── migration/  # V1~V7 Flyway DDL
+├── seed/       # 기능별 로컬 합성 데이터
+├── validation/ # 건수 및 무결성 검증 SQL
+└── README.md   # 생성·실행·검증 순서
+```
+
+- `database/init/create_database.sql`을 먼저 실행해 `all_my_trips` 스키마와 문자셋을 생성한다.
+- V1~V5: 1차 회원·장소·일정·AI·여행 기록 및 소셜
+- V6: 관리자 장소 수집과 감사 로그
+- V7: 2주차 관광 티켓 예약·모의 결제·발권
+- 항공권과 숙소 자체 예약 테이블은 생성하지 않는다. 숙소는 `places`와 외부 `website_url`을 사용한다.
+
+## 9. 알려진 제한사항 및 업무지시서 수량 충돌
+
+- 기존 업무지시서에는 여행 기록 8~10건을 추가하도록 되어 있지만, 지정된 `COMPLETED` 여행은 4건이고 여행당 여행 기록은 최대 1건만 허용된다.
+- 완료 여행 4건에 여행 기록 8~10건을 억지로 연결하면 여행당 기록 1건, 여행 기록 작성자와 여행 소유자 일치 또는 완료 여행만 기록 가능하다는 무결성 규칙을 위반하게 된다.
+- 따라서 현재 로컬 seed는 무결성을 우선하여 `COMPLETED` 여행 4건에 여행 기록을 각각 1건씩, 총 4건만 추가한다.
+- 향후 여행 기록을 8~10건으로 늘려야 한다면 먼저 `COMPLETED` 여행을 동일한 수만큼 확보한 뒤 각 여행에 기록을 1건씩 연결해야 한다.
+- 이 결정은 [DB 업무 완료 보고](../../database/DB_WORK_COMPLETION_REPORT.md)의 팀장 확인 필요 사항과 알려진 제한사항에도 기록한다.
