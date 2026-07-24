@@ -1,0 +1,10 @@
+/* 관리자 대시보드 전용 스타일 */
+body.page-admin #page-content {
+  min-height: calc(100vh - 78px);
+}
+
+@media (max-width: 760px) {
+  body.page-admin #page-content {
+    min-height: calc(100vh - 64px);
+  }
+}

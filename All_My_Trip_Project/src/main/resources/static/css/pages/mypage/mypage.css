@@ -1,0 +1,10 @@
+/* 마이 페이지 전용 스타일 */
+body.page-mypage #page-content {
+  min-height: calc(100vh - 78px);
+}
+
+@media (max-width: 760px) {
+  body.page-mypage #page-content {
+    min-height: calc(100vh - 64px);
+  }
+}

@@ -1,0 +1,10 @@
+/* 여행지 추천 전용 스타일 */
+body.page-recommendations #page-content {
+  min-height: calc(100vh - 78px);
+}
+
+@media (max-width: 760px) {
+  body.page-recommendations #page-content {
+    min-height: calc(100vh - 64px);
+  }
+}
