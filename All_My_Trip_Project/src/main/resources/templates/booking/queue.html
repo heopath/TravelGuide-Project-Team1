@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="All My Trips 예약 대기열" />
+    <title>예약 대기열 — All My Trips</title>
+    <link rel="icon" th:href="@{/images/icons/app-icon.png}" href="/images/icons/app-icon.png" />
+    <link rel="stylesheet" th:href="@{/css/common/reset.css}" href="/css/common/reset.css" />
+    <link rel="stylesheet" th:href="@{/css/common/layout.css}" href="/css/common/layout.css" />
+    <link rel="stylesheet" th:href="@{/css/common/components.css}" href="/css/common/components.css" />
+    <link rel="stylesheet" th:href="@{/css/pages/booking/queue.css}" href="/css/pages/booking/queue.css" />
+  </head>
+  <body class="page-queue" data-route="/booking/queue">
+    <div class="app">
+      <div th:replace="~{fragments/header :: header('booking')}"></div>
+      <main id="page-content">
+        <section class="page-shell"><section class="queue-card white-panel"><div class="queue-icon">⌛</div><span class="section-eyebrow">18 예약 대기열</span><h1>예약 요청이 많아 순서대로 연결 중입니다.</h1><p>창을 닫아도 10분 동안 순번이 유지됩니다.</p><div class="queue-number"><span>현재 순번</span><strong>328</strong><small>예상 대기 4분</small></div><div class="progress"><i style="width:63%"></i></div><button class="primary-button" data-modal="payment">바로 결제 화면 보기</button><button class="text-button" data-modal="queue">만료 상태 확인</button><button class="text-button" data-route="/booking">다른 상품 보기</button></section></section>
+      </main>
+      <div th:replace="~{fragments/modals :: modalRoots}"></div>
+      <div th:replace="~{fragments/footer :: footer}"></div>
+    </div>
+    <script th:src="@{/js/common/api.js}" src="/js/common/api.js" defer></script>
+    <script th:src="@{/js/common/navigation.js}" src="/js/common/navigation.js" defer></script>
+    <script th:src="@{/js/common/modal.js}" src="/js/common/modal.js" defer></script>
+    <script th:src="@{/js/pages/booking/queue.js}" src="/js/pages/booking/queue.js" defer></script>
+  </body>
+</html>

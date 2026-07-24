@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="All My Trips AI 일정 최적화" />
+    <title>AI 일정 최적화 — All My Trips</title>
+    <link rel="icon" th:href="@{/images/icons/app-icon.png}" href="/images/icons/app-icon.png" />
+    <link rel="stylesheet" th:href="@{/css/common/reset.css}" href="/css/common/reset.css" />
+    <link rel="stylesheet" th:href="@{/css/common/layout.css}" href="/css/common/layout.css" />
+    <link rel="stylesheet" th:href="@{/css/common/components.css}" href="/css/common/components.css" />
+    <link rel="stylesheet" th:href="@{/css/pages/trips/optimize.css}" href="/css/pages/trips/optimize.css" />
+  </head>
+  <body class="page-optimize" data-route="/trips/busan/optimize">
+    <div class="app">
+      <div th:replace="~{fragments/header :: header('schedule')}"></div>
+      <main id="page-content">
+        <section class="page-shell">
+      
+    <section class="page-heading">
+      <div>
+        <h1><span>02 </span>AI 일정 최적화</h1>
+        <p>이동 시간과 영업시간을 분석해 더 좋은 순서를 제안했어요.</p>
+        <i>✦</i>
+      </div>
+      
+    </section>
+  
+      <div class="optimize-grid"><section class="white-panel"><span class="section-eyebrow">현재 일정</span><h2>이동 2시간 10분</h2><div class="route-list"><div><span>1</span><strong>광안리 해변</strong></div><div><span>2</span><strong>감천문화마을</strong></div><div><span>3</span><strong>해운대</strong></div><div><span>4</span><strong>자갈치시장</strong></div></div></section><div class="optimize-arrow">→</div><section class="white-panel recommended"><span class="section-eyebrow">마이티 추천</span><h2>이동 1시간 25분</h2><div class="route-list"><div><span>1</span><strong>자갈치시장</strong></div><div><span>2</span><strong>감천문화마을</strong></div><div><span>3</span><strong>광안리 해변</strong></div><div><span>4</span><strong>해운대</strong></div></div><p>이동 45분 절약 · 영업시간 충돌 1건 해결</p></section></div>
+      <div class="center-actions"><button class="outline-button" data-modal="conflict">충돌 내용 보기</button><button class="primary-button" data-modal="apply-ai">추천 일정 적용</button><button class="text-button" data-route="/trips/busan/schedule">일정으로 돌아가기</button></div>
+    </section>
+      </main>
+      <div th:replace="~{fragments/modals :: modalRoots}"></div>
+      <div th:replace="~{fragments/footer :: footer}"></div>
+    </div>
+    <script th:src="@{/js/common/api.js}" src="/js/common/api.js" defer></script>
+    <script th:src="@{/js/common/navigation.js}" src="/js/common/navigation.js" defer></script>
+    <script th:src="@{/js/common/modal.js}" src="/js/common/modal.js" defer></script>
+    <script th:src="@{/js/pages/trips/optimize.js}" src="/js/pages/trips/optimize.js" defer></script>
+  </body>
+</html>

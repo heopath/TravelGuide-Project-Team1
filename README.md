@@ -16,7 +16,7 @@
 
 <br><br>
 
-<img src="https://img.shields.io/badge/Java-17-007396?style=flat-square&logo=openjdk&logoColor=white" />
+<img src="https://img.shields.io/badge/Java-21-007396?style=flat-square&logo=openjdk&logoColor=white" />
 <img src="https://img.shields.io/badge/Spring%20Boot-6DB33F?style=flat-square&logo=springboot&logoColor=white" />
 <img src="https://img.shields.io/badge/MySQL-4479A1?style=flat-square&logo=mysql&logoColor=white" />
 <img src="https://img.shields.io/badge/Redis-DC382D?style=flat-square&logo=redis&logoColor=white" />
@@ -769,6 +769,7 @@ AllMyTrips/
 | 👨‍💻 팀원 |   정인길   |
 | 👨‍💻 팀원 |   홍유원   |
 | 👨‍💻 팀원 |   남호현   |
+| 👨‍💻 팀원 |   한성주   |
 
 </details>
 
@@ -837,7 +838,7 @@ AllMyTrips/
 
 |     구분    | 링크    |
 | :-------: | ----- |
-|  🎨 Figma | 추후 추가 |
+|  🎨 Figma | [바로가기](https://www.figma.com/design/byqjrBMhrQzNsuE7AWJCfd/All-My-Trips-%E2%80%94-AI-%EB%A7%9E%EC%B6%A4-%EC%97%AC%ED%96%89-%ED%94%8C%EB%9E%AB%ED%8F%BC-%EC%A0%84%EC%B2%B4-%ED%99%94%EB%A9%B4--%ED%97%88%EB%AF%BC%EC%9E%AC-%ED%8C%80-?node-id=3-4310&p=f&t=FA8LwNIAQxCFGwsn-0) |
 | 📖 Notion | 추후 추가 |
 |  🌐 Demo  | 추후 추가 |
 |  🎬 Video | 추후 추가 |

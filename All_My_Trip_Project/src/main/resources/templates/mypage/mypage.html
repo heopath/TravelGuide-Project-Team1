@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="All My Trips 마이 페이지" />
+    <title>마이 페이지 — All My Trips</title>
+    <link rel="icon" th:href="@{/images/icons/app-icon.png}" href="/images/icons/app-icon.png" />
+    <link rel="stylesheet" th:href="@{/css/common/reset.css}" href="/css/common/reset.css" />
+    <link rel="stylesheet" th:href="@{/css/common/layout.css}" href="/css/common/layout.css" />
+    <link rel="stylesheet" th:href="@{/css/common/components.css}" href="/css/common/components.css" />
+    <link rel="stylesheet" th:href="@{/css/pages/mypage/mypage.css}" href="/css/pages/mypage/mypage.css" />
+  </head>
+  <body class="page-mypage" data-route="/mypage">
+    <div class="app">
+      <div th:replace="~{fragments/header :: header('mypage')}"></div>
+      <main id="page-content">
+        <section class="page-shell">
+      
+    <section class="page-heading">
+      <div>
+        <h1>마이 페이지</h1>
+        <p>나의 정보와 예약 내역을 관리하세요.</p>
+        <i>✦</i>
+      </div>
+      
+    </section>
+  
+      <div class="profile-overview"><section class="white-panel profile-card"><div class="profile-avatar">민</div><div><h2>김마이티 님</h2><p>여행이 일상이 되는 순간 ✈</p><button class="outline-button">프로필 관리</button></div></section><div class="metric-card metric-0"><span>예약 내역</span><strong>3건</strong></div><div class="metric-card metric-1"><span>찜한 여행지</span><strong>12곳</strong></div><div class="metric-card metric-2"><span>여행 일정</span><strong>2개</strong></div><div class="metric-card metric-3"><span>포인트</span><strong>2,450P</strong></div></div>
+      <div class="mypage-grid"><section class="white-panel account-bookings"><h2>예약 내역</h2><div><span>✈</span><p><strong>인천 → 제주</strong><small>08.14 09:10</small></p><button data-modal="refund">예약 확정</button></div><div><span>▣</span><p><strong>Ocean Stay Jeju</strong><small>08.14–08.17</small></p><button data-route="/booking">예약 확정</button></div><div><span>★</span><p><strong>성산일출봉 투어</strong><small>08.15 05:30</small></p><button data-route="/booking">결제 완료</button></div></section><aside class="white-panel account-menu"><h2>내 정보</h2><button>결제 수단 관리<span>›</span></button><button>알림 설정<span>›</span></button><button>고객센터<span>›</span></button><button>회원정보 수정<span>›</span></button><button class="danger-link" data-modal="delete-account">로그아웃 · 회원 탈퇴<span>›</span></button></aside></div>
+    </section>
+      </main>
+      <div th:replace="~{fragments/modals :: modalRoots}"></div>
+      <div th:replace="~{fragments/footer :: footer}"></div>
+    </div>
+    <script th:src="@{/js/common/api.js}" src="/js/common/api.js" defer></script>
+    <script th:src="@{/js/common/navigation.js}" src="/js/common/navigation.js" defer></script>
+    <script th:src="@{/js/common/modal.js}" src="/js/common/modal.js" defer></script>
+    <script th:src="@{/js/pages/mypage/mypage.js}" src="/js/pages/mypage/mypage.js" defer></script>
+  </body>
+</html>

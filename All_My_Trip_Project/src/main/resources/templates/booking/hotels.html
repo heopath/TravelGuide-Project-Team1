@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="All My Trips 숙소 검색" />
+    <title>숙소 검색 — All My Trips</title>
+    <link rel="icon" th:href="@{/images/icons/app-icon.png}" href="/images/icons/app-icon.png" />
+    <link rel="stylesheet" th:href="@{/css/common/reset.css}" href="/css/common/reset.css" />
+    <link rel="stylesheet" th:href="@{/css/common/layout.css}" href="/css/common/layout.css" />
+    <link rel="stylesheet" th:href="@{/css/common/components.css}" href="/css/common/components.css" />
+    <link rel="stylesheet" th:href="@{/css/pages/booking/hotels.css}" href="/css/pages/booking/hotels.css" />
+  </head>
+  <body class="page-hotels" data-route="/booking/hotels">
+    <div class="app">
+      <div th:replace="~{fragments/header :: header('booking')}"></div>
+      <main id="page-content">
+        <section class="page-shell">
+    <section class="page-heading">
+      <div>
+        <h1><span>04 </span>숙소 검색</h1>
+        <p>일정 동선과 취향에 맞는 숙소를 비교하세요.</p>
+        <i>✦</i>
+      </div>
+      
+    </section>
+  <div class="search-strip"><button>부산 해운대</button><button>08.14–08.17</button><button>성인 2명 · 객실 1</button><button class="primary-button">검색</button></div><div class="result-list"><article><div class="result-thumb tone-blue"></div><div><h2>오션 스테이 해운대</h2><p>해변 2분 · 평점 4.8</p><span>무료 취소 · 조식 선택</span></div><strong>145,000원<small>/ 1박</small></strong><button class="outline-button" data-modal="payment">객실 선택</button></article><article><div class="result-thumb tone-mint"></div><div><h2>마린시티 레지던스</h2><p>취사 가능 · 평점 4.7</p><span>무료 취소 · 조식 선택</span></div><strong>128,000원<small>/ 1박</small></strong><button class="outline-button" data-modal="payment">객실 선택</button></article><article><div class="result-thumb tone-violet"></div><div><h2>센텀 부티크 호텔</h2><p>지하철 3분 · 평점 4.6</p><span>무료 취소 · 조식 선택</span></div><strong>112,000원<small>/ 1박</small></strong><button class="outline-button" data-modal="payment">객실 선택</button></article></div></section>
+      </main>
+      <div th:replace="~{fragments/modals :: modalRoots}"></div>
+      <div th:replace="~{fragments/footer :: footer}"></div>
+    </div>
+    <script th:src="@{/js/common/api.js}" src="/js/common/api.js" defer></script>
+    <script th:src="@{/js/common/navigation.js}" src="/js/common/navigation.js" defer></script>
+    <script th:src="@{/js/common/modal.js}" src="/js/common/modal.js" defer></script>
+    <script th:src="@{/js/pages/booking/hotels.js}" src="/js/pages/booking/hotels.js" defer></script>
+  </body>
+</html>
