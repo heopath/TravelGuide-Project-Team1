@@ -1,16 +1,13 @@
--- All My Trip database schema
+-- All My Trips integrated database schema
 -- Target: MySQL 8.0+
 -- Character set: utf8mb4
+-- Canonical executable migrations live in database/migration/V1..V7.
 
-CREATE DATABASE IF NOT EXISTS all_my_trip
+CREATE DATABASE IF NOT EXISTS all_my_trips
     DEFAULT CHARACTER SET utf8mb4
     DEFAULT COLLATE utf8mb4_0900_ai_ci;
 
-USE all_my_trip;
-
--- =========================================================
--- 1. Member and preference domain
--- =========================================================
+USE all_my_trips;
 
 CREATE TABLE users (
     user_id         BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT 'User identifier',
@@ -60,10 +57,6 @@ CREATE TABLE user_preferences (
     CONSTRAINT ck_user_preferences_score CHECK (preference_score BETWEEN 0 AND 100),
     CONSTRAINT ck_user_preferences_source CHECK (source IN ('EXPLICIT', 'INFERRED'))
 ) ENGINE=InnoDB COMMENT='Per-user travel style preferences';
-
--- =========================================================
--- 2. Place catalog domain
--- =========================================================
 
 CREATE TABLE places (
     place_id           BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT 'Place identifier',
@@ -136,10 +129,6 @@ CREATE TABLE favorites (
     CONSTRAINT fk_favorites_user FOREIGN KEY (user_id) REFERENCES users (user_id) ON DELETE CASCADE,
     CONSTRAINT fk_favorites_place FOREIGN KEY (place_id) REFERENCES places (place_id) ON DELETE CASCADE
 ) ENGINE=InnoDB COMMENT='Places saved by users';
-
--- =========================================================
--- 3. Trip planning domain
--- =========================================================
 
 CREATE TABLE trips (
     trip_id             BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT 'Trip identifier',
@@ -229,10 +218,6 @@ CREATE TABLE itinerary_items (
     CONSTRAINT ck_itinerary_items_source CHECK (source IN ('MANUAL', 'AI'))
 ) ENGINE=InnoDB COMMENT='Ordered activities within a trip day';
 
--- =========================================================
--- 4. AI domain
--- =========================================================
-
 CREATE TABLE ai_generation_requests (
     ai_generation_request_id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT 'AI generation request identifier',
     user_id                   BIGINT UNSIGNED NOT NULL COMMENT 'Requester user identifier',
@@ -283,9 +268,109 @@ CREATE TABLE recommendation_events (
     CONSTRAINT ck_recommendation_events_type CHECK (event_type IN ('IMPRESSION', 'CLICK', 'FAVORITE', 'ADD_TO_TRIP', 'REMOVE_FROM_TRIP', 'DISMISS'))
 ) ENGINE=InnoDB COMMENT='User behavior events for recommendation evaluation and preference inference';
 
--- =========================================================
--- 5. Administration and place data operation domain
--- =========================================================
+CREATE TABLE travel_records (
+    travel_record_id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT 'Travel record identifier',
+    trip_id          BIGINT UNSIGNED NOT NULL COMMENT 'Completed trip identifier',
+    user_id          BIGINT UNSIGNED NOT NULL COMMENT 'Record author user identifier',
+    title            VARCHAR(150) NOT NULL COMMENT 'Travel record title',
+    content          TEXT NOT NULL COMMENT 'Travel record content',
+    rating           DECIMAL(2,1) NULL COMMENT 'Trip rating from 0 to 5',
+    visibility       VARCHAR(20) NOT NULL DEFAULT 'PRIVATE' COMMENT 'Visibility (PRIVATE, PUBLIC)',
+    created_at       DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) COMMENT 'Creation time',
+    updated_at       DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6) COMMENT 'Last update time',
+    deleted_at       DATETIME(6) NULL COMMENT 'Soft deletion time',
+    PRIMARY KEY (travel_record_id),
+    UNIQUE KEY uk_travel_records_trip_user (trip_id, user_id),
+    KEY idx_travel_records_user_created (user_id, created_at),
+    KEY idx_travel_records_visibility_created (visibility, created_at),
+    CONSTRAINT fk_travel_records_trip FOREIGN KEY (trip_id) REFERENCES trips (trip_id),
+    CONSTRAINT fk_travel_records_user FOREIGN KEY (user_id) REFERENCES users (user_id),
+    CONSTRAINT ck_travel_records_rating CHECK (rating IS NULL OR rating BETWEEN 0 AND 5),
+    CONSTRAINT ck_travel_records_visibility CHECK (visibility IN ('PRIVATE', 'PUBLIC'))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='Travel reviews for completed trips';
+
+CREATE TABLE travel_record_images (
+    travel_record_image_id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT 'Travel record image identifier',
+    travel_record_id       BIGINT UNSIGNED NOT NULL COMMENT 'Travel record identifier',
+    image_url              VARCHAR(1000) NOT NULL COMMENT 'External image URL',
+    alt_text               VARCHAR(300) NULL COMMENT 'Image alternative text',
+    sort_order             INT UNSIGNED NOT NULL DEFAULT 1 COMMENT 'Display order within the record',
+    is_cover               BOOLEAN NOT NULL DEFAULT FALSE COMMENT 'Whether this is the cover image',
+    created_at             DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) COMMENT 'Creation time',
+    PRIMARY KEY (travel_record_image_id),
+    UNIQUE KEY uk_record_images_order (travel_record_id, sort_order),
+    KEY idx_record_images_record (travel_record_id),
+    CONSTRAINT fk_record_images_record FOREIGN KEY (travel_record_id) REFERENCES travel_records (travel_record_id) ON DELETE CASCADE,
+    CONSTRAINT ck_record_images_order CHECK (sort_order > 0)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='External images attached to travel records';
+
+CREATE TABLE travel_record_comments (
+    travel_record_comment_id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT 'Travel record comment identifier',
+    travel_record_id         BIGINT UNSIGNED NOT NULL COMMENT 'Travel record identifier',
+    user_id                  BIGINT UNSIGNED NOT NULL COMMENT 'Comment author user identifier',
+    parent_comment_id        BIGINT UNSIGNED NULL COMMENT 'Parent comment identifier for replies',
+    content                  VARCHAR(1000) NOT NULL COMMENT 'Comment content',
+    status                   VARCHAR(20) NOT NULL DEFAULT 'ACTIVE' COMMENT 'Comment status (ACTIVE, HIDDEN, DELETED)',
+    created_at               DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) COMMENT 'Creation time',
+    updated_at               DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6) COMMENT 'Last update time',
+    deleted_at               DATETIME(6) NULL COMMENT 'Soft deletion time',
+    PRIMARY KEY (travel_record_comment_id),
+    KEY idx_record_comments_record_created (travel_record_id, created_at),
+    KEY idx_record_comments_user (user_id),
+    KEY idx_record_comments_parent (parent_comment_id),
+    CONSTRAINT fk_record_comments_record FOREIGN KEY (travel_record_id) REFERENCES travel_records (travel_record_id) ON DELETE CASCADE,
+    CONSTRAINT fk_record_comments_user FOREIGN KEY (user_id) REFERENCES users (user_id),
+    CONSTRAINT fk_record_comments_parent FOREIGN KEY (parent_comment_id) REFERENCES travel_record_comments (travel_record_comment_id) ON DELETE SET NULL,
+    CONSTRAINT ck_record_comments_status CHECK (status IN ('ACTIVE', 'HIDDEN', 'DELETED'))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='Comments and replies on travel records';
+
+CREATE TABLE travel_record_likes (
+    travel_record_like_id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT 'Travel record like identifier',
+    travel_record_id      BIGINT UNSIGNED NOT NULL COMMENT 'Travel record identifier',
+    user_id               BIGINT UNSIGNED NOT NULL COMMENT 'User identifier',
+    created_at            DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) COMMENT 'Creation time',
+    PRIMARY KEY (travel_record_like_id),
+    UNIQUE KEY uk_record_likes_record_user (travel_record_id, user_id),
+    KEY idx_record_likes_user_created (user_id, created_at),
+    CONSTRAINT fk_record_likes_record FOREIGN KEY (travel_record_id) REFERENCES travel_records (travel_record_id) ON DELETE CASCADE,
+    CONSTRAINT fk_record_likes_user FOREIGN KEY (user_id) REFERENCES users (user_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='User likes on travel records';
+
+CREATE TABLE travel_record_shares (
+    travel_record_share_id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT 'Travel record share event identifier',
+    travel_record_id       BIGINT UNSIGNED NOT NULL COMMENT 'Travel record identifier',
+    user_id                BIGINT UNSIGNED NULL COMMENT 'Sharing user identifier; NULL for anonymous share',
+    channel                VARCHAR(30) NOT NULL COMMENT 'Share channel (LINK, KAKAO, FACEBOOK, X, OTHER)',
+    shared_at              DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) COMMENT 'Share time',
+    PRIMARY KEY (travel_record_share_id),
+    KEY idx_record_shares_record_time (travel_record_id, shared_at),
+    KEY idx_record_shares_user_time (user_id, shared_at),
+    CONSTRAINT fk_record_shares_record FOREIGN KEY (travel_record_id) REFERENCES travel_records (travel_record_id) ON DELETE CASCADE,
+    CONSTRAINT fk_record_shares_user FOREIGN KEY (user_id) REFERENCES users (user_id) ON DELETE SET NULL,
+    CONSTRAINT ck_record_shares_channel CHECK (channel IN ('LINK', 'KAKAO', 'FACEBOOK', 'X', 'OTHER'))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='Accumulated travel record share events';
+
+CREATE TABLE travel_record_reports (
+    travel_record_report_id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT 'Travel record report identifier',
+    travel_record_id        BIGINT UNSIGNED NOT NULL COMMENT 'Reported travel record identifier',
+    reporter_user_id        BIGINT UNSIGNED NOT NULL COMMENT 'Reporting user identifier',
+    reason                  VARCHAR(30) NOT NULL COMMENT 'Report reason',
+    detail                  VARCHAR(1000) NULL COMMENT 'Detailed report description',
+    status                  VARCHAR(20) NOT NULL DEFAULT 'PENDING' COMMENT 'Report status (PENDING, REVIEWING, RESOLVED, REJECTED)',
+    processed_by            BIGINT UNSIGNED NULL COMMENT 'Administrator processor user identifier',
+    processed_at            DATETIME(6) NULL COMMENT 'Processing completion time',
+    resolution_note         VARCHAR(1000) NULL COMMENT 'Administrator resolution note',
+    created_at              DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) COMMENT 'Creation time',
+    PRIMARY KEY (travel_record_report_id),
+    KEY idx_record_reports_status_created (status, created_at),
+    KEY idx_record_reports_record_status (travel_record_id, status),
+    KEY idx_record_reports_reporter (reporter_user_id),
+    CONSTRAINT fk_record_reports_record FOREIGN KEY (travel_record_id) REFERENCES travel_records (travel_record_id) ON DELETE CASCADE,
+    CONSTRAINT fk_record_reports_reporter FOREIGN KEY (reporter_user_id) REFERENCES users (user_id),
+    CONSTRAINT fk_record_reports_processor FOREIGN KEY (processed_by) REFERENCES users (user_id) ON DELETE SET NULL,
+    CONSTRAINT ck_record_reports_reason CHECK (reason IN ('SPAM', 'ABUSE', 'INAPPROPRIATE', 'COPYRIGHT', 'PRIVACY', 'OTHER')),
+    CONSTRAINT ck_record_reports_status CHECK (status IN ('PENDING', 'REVIEWING', 'RESOLVED', 'REJECTED'))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='Travel record reports and administrator resolutions';
 
 CREATE TABLE place_sync_jobs (
     place_sync_job_id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT 'Place synchronization job identifier',
@@ -350,11 +435,6 @@ CREATE TABLE admin_audit_logs (
     KEY idx_admin_audit_logs_request (request_id),
     CONSTRAINT fk_admin_audit_logs_admin FOREIGN KEY (admin_user_id) REFERENCES users (user_id) ON DELETE SET NULL
 ) ENGINE=InnoDB COMMENT='Immutable administrator and system action audit trail';
-
--- =========================================================
--- 6. Ticket, reservation, and payment domain
-
--- =========================================================
 
 CREATE TABLE ticket_products (
     ticket_product_id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT 'Ticket product identifier',
@@ -510,15 +590,3 @@ CREATE TABLE ticket_validation_logs (
     CONSTRAINT ck_ticket_validation_logs_result CHECK (validation_result IN ('SUCCESS', 'NOT_FOUND', 'ALREADY_USED', 'CANCELLED', 'EXPIRED')),
     CONSTRAINT ck_ticket_validation_logs_channel CHECK (validation_channel IN ('ADMIN_WEB', 'MOCK_SCANNER', 'API'))
 ) ENGINE=InnoDB COMMENT='Mock QR and barcode ticket validation attempts';
-
--- Seed values used by the planning UI and recommendation model.
-INSERT INTO travel_styles (code, name, description, sort_order) VALUES
-    ('SIGHTSEEING', '관광', '대표 명소와 문화 공간 중심', 1),
-    ('FOOD', '맛집', '지역 음식과 식당 중심', 2),
-    ('HEALING', '힐링', '휴식과 여유 중심', 3),
-    ('ACTIVITY', '액티비티', '체험과 야외 활동 중심', 4),
-    ('CAFE', '카페', '카페와 디저트 중심', 5)
-ON DUPLICATE KEY UPDATE
-    name = VALUES(name),
-    description = VALUES(description),
-    sort_order = VALUES(sort_order);
