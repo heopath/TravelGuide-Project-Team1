@@ -1,0 +1,10 @@
+/* AI 여행 가이드 전용 스타일 */
+body.page-ai-guide #page-content {
+  min-height: calc(100vh - 78px);
+}
+
+@media (max-width: 760px) {
+  body.page-ai-guide #page-content {
+    min-height: calc(100vh - 64px);
+  }
+}
