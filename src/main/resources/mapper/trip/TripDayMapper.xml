@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.example.all_my_trip_project.domain.trip.mapper.TripDayMapper">
+    <insert id="insert" useGeneratedKeys="true" keyProperty="tripDayId">
+        INSERT INTO trip_days (trip_id, day_number, trip_date, title, memo)
+        VALUES (#{tripId}, #{dayNumber}, #{tripDate}, #{title}, #{memo})
+    </insert>
+    <select id="findById" resultType="org.example.all_my_trip_project.domain.trip.dto.TripDayDTO">
+        SELECT * FROM trip_days WHERE trip_day_id = #{tripDayId}
+    </select>
+    <select id="findByTripId" resultType="org.example.all_my_trip_project.domain.trip.dto.TripDayDTO">
+        SELECT * FROM trip_days WHERE trip_id = #{tripId} ORDER BY day_number
+    </select>
+    <update id="update">
+        UPDATE trip_days
+        SET day_number = #{dayNumber}, trip_date = #{tripDate},
+            title = #{title}, memo = #{memo}, updated_at = CURRENT_TIMESTAMP(6)
+        WHERE trip_day_id = #{tripDayId}
+    </update>
+    <delete id="delete">
+        DELETE FROM trip_days WHERE trip_day_id = #{tripDayId}
+    </delete>
+</mapper>

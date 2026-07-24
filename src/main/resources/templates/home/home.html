@@ -5,11 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content="All My Trips 메인 화면" />
     <title>메인 화면 — All My Trips</title>
-    <link rel="icon" th:href="@{/images/icons/app-icon.png}" href="/images/icons/app-icon.png" />
-    <link rel="stylesheet" th:href="@{/css/common/reset.css}" href="/css/common/reset.css" />
-    <link rel="stylesheet" th:href="@{/css/common/layout.css}" href="/css/common/layout.css" />
-    <link rel="stylesheet" th:href="@{/css/common/components.css}" href="/css/common/components.css" />
-    <link rel="stylesheet" th:href="@{/css/pages/home/home.css}" href="/css/pages/home/home.css" />
+    <link rel="icon" th:href="@{/images/icons/app-icon.png}" href="../../static/images/icons/app-icon.png" />
+    <link rel="stylesheet" th:href="@{/css/common/reset.css}" href="../../static/css/common/reset.css" />
+    <link rel="stylesheet" th:href="@{/css/common/layout.css}" href="../../static/css/common/layout.css" />
+    <link rel="stylesheet" th:href="@{/css/common/components.css}" href="../../static/css/common/components.css" />
+    <link rel="stylesheet" th:href="@{/css/pages/home/home.css}" href="../../static/css/pages/home/home.css" />
   </head>
   <body class="page-home" data-route="/home">
     <div class="app">
@@ -19,7 +19,7 @@
       <div class="home-hero">
         <div class="flight-orbit"><span>✈</span></div>
         <div class="hero-logo">
-          <img th:src="@{/images/icons/app-icon.png}" src="/images/icons/app-icon.png" alt="" />
+          <img th:src="@{/images/icons/app-icon.png}" src="../../static/images/icons/app-icon.png" alt="" />
           <h1>All My Trips</h1>
           <p>마이티와 함께하는 여행~</p>
         </div>
@@ -34,12 +34,9 @@
       </div>
     </section>
       </main>
-      <div th:replace="~{fragments/modals :: modalRoots}"></div>
+      <div th:replace="~{fragments/modals :: modalRoots}"><div id="directory-root"></div><div id="modal-root"></div><div id="toast-root" aria-live="polite"></div></div>
       <div th:replace="~{fragments/footer :: footer}"></div>
     </div>
-    <script th:src="@{/js/common/api.js}" src="/js/common/api.js" defer></script>
-    <script th:src="@{/js/common/navigation.js}" src="/js/common/navigation.js" defer></script>
-    <script th:src="@{/js/common/modal.js}" src="/js/common/modal.js" defer></script>
-    <script th:src="@{/js/pages/home/home.js}" src="/js/pages/home/home.js" defer></script>
+    <div th:replace="~{fragments/scripts :: appScripts}"></div>
   </body>
 </html>

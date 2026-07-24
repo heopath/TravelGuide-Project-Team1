@@ -5,11 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content="All My Trips 예약 허브" />
     <title>예약 허브 — All My Trips</title>
-    <link rel="icon" th:href="@{/images/icons/app-icon.png}" href="/images/icons/app-icon.png" />
-    <link rel="stylesheet" th:href="@{/css/common/reset.css}" href="/css/common/reset.css" />
-    <link rel="stylesheet" th:href="@{/css/common/layout.css}" href="/css/common/layout.css" />
-    <link rel="stylesheet" th:href="@{/css/common/components.css}" href="/css/common/components.css" />
-    <link rel="stylesheet" th:href="@{/css/pages/booking/booking.css}" href="/css/pages/booking/booking.css" />
+    <link rel="icon" th:href="@{/images/icons/app-icon.png}" href="../../static/images/icons/app-icon.png" />
+    <link rel="stylesheet" th:href="@{/css/common/reset.css}" href="../../static/css/common/reset.css" />
+    <link rel="stylesheet" th:href="@{/css/common/layout.css}" href="../../static/css/common/layout.css" />
+    <link rel="stylesheet" th:href="@{/css/common/components.css}" href="../../static/css/common/components.css" />
+    <link rel="stylesheet" th:href="@{/css/pages/booking/booking.css}" href="../../static/css/pages/booking/booking.css" />
   </head>
   <body class="page-booking" data-route="/booking">
     <div class="app">
@@ -30,12 +30,9 @@
       <section class="white-panel booking-recommendations"><h2>AI 추천 일정에 필요한 예약</h2><button data-route="/booking/flights"><span>✈</span><strong>인천 → 제주 항공</strong><b>최저 89,000원</b><em>예약 →</em></button><button data-route="/booking/hotels"><span>▣</span><strong>제주 오션뷰 호텔</strong><b>1박 145,000원</b><em>예약 →</em></button><button data-route="/booking/tickets/blueline"><span>★</span><strong>성산일출봉 투어</strong><b>1인 28,000원</b><em>예약 →</em></button></section>
     </section>
       </main>
-      <div th:replace="~{fragments/modals :: modalRoots}"></div>
+      <div th:replace="~{fragments/modals :: modalRoots}"><div id="directory-root"></div><div id="modal-root"></div><div id="toast-root" aria-live="polite"></div></div>
       <div th:replace="~{fragments/footer :: footer}"></div>
     </div>
-    <script th:src="@{/js/common/api.js}" src="/js/common/api.js" defer></script>
-    <script th:src="@{/js/common/navigation.js}" src="/js/common/navigation.js" defer></script>
-    <script th:src="@{/js/common/modal.js}" src="/js/common/modal.js" defer></script>
-    <script th:src="@{/js/pages/booking/booking.js}" src="/js/pages/booking/booking.js" defer></script>
+    <div th:replace="~{fragments/scripts :: appScripts}"></div>
   </body>
 </html>

@@ -5,11 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content="All My Trips 회원가입" />
     <title>회원가입 — All My Trips</title>
-    <link rel="icon" th:href="@{/images/icons/app-icon.png}" href="/images/icons/app-icon.png" />
-    <link rel="stylesheet" th:href="@{/css/common/reset.css}" href="/css/common/reset.css" />
-    <link rel="stylesheet" th:href="@{/css/common/layout.css}" href="/css/common/layout.css" />
-    <link rel="stylesheet" th:href="@{/css/common/components.css}" href="/css/common/components.css" />
-    <link rel="stylesheet" th:href="@{/css/pages/auth/signup.css}" href="/css/pages/auth/signup.css" />
+    <link rel="icon" th:href="@{/images/icons/app-icon.png}" href="../../static/images/icons/app-icon.png" />
+    <link rel="stylesheet" th:href="@{/css/common/reset.css}" href="../../static/css/common/reset.css" />
+    <link rel="stylesheet" th:href="@{/css/common/layout.css}" href="../../static/css/common/layout.css" />
+    <link rel="stylesheet" th:href="@{/css/common/components.css}" href="../../static/css/common/components.css" />
+    <link rel="stylesheet" th:href="@{/css/pages/auth/signup.css}" href="../../static/css/pages/auth/signup.css" />
   </head>
   <body class="page-signup" data-route="/auth/signup">
     <div class="app">
@@ -18,7 +18,7 @@
         <section class="page-shell">
       <div class="auth-layout">
         <section class="auth-copy">
-          <img th:src="@{/images/logo/brand-stacked.png}" src="/images/logo/brand-stacked.png" alt="All My Trips" />
+          <img th:src="@{/images/logo/brand-stacked.png}" src="../../static/images/logo/brand-stacked.png" alt="All My Trips" />
           <span>YOUR TRIP, ONE FLOW</span>
           <h1>여행이 일상이 되는 시작</h1>
           <p>여행 계획부터 예약과 기록까지 하나의 계정으로 이어가세요.</p>
@@ -42,12 +42,9 @@
       </div>
     </section>
       </main>
-      <div th:replace="~{fragments/modals :: modalRoots}"></div>
+      <div th:replace="~{fragments/modals :: modalRoots}"><div id="directory-root"></div><div id="modal-root"></div><div id="toast-root" aria-live="polite"></div></div>
       <div th:replace="~{fragments/footer :: footer}"></div>
     </div>
-    <script th:src="@{/js/common/api.js}" src="/js/common/api.js" defer></script>
-    <script th:src="@{/js/common/navigation.js}" src="/js/common/navigation.js" defer></script>
-    <script th:src="@{/js/common/modal.js}" src="/js/common/modal.js" defer></script>
-    <script th:src="@{/js/pages/auth/signup.js}" src="/js/pages/auth/signup.js" defer></script>
+    <div th:replace="~{fragments/scripts :: appScripts}"></div>
   </body>
 </html>

@@ -5,11 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content="All My Trips 여행 일정 편집" />
     <title>여행 일정 편집 — All My Trips</title>
-    <link rel="icon" th:href="@{/images/icons/app-icon.png}" href="/images/icons/app-icon.png" />
-    <link rel="stylesheet" th:href="@{/css/common/reset.css}" href="/css/common/reset.css" />
-    <link rel="stylesheet" th:href="@{/css/common/layout.css}" href="/css/common/layout.css" />
-    <link rel="stylesheet" th:href="@{/css/common/components.css}" href="/css/common/components.css" />
-    <link rel="stylesheet" th:href="@{/css/pages/trips/schedule.css}" href="/css/pages/trips/schedule.css" />
+    <link rel="icon" th:href="@{/images/icons/app-icon.png}" href="../../static/images/icons/app-icon.png" />
+    <link rel="stylesheet" th:href="@{/css/common/reset.css}" href="../../static/css/common/reset.css" />
+    <link rel="stylesheet" th:href="@{/css/common/layout.css}" href="../../static/css/common/layout.css" />
+    <link rel="stylesheet" th:href="@{/css/common/components.css}" href="../../static/css/common/components.css" />
+    <link rel="stylesheet" th:href="@{/css/pages/trips/schedule.css}" href="../../static/css/pages/trips/schedule.css" />
   </head>
   <body class="page-schedule" data-route="/trips/busan/schedule">
     <div class="app">
@@ -23,11 +23,11 @@
         <p>날짜별 일정을 만들고 순서를 자유롭게 바꿔보세요.</p>
         <i>✦</i>
       </div>
-      <div class="heading-actions"><button class="outline-button" data-modal="share">공유하기</button><button class="primary-button" data-modal="add-place">+ 일정 추가</button></div>
+      <div class="heading-actions"><button type="button" class="outline-button" data-modal="share">공유하기</button><button type="button" class="primary-button" data-modal="add-place">+ 일정 추가</button></div>
     </section>
   
       <div class="schedule-layout">
-        <aside class="white-panel trip-sidebar"><h2>나의 여행</h2><button class="selected"><strong>부산 미식 여행</strong><span>08.14–08.17</span></button><button class=""><strong>제주 가족 여행</strong><span>09.05–09.08</span></button><button class=""><strong>도쿄 쇼핑 여행</strong><span>10.02–10.05</span></button><button class="outline-button wide" data-modal="new-trip">+ 새 여행 만들기</button></aside>
+        <aside class="white-panel trip-sidebar"><h2>나의 여행</h2><button class="selected"><strong>부산 미식 여행</strong><span>08.14–08.17</span></button><button class=""><strong>제주 가족 여행</strong><span>09.05–09.08</span></button><button class=""><strong>도쿄 쇼핑 여행</strong><span>10.02–10.05</span></button><button type="button" class="outline-button wide" data-modal="new-trip">+ 새 여행 만들기</button></aside>
         <section class="white-panel schedule-main"><h2>부산 미식 여행</h2><div class="day-tabs"><button class="selected" data-toggle-group>DAY 1</button><button class="" data-toggle-group>DAY 2</button><button class="" data-toggle-group>DAY 3</button><button class="" data-toggle-group>DAY 4</button></div>
     <div class="timeline">
       
@@ -58,12 +58,9 @@
       </div>
     </section>
       </main>
-      <div th:replace="~{fragments/modals :: modalRoots}"></div>
+      <div th:replace="~{fragments/modals :: modalRoots}"><div id="directory-root"></div><div id="modal-root"></div><div id="toast-root" aria-live="polite"></div></div>
       <div th:replace="~{fragments/footer :: footer}"></div>
     </div>
-    <script th:src="@{/js/common/api.js}" src="/js/common/api.js" defer></script>
-    <script th:src="@{/js/common/navigation.js}" src="/js/common/navigation.js" defer></script>
-    <script th:src="@{/js/common/modal.js}" src="/js/common/modal.js" defer></script>
-    <script th:src="@{/js/pages/trips/schedule.js}" src="/js/pages/trips/schedule.js" defer></script>
+    <div th:replace="~{fragments/scripts :: appScripts}"></div>
   </body>
 </html>

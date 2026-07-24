@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.example.all_my_trip_project.domain.trip.mapper.TripMapper">
+    <sql id="columns">
+        trip_id, user_id, title, destination_name, start_date, end_date,
+        companion_type, companion_count, purpose, budget_amount, currency_code,
+        transport_preference, food_preference, pace, accommodation_style,
+        status, source, created_at, updated_at, deleted_at
+    </sql>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="tripId">
+        INSERT INTO trips (
+            user_id, title, destination_name, start_date, end_date,
+            companion_type, companion_count, purpose, budget_amount, currency_code,
+            transport_preference, food_preference, pace, accommodation_style,
+            status, source
+        ) VALUES (
+            #{userId}, #{title}, #{destinationName}, #{startDate}, #{endDate},
+            #{companionType}, COALESCE(#{companionCount}, 1), #{purpose},
+            #{budgetAmount}, COALESCE(#{currencyCode}, 'KRW'),
+            #{transportPreference}, #{foodPreference}, #{pace},
+            #{accommodationStyle}, COALESCE(#{status}, 'DRAFT'),
+            COALESCE(#{source}, 'MANUAL')
+        )
+    </insert>
+
+    <select id="findById" resultType="org.example.all_my_trip_project.domain.trip.dto.TripDTO">
+        SELECT <include refid="columns"/>
+        FROM trips WHERE trip_id = #{tripId} AND deleted_at IS NULL
+    </select>
+
+    <select id="findByUserId" resultType="org.example.all_my_trip_project.domain.trip.dto.TripDTO">
+        SELECT <include refid="columns"/>
+        FROM trips
+        WHERE user_id = #{userId} AND deleted_at IS NULL
+        ORDER BY start_date DESC, trip_id DESC
+    </select>
+
+    <update id="update">
+        UPDATE trips
+        SET title = #{title}, destination_name = #{destinationName},
+            start_date = #{startDate}, end_date = #{endDate},
+            companion_type = #{companionType}, companion_count = #{companionCount},
+            purpose = #{purpose}, budget_amount = #{budgetAmount},
+            currency_code = #{currencyCode},
+            transport_preference = #{transportPreference},
+            food_preference = #{foodPreference}, pace = #{pace},
+            accommodation_style = #{accommodationStyle}, status = #{status},
+            updated_at = CURRENT_TIMESTAMP(6)
+        WHERE trip_id = #{tripId} AND deleted_at IS NULL
+    </update>
+
+    <update id="softDelete">
+        UPDATE trips
+        SET status = 'CANCELLED', deleted_at = CURRENT_TIMESTAMP(6),
+            updated_at = CURRENT_TIMESTAMP(6)
+        WHERE trip_id = #{tripId} AND deleted_at IS NULL
+    </update>
+</mapper>

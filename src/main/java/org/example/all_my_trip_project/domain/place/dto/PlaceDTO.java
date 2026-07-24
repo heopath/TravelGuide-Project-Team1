@@ -1,0 +1,36 @@
+package org.example.all_my_trip_project.domain.place.dto;
+
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+
+@Getter
+@Setter
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+public class PlaceDTO {
+    private Long placeId;
+    private String externalProvider;
+    private String externalPlaceId;
+    private String category;
+    private String name;
+    private String countryCode;
+    private String region;
+    private String city;
+    private String address;
+    private BigDecimal latitude;
+    private BigDecimal longitude;
+    private String description;
+    private String phone;
+    private String websiteUrl;
+    private BigDecimal averageRating;
+    private Boolean active;
+    private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
+}

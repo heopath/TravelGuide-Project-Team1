@@ -5,11 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content="All My Trips 항공편 검색" />
     <title>항공편 검색 — All My Trips</title>
-    <link rel="icon" th:href="@{/images/icons/app-icon.png}" href="/images/icons/app-icon.png" />
-    <link rel="stylesheet" th:href="@{/css/common/reset.css}" href="/css/common/reset.css" />
-    <link rel="stylesheet" th:href="@{/css/common/layout.css}" href="/css/common/layout.css" />
-    <link rel="stylesheet" th:href="@{/css/common/components.css}" href="/css/common/components.css" />
-    <link rel="stylesheet" th:href="@{/css/pages/booking/flights.css}" href="/css/pages/booking/flights.css" />
+    <link rel="icon" th:href="@{/images/icons/app-icon.png}" href="../../static/images/icons/app-icon.png" />
+    <link rel="stylesheet" th:href="@{/css/common/reset.css}" href="../../static/css/common/reset.css" />
+    <link rel="stylesheet" th:href="@{/css/common/layout.css}" href="../../static/css/common/layout.css" />
+    <link rel="stylesheet" th:href="@{/css/common/components.css}" href="../../static/css/common/components.css" />
+    <link rel="stylesheet" th:href="@{/css/pages/booking/flights.css}" href="../../static/css/pages/booking/flights.css" />
   </head>
   <body class="page-flights" data-route="/booking/flights">
     <div class="app">
@@ -24,14 +24,11 @@
       </div>
       
     </section>
-  <div class="search-strip"><button>인천 ICN</button><button>제주 CJU</button><button>08.14 · 왕복</button><button class="primary-button">검색</button></div><div class="flight-list"><article><span class="airline-mark">1</span><strong>대한항공</strong><b>09:10</b><i>직항 · 1시간 10분</i><b>10:20</b><em>89,000원</em><button class="primary-button" data-modal="payment">선택</button></article><article><span class="airline-mark">2</span><strong>아시아나</strong><b>11:30</b><i>직항 · 1시간 10분</i><b>12:40</b><em>94,500원</em><button class="primary-button" data-modal="payment">선택</button></article><article><span class="airline-mark">3</span><strong>제주항공</strong><b>14:05</b><i>직항 · 1시간 10분</i><b>15:15</b><em>72,000원</em><button class="primary-button" data-route="/booking/queue">선택</button></article></div></section>
+  <div class="search-strip"><button>인천 ICN</button><button>제주 CJU</button><button>08.14 · 왕복</button><button class="primary-button">검색</button></div><div class="flight-list"><article><span class="airline-mark">1</span><strong>대한항공</strong><b>09:10</b><i>직항 · 1시간 10분</i><b>10:20</b><em>89,000원</em><button type="button" class="primary-button" data-modal="payment">선택</button></article><article><span class="airline-mark">2</span><strong>아시아나</strong><b>11:30</b><i>직항 · 1시간 10분</i><b>12:40</b><em>94,500원</em><button type="button" class="primary-button" data-modal="payment">선택</button></article><article><span class="airline-mark">3</span><strong>제주항공</strong><b>14:05</b><i>직항 · 1시간 10분</i><b>15:15</b><em>72,000원</em><button class="primary-button" data-route="/booking/queue">선택</button></article></div></section>
       </main>
-      <div th:replace="~{fragments/modals :: modalRoots}"></div>
+      <div th:replace="~{fragments/modals :: modalRoots}"><div id="directory-root"></div><div id="modal-root"></div><div id="toast-root" aria-live="polite"></div></div>
       <div th:replace="~{fragments/footer :: footer}"></div>
     </div>
-    <script th:src="@{/js/common/api.js}" src="/js/common/api.js" defer></script>
-    <script th:src="@{/js/common/navigation.js}" src="/js/common/navigation.js" defer></script>
-    <script th:src="@{/js/common/modal.js}" src="/js/common/modal.js" defer></script>
-    <script th:src="@{/js/pages/booking/flights.js}" src="/js/pages/booking/flights.js" defer></script>
+    <div th:replace="~{fragments/scripts :: appScripts}"></div>
   </body>
 </html>

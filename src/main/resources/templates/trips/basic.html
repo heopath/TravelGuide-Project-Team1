@@ -5,11 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content="All My Trips 여행 기본 정보" />
     <title>여행 기본 정보 — All My Trips</title>
-    <link rel="icon" th:href="@{/images/icons/app-icon.png}" href="/images/icons/app-icon.png" />
-    <link rel="stylesheet" th:href="@{/css/common/reset.css}" href="/css/common/reset.css" />
-    <link rel="stylesheet" th:href="@{/css/common/layout.css}" href="/css/common/layout.css" />
-    <link rel="stylesheet" th:href="@{/css/common/components.css}" href="/css/common/components.css" />
-    <link rel="stylesheet" th:href="@{/css/pages/trips/basic.css}" href="/css/pages/trips/basic.css" />
+    <link rel="icon" th:href="@{/images/icons/app-icon.png}" href="../../static/images/icons/app-icon.png" />
+    <link rel="stylesheet" th:href="@{/css/common/reset.css}" href="../../static/css/common/reset.css" />
+    <link rel="stylesheet" th:href="@{/css/common/layout.css}" href="../../static/css/common/layout.css" />
+    <link rel="stylesheet" th:href="@{/css/common/components.css}" href="../../static/css/common/components.css" />
+    <link rel="stylesheet" th:href="@{/css/pages/trips/basic.css}" href="../../static/css/pages/trips/basic.css" />
   </head>
   <body class="page-basic" data-route="/trips/new/basic">
     <div class="app">
@@ -48,7 +48,7 @@
           <button class="input-button" type="button" data-modal="destination">도시, 국가 또는 공항 검색</button>
           <div class="segmented small"><button class="selected">국내</button><button>해외</button></div>
           <h2>여행 기간</h2>
-          <div class="date-pair"><button data-modal="date">2026.08.14</button><button data-modal="date">2026.08.17</button></div>
+          <div class="date-pair"><button type="button" data-modal="date">2026.08.14</button><button type="button" data-modal="date">2026.08.17</button></div>
         </div>
         <div>
           <h2>동행자 유형</h2>
@@ -59,12 +59,9 @@
       </section>
     </section>
       </main>
-      <div th:replace="~{fragments/modals :: modalRoots}"></div>
+      <div th:replace="~{fragments/modals :: modalRoots}"><div id="directory-root"></div><div id="modal-root"></div><div id="toast-root" aria-live="polite"></div></div>
       <div th:replace="~{fragments/footer :: footer}"></div>
     </div>
-    <script th:src="@{/js/common/api.js}" src="/js/common/api.js" defer></script>
-    <script th:src="@{/js/common/navigation.js}" src="/js/common/navigation.js" defer></script>
-    <script th:src="@{/js/common/modal.js}" src="/js/common/modal.js" defer></script>
-    <script th:src="@{/js/pages/trips/basic.js}" src="/js/pages/trips/basic.js" defer></script>
+    <div th:replace="~{fragments/scripts :: appScripts}"></div>
   </body>
 </html>
