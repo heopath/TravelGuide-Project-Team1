@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.example.all_my_trip_project.domain.place.mapper.PlaceMapper">
+    <sql id="columns">
+        place_id, external_provider, external_place_id, category, name,
+        country_code, region, city, address, latitude, longitude, description,
+        phone, website_url, average_rating, is_active AS active, created_at, updated_at
+    </sql>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="placeId">
+        INSERT INTO places (
+            external_provider, external_place_id, category, name, country_code,
+            region, city, address, latitude, longitude, description, phone,
+            website_url, average_rating, is_active
+        ) VALUES (
+            #{externalProvider}, #{externalPlaceId}, #{category}, #{name},
+            COALESCE(#{countryCode}, 'KR'), #{region}, #{city}, #{address},
+            #{latitude}, #{longitude}, #{description}, #{phone}, #{websiteUrl},
+            #{averageRating}, COALESCE(#{active}, TRUE)
+        )
+    </insert>
+
+    <select id="findById" resultType="org.example.all_my_trip_project.domain.place.dto.PlaceDTO">
+        SELECT <include refid="columns"/> FROM places WHERE place_id = #{placeId}
+    </select>
+
+    <select id="findAll" resultType="org.example.all_my_trip_project.domain.place.dto.PlaceDTO">
+        SELECT <include refid="columns"/> FROM places
+        WHERE is_active = TRUE ORDER BY place_id DESC
+    </select>
+
+    <select id="search" resultType="org.example.all_my_trip_project.domain.place.dto.PlaceDTO">
+        SELECT <include refid="columns"/> FROM places
+        <where>
+            is_active = TRUE
+            <if test="keyword != null and keyword != ''">
+                AND (name LIKE CONCAT('%', #{keyword}, '%')
+                    OR region LIKE CONCAT('%', #{keyword}, '%')
+                    OR city LIKE CONCAT('%', #{keyword}, '%'))
+            </if>
+            <if test="category != null and category != ''">
+                AND category = #{category}
+            </if>
+        </where>
+        ORDER BY average_rating DESC, place_id DESC
+    </select>
+
+    <update id="update">
+        UPDATE places
+        SET category = #{category}, name = #{name}, region = #{region},
+            city = #{city}, address = #{address}, latitude = #{latitude},
+            longitude = #{longitude}, description = #{description},
+            phone = #{phone}, website_url = #{websiteUrl},
+            average_rating = #{averageRating}, is_active = #{active},
+            updated_at = CURRENT_TIMESTAMP(6)
+        WHERE place_id = #{placeId}
+    </update>
+
+    <delete id="delete">
+        DELETE FROM places WHERE place_id = #{placeId}
+    </delete>
+</mapper>

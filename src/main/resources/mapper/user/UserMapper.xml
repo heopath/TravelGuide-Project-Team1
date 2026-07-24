@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.example.all_my_trip_project.domain.user.mapper.UserMapper">
+    <sql id="columns">
+        user_id, email, password_hash, nickname, role, status,
+        last_login_at, created_at, updated_at, deleted_at
+    </sql>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="userId">
+        INSERT INTO users (email, password_hash, nickname, role, status)
+        VALUES (#{email}, #{passwordHash}, #{nickname},
+                COALESCE(#{role}, 'USER'), COALESCE(#{status}, 'ACTIVE'))
+    </insert>
+
+    <select id="findById" resultType="org.example.all_my_trip_project.domain.user.dto.UserDTO">
+        SELECT <include refid="columns"/>
+        FROM users
+        WHERE user_id = #{userId} AND deleted_at IS NULL
+    </select>
+
+    <select id="findByEmail" resultType="org.example.all_my_trip_project.domain.user.dto.UserDTO">
+        SELECT <include refid="columns"/>
+        FROM users
+        WHERE email = #{email} AND deleted_at IS NULL
+    </select>
+
+    <select id="findAll" resultType="org.example.all_my_trip_project.domain.user.dto.UserDTO">
+        SELECT <include refid="columns"/>
+        FROM users
+        WHERE deleted_at IS NULL
+        ORDER BY user_id DESC
+    </select>
+
+    <update id="update">
+        UPDATE users
+        SET nickname = #{nickname},
+            role = #{role},
+            status = #{status},
+            updated_at = CURRENT_TIMESTAMP(6)
+        WHERE user_id = #{userId} AND deleted_at IS NULL
+    </update>
+
+    <update id="softDelete">
+        UPDATE users
+        SET status = 'WITHDRAWN',
+            deleted_at = CURRENT_TIMESTAMP(6),
+            updated_at = CURRENT_TIMESTAMP(6)
+        WHERE user_id = #{userId} AND deleted_at IS NULL
+    </update>
+</mapper>
