@@ -768,8 +768,10 @@ AllMyTrips/
 |   👑 팀장  | **허민재** |
 | 👨‍💻 팀원 |   정인길   |
 | 👨‍💻 팀원 |   홍유원   |
-| 👨‍💻 팀원 |   남호현   |
+| 👨‍💻 팀원 |   남현호   |
 | 👨‍💻 팀원 |   한성주   |
+
+[📘 백엔드 도메인·Service 역할 분담 초안](All_My_Trip_Project/docs/backend-service-role-plan.md)
 
 </details>
 
