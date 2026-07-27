@@ -1,0 +1,143 @@
+name: Build and Deploy All My Trips
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: all-my-trips-production
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build Spring Boot
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v6
+
+      - name: Set up Java 21
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6
+
+      - name: Grant Gradle permission
+        working-directory: ./All_My_Trip_Project
+        run: chmod +x gradlew
+
+      - name: Build application
+        working-directory: ./All_My_Trip_Project
+        run: ./gradlew clean build --no-daemon
+
+      - name: Prepare deployment JAR
+        shell: bash
+        run: |
+          JAR_FILE=$(find All_My_Trip_Project/build/libs \
+            -maxdepth 1 \
+            -type f \
+            -name "*.jar" \
+            ! -name "*-plain.jar" \
+            -print \
+            -quit)
+
+          if [ -z "$JAR_FILE" ]; then
+            echo "배포할 JAR 파일을 찾지 못했습니다."
+            exit 1
+          fi
+
+          mkdir -p deployment
+          cp "$JAR_FILE" deployment/app.jar
+          ls -lh deployment/app.jar
+
+      - name: Upload JAR artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: spring-boot-jar
+          path: deployment/app.jar
+          retention-days: 3
+          if-no-files-found: error
+
+  deploy:
+    name: Deploy to EC2
+    needs: build
+    runs-on: ubuntu-latest
+    environment: production
+
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Download JAR artifact
+        uses: actions/download-artifact@v7
+        with:
+          name: spring-boot-jar
+          path: deployment
+
+      - name: Configure AWS credentials with OIDC
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+          allowed-account-ids: "719152986655"
+          role-session-name: all-my-trips-github-deploy
+
+      - name: Check AWS identity
+        run: aws sts get-caller-identity
+
+      - name: Upload JAR to S3
+        id: upload
+        shell: bash
+        run: |
+          S3_KEY="releases/${GITHUB_SHA}.jar"
+          S3_URI="s3://${{ vars.AWS_S3_BUCKET }}/${S3_KEY}"
+
+          aws s3 cp deployment/app.jar "$S3_URI" \
+            --only-show-errors
+
+          echo "s3_uri=$S3_URI" >> "$GITHUB_OUTPUT"
+          echo "업로드 완료: $S3_URI"
+
+      - name: Deploy through SSM
+        shell: bash
+        run: |
+          S3_URI="${{ steps.upload.outputs.s3_uri }}"
+
+          COMMAND_ID=$(aws ssm send-command \
+            --instance-ids "${{ vars.AWS_EC2_INSTANCE_ID }}" \
+            --document-name "AWS-RunShellScript" \
+            --comment "Deploy All My Trips ${GITHUB_SHA}" \
+            --parameters "commands=[\"/opt/all-my-trips/shared/deploy.sh ${S3_URI}\"]" \
+            --query "Command.CommandId" \
+            --output text)
+
+          echo "SSM 명령 ID: $COMMAND_ID"
+
+          set +e
+          aws ssm wait command-executed \
+            --command-id "$COMMAND_ID" \
+            --instance-id "${{ vars.AWS_EC2_INSTANCE_ID }}"
+          WAIT_RESULT=$?
+          set -e
+
+          aws ssm get-command-invocation \
+            --command-id "$COMMAND_ID" \
+            --instance-id "${{ vars.AWS_EC2_INSTANCE_ID }}" \
+            --query "{
+              Status:Status,
+              Output:StandardOutputContent,
+              Error:StandardErrorContent
+            }" \
+            --output json
+
+          exit "$WAIT_RESULT"
