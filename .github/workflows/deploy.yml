@@ -32,17 +32,15 @@ jobs:
         uses: gradle/actions/setup-gradle@v6
 
       - name: Grant Gradle permission
-        working-directory: ./All_My_Trip_Project
         run: chmod +x gradlew
 
       - name: Build application
-        working-directory: ./All_My_Trip_Project
         run: ./gradlew clean build --no-daemon
 
       - name: Prepare deployment JAR
         shell: bash
         run: |
-          JAR_FILE=$(find All_My_Trip_Project/build/libs \
+          JAR_FILE=$(find build/libs \
             -maxdepth 1 \
             -type f \
             -name "*.jar" \
