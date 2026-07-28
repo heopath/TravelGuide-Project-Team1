@@ -292,6 +292,31 @@
   *,*::before,*::after{scroll-behavior:auto!important;animation-duration:.01ms!important;transition-duration:.01ms!important}
 }
 
+/* Global travel loading screen */
+.travel-loader{position:fixed;z-index:1000;inset:0;display:grid;place-items:center;visibility:hidden;opacity:0;background:rgba(244,247,251,.94);backdrop-filter:blur(10px);transition:opacity .18s ease,visibility .18s ease}
+.travel-loader.is-active{visibility:visible;opacity:1}
+.travel-loader__content{text-align:center}
+.travel-loader__content>strong,.travel-loader__content>span{display:block}
+.travel-loader__content>strong{margin-top:18px;color:var(--navy);font-size:20px;letter-spacing:-.03em}
+.travel-loader__content>span{margin-top:8px;color:var(--muted);font-size:13px}
+.travel-loader__map{position:relative;width:190px;height:90px;margin:auto}
+.travel-loader__route{position:absolute;top:40px;left:32px;width:125px;height:44px;border-top:3px dashed #aeb7ff;border-radius:50%;transform:rotate(-8deg)}
+.travel-loader__pin{position:absolute;right:10px;bottom:8px;width:34px;height:34px;display:grid;place-items:center;border-radius:50% 50% 50% 7px;transform:rotate(-45deg);background:#ff8b72;color:#fff;font-size:10px}
+.travel-loader__pin::first-letter{transform:rotate(45deg)}
+.travel-loader__plane{position:absolute;top:47px;left:8px;width:52px;height:52px;display:grid;place-items:center;border-radius:16px;background:var(--gradient);color:#fff;box-shadow:0 12px 26px rgba(92,104,255,.28);font-size:25px}
+.travel-loader.is-active .travel-loader__plane{animation:loader-plane-arrive 1.4s cubic-bezier(.42,0,.25,1) both}
+.travel-loader__dots{margin-top:18px;display:flex;justify-content:center;gap:6px}
+.travel-loader__dots i{width:7px;height:7px;border-radius:50%;background:var(--primary);animation:loader-dot 5s ease-in-out infinite}
+.travel-loader__dots i:nth-child(2){animation-delay:.8s}.travel-loader__dots i:nth-child(3){animation-delay:1.6s}
+@keyframes loader-plane-arrive{0%{transform:translate(0,0) rotate(-8deg);box-shadow:0 10px 22px rgba(92,104,255,.2)}100%{transform:translate(112px,-42px) rotate(10deg);box-shadow:0 16px 32px rgba(92,104,255,.34)}}
+@keyframes loader-dot{0%,60%,100%{transform:translateY(0);opacity:.35}30%{transform:translateY(-3px);opacity:1}}
+
+/* 로딩 진행 상태는 reduced-motion 환경에서도 완료 시점을 전달해야 한다. */
+@media (prefers-reduced-motion: reduce) {
+  .travel-loader.is-active .travel-loader__plane{animation-duration:1.4s!important}
+  .travel-loader__dots i{animation-duration:5s!important}
+}
+
 
 
 /* Spring Boot multi-page common styles */

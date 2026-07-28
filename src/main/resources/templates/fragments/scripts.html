@@ -1,7 +1,8 @@
 <!doctype html>
 <html lang="ko" xmlns:th="http://www.thymeleaf.org">
   <body>
-    <script th:fragment="appScripts">
+    <th:block th:fragment="appScripts">
+    <script>
 window.AllMyTripsApi = {
   async get(url) {
     const response = await fetch(url, { headers: { Accept: "application/json" } });
@@ -45,14 +46,21 @@ const ALL_MY_TRIPS_TEMPLATE_ROUTES = {
 };
 
 function navigateTo(route) {
+  let destination = route || "/home";
   if (window.location.protocol === "file:") {
     const template = ALL_MY_TRIPS_TEMPLATE_ROUTES[route || "/home"];
     if (template) {
-      window.location.href = new URL("../" + template + ".html", window.location.href).href;
-      return;
+      destination = new URL("../" + template + ".html", window.location.href).href;
     }
   }
-  window.location.href = route || "/home";
+  if (window.AllMyTripsLoading) {
+    window.AllMyTripsLoading.show();
+    window.setTimeout(function () {
+      window.location.href = destination;
+    }, 1400);
+    return;
+  }
+  window.location.href = destination;
 }
 
 document.addEventListener("click", function (event) {
@@ -395,5 +403,7 @@ window.AllMyTripsModal = { openModal, closeModal, showToast, openDirectory, clos
 
 
     </script>
+    <script th:src="@{/js/core/loading.js}" src="/js/core/loading.js"></script>
+    </th:block>
   </body>
 </html>
