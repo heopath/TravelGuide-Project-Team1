@@ -23,14 +23,21 @@ const ALL_MY_TRIPS_TEMPLATE_ROUTES = {
 };
 
 function navigateTo(route) {
+  let destination = route || "/home";
   if (window.location.protocol === "file:") {
     const template = ALL_MY_TRIPS_TEMPLATE_ROUTES[route || "/home"];
     if (template) {
-      window.location.href = new URL("../" + template + ".html", window.location.href).href;
-      return;
+      destination = new URL("../" + template + ".html", window.location.href).href;
     }
   }
-  window.location.href = route || "/home";
+  if (window.AllMyTripsLoading) {
+    window.AllMyTripsLoading.show();
+    window.setTimeout(function () {
+      window.location.href = destination;
+    }, 1400);
+    return;
+  }
+  window.location.href = destination;
 }
 
 document.addEventListener("click", function (event) {
