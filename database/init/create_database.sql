@@ -1,6 +1,7 @@
--- All My Trips local database initialization
--- Target: MySQL 8.0+
+-- Run with psql while connected to the postgres maintenance database.
+-- psql meta-commands make database creation repeatable for local development.
+SELECT 'CREATE DATABASE all_my_trips ENCODING ''UTF8'''
+WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'all_my_trips')\gexec
 
-CREATE DATABASE IF NOT EXISTS all_my_trips
-    DEFAULT CHARACTER SET utf8mb4
-    DEFAULT COLLATE utf8mb4_0900_ai_ci;
+\connect all_my_trips
+\ir create_extensions.sql

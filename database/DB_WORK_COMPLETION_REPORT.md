@@ -1,99 +1,73 @@
 # DB 업무 완료 보고
 
-> 업무지시서의 완료 보고 양식을 기준으로 작성했다. 실제 MySQL 실행 결과와 BCrypt 해시는 아직 확정되지 않았으므로 해당 항목은 검증 대기로 표시한다.
+> 업무지시서의 완료 보고 양식을 유지하면서 PostgreSQL 전환과 페이지 명세 재검토 결과를 반영했다. 실제 로컬 PostgreSQL 실행 결과와 BCrypt 해시는 팀 환경에서 최종 확인한다.
 
-## 1. 작성한 마이그레이션
+## 1. 작성한 PostgreSQL 마이그레이션
 
-- `database/init/create_database.sql`: `all_my_trips` 데이터베이스와 `utf8mb4` 문자셋 생성
+- `database/init/create_database.sql`: `all_my_trips` DB 생성, `database/init/create_extensions.sql`: 관리자 권한 확장 설치
 - `V1__member_and_place.sql`: 회원·선호·장소·즐겨찾기
-- `V2__trip_and_itinerary.sql`: 여행·일차·일정 항목
-- `V3__ai_and_recommendation.sql`: AI 요청·추천 행동
-- `V4__travel_record.sql`: 여행 기록·기록 이미지
+- `V2__trip_and_itinerary.sql`: 여행·일차·일정·공유 링크
+- `V3__ai_and_recommendation.sql`: AI 대화·요청·정규화 추천 결과·행동
+- `V4__travel_record.sql`: 여행 기록·이미지
 - `V5__travel_record_social.sql`: 댓글·좋아요·공유·신고
-- `V6__admin_operation.sql`: 장소 동기화·관리자 감사
-- `V7__ticket_reservation.sql`: 관광 티켓·재고·예약·모의 결제·발권·검표
+- `V6__admin_operation.sql`: 테마 여행·장소 동기화·관리자 감사
+- `V7__ticket_reservation.sql`: 티켓 상품·옵션·시간대 재고·예약·모의 결제·발권·검표
 
-## 2. 작성한 seed 파일
+## 2. DBMS 전환 내용
 
-- `local_seed_users.sql`
-- `local_seed_places.sql`
-- `local_seed_trips.sql`
-- `local_seed_ai.sql`
-- `local_seed_records.sql`
-- `local_seed_tickets.sql`
+- MySQL `AUTO_INCREMENT` → PostgreSQL identity
+- `DATETIME(6)` → `TIMESTAMPTZ`
+- `JSON` → `JSONB`, IP 문자열 → `INET`
+- `ON UPDATE CURRENT_TIMESTAMP` → 공통 `set_updated_at()` trigger
+- MySQL 조건부 운영 규칙 → PostgreSQL 부분 유일 인덱스
+- MySQL JDBC/Flyway 의존성 제거, PostgreSQL 드라이버만 유지
+- Docker Compose와 local profile의 DB명·계정·포트를 `all_my_trips`로 통일
 
-실제 계정이나 개인정보를 사용하지 않으며, 사용자 비밀번호에는 `REPLACE_WITH_TEAM_BCRYPT_HASH` 교체용 값이 들어 있다.
+## 3. 페이지 명세 검토 결과
 
-## 3. 추가한 테이블
+추가한 10개 비즈니스 테이블:
 
-여행 기록 및 소셜 기능을 위해 다음 6개 테이블을 추가했다.
+- `trip_share_links`
+- `ai_chat_sessions`, `ai_chat_messages`
+- `recommendation_sessions`, `recommendation_results`
+- `travel_themes`, `travel_theme_styles`, `travel_theme_places`
+- `ticket_product_options`, `ticket_time_slots`
 
-- `travel_records`
-- `travel_record_images`
-- `travel_record_comments`
-- `travel_record_likes`
-- `travel_record_shares`
-- `travel_record_reports`
+기존 29개와 합쳐 전체 비즈니스 스키마는 39개 테이블이다. RAG의 `vector_store`는 Spring AI가 관리하는 인프라 테이블이므로 이 수에 포함하지 않는다.
 
-기존 23개 테이블과 합쳐 전체 스키마는 29개 테이블이다.
+추가하지 않은 구조:
 
-## 4. 데이터 건수
+- 항공·숙소 자체 예약: 외부 검색/링크
+- 날씨·교통 원본: 외부 API와 Redis 단기 캐시
+- 예약 대기열: Redis TTL·순번·입장 토큰
+- 결제수단: Mock 결제이며 민감 원문 미저장
 
-| 데이터 | 작성 기준 건수 |
-| --- | ---: |
-| 회원 | 10 |
-| 여행 스타일 | 5 |
-| 사용자 선호 | 30 |
-| 장소 | 100 |
-| 장소 이미지 | 200 |
-| 장소 스타일 | 200 |
-| 즐겨찾기 | 40 |
-| 여행 | 15 |
-| 여행 일차 | 40 |
-| 일정 항목 | 160 |
-| AI 요청 | 20 |
-| 추천 이벤트 | 120 |
-| 여행 기록 | 4 |
-| 여행 기록 이미지 | 16 |
-| 댓글·답글 | 24 |
-| 좋아요 | 32 |
-| 공유 | 12 |
-| 신고 | 6 |
-| 티켓 상품 | 20 |
-| 예약 | 15 |
-| 예약 항목 | 20 |
-| 결제 | 15 |
-| 검표 로그 | 20 |
+## 4. seed·검증
 
-발급 티켓은 `PAID` 결제에 연결된 예약 항목의 구매 수량만큼 생성한다.
+모든 seed와 validation을 PostgreSQL 문법으로 변환했다. 신규 테이블 seed는 테마 4건·구성 장소 24건, AI 대화 5개·메시지 10건, 추천 세션 20건·결과 200건, 티켓 옵션/시간대 각 60건을 포함한다.
 
-## 5. MySQL 실행 결과
+검증 SQL은 다음을 확인한다.
 
-- 상태: **사용자 로컬 MySQL 실행 검증 대기**
-- 정적 검증: V1~V7에서 29개 테이블 생성 순서와 FK 부모 선행 관계 확인 완료
-- 미실행 사유: 작성 환경의 임시 MySQL 8.4 초기화 과정에서 로컬 바이너리가 SIGSEGV로 종료됨
-- 완료 조건: 빈 MySQL 8.0+에서 init → V1~V7 → seed → validation 순서로 오류 없이 실행
+- 완료 여행·여행 기록 소유자와 상태
+- 여행 기간과 일차 날짜
+- 대표 이미지·댓글 부모·추천 사용자·AI 대화 세션 일치
+- 티켓 시간대와 예약 스냅샷·재고·발급 수량
+- BCrypt placeholder 잔존 여부
 
-## 6. 검증 SQL 결과
+## 5. 실행 결과
 
-- 파일: `database/validation/validate_seed_data.sql`
-- 정적 검토: 완료
-- 실제 조회 결과: **사용자 로컬 MySQL 실행 대기**
-- 예상 결과: 무결성 위반 조회 모두 0행
-- BCrypt 확인: 교체 전 10행, 팀 제공 해시로 교체 후 0행
+- 정적 검사: PostgreSQL 전용 문법과 39개 테이블 FK 생성 순서 확인
+- 실제 실행: 로컬 Docker PostgreSQL에서 `init → V1~V7 → seed → validation` 순서로 확인 필요
+- 완료 기준: 모든 파일이 `ON_ERROR_STOP=1`로 오류 없이 실행되고 위반 조회가 0행
 
-## 7. 팀장 확인 필요 사항
+## 6. 팀장 확인 필요 사항
 
-1. 업무지시서는 `COMPLETED` 여행 4건, 여행당 기록 1건, 여행 기록 8~10건을 동시에 요구한다.
-2. 세 조건은 동시에 만족할 수 없으므로 현재 seed는 완료 여행 4건에 기록 4건만 생성한다.
-3. 여행 기록을 8~10건으로 늘려야 한다면 완료 여행 수를 먼저 8~10건으로 늘릴지 확인이 필요하다.
-4. 로그인 테스트 전에 개발 계정에 사용할 BCrypt 해시 제공이 필요하다.
+1. `COMPLETED` 여행 4건과 여행당 기록 1건 규칙 때문에 여행 기록 seed는 4건을 유지한다.
+2. 로그인 테스트 전에 팀 개발 계정용 BCrypt 해시를 제공해야 한다.
+3. 추천·AI·티켓 페이지 API 계약이 확정되면 신규 테이블의 DTO 매핑을 함께 검토한다.
 
-## 8. 알려진 제한사항
+## 7. 알려진 제한사항
 
-- 여행 기록은 업무지시서 권장 8~10건이 아니라 무결성을 지킬 수 있는 4건만 생성한다.
-- seed는 빈 로컬 DB에서 한 번 실행하는 구조이며 반복 실행 멱등성을 제공하지 않는다.
-- 외부 이미지 URL은 외부 서비스 상태에 따라 표시되지 않을 수 있다.
-- 여행 소유자 일치, 완료 여행만 기록 가능, 답글의 동일 기록 소속은 다른 행을 비교해야 하므로 서비스 계층과 검증 SQL에서 추가로 보장한다.
-- 항공권과 숙소 자체 예약 테이블은 생성하지 않는다. 숙소는 외부 링크를 사용한다.
+- seed는 빈 로컬 DB에서 한 번 실행하며 반복 실행 UPSERT를 제공하지 않는다.
+- 여행 소유자 일치 등 행 간 규칙은 Service와 validation SQL에서 함께 보장한다.
 - 티켓·결제·발권은 실제 공급사나 PG와 연동하지 않는 Mock 구조다.
