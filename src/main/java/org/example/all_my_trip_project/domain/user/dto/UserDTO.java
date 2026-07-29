@@ -20,6 +20,7 @@ public class UserDTO {
     private String nickname;
     private String role;
     private String status;
+    // PostgreSQL TIMESTAMPTZ의 UTC offset을 보존하기 위한 타입이며 DTO 필드명은 기존과 동일하다.
     private OffsetDateTime lastLoginAt;
     private OffsetDateTime createdAt;
     private OffsetDateTime updatedAt;
