@@ -16,27 +16,54 @@
       <div th:replace="~{fragments/header :: header('home')}"></div>
       <main id="page-content">
         <section class="home-page">
-      <div class="home-hero">
-        <div class="flight-orbit"><span>✈</span></div>
-        <div class="hero-logo">
-          <img th:src="@{/images/icons/app-icon.png}" src="../../static/images/icons/app-icon.png" alt="" />
-          <h1>All My Trips</h1>
-          <p>마이티와 함께하는 여행~</p>
-        </div>
-        <div class="home-search">
-          <button type="button" data-modal="destination"><span>✈</span><b>어디로 가세요?</b></button>
-          <button type="button" data-modal="date"><span>▣</span><b>가는 날</b></button>
-          <button type="button" data-modal="guests"><span>♙</span><b>여행 인원</b></button>
-          <button class="search-submit" type="button" data-route="/trips/new/basic" aria-label="검색">⌕</button>
-        </div>
-        <p class="hero-caption">목적지, 날짜, 인원만 알려주면 마이티가 취향에 맞는 여행을 제안해요.</p>
-        <div class="wave wave-one"></div><div class="wave wave-two"></div>
-      </div>
-    </section>
+          <div class="home-scroll-world" data-scroll-world>
+            <div class="home-world-stage">
+              <video
+                class="home-world-video"
+                data-world-video
+                th:src="@{/media/all-my-trips-world.mp4(v=4)}"
+                src="../../static/media/all-my-trips-world.mp4?v=4"
+                muted
+                playsinline
+                preload="auto"
+                aria-label="All My Trips 여행 세계 영상"
+              ></video>
+              <div class="home-world-shade" aria-hidden="true"></div>
+
+              <div class="home-hero" data-world-intro>
+                <div class="hero-logo">
+                  <img th:src="@{/images/icons/app-icon.png}" src="../../static/images/icons/app-icon.png" alt="" />
+                  <span>나만의 여행이 시작되는 곳</span>
+                  <h1>All My Trips</h1>
+                  <p>마이티와 함께, 상상하던 여행 속으로.</p>
+                </div>
+                <div class="home-search">
+                  <button type="button" data-modal="destination"><span>✈</span><b>어디로 가세요?</b></button>
+                  <button type="button" data-modal="date"><span>▣</span><b>가는 날</b></button>
+                  <button type="button" data-modal="guests"><span>♙</span><b>여행 인원</b></button>
+                  <button class="search-submit" type="button" data-route="/trips/new/basic" aria-label="여행 검색">⌕</button>
+                </div>
+                <p class="hero-caption">목적지, 날짜, 인원만 알려주면 마이티가 취향에 맞는 여행을 제안해요.</p>
+              </div>
+
+              <div class="home-world-finale" data-world-finale>
+                <span>YOUR TRIP, YOUR STORY</span>
+                <h2>이제, 당신의 여행을<br />시작해 보세요.</h2>
+                <button type="button" data-route="/trips/new/basic">여행 계획 만들기 <b>→</b></button>
+              </div>
+
+              <div class="home-world-progress" aria-hidden="true"><i data-world-progress></i></div>
+              <div class="home-scroll-hint" data-world-hint aria-hidden="true">
+                <span>SCROLL TO TRAVEL</span><i></i>
+              </div>
+            </div>
+          </div>
+        </section>
       </main>
       <div th:replace="~{fragments/modals :: modalRoots}"><div id="directory-root"></div><div id="modal-root"></div><div id="toast-root" aria-live="polite"></div></div>
       <div th:replace="~{fragments/footer :: footer}"></div>
     </div>
     <div th:replace="~{fragments/scripts :: appScripts}"></div>
+    <script th:src="@{/js/pages/home/home.js}" src="../../static/js/pages/home/home.js"></script>
   </body>
 </html>
