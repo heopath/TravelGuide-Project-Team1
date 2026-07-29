@@ -1,13 +1,5 @@
 # Flyway migration location
 
-Spring Boot loads versioned Flyway migrations from this directory.
-
-Only PostgreSQL-compatible migrations may be added here because the deployed
-database is Amazon RDS for PostgreSQL.
-
-The existing files under `database/migration` target MySQL 8.0 and intentionally
-remain outside the application classpath until they are converted and reviewed.
-
-After conversion, add the PostgreSQL baseline as `V1__baseline_schema.sql` and
-continue with new immutable versioned files. Never edit a migration after it has
-run in a shared database.
+PostgreSQL Flyway 원본은 저장소 루트 `database/migration`에서 관리한다.
+Gradle `processResources` 작업이 V1~V7을 빌드 결과의 `db/migration`으로 복사하므로 이 디렉터리에 SQL 복사본을 직접 추가하지 않는다.
+공유 DB에 적용된 버전 파일은 수정하지 않고 다음 버전 마이그레이션을 추가한다.

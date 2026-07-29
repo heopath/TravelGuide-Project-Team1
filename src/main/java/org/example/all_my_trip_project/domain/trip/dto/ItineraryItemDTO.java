@@ -7,7 +7,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.time.LocalTime;
 
 @Getter
@@ -28,6 +28,7 @@ public class ItineraryItemDTO {
     private BigDecimal estimatedCost;
     private String currencyCode;
     private String source;
-    private LocalDateTime createdAt;
-    private LocalDateTime updatedAt;
+    // PostgreSQL TIMESTAMPTZ의 UTC offset을 보존하기 위한 타입이며 DTO 필드명은 기존과 동일하다.
+    private OffsetDateTime createdAt;
+    private OffsetDateTime updatedAt;
 }

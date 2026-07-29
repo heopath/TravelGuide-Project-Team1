@@ -6,7 +6,7 @@
 
 - 서비스·팀원: 저장소 루트 `README.md`
 - DB 도메인·테이블: `docs/database/all_my_trips_database.md`
-- 화면 경로: `All_My_Trip_Project/docs/frontend-routes.md`
+- 화면 경로: `docs/frontend-routes.md`
 - 1차: 회원·장소·여행·AI 추천·여행 기록
 - 2차: 관리자 운영, 관광 티켓·예약·모의 결제·발권
 - 3차: RAG 개인화, 행동 기반 선호 추론, 동선 최적화
@@ -29,7 +29,7 @@ Service 개수는 테이블 수가 아니라 Aggregate Root, 트랜잭션 경계
 | 티켓 상품·재고·발권·검표 | `TicketService`로 통합 | 티켓 상품과 발급 티켓의 사용 가능 여부를 한 도메인 정책으로 관리 |
 | 예약 | `ReservationService` 유지 | 재고 확보·주문 스냅샷·예약 상태 전환의 트랜잭션 중심 |
 | 결제 | `PaymentService` 분리 | Mock PG라도 결제 승인·취소·멱등성은 예약과 다른 외부 연동 경계 |
-| 대기열 | `BookingQueueService` 분리 | Redis TTL·순번·입장 토큰은 MySQL 예약 트랜잭션과 다른 저장소를 사용 |
+| 대기열 | `BookingQueueService` 분리 | Redis TTL·순번·입장 토큰은 PostgreSQL 예약 트랜잭션과 다른 저장소를 사용 |
 | 관리자 공통 | `AdminService`로 통합 | 권한 검사·감사 로그·대시보드는 공통 운영 진입점으로 묶음 |
 
 통합 후 공개 Service는 15개다. 내부 구현이 복잡해지면 공개 인터페이스를 늘리기보다 먼저 도메인 내부 정책 클래스나 컴포넌트로 분리한다.
@@ -99,7 +99,7 @@ Redis 캐시는 `PlaceCacheStore` 내부 컴포넌트로 두고 Controller가 �
 
 ### 4.3 여행 계획·일정
 
-관련 테이블: `trips`, `trip_travel_styles`, `trip_days`, `itinerary_items`
+관련 테이블: `trips`, `trip_travel_styles`, `trip_days`, `itinerary_items`, `trip_share_links`
 
 | Service | 책임 |
 | --- | --- |
@@ -109,14 +109,14 @@ Redis 캐시는 `PlaceCacheStore` 내부 컴포넌트로 두고 Controller가 �
 
 ### 4.4 AI·추천
 
-관련 테이블: `ai_generation_requests`, `recommendation_events`; 참조: `user_preferences`, `place_travel_styles`, `places`, `trips`
+관련 테이블: `ai_chat_sessions`, `ai_chat_messages`, `ai_generation_requests`, `recommendation_sessions`, `recommendation_results`, `recommendation_events`; 참조: `user_preferences`, `place_travel_styles`, `places`, `trips`
 
 | Service | 책임 |
 | --- | --- |
 | `AiTravelService` | AI 일정 생성·재생성·동선 최적화·챗봇 요청, 요청 상태·오류·토큰 이력 저장 |
 | `RecommendationService` | 선호·여행 조건 기반 장소 추천, 노출·클릭·즐겨찾기·일정 추가 이벤트 기록 |
 
-`TravelAiClient`, `PlaceRetrievalPort`는 외부 연동 Port이며 Service 역할 분담 수에 포함하지 않는다. 추천 순위·점수 정규화는 `recommendation_sessions`, `recommendation_results` 구조를 팀 승인한 후 별도 DB 변경으로 진행한다.
+`TravelAiClient`, `PlaceRetrievalPort`는 외부 연동 Port이며 Service 역할 분담 수에 포함하지 않는다. 추천 순위·점수·이유는 PostgreSQL의 `recommendation_sessions`, `recommendation_results`에 정규화하고, 이벤트의 가변 부가 문맥만 `JSONB`로 유지한다.
 
 ### 4.5 여행 기록·소셜
 
@@ -131,7 +131,7 @@ Redis 캐시는 `PlaceCacheStore` 내부 컴포넌트로 두고 Controller가 �
 
 ### 4.6 관광 티켓·예약·결제 — 2차
 
-관련 테이블: `ticket_products`, `ticket_inventory`, `reservations`, `reservation_items`, `payments`, `issued_tickets`, `ticket_validation_logs`
+관련 테이블: `ticket_products`, `ticket_product_options`, `ticket_time_slots`, `ticket_inventory`, `reservations`, `reservation_items`, `payments`, `issued_tickets`, `ticket_validation_logs`
 
 | Service | 책임 |
 | --- | --- |
@@ -144,7 +144,7 @@ Redis 캐시는 `PlaceCacheStore` 내부 컴포넌트로 두고 Controller가 �
 
 ### 4.7 관리자 공통 운영
 
-관련 테이블: `admin_audit_logs`; 참조: 장소 동기화·신고·티켓 운영 테이블
+관련 테이블: `travel_themes`, `travel_theme_styles`, `travel_theme_places`, `admin_audit_logs`; 참조: 장소 동기화·신고·티켓 운영 테이블
 
 | Service | 책임 |
 | --- | --- |

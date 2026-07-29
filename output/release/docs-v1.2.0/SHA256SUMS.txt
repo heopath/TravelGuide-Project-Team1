@@ -1,0 +1,2 @@
+8c6eea2b98895006b5f8e3db9484b8499169716bd3184d39fcc76ffa708a1231  all-my-trips-postgresql-db-design-v1.2.0.pdf
+079511b76c97cd6a616900c78d086554eebe92a3f9e6088d25f421401c57131e  all-my-trips-postgresql-db-files-v1.2.0.zip

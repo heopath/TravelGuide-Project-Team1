@@ -18,7 +18,7 @@
 
 <img src="https://img.shields.io/badge/Java-21-007396?style=flat-square&logo=openjdk&logoColor=white" />
 <img src="https://img.shields.io/badge/Spring%20Boot-6DB33F?style=flat-square&logo=springboot&logoColor=white" />
-<img src="https://img.shields.io/badge/MySQL-4479A1?style=flat-square&logo=mysql&logoColor=white" />
+<img src="https://img.shields.io/badge/PostgreSQL-4169E1?style=flat-square&logo=postgresql&logoColor=white" />
 <img src="https://img.shields.io/badge/Redis-DC382D?style=flat-square&logo=redis&logoColor=white" />
 <img src="https://img.shields.io/badge/AWS-FF9900?style=flat-square&logo=amazonaws&logoColor=white" />
 
@@ -612,7 +612,7 @@ Milvus
 
 ## Database / Cache
 
-<img src="https://img.shields.io/badge/MySQL-4479A1?style=for-the-badge&logo=mysql&logoColor=white">
+<img src="https://img.shields.io/badge/PostgreSQL-4169E1?style=for-the-badge&logo=postgresql&logoColor=white">
 <img src="https://img.shields.io/badge/Redis-DC382D?style=for-the-badge&logo=redis&logoColor=white">
 
 ---
@@ -670,7 +670,7 @@ Milvus
           ┌────────────┼────────────┐
           │            │            │
           ▼            ▼            ▼
-       MySQL         Redis       AI Service
+    PostgreSQL       Redis       AI Service
                                       │
                            ┌──────────┴──────────┐
                            │                     │
@@ -692,9 +692,9 @@ Milvus
 
 <br>
 
-[📄 All My Trips 통합 DDL 보기](docs/database/all_my_trips_schema.sql)
+[📄 All My Trips 통합 DDL 보기](database/schema/all_my_trips_schema.sql)
 
-[🧩 V1~V7 마이그레이션·로컬 seed·검증 실행 안내](database/README.md)
+[🧩 PostgreSQL V1~V7 마이그레이션·로컬 seed·검증 실행 안내](database/README.md)
 
 </details>
 

@@ -1,4 +1,4 @@
-# All My Trip 백엔드 기본 구조
+# All My Trips 백엔드 기본 구조
 
 ## 적용 범위
 
@@ -55,10 +55,10 @@ domain
 .\gradlew.bat bootRun
 ```
 
-MySQL을 연결할 때는 먼저 `최종db(1).txt`를 MySQL에서 실행한 뒤 local 프로필로 실행한다.
+PostgreSQL을 연결할 때는 Docker Compose로 `all_my_trips`를 시작하고 Flyway V1~V7을 적용한 뒤 local 프로필로 실행한다.
 
 ```powershell
-docker compose up -d mysql
+docker compose up -d postgres
 .\gradlew.bat bootRun --args="--spring.profiles.active=local"
 ```
 
