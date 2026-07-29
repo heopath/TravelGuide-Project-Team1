@@ -26,10 +26,30 @@
       
     </section>
   
-      <div class="filter-row"><button class="selected">전체</button><button class="">관광지</button><button class="">맛집</button><button class="">카페</button><button class="">숙소</button><button class="">쇼핑</button><button class="">체험</button><button class="">축제</button></div>
+      <form class="guide-search" data-place-search data-no-global-loading>
+        <span class="guide-search-icon" aria-hidden="true">⌕</span>
+        <input id="guide-keyword" name="keyword" type="search"
+               aria-label="장소 검색" placeholder="어디로 떠나볼까요?" autocomplete="off" />
+        <button type="submit">검색</button>
+      </form>
+      <div class="filter-row" role="group" aria-label="장소 카테고리">
+        <button type="button" class="selected" data-category="">전체</button>
+        <button type="button" data-category="ATTRACTION">관광지</button>
+        <button type="button" data-category="RESTAURANT">맛집</button>
+        <button type="button" data-category="CAFE">카페</button>
+        <button type="button" data-category="ACCOMMODATION">숙소</button>
+        <button type="button" data-category="ACTIVITY">체험</button>
+        <button type="button" data-category="FESTIVAL">축제</button>
+        <button type="button" data-category="TRANSPORT">교통</button>
+      </div>
       <div class="guide-layout">
-        <section class="white-panel"><h2>지금 많이 찾는 여행지</h2>
-          <div class="place-grid"><button class="place-card tone-sunset" data-route="/guide/places/haeundae"><strong>파리</strong><span>프랑스</span></button><button class="place-card tone-mint" data-route="/guide/places/haeundae"><strong>바르셀로나</strong><span>스페인</span></button><button class="place-card tone-blue" data-route="/guide/places/haeundae"><strong>도쿄</strong><span>일본</span></button><button class="place-card tone-violet" data-route="/guide/places/haeundae"><strong>방콕</strong><span>태국</span></button></div>
+        <section class="white-panel place-results-panel">
+          <div class="place-results-heading">
+            <h2 data-result-title>추천 장소</h2>
+            <span data-result-count aria-live="polite"></span>
+          </div>
+          <div class="place-state" data-place-state aria-live="polite">장소를 불러오는 중입니다.</div>
+          <div class="place-grid" data-place-results hidden></div>
         </section>
         <aside class="side-stack"><section class="white-panel weather-card"><h2>오늘의 날씨</h2><span>부산, 대한민국</span><strong>☀ 24°C</strong><p>맑음 · 최고 27°</p></section><section class="white-panel info-card"><h2>여행 정보</h2><p>환율 JPY 9.20</p><p>일몰 19:32</p><p>혼잡도 보통</p><p>추천 해운대 야경</p></section></aside>
       </div>
@@ -39,5 +59,6 @@
       <div th:replace="~{fragments/footer :: footer}"></div>
     </div>
     <div th:replace="~{fragments/scripts :: appScripts}"></div>
+    <script th:src="@{/js/pages/guide/guide.js}" src="../../static/js/pages/guide/guide.js"></script>
   </body>
 </html>

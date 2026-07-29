@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.example.all_my_trip_project.domain.favorite.mapper.FavoriteMapper">
+    <sql id="favoriteResultColumns">
+        f.favorite_id, f.user_id, f.place_id, f.memo, f.created_at,
+        p.name AS place_name, p.category, p.region,
+        (
+            SELECT pi.image_url
+            FROM place_images pi
+            WHERE pi.place_id = f.place_id
+            ORDER BY pi.is_primary DESC, pi.sort_order, pi.place_image_id
+            LIMIT 1
+        ) AS primary_image_url
+    </sql>
+
+    <insert id="insert">
+        INSERT INTO favorites (user_id, place_id, memo)
+        VALUES (#{userId}, #{placeId}, #{memo})
+        ON CONFLICT (user_id, place_id) DO NOTHING
+    </insert>
+
+    <select id="find"
+            resultType="org.example.all_my_trip_project.domain.favorite.dto.FavoriteResult">
+        SELECT <include refid="favoriteResultColumns"/>
+        FROM favorites f
+        JOIN places p ON p.place_id = f.place_id
+        WHERE f.user_id = #{userId}
+          AND f.place_id = #{placeId}
+    </select>
+
+    <select id="findByUserId"
+            resultType="org.example.all_my_trip_project.domain.favorite.dto.FavoriteResult">
+        SELECT <include refid="favoriteResultColumns"/>
+        FROM favorites f
+        JOIN places p ON p.place_id = f.place_id
+        WHERE f.user_id = #{userId}
+          AND p.is_active = TRUE
+        ORDER BY f.created_at DESC, f.favorite_id DESC
+        LIMIT #{size} OFFSET #{offset}
+    </select>
+
+    <delete id="delete">
+        DELETE FROM favorites
+        WHERE user_id = #{userId}
+          AND place_id = #{placeId}
+    </delete>
+</mapper>

@@ -1,10 +1,148 @@
 /* 여행 기본 정보 전용 스타일 */
-body.page-trip-basic #page-content {
+body.page-basic #page-content {
   min-height: calc(100vh - 78px);
 }
 
+.destination-trigger {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 12px;
+  text-align: left;
+}
+
+.destination-trigger span {
+  color: #6372df;
+  font-size: 23px;
+}
+
+.destination-trigger strong {
+  font-weight: 600;
+}
+
+.destination-trigger em {
+  color: #8b95a7;
+  font-size: 22px;
+  font-style: normal;
+}
+
+.destination-trigger.has-value {
+  border-color: #6372df;
+  background: #f7f8ff;
+}
+
+.destination-trigger.has-value strong {
+  color: #4051c8;
+  font-weight: 800;
+}
+
+.destination-modal {
+  width: min(520px, calc(100vw - 28px));
+  max-height: min(680px, calc(100vh - 40px));
+  overflow: hidden;
+}
+
+.destination-kicker {
+  display: block;
+  margin-bottom: 8px;
+  color: #6372df;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+}
+
+.destination-modal > p {
+  margin-bottom: 18px;
+  color: #687386;
+}
+
+.destination-search {
+  display: flex;
+  gap: 8px;
+  padding: 6px;
+  border: 1px solid #dfe3ea;
+  border-radius: 15px;
+  background: #f8f9fc;
+}
+
+.destination-search:focus-within {
+  border-color: #6372df;
+  box-shadow: 0 0 0 3px rgba(99, 114, 223, 0.1);
+}
+
+.destination-search input {
+  flex: 1;
+  min-width: 0;
+  padding: 0 10px;
+  border: 0;
+  background: transparent;
+  outline: 0;
+}
+
+.destination-search button {
+  min-height: 40px;
+  padding: 0 17px;
+  border: 0;
+  border-radius: 11px;
+  background: #5969dd;
+  color: #fff;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.destination-list {
+  display: grid;
+  gap: 8px;
+  max-height: 360px;
+  margin-top: 16px;
+  overflow-y: auto;
+}
+
+.destination-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 58px;
+  padding: 0 16px;
+  border: 1px solid #e2e6ee;
+  border-radius: 13px;
+  background: #fff;
+  color: #172033;
+  cursor: pointer;
+  transition: border-color 150ms ease, background 150ms ease;
+}
+
+.destination-option:hover {
+  border-color: #7180e4;
+  background: #f7f8ff;
+}
+
+.destination-option span {
+  font-weight: 700;
+}
+
+.destination-option small {
+  color: #7c8798;
+}
+
+.destination-empty {
+  padding: 38px 16px;
+  color: #7c8798;
+  text-align: center;
+}
+
 @media (max-width: 760px) {
-  body.page-trip-basic #page-content {
+  body.page-basic #page-content {
     min-height: calc(100vh - 64px);
+  }
+
+  .destination-modal {
+    max-height: calc(100vh - 24px);
+    padding: 24px 18px;
+  }
+
+  .destination-list {
+    max-height: 320px;
   }
 }

@@ -45,7 +45,12 @@
       <section class="form-board">
         <div>
           <h2>어디로 떠나시나요?</h2>
-          <button class="input-button" type="button" data-modal="destination">도시, 국가 또는 공항 검색</button>
+          <button class="input-button destination-trigger" type="button" data-destination-open>
+            <span>⌕</span>
+            <strong data-destination-label>도시 또는 지역 검색</strong>
+            <em>›</em>
+          </button>
+          <input type="hidden" name="destination" data-destination-value />
           <div class="segmented small"><button class="selected">국내</button><button>해외</button></div>
           <h2>여행 기간</h2>
           <div class="date-pair"><button type="button" data-modal="date">2026.08.14</button><button type="button" data-modal="date">2026.08.17</button></div>
@@ -63,5 +68,6 @@
       <div th:replace="~{fragments/footer :: footer}"></div>
     </div>
     <div th:replace="~{fragments/scripts :: appScripts}"></div>
+    <script th:src="@{/js/pages/trips/basic.js}" src="../../static/js/pages/trips/basic.js"></script>
   </body>
 </html>
