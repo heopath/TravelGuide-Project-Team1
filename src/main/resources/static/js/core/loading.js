@@ -52,17 +52,21 @@
 
   document.addEventListener("click", function (event) {
     const link = event.target.closest("a[href]");
-    const route = event.target.closest("[data-route]");
+    const route = event.target.closest("[data-route]:not(body)");
     if (route || (link && link.target !== "_blank" && !link.href.startsWith("javascript:"))) show();
   }, true);
 
-  document.addEventListener("submit", function () {
-    show();
+  document.addEventListener("submit", function (event) {
+    if (!event.target.matches("[data-no-global-loading]")) show();
   }, true);
 
   const originalFetch = window.fetch;
   if (originalFetch) {
     window.fetch = function () {
+      const requestOptions = arguments[1];
+      if (requestOptions && requestOptions.allMyTripsLoading === false) {
+        return originalFetch.apply(this, arguments);
+      }
       activeRequests += 1;
       show();
       return originalFetch.apply(this, arguments).finally(function () {
