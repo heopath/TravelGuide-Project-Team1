@@ -2,6 +2,7 @@ package org.example.all_my_trip_project.domain.place.controller;
 
 import lombok.RequiredArgsConstructor;
 import org.example.all_my_trip_project.domain.place.dto.PlaceDTO;
+import org.example.all_my_trip_project.domain.place.dto.PlaceDetailResult;
 import org.example.all_my_trip_project.domain.place.service.PlaceService;
 import org.springframework.context.annotation.Profile;
 import org.springframework.http.ResponseEntity;
@@ -24,14 +25,24 @@ public class PlaceController {
     }
 
     @GetMapping("/{placeId}")
-    public PlaceDTO get(@PathVariable Long placeId) {
-        return placeService.get(placeId);
+    public PlaceDetailResult get(@PathVariable Long placeId) {
+        return placeService.getDetail(placeId);
     }
 
     @GetMapping
-    public List<PlaceDTO> search(@RequestParam(required = false) String keyword,
-                                 @RequestParam(required = false) String category) {
-        return placeService.search(keyword, category);
+    public List<PlaceDTO> list(@RequestParam(defaultValue = "0") int page,
+                               @RequestParam(defaultValue = "20") int size,
+                               @RequestParam(required = false) String keyword,
+                               @RequestParam(required = false) String category,
+                               @RequestParam(required = false) String region,
+                               @RequestParam(required = false) Long styleId) {
+        if ((keyword != null && !keyword.isBlank())
+                || (category != null && !category.isBlank())
+                || (region != null && !region.isBlank())
+                || styleId != null) {
+            return placeService.search(keyword, category, region, styleId, page, size);
+        }
+        return placeService.getPage(page, size);
     }
 
     @PutMapping("/{placeId}")
