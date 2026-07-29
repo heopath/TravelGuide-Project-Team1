@@ -5,6 +5,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const messages = document.querySelector("[data-chat-messages]");
   const errorBox = document.querySelector("[data-chat-error]");
   const mode = document.querySelector("#demo-mode");
+  const submitButton = document.querySelector("[data-ai-submit]");
   let lastQuestion = "근처 저녁 맛집을 추천해줘";
 
   const append = (className, html) => {
@@ -34,11 +35,24 @@ document.addEventListener("DOMContentLoaded", () => {
     append("user-message", question);
     append("ai-loading", "<span class=\"loading-dot\">✦</span><p>여행 조건을 분석하고 있어요<span class=\"loading-ellipsis\">...</span></p>");
     form.classList.add("is-disabled");
-    form.querySelector("button").disabled = true;
+    submitButton.disabled = true;
     requestMock(question).then((response) => { messages.querySelector(".ai-loading")?.remove(); renderResponse(response); }).catch(() => { messages.querySelector(".ai-loading")?.remove(); errorBox.hidden = false; }).finally(() => { form.classList.remove("is-disabled"); form.querySelector("button").disabled = false; });
   };
 
-  form.addEventListener("submit", (event) => { event.preventDefault(); const question = input.value.trim(); if (!question) return; input.value = ""; submit(question); });
+  const submitQuestion = () => {
+    const question = input.value.trim();
+    if (!question || submitButton.disabled) return;
+    input.value = "";
+    submit(question);
+  };
+
+  submitButton.addEventListener("click", submitQuestion);
+  input.addEventListener("keydown", (event) => {
+    if (event.key === "Enter" && !event.isComposing) {
+      event.preventDefault();
+      submitQuestion();
+    }
+  });
   document.querySelectorAll("[data-chat-question]").forEach((button) => button.addEventListener("click", () => { input.value = button.dataset.chatQuestion; input.focus(); }));
   document.querySelector("[data-retry]").addEventListener("click", () => submit(lastQuestion));
 });

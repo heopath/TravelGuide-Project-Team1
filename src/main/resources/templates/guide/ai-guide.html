@@ -11,7 +11,7 @@
     <link rel="stylesheet" th:href="@{/css/common/components.css}" href="../../static/css/common/components.css" />
     <link rel="stylesheet" th:href="@{/css/pages/guide/ai-guide.css}" href="../../static/css/pages/guide/ai-guide.css" />
   </head>
-  <body class="page-ai-guide" data-route="/ai-guide">
+  <body class="page-ai-guide">
     <div class="app">
       <div th:replace="~{fragments/header :: header('guide')}"></div>
       <main id="page-content">
@@ -57,11 +57,11 @@
                 <p>잠시 후 다시 시도하거나 질문을 조금 바꿔보세요.</p>
                 <button type="button" class="outline-button" data-retry>다시 시도</button>
               </div>
-              <form class="chat-input" data-ai-chat-form>
+              <div class="chat-input" data-ai-chat-form>
                 <label class="sr-only" for="chat-question">여행 질문</label>
                 <input id="chat-question" name="question" maxlength="200" autocomplete="off" placeholder="여행에 대해 무엇이든 물어보세요." required />
-                <button type="submit" aria-label="질문 보내기">↑</button>
-              </form>
+                <button type="button" data-ai-submit aria-label="질문 보내기">↑</button>
+              </div>
             </section>
           </div>
 
