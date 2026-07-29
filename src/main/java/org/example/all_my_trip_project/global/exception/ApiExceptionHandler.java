@@ -58,4 +58,18 @@ public class ApiExceptionHandler {
                         "서버에서 오류가 발생했습니다."
                 ));
     }
+
+    @ExceptionHandler(BusinessException.class)
+    public ResponseEntity<ErrorResponse> handleBusinessException(
+            BusinessException exception
+    ) {
+        ErrorCode errorCode = exception.getErrorCode();
+
+        return ResponseEntity
+                .status(errorCode.getStatus())
+                .body(ErrorResponse.of(
+                        errorCode.name(),
+                        errorCode.getMessage()
+                ));
+    }
 }
