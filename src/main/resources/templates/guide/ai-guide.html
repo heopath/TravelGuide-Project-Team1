@@ -16,25 +16,68 @@
       <div th:replace="~{fragments/header :: header('guide')}"></div>
       <main id="page-content">
         <section class="page-shell">
-      
-    <section class="page-heading">
-      <div>
-        <h1>AI 여행 가이드</h1>
-        <p>서비스 데이터와 현재 일정을 바탕으로 답해드려요.</p>
-        <i>✦</i>
-      </div>
-      
-    </section>
-  
-      <div class="ai-layout">
-        <aside class="white-panel ai-context"><h2>여행 컨텍스트</h2><div><span>현재 여행</span><strong>부산 미식 여행 · DAY 1</strong><p>광안리 → 해운대 → 청사포</p></div><h3>추천 질문</h3><button data-chat-question="근처 저녁 맛집 추천">근처 저녁 맛집 추천</button><button data-chat-question="비 오는 날 갈 곳">비 오는 날 갈 곳</button><button data-chat-question="부모님과 가기 좋은 곳">부모님과 가기 좋은 곳</button><button data-chat-question="2시간 안에 볼 수 있는 곳">2시간 안에 볼 수 있는 곳</button></aside>
-        <section class="white-panel chat-panel" id="chat-panel"><div class="user-message">근처에서 저녁 먹을 곳 추천해줘.</div><div class="ai-message"><p>현재 DAY 1의 광안리 일정을 기준으로 도보 10분 거리의 민락회센터와 광안리 해변 인근 돼지국밥집을 추천합니다. 예약 가능 여부도 확인할까요?</p><small>근거: 현재 일정 · 부산 맛집 데이터 · 영업시간</small></div><form class="chat-input" data-chat-form><input placeholder="여행에 대해 무엇이든 물어보세요." /><button aria-label="보내기">↑</button></form></section>
-      </div>
-    </section>
+          <section class="page-heading ai-heading">
+            <div>
+              <span class="section-eyebrow">AI TRAVEL GUIDE</span>
+              <h1>여행에 대해 무엇이든 물어보세요</h1>
+              <p>현재 여행과 취향을 바탕으로 다음 코스를 제안해 드립니다.</p>
+            </div>
+            <div class="demo-status">
+              <label for="demo-mode">모의 응답 상태</label>
+              <select id="demo-mode">
+                <option value="success">성공 응답</option>
+                <option value="failure">실패 응답</option>
+              </select>
+            </div>
+          </section>
+
+          <div class="ai-layout">
+            <aside class="white-panel ai-context">
+              <div class="context-badge">✦</div>
+              <h2>부산 미식 여행</h2>
+              <p class="context-subtitle">DAY 1 · 광안리 → 해운대 → 청사포</p>
+              <div class="context-facts">
+                <span><b>3박 4일</b>여행 기간</span>
+                <span><b>맛집 · 카페</b>여행 스타일</span>
+              </div>
+              <h3>추천 질문</h3>
+              <button type="button" class="question-chip" data-chat-question="근처 저녁 맛집을 추천해줘">근처 저녁 맛집 추천</button>
+              <button type="button" class="question-chip" data-chat-question="비 오는 날 갈 만한 곳을 알려줘">비 오는 날 갈 곳</button>
+              <button type="button" class="question-chip" data-chat-question="부모님과 가기 좋은 곳을 알려줘">부모님과 가기 좋은 곳</button>
+              <button type="button" class="question-chip" data-chat-question="2시간 안에 볼 수 있는 곳을 알려줘">2시간 안에 볼 수 있는 곳</button>
+            </aside>
+
+            <section class="white-panel chat-panel" id="chat-panel" aria-live="polite">
+              <div class="chat-intro"><span>AI</span><p>여행 조건을 알려주시면 맞춤 추천을 시작할게요.</p></div>
+              <div class="chat-messages" data-chat-messages>
+                <div class="ai-message"><p>안녕하세요! 부산 미식 여행의 다음 코스를 함께 찾아볼까요?</p><small>부산 여행 데이터 · 현재 일정</small></div>
+              </div>
+              <div class="chat-error" data-chat-error hidden>
+                <strong>추천을 불러오지 못했어요</strong>
+                <p>잠시 후 다시 시도하거나 질문을 조금 바꿔보세요.</p>
+                <button type="button" class="outline-button" data-retry>다시 시도</button>
+              </div>
+              <form class="chat-input" data-ai-chat-form>
+                <label class="sr-only" for="chat-question">여행 질문</label>
+                <input id="chat-question" name="question" maxlength="200" autocomplete="off" placeholder="여행에 대해 무엇이든 물어보세요." required />
+                <button type="submit" aria-label="질문 보내기">↑</button>
+              </form>
+            </section>
+          </div>
+
+          <section class="external-section">
+            <div class="section-title-row"><div><span class="section-eyebrow">BOOKING LINKS</span><h2>추천 일정에 필요한 예약</h2></div><span class="section-note">외부 예약 사이트로 이동합니다</span></div>
+            <div class="external-grid">
+              <article class="external-card flight-card"><div class="external-icon">✈</div><div><span class="external-type">항공</span><h3>인천 → 제주</h3><p>8월 14일 · 직항 · 왕복</p></div><strong>89,000원<small>부터</small></strong><a href="/booking/flights" target="_blank" rel="noopener noreferrer">항공권 검색 <span>↗</span></a></article>
+              <article class="external-card hotel-card"><div class="external-icon">▣</div><div><span class="external-type">숙소</span><h3>제주 오션뷰 호텔</h3><p>8월 14일–17일 · 2인 1실</p></div><strong>145,000원<small>1박부터</small></strong><a href="/booking/hotels" target="_blank" rel="noopener noreferrer">숙소 검색 <span>↗</span></a></article>
+            </div>
+          </section>
+        </section>
       </main>
       <div th:replace="~{fragments/modals :: modalRoots}"><div id="directory-root"></div><div id="modal-root"></div><div id="toast-root" aria-live="polite"></div></div>
       <div th:replace="~{fragments/footer :: footer}"></div>
     </div>
     <div th:replace="~{fragments/scripts :: appScripts}"></div>
+    <script th:src="@{/js/pages/guide/ai-guide.js}" src="../../static/js/pages/guide/ai-guide.js" defer></script>
   </body>
 </html>

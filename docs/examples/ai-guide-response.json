@@ -1,0 +1,16 @@
+{
+  "success": true,
+  "data": {
+    "answer": "광안리 일정 뒤에는 민락회센터에서 저녁을 먹고, 해변 산책으로 마무리하는 코스를 추천해요.",
+    "recommendations": [
+      { "name": "민락회센터", "reason": "광안리에서 도보 10분 · 저녁 식사에 적합" },
+      { "name": "광안리 해변 산책", "reason": "식사 후 이동 부담이 적은 코스" }
+    ],
+    "externalLinks": [
+      { "type": "FLIGHT", "label": "항공권 검색", "url": "/booking/flights" },
+      { "type": "HOTEL", "label": "숙소 검색", "url": "/booking/hotels" }
+    ],
+    "sources": ["현재 일정", "부산 장소 데이터", "질문: 근처 저녁 맛집을 추천해줘"]
+  },
+  "message": "추천이 완료되었습니다."
+}
