@@ -1,0 +1,27 @@
+/* AI-01 mock DTO: 실제 AI API 연결 시 이 파일을 API 응답 DTO로 교체합니다. */
+window.AiGuideMockData = {
+  createSuccessResponse(question) {
+    return {
+      success: true,
+      data: {
+        answer: "광안리에서 저녁을 먹고 해변 야경까지 즐길 수 있도록 DAY 1 일정을 추천해요.",
+        days: [
+          {
+            day: 1,
+            title: "DAY 1 · 광안리 미식 산책",
+            items: [
+              { time: "18:00", name: "민락회센터", reason: "광안리에서 도보 10분 · 저녁 식사에 적합" },
+              { time: "20:00", name: "광안리 해변 산책", reason: "식사 후 이동 부담이 적은 야경 코스" }
+            ]
+          }
+        ],
+        externalLinks: [
+          { type: "FLIGHT", label: "부산 항공권 검색", url: "https://www.google.com/travel/flights" },
+          { type: "HOTEL", label: "광안리 숙소 검색", url: "https://www.google.com/travel/hotels" }
+        ],
+        sources: ["현재 일정", "부산 장소 데이터", `질문: ${question}`]
+      },
+      message: "추천이 완료되었습니다."
+    };
+  }
+};

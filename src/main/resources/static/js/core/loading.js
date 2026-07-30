@@ -52,7 +52,7 @@
 
   document.addEventListener("click", function (event) {
     const link = event.target.closest("a[href]");
-    const route = event.target.closest("[data-route]");
+    const route = event.target.closest("button[data-route], a[data-route]");
     if (route || (link && link.target !== "_blank" && !link.href.startsWith("javascript:"))) show();
   }, true);
 
