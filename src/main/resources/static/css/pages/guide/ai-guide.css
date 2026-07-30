@@ -23,4 +23,4 @@ body.page-ai-guide #page-content { background: linear-gradient(180deg,#f6f8ff 0,
 .ai-day-card .ai-recommendations strong,.ai-day-card .ai-recommendations span { display:block; }
 .ai-day-card .ai-recommendations span { margin-top:2px; }
 @keyframes ai-pulse { 50% { opacity:.25; transform:scale(1.3); } }
-@media (max-width:760px) { .ai-heading { display:block; }.demo-status { width:max-content; margin-top:18px; }.external-grid { grid-template-columns:1fr; }.external-card { grid-template-columns:42px 1fr; }.external-card>strong { grid-column:2; text-align:left; }.external-card>a { grid-column:2; justify-self:start; }.section-title-row { display:block; }.section-note { display:block; margin-top:7px; } }
+@media (max-width:760px) { .ai-heading { display:block; }.demo-status { width:max-content; margin-top:18px; }.ai-layout { grid-template-columns:1fr; }.external-grid { grid-template-columns:1fr; }.external-card { grid-template-columns:42px 1fr; }.external-card>strong { grid-column:2; text-align:left; }.external-card>a { grid-column:2; justify-self:start; }.section-title-row { display:block; }.section-note { display:block; margin-top:7px; } }
