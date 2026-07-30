@@ -19,6 +19,11 @@ public enum ErrorCode {
             "이메일 또는 비밀번호가 올바르지 않습니다."
     ),
 
+    UNAUTHORIZED(
+            HttpStatus.UNAUTHORIZED,
+            "로그인이 필요합니다."
+    ),
+
     ACCOUNT_SUSPENDED(
             HttpStatus.FORBIDDEN,
             "정지된 계정입니다."

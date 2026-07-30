@@ -72,6 +72,18 @@ public class AuthService {
         return toMemberResponse(user);
     }
 
+    public MemberResponse getCurrentMember(Long userId) {
+        UserEntity user = userRepository
+                .findById(userId)
+                .orElseThrow(() -> new BusinessException(
+                        ErrorCode.UNAUTHORIZED
+                ));
+
+        validateAccountStatus(user);
+
+        return toMemberResponse(user);
+    }
+
     private String normalizeEmail(String email) {
         return email
                 .trim()
