@@ -1,4 +1,4 @@
-/* AI-01: DTO 샘플을 사용하는 모의 응답 화면. 실제 API 연결 시 requestMock만 교체합니다. */
+/* AI-01: 화면 상태 제어. 모의 데이터는 ai-guide-mock-data.js에서 관리합니다. */
 document.addEventListener("DOMContentLoaded", () => {
   const form = document.querySelector("[data-ai-chat-form]");
   const input = document.querySelector("#chat-question");
@@ -8,35 +8,101 @@ document.addEventListener("DOMContentLoaded", () => {
   const submitButton = document.querySelector("[data-ai-submit]");
   let lastQuestion = "근처 저녁 맛집을 추천해줘";
 
-  const append = (className, html) => {
-    const item = document.createElement("div");
-    item.className = className;
-    item.innerHTML = html;
+  const create = (tag, text, className) => {
+    const element = document.createElement(tag);
+    if (className) element.className = className;
+    if (text) element.textContent = text;
+    return element;
+  };
+
+  const appendMessage = (className, buildContent) => {
+    const item = create("div", "", className);
+    buildContent(item);
     messages.appendChild(item);
     item.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    return item;
+  };
+
+  const appendUserMessage = (question) => appendMessage("user-message", (item) => {
+    item.textContent = question;
+  });
+
+  const appendLoading = () => appendMessage("ai-loading", (item) => {
+    item.append(create("span", "✦", "loading-dot"));
+    const label = create("p", "여행 조건을 분석하고 있어요", "");
+    label.append(create("span", "...", "loading-ellipsis"));
+    item.append(label);
+  });
+
+  const safeExternalUrl = (value) => {
+    try {
+      const url = new URL(value);
+      return ["https:", "http:"].includes(url.protocol) ? url.href : null;
+    } catch (error) {
+      return null;
+    }
   };
 
   const renderResponse = (response) => {
-    const places = response.data.recommendations.map((item) => `<li><strong>${item.name}</strong><span>${item.reason}</span></li>`).join("");
-    const links = response.data.externalLinks.map((item) => `<a href="${item.url}" target="_blank" rel="noopener noreferrer">${item.label} ↗</a>`).join("");
-    append("ai-message", `<p>${response.data.answer}</p><ul class="ai-recommendations">${places}</ul><div class="ai-links">${links}</div><small>${response.data.sources.join(" · ")}</small>`);
+    appendMessage("ai-message", (item) => {
+      item.append(create("p", response.data.answer));
+
+      const days = create("div", "", "ai-days");
+      response.data.days.forEach((day) => {
+        const dayCard = create("section", "", "ai-day-card");
+        dayCard.append(create("h3", day.title));
+        const list = create("ul", "", "ai-recommendations");
+        day.items.forEach((schedule) => {
+          const scheduleItem = create("li");
+          scheduleItem.append(create("time", schedule.time));
+          const copy = create("div");
+          copy.append(create("strong", schedule.name));
+          copy.append(create("span", schedule.reason));
+          scheduleItem.append(copy);
+          list.append(scheduleItem);
+        });
+        dayCard.append(list);
+        days.append(dayCard);
+      });
+      item.append(days);
+
+      const links = create("div", "", "ai-links");
+      response.data.externalLinks.forEach((link) => {
+        const href = safeExternalUrl(link.url);
+        if (!href) return;
+        const anchor = create("a", `${link.label} ↗`);
+        anchor.href = href;
+        anchor.target = "_blank";
+        anchor.rel = "noopener noreferrer";
+        links.append(anchor);
+      });
+      item.append(links);
+      item.append(create("small", response.data.sources.join(" · ")));
+    });
   };
 
   const requestMock = (question) => new Promise((resolve, reject) => {
     window.setTimeout(() => {
       if (mode.value === "failure") return reject(new Error("AI_MOCK_FAILURE"));
-      resolve({ success: true, data: { answer: "광안리 일정 뒤에는 민락회센터에서 저녁을 먹고, 해변 산책으로 마무리하는 코스를 추천해요.", recommendations: [{ name: "민락회센터", reason: "광안리에서 도보 10분 · 저녁 식사에 적합" }, { name: "광안리 해변 산책", reason: "식사 후 이동 부담이 적은 코스" }], externalLinks: [{ type: "FLIGHT", label: "항공권 검색", url: "/booking/flights" }, { type: "HOTEL", label: "숙소 검색", url: "/booking/hotels" }], sources: ["현재 일정", "부산 장소 데이터", `질문: ${question}`] }, message: "추천이 완료되었습니다." });
+      resolve(window.AiGuideMockData.createSuccessResponse(question));
     }, 900);
   });
 
   const submit = (question) => {
     lastQuestion = question;
     errorBox.hidden = true;
-    append("user-message", question);
-    append("ai-loading", "<span class=\"loading-dot\">✦</span><p>여행 조건을 분석하고 있어요<span class=\"loading-ellipsis\">...</span></p>");
+    appendUserMessage(question);
+    const loading = appendLoading();
     form.classList.add("is-disabled");
     submitButton.disabled = true;
-    requestMock(question).then((response) => { messages.querySelector(".ai-loading")?.remove(); renderResponse(response); }).catch(() => { messages.querySelector(".ai-loading")?.remove(); errorBox.hidden = false; }).finally(() => { form.classList.remove("is-disabled"); form.querySelector("button").disabled = false; });
+    requestMock(question)
+      .then(renderResponse)
+      .catch(() => { errorBox.hidden = false; })
+      .finally(() => {
+        loading.remove();
+        form.classList.remove("is-disabled");
+        submitButton.disabled = false;
+      });
   };
 
   const submitQuestion = () => {
@@ -53,6 +119,9 @@ document.addEventListener("DOMContentLoaded", () => {
       submitQuestion();
     }
   });
-  document.querySelectorAll("[data-chat-question]").forEach((button) => button.addEventListener("click", () => { input.value = button.dataset.chatQuestion; input.focus(); }));
+  document.querySelectorAll("[data-chat-question]").forEach((button) => button.addEventListener("click", () => {
+    input.value = button.dataset.chatQuestion;
+    input.focus();
+  }));
   document.querySelector("[data-retry]").addEventListener("click", () => submit(lastQuestion));
 });

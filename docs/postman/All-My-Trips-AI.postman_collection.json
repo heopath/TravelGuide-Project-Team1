@@ -1,16 +1,20 @@
 {
-  "info": { "name": "All My Trips - AI Guide", "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json" },
+  "info": {
+    "name": "All My Trips - AI Guide (API 계약 예시)",
+    "description": "실제 AI API는 아직 구현되지 않았습니다. 이 컬렉션은 팀장 DTO 확정 후 사용할 요청·응답 계약 예시이며, 현재 실행하면 성공하지 않습니다.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
   "variable": [{ "key": "baseUrl", "value": "http://localhost:8080" }, { "key": "tripId", "value": "1" }],
   "item": [
     {
-      "name": "AI 일정 추천 - 성공 계약",
-      "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Accept", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"tripId\": {{tripId}},\n  \"question\": \"근처 저녁 맛집을 추천해줘\",\n  \"day\": 1\n}" }, "url": { "raw": "{{baseUrl}}/api/v1/ai/recommendations", "host": ["{{baseUrl}}"], "path": ["api", "v1", "ai", "recommendations"] } },
-      "event": [{ "listen": "test", "script": { "exec": ["pm.test('HTTP 2xx', () => pm.expect(pm.response.code).to.be.within(200, 299));", "const body = pm.response.json();", "pm.test('공통 응답 success=true', () => pm.expect(body.success).to.eql(true));", "pm.test('추천과 외부 링크가 존재', () => { pm.expect(body.data.recommendations).to.be.an('array'); pm.expect(body.data.externalLinks).to.be.an('array'); });"] } }]
+      "name": "[계약 예시] AI 일정 추천 요청",
+      "description": "향후 실제 API 구현 후 사용합니다. 현재는 화면의 requestMock()이 별도 JS 모의 DTO를 사용합니다.",
+      "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Accept", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"tripId\": {{tripId}},\n  \"question\": \"근처 저녁 맛집을 추천해줘\",\n  \"day\": 1\n}" }, "url": { "raw": "{{baseUrl}}/api/v1/ai/recommendations", "host": ["{{baseUrl}}"], "path": ["api", "v1", "ai", "recommendations"] } }
     },
     {
-      "name": "AI 일정 추천 - 빈 질문 오류",
-      "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"tripId\": {{tripId}},\n  \"question\": \"\",\n  \"day\": 1\n}" }, "url": { "raw": "{{baseUrl}}/api/v1/ai/recommendations", "host": ["{{baseUrl}}"], "path": ["api", "v1", "ai", "recommendations"] } },
-      "event": [{ "listen": "test", "script": { "exec": ["pm.test('HTTP 4xx', () => pm.expect(pm.response.code).to.be.within(400, 499));", "const body = pm.response.json();", "pm.test('success=false 오류 응답', () => pm.expect(body.success).to.eql(false));"] } }]
+      "name": "[계약 예시] 빈 질문 오류 요청",
+      "description": "향후 Validation 규칙이 구현되면 4xx 및 success=false를 검증합니다.",
+      "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"tripId\": {{tripId}},\n  \"question\": \"\",\n  \"day\": 1\n}" }, "url": { "raw": "{{baseUrl}}/api/v1/ai/recommendations", "host": ["{{baseUrl}}"], "path": ["api", "v1", "ai", "recommendations"] } }
     }
   ]
 }

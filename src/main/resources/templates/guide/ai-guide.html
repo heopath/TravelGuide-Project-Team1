@@ -11,7 +11,7 @@
     <link rel="stylesheet" th:href="@{/css/common/components.css}" href="../../static/css/common/components.css" />
     <link rel="stylesheet" th:href="@{/css/pages/guide/ai-guide.css}" href="../../static/css/pages/guide/ai-guide.css" />
   </head>
-  <body class="page-ai-guide">
+  <body class="page-ai-guide" data-route="/ai-guide">
     <div class="app">
       <div th:replace="~{fragments/header :: header('guide')}"></div>
       <main id="page-content">
@@ -68,8 +68,8 @@
           <section class="external-section">
             <div class="section-title-row"><div><span class="section-eyebrow">BOOKING LINKS</span><h2>추천 일정에 필요한 예약</h2></div><span class="section-note">외부 예약 사이트로 이동합니다</span></div>
             <div class="external-grid">
-              <article class="external-card flight-card"><div class="external-icon">✈</div><div><span class="external-type">항공</span><h3>인천 → 제주</h3><p>8월 14일 · 직항 · 왕복</p></div><strong>89,000원<small>부터</small></strong><a href="/booking/flights" target="_blank" rel="noopener noreferrer">항공권 검색 <span>↗</span></a></article>
-              <article class="external-card hotel-card"><div class="external-icon">▣</div><div><span class="external-type">숙소</span><h3>제주 오션뷰 호텔</h3><p>8월 14일–17일 · 2인 1실</p></div><strong>145,000원<small>1박부터</small></strong><a href="/booking/hotels" target="_blank" rel="noopener noreferrer">숙소 검색 <span>↗</span></a></article>
+              <article class="external-card flight-card"><div class="external-icon">✈</div><div><span class="external-type">항공</span><h3>김포 → 부산</h3><p>부산 미식 여행 · 항공권 비교</p></div><strong>검색 비교<small>Google Travel</small></strong><a href="https://www.google.com/travel/flights" target="_blank" rel="noopener noreferrer">항공권 검색 <span>↗</span></a></article>
+              <article class="external-card hotel-card"><div class="external-icon">▣</div><div><span class="external-type">숙소</span><h3>광안리 숙소</h3><p>부산 미식 여행 · 2인 1실</p></div><strong>검색 비교<small>Google Travel</small></strong><a href="https://www.google.com/travel/hotels" target="_blank" rel="noopener noreferrer">숙소 검색 <span>↗</span></a></article>
             </div>
           </section>
         </section>
@@ -78,6 +78,7 @@
       <div th:replace="~{fragments/footer :: footer}"></div>
     </div>
     <div th:replace="~{fragments/scripts :: appScripts}"></div>
+    <script th:src="@{/js/pages/guide/ai-guide-mock-data.js}" src="../../static/js/pages/guide/ai-guide-mock-data.js" defer></script>
     <script th:src="@{/js/pages/guide/ai-guide.js}" src="../../static/js/pages/guide/ai-guide.js" defer></script>
   </body>
 </html>

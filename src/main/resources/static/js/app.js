@@ -59,7 +59,7 @@ function navigateTo(route) {
 }
 
 document.addEventListener("click", function (event) {
-  const routeButton = event.target.closest("[data-route]");
+  const routeButton = event.target.closest("button[data-route], a[data-route]");
   if (routeButton) {
     navigateTo(routeButton.dataset.route);
     return;
