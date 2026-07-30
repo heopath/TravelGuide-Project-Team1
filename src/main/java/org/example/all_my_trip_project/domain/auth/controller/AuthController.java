@@ -1,6 +1,8 @@
 package org.example.all_my_trip_project.domain.auth.controller;
 
+import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -8,12 +10,15 @@ import org.example.all_my_trip_project.domain.auth.dto.LoginRequest;
 import org.example.all_my_trip_project.domain.auth.dto.SignupRequest;
 import org.example.all_my_trip_project.domain.auth.service.AuthService;
 import org.example.all_my_trip_project.domain.user.dto.MemberResponse;
+import org.example.all_my_trip_project.global.exception.BusinessException;
+import org.example.all_my_trip_project.global.exception.ErrorCode;
 import org.example.all_my_trip_project.global.response.ApiResponse;
 import org.example.all_my_trip_project.global.security.AuthenticatedUser;
 import org.springframework.context.annotation.Profile;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -88,6 +93,40 @@ public class AuthController {
                 ApiResponse.success(
                         "로그인되었습니다.",
                         response
+                )
+        );
+    }
+
+    @PostMapping("/logout")
+    public ResponseEntity<ApiResponse<Void>> logout(
+            @AuthenticationPrincipal AuthenticatedUser principal,
+            HttpServletRequest request,
+            HttpServletResponse response
+    ) {
+        if (principal == null) {
+            throw new BusinessException(
+                    ErrorCode.UNAUTHORIZED
+            );
+        }
+
+        HttpSession session = request.getSession(false);
+
+        if (session != null) {
+            session.invalidate();
+        }
+
+        SecurityContextHolder.clearContext();
+
+        Cookie cookie = new Cookie("JSESSIONID", "");
+        cookie.setPath("/");
+        cookie.setHttpOnly(true);
+        cookie.setMaxAge(0);
+        response.addCookie(cookie);
+
+        return ResponseEntity.ok(
+                ApiResponse.<Void>success(
+                        "로그아웃되었습니다.",
+                        null
                 )
         );
     }
