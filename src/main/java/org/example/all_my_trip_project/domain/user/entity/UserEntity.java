@@ -67,6 +67,10 @@ public class UserEntity {
         return new UserEntity(email, passwordHash, nickname);
     }
 
+    public void recordLogin() {
+        this.lastLoginAt = OffsetDateTime.now(ZoneOffset.UTC);
+    }
+
     @PrePersist
     private void onCreate() {
         OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);

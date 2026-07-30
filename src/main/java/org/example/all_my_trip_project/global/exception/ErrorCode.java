@@ -12,6 +12,21 @@ public enum ErrorCode {
     NICKNAME_DUPLICATED(
             HttpStatus.CONFLICT,
             "이미 사용 중인 닉네임입니다."
+    ),
+
+    INVALID_CREDENTIALS(
+            HttpStatus.UNAUTHORIZED,
+            "이메일 또는 비밀번호가 올바르지 않습니다."
+    ),
+
+    ACCOUNT_SUSPENDED(
+            HttpStatus.FORBIDDEN,
+            "정지된 계정입니다."
+    ),
+
+    ACCOUNT_WITHDRAWN(
+            HttpStatus.FORBIDDEN,
+            "탈퇴한 계정입니다."
     );
 
     private final HttpStatus status;
