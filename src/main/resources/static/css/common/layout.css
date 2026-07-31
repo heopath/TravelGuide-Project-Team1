@@ -46,6 +46,36 @@
 .app-header nav button.active { color: var(--primary); font-weight: 800; }
 .app-header nav button.active::after { background: var(--primary); }
 .header-actions { display: flex; align-items: center; justify-content: flex-end; gap: 10px; }
+.authenticated-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.authenticated-actions[hidden] {
+  display: none !important;
+}
+
+.logout-button {
+  min-height: 40px;
+  padding: 0 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: #fff;
+  color: var(--navy);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.logout-button:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.logout-button:disabled {
+  cursor: wait;
+  opacity: 0.6;
+}
 .login-pill {
   min-height: 42px;
   padding: 0 22px;
