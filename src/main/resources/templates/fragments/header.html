@@ -19,9 +19,47 @@
           th:classappend="${activeMenu == 'mypage'} ? 'active' : ''">마이 페이지</button>
       </nav>
       <div class="header-actions">
-        <button class="login-pill" type="button" data-route="/auth/login">로그인</button>
-        <button class="avatar" type="button" data-route="/mypage" aria-label="마이 페이지">민</button>
-        <button class="menu-button static-menu-button" type="button" data-directory aria-label="전체 화면 보기">☰</button>
+        <!-- 비로그인 상태 -->
+        <button
+                class="login-pill"
+                type="button"
+                data-auth-login
+                data-route="/auth/login"
+                hidden
+        >
+          로그인
+        </button>
+
+        <!-- 로그인 상태 -->
+        <div class="authenticated-actions" data-auth-user hidden>
+          <button
+                  class="avatar"
+                  type="button"
+                  data-auth-avatar
+                  data-route="/mypage"
+                  aria-label="마이페이지"
+                  title="마이페이지"
+          >
+            사
+          </button>
+
+          <button
+                  class="logout-button"
+                  type="button"
+                  data-auth-logout
+          >
+            로그아웃
+          </button>
+        </div>
+
+        <button
+                class="menu-button static-menu-button"
+                type="button"
+                data-directory
+                aria-label="전체 화면 보기"
+        >
+          ☰
+        </button>
       </div>
     </header>
   </body>
