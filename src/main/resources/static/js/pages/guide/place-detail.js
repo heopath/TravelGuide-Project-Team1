@@ -330,12 +330,14 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     try {
-      const response = await fetch("/api/places/" + match[1], {
+      const response = await fetch("/api/v1/places/" + match[1], {
         headers: { Accept: "application/json" },
         allMyTripsLoading: false,
       });
       if (!response.ok) throw new Error("장소 상세 요청에 실패했습니다.");
-      renderDetail(await response.json());
+      const payload = await response.json();
+      if (!payload.data) throw new Error("장소 상세 응답이 올바르지 않습니다.");
+      renderDetail(payload.data);
     } catch (error) {
       state.textContent = "장소 정보를 불러오지 못했습니다. 여행 가이드에서 다시 시도해주세요.";
       state.classList.add("error");

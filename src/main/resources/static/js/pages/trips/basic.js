@@ -81,12 +81,13 @@ document.addEventListener("DOMContentLoaded", function () {
     if (keyword) params.set("keyword", keyword);
 
     try {
-      const response = await fetch("/api/places?" + params.toString(), {
+      const response = await fetch("/api/v1/places?" + params.toString(), {
         headers: { Accept: "application/json" },
         allMyTripsLoading: false,
       });
       if (!response.ok) throw new Error("목적지 검색 요청에 실패했습니다.");
-      const places = await response.json();
+      const payload = await response.json();
+      const places = Array.isArray(payload.data) ? payload.data : [];
       renderDestinationList(
         list,
         uniqueDestinations(places),

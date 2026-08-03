@@ -96,13 +96,14 @@ document.addEventListener("DOMContentLoaded", function () {
         });
         if (keyword) params.set("keyword", keyword);
         if (category) params.set("category", category);
-        const response = await fetch("/api/places?" + params.toString(), {
+        const response = await fetch("/api/v1/places?" + params.toString(), {
           headers: { Accept: "application/json" },
           credentials: "same-origin",
           allMyTripsLoading: false,
         });
         if (!response.ok) throw new Error("장소 검색 API 요청에 실패했습니다.");
-        return response.json();
+        const payload = await response.json();
+        return Array.isArray(payload.data) ? payload.data : [];
       }));
       const placesById = new Map();
       responses.flat().forEach(function (place) {

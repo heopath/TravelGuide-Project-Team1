@@ -40,7 +40,7 @@ domain
 | Controller | 기본 URL | 역할 |
 | --- | --- | --- |
 | `UserController` | `/api/users` | 회원 등록·조회·수정·탈퇴 |
-| `PlaceController` | `/api/places` | 장소 등록·검색·조회·수정·삭제 |
+| `PlaceController` | `/api/v1/places` | 장소 등록·검색·조회·수정·삭제 |
 | `TripController` | `/api/v1/trips` | 여행·날짜별 DAY 원자적 등록, 회원별 조회·수정·삭제 |
 | `TripDayController` | `/api/v1/trips/{tripId}/days` | 여행 일자 조회·수정·삭제 및 개별 등록 |
 | `ItineraryItemController` | `/api/v1/trip-days/{tripDayId}/items` | 세부 일정 등록·조회·수정·삭제 |
