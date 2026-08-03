@@ -1,6 +1,7 @@
 package org.example.all_my_trip_project.domain.auth.service;
 
 import lombok.RequiredArgsConstructor;
+import org.example.all_my_trip_project.domain.auth.dto.LoginRequest;
 import org.example.all_my_trip_project.domain.auth.dto.SignupRequest;
 import org.example.all_my_trip_project.domain.user.dto.MemberResponse;
 import org.example.all_my_trip_project.domain.user.entity.UserEntity;
@@ -25,10 +26,7 @@ public class AuthService {
 
     @Transactional
     public MemberResponse signup(SignupRequest request) {
-        String email = request.email()
-                .trim()
-                .toLowerCase(Locale.ROOT);
-
+        String email = normalizeEmail(request.email());
         String nickname = request.nickname().trim();
 
         validateEmailDuplicate(email);
@@ -45,13 +43,51 @@ public class AuthService {
 
         UserEntity savedUser = userRepository.save(user);
 
-        return new MemberResponse(
-                savedUser.getUserId(),
-                savedUser.getEmail(),
-                savedUser.getNickname(),
-                savedUser.getRole(),
-                savedUser.getStatus()
-        );
+        return toMemberResponse(savedUser);
+    }
+
+    @Transactional
+    public MemberResponse login(LoginRequest request) {
+        String email = normalizeEmail(request.email());
+
+        UserEntity user = userRepository
+                .findByEmailIgnoreCase(email)
+                .orElseThrow(() -> new BusinessException(
+                        ErrorCode.INVALID_CREDENTIALS
+                ));
+
+        if (!passwordEncoder.matches(
+                request.password(),
+                user.getPasswordHash()
+        )) {
+            throw new BusinessException(
+                    ErrorCode.INVALID_CREDENTIALS
+            );
+        }
+
+        validateAccountStatus(user);
+
+        user.recordLogin();
+
+        return toMemberResponse(user);
+    }
+
+    public MemberResponse getCurrentMember(Long userId) {
+        UserEntity user = userRepository
+                .findById(userId)
+                .orElseThrow(() -> new BusinessException(
+                        ErrorCode.UNAUTHORIZED
+                ));
+
+        validateAccountStatus(user);
+
+        return toMemberResponse(user);
+    }
+
+    private String normalizeEmail(String email) {
+        return email
+                .trim()
+                .toLowerCase(Locale.ROOT);
     }
 
     private void validateEmailDuplicate(String email) {
@@ -70,5 +106,29 @@ public class AuthService {
                     ErrorCode.NICKNAME_DUPLICATED
             );
         }
+    }
+
+    private void validateAccountStatus(UserEntity user) {
+        if ("SUSPENDED".equals(user.getStatus())) {
+            throw new BusinessException(
+                    ErrorCode.ACCOUNT_SUSPENDED
+            );
+        }
+
+        if ("WITHDRAWN".equals(user.getStatus())) {
+            throw new BusinessException(
+                    ErrorCode.ACCOUNT_WITHDRAWN
+            );
+        }
+    }
+
+    private MemberResponse toMemberResponse(UserEntity user) {
+        return new MemberResponse(
+                user.getUserId(),
+                user.getEmail(),
+                user.getNickname(),
+                user.getRole(),
+                user.getStatus()
+        );
     }
 }

@@ -16,31 +16,31 @@ class InMemoryTripDraftSnapshotRepositoryTest {
 
     @Test
     @SuppressWarnings("unchecked")
-    void storesAndReturnsDefensiveCopies() {
+    void storesAndReturnsDefensiveCopiesForOwner() {
         List<String> purposes = new ArrayList<>(List.of("FOOD"));
         Map<String, Object> style = new LinkedHashMap<>();
         style.put("purposes", purposes);
         Map<String, Object> draft = new LinkedHashMap<>();
-        draft.put("basic", Map.of("tripName", "복원 여행"));
+        draft.put("basic", Map.of("destination", "서울"));
         draft.put("style", style);
 
-        var created = repository.create(draft);
+        var created = repository.create(1L, draft);
         purposes.add("PHOTO");
-        ((Map<String, Object>) created.draft().get("style"))
-                .put("pace", "PACKED");
+        ((Map<String, Object>) created.draft().get("style")).put("pace", "PACKED");
 
-        var restored = repository.findById(created.draftId()).orElseThrow();
+        var restored = repository.findById(created.draftId(), 1L).orElseThrow();
         Map<?, ?> restoredStyle = (Map<?, ?>) restored.draft().get("style");
 
         assertThat(restoredStyle.get("purposes")).isEqualTo(List.of("FOOD"));
         assertThat(restoredStyle.containsKey("pace")).isFalse();
+        assertThat(repository.findById(created.draftId(), 2L)).isEmpty();
     }
 
     @Test
-    void returnsEmptyWhenUpdatingAnUnknownDraft() {
-        assertThat(repository.update(
-                "missing",
-                Map.of("basic", Map.of(), "style", Map.of())
-        )).isEmpty();
+    void returnsEmptyWhenUpdatingAnUnknownOrForeignDraft() {
+        assertThat(repository.update("missing", 1L, Map.of("basic", Map.of()))).isEmpty();
+        var created = repository.create(1L, Map.of("basic", Map.of("destination", "서울")));
+        assertThat(repository.update(created.draftId(), 2L,
+                Map.of("basic", Map.of("destination", "부산")))).isEmpty();
     }
 }

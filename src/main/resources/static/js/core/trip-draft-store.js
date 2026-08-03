@@ -50,17 +50,17 @@
     let response;
     if (draftId) {
       try {
-        response = await request("/api/trip-drafts/" + encodeURIComponent(draftId), "PUT", draft);
+        response = await request("/api/v1/trip-drafts/" + encodeURIComponent(draftId), "PUT", draft);
       } catch (error) {
         if (error.status !== 404) {
           throw error;
         }
         localStorage.removeItem(PERSISTED_ID_KEY);
         sessionStorage.removeItem(META_KEY);
-        response = await request("/api/trip-drafts", "POST", draft);
+        response = await request("/api/v1/trip-drafts", "POST", draft);
       }
     } else {
-      response = await request("/api/trip-drafts", "POST", draft);
+      response = await request("/api/v1/trip-drafts", "POST", draft);
     }
     remember(response.data);
     return response;
@@ -80,7 +80,7 @@
         return current;
       }
       try {
-        const response = await request("/api/trip-drafts/" + encodeURIComponent(draftId), "GET");
+        const response = await request("/api/v1/trip-drafts/" + encodeURIComponent(draftId), "GET");
         remember(response.data);
         return response.data.draft;
       } catch (error) {

@@ -1,12 +1,16 @@
 package org.example.all_my_trip_project.domain.trip.controller;
 
-import org.example.all_my_trip_project.domain.trip.service.TripDraftSnapshotService;
 import org.example.all_my_trip_project.domain.trip.repository.InMemoryTripDraftSnapshotRepository;
+import org.example.all_my_trip_project.domain.trip.service.TripDraftSnapshotService;
+import org.example.all_my_trip_project.global.exception.BusinessException;
+import org.example.all_my_trip_project.global.exception.ErrorCode;
+import org.example.all_my_trip_project.global.security.SessionUserResolver;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.mock.web.MockHttpServletRequest;
+import org.springframework.mock.web.MockHttpSession;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -23,57 +27,74 @@ class TripDraftSnapshotControllerTest {
 
     private final TripDraftSnapshotService service =
             new TripDraftSnapshotService(new InMemoryTripDraftSnapshotRepository());
-    private final TripDraftSnapshotController controller = new TripDraftSnapshotController(service);
+    private final TripDraftSnapshotController controller =
+            new TripDraftSnapshotController(service, new SessionUserResolver());
     private final MockMvc mockMvc = standaloneSetup(controller).build();
 
     @Test
-    void acceptsAJsonDraftThroughTheHttpMessageConverter() throws Exception {
-        mockMvc.perform(post("/api/trip-drafts")
+    void savesBasicOnlyBeforeMovingToStyle() throws Exception {
+        mockMvc.perform(post("/api/v1/trip-drafts")
+                        .session(session(1L))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {
-                                  "basic": {"tripName": "HTTP 여행"},
-                                  "style": {"purposes": ["FOOD"]}
-                                }
-                                """))
+                        .content("{\"basic\":{\"destination\":\"서울\"}}"))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.success").value(true))
-                .andExpect(jsonPath("$.data.draft.basic.tripName").value("HTTP 여행"));
+                .andExpect(jsonPath("$.data.draft.basic.destination").value("서울"));
     }
 
     @Test
-    void createsReadsAndUpdatesACompleteDraft() {
-        Map<String, Object> initial = new LinkedHashMap<>();
-        initial.put("basic", Map.of("tripName", "여름 여행"));
-        initial.put("style", Map.of("purposes", List.of("FOOD")));
+    void updatesDraftAfterStyleSelection() {
+        Map<String, Object> basicOnly = Map.of("basic", Map.of("destination", "서울"));
+        var created = controller.create(basicOnly, request(1L)).getBody().data();
 
-        var created = controller.create(initial);
-        var createdData = created.getBody().data();
+        Map<String, Object> completed = new LinkedHashMap<>(basicOnly);
+        completed.put("style", Map.of("purposes", List.of("FOOD"), "scheduleStyle", "BALANCED"));
 
-        assertThat(created.getStatusCode()).isEqualTo(HttpStatus.CREATED);
-        assertThat(createdData.draftId()).isNotBlank();
-        assertThat(controller.get(createdData.draftId()).data().draft())
-                .isEqualTo(initial);
-
-        Map<String, Object> updated = new LinkedHashMap<>(initial);
-        updated.put("recommendation", Map.of("destinationSlug", "yeosu"));
-
-        var updatedData = controller.update(createdData.draftId(), updated).data();
-        assertThat(((Map<?, ?>) updatedData.draft().get("recommendation")).get("destinationSlug"))
-                .isEqualTo("yeosu");
+        var updated = controller.update(created.draftId(), completed, request(1L)).data();
+        assertThat(updated.draft()).isEqualTo(completed);
     }
 
     @Test
-    void rejectsAnIncompleteDraft() {
-        assertThatThrownBy(() -> controller.create(Map.of()))
-                .isInstanceOf(ResponseStatusException.class)
-                .satisfies(error -> assertThat(((ResponseStatusException) error).getStatusCode())
-                        .isEqualTo(HttpStatus.BAD_REQUEST));
+    void blocksAnotherUsersDraftAccess() {
+        var created = controller.create(
+                Map.of("basic", Map.of("destination", "서울")), request(1L)).getBody().data();
+
+        assertThatThrownBy(() -> controller.get(created.draftId(), request(2L)))
+                .isInstanceOf(BusinessException.class)
+                .extracting(error -> ((BusinessException) error).getErrorCode())
+                .isEqualTo(ErrorCode.TRIP_DRAFT_NOT_FOUND);
+
+        assertThatThrownBy(() -> controller.update(
+                created.draftId(), Map.of("basic", Map.of("destination", "부산")), request(2L)))
+                .isInstanceOf(BusinessException.class)
+                .extracting(error -> ((BusinessException) error).getErrorCode())
+                .isEqualTo(ErrorCode.TRIP_DRAFT_NOT_FOUND);
     }
 
     @Test
-    void returnsNotFoundForAnUnknownDraft() {
-        assertThatThrownBy(() -> service.get("missing"))
-                .isInstanceOf(TripDraftSnapshotService.DraftNotFoundException.class);
+    void requiresLoginForDraftSave() {
+        assertThatThrownBy(() -> controller.create(
+                Map.of("basic", Map.of("destination", "서울")), new MockHttpServletRequest()))
+                .isInstanceOf(BusinessException.class)
+                .extracting(error -> ((BusinessException) error).getErrorCode())
+                .isEqualTo(ErrorCode.UNAUTHORIZED);
+    }
+
+    @Test
+    void rejectsEmptyDraft() {
+        assertThatThrownBy(() -> controller.create(Map.of(), request(1L)))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    private MockHttpServletRequest request(Long userId) {
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.setSession(session(userId));
+        return request;
+    }
+
+    private MockHttpSession session(Long userId) {
+        MockHttpSession session = new MockHttpSession();
+        session.setAttribute("userId", userId);
+        return session;
     }
 }

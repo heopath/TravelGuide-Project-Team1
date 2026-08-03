@@ -2,6 +2,8 @@ package org.example.all_my_trip_project.domain.trip.service;
 
 import org.example.all_my_trip_project.domain.trip.dto.TripDraftSnapshotResponse;
 import org.example.all_my_trip_project.domain.trip.repository.TripDraftSnapshotRepository;
+import org.example.all_my_trip_project.global.exception.BusinessException;
+import org.example.all_my_trip_project.global.exception.ErrorCode;
 import org.springframework.stereotype.Service;
 
 import java.util.Map;
@@ -15,20 +17,20 @@ public class TripDraftSnapshotService {
         this.repository = repository;
     }
 
-    public TripDraftSnapshotResponse create(Map<String, Object> draft) {
-        return response(repository.create(draft));
+    public TripDraftSnapshotResponse create(Long userId, Map<String, Object> draft) {
+        return response(repository.create(userId, draft));
     }
 
-    public TripDraftSnapshotResponse get(String draftId) {
-        return repository.findById(draftId)
+    public TripDraftSnapshotResponse get(String draftId, Long userId) {
+        return repository.findById(draftId, userId)
                 .map(this::response)
-                .orElseThrow(() -> new DraftNotFoundException(draftId));
+                .orElseThrow(() -> new BusinessException(ErrorCode.TRIP_DRAFT_NOT_FOUND));
     }
 
-    public TripDraftSnapshotResponse update(String draftId, Map<String, Object> draft) {
-        return repository.update(draftId, draft)
+    public TripDraftSnapshotResponse update(String draftId, Long userId, Map<String, Object> draft) {
+        return repository.update(draftId, userId, draft)
                 .map(this::response)
-                .orElseThrow(() -> new DraftNotFoundException(draftId));
+                .orElseThrow(() -> new BusinessException(ErrorCode.TRIP_DRAFT_NOT_FOUND));
     }
 
     private TripDraftSnapshotResponse response(TripDraftSnapshotRepository.StoredTripDraft stored) {
@@ -41,9 +43,4 @@ public class TripDraftSnapshotService {
         );
     }
 
-    public static class DraftNotFoundException extends RuntimeException {
-        public DraftNotFoundException(String draftId) {
-            super("여행 초안을 찾을 수 없습니다. draftId=" + draftId);
-        }
-    }
 }

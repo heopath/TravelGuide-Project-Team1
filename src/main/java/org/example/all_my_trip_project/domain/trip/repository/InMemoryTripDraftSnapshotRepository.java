@@ -19,10 +19,11 @@ public class InMemoryTripDraftSnapshotRepository implements TripDraftSnapshotRep
     private final Map<String, StoredTripDraft> drafts = new ConcurrentHashMap<>();
 
     @Override
-    public StoredTripDraft create(Map<String, Object> draft) {
+    public StoredTripDraft create(Long userId, Map<String, Object> draft) {
         String draftId = UUID.randomUUID().toString();
         StoredTripDraft stored = new StoredTripDraft(
                 draftId,
+                userId,
                 copyMap(draft),
                 OffsetDateTime.now()
         );
@@ -31,17 +32,19 @@ public class InMemoryTripDraftSnapshotRepository implements TripDraftSnapshotRep
     }
 
     @Override
-    public Optional<StoredTripDraft> findById(String draftId) {
-        return Optional.ofNullable(drafts.get(draftId)).map(this::copy);
+    public Optional<StoredTripDraft> findById(String draftId, Long userId) {
+        return Optional.ofNullable(drafts.get(draftId))
+                .filter(stored -> stored.userId().equals(userId))
+                .map(this::copy);
     }
 
     @Override
-    public Optional<StoredTripDraft> update(String draftId, Map<String, Object> draft) {
-        if (!drafts.containsKey(draftId)) {
-            return Optional.empty();
-        }
+    public Optional<StoredTripDraft> update(String draftId, Long userId, Map<String, Object> draft) {
+        StoredTripDraft current = drafts.get(draftId);
+        if (current == null || !current.userId().equals(userId)) return Optional.empty();
         StoredTripDraft stored = new StoredTripDraft(
                 draftId,
+                userId,
                 copyMap(draft),
                 OffsetDateTime.now()
         );
@@ -52,6 +55,7 @@ public class InMemoryTripDraftSnapshotRepository implements TripDraftSnapshotRep
     private StoredTripDraft copy(StoredTripDraft stored) {
         return new StoredTripDraft(
                 stored.draftId(),
+                stored.userId(),
                 copyMap(stored.draft()),
                 stored.savedAt()
         );

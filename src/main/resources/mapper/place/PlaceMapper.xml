@@ -24,41 +24,9 @@
         SELECT <include refid="columns"/> FROM places WHERE place_id = #{placeId}
     </select>
 
-    <select id="findImagesByPlaceId"
-            resultType="org.example.all_my_trip_project.domain.place.dto.PlaceImageResult">
-        SELECT place_image_id,
-               image_url,
-               alt_text,
-               sort_order,
-               is_primary AS primary_image
-        FROM place_images
-        WHERE place_id = #{placeId}
-        ORDER BY is_primary DESC, sort_order, place_image_id
-    </select>
-
-    <select id="findStylesByPlaceId"
-            resultType="org.example.all_my_trip_project.domain.place.dto.PlaceStyleResult">
-        SELECT ts.travel_style_id,
-               ts.code,
-               ts.name,
-               pts.relevance_score
-        FROM place_travel_styles pts
-        JOIN travel_styles ts
-          ON ts.travel_style_id = pts.travel_style_id
-        WHERE pts.place_id = #{placeId}
-        ORDER BY pts.relevance_score DESC, ts.travel_style_id
-    </select>
-
     <select id="findAll" resultType="org.example.all_my_trip_project.domain.place.dto.PlaceDTO">
         SELECT <include refid="columns"/> FROM places
         WHERE is_active = TRUE ORDER BY place_id DESC
-    </select>
-
-    <select id="findPage" resultType="org.example.all_my_trip_project.domain.place.dto.PlaceDTO">
-        SELECT <include refid="columns"/> FROM places
-        WHERE is_active = TRUE
-        ORDER BY place_id DESC
-        LIMIT #{size} OFFSET #{offset}
     </select>
 
     <select id="search" resultType="org.example.all_my_trip_project.domain.place.dto.PlaceDTO">
@@ -66,27 +34,15 @@
         <where>
             is_active = TRUE
             <if test="keyword != null and keyword != ''">
-                AND (name ILIKE CONCAT('%', #{keyword}, '%')
-                    OR region ILIKE CONCAT('%', #{keyword}, '%')
-                    OR city ILIKE CONCAT('%', #{keyword}, '%'))
+                AND (name LIKE CONCAT('%', #{keyword}, '%')
+                    OR region LIKE CONCAT('%', #{keyword}, '%')
+                    OR city LIKE CONCAT('%', #{keyword}, '%'))
             </if>
             <if test="category != null and category != ''">
                 AND category = #{category}
             </if>
-            <if test="region != null and region != ''">
-                AND region = #{region}
-            </if>
-            <if test="styleId != null">
-                AND EXISTS (
-                    SELECT 1
-                    FROM place_travel_styles pts
-                    WHERE pts.place_id = places.place_id
-                      AND pts.travel_style_id = #{styleId}
-                )
-            </if>
         </where>
         ORDER BY average_rating DESC, place_id DESC
-        LIMIT #{size} OFFSET #{offset}
     </select>
 
     <update id="update">

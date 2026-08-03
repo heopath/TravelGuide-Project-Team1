@@ -26,10 +26,6 @@ out/
 !**/src/main/**/out/
 !**/src/test/**/out/
 
-# Local database verification artifacts
-/tmp/local-db.log
-/tmp/schema-tables.txt
-
 ### NetBeans ###
 /nbproject/private/
 /nbbuild/

@@ -6,14 +6,15 @@ import java.util.Optional;
 
 public interface TripDraftSnapshotRepository {
 
-    StoredTripDraft create(Map<String, Object> draft);
+    StoredTripDraft create(Long userId, Map<String, Object> draft);
 
-    Optional<StoredTripDraft> findById(String draftId);
+    Optional<StoredTripDraft> findById(String draftId, Long userId);
 
-    Optional<StoredTripDraft> update(String draftId, Map<String, Object> draft);
+    Optional<StoredTripDraft> update(String draftId, Long userId, Map<String, Object> draft);
 
     record StoredTripDraft(
             String draftId,
+            Long userId,
             Map<String, Object> draft,
             OffsetDateTime savedAt
     ) {

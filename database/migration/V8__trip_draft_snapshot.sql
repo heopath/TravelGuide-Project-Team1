@@ -2,7 +2,7 @@
 
 CREATE TABLE trip_drafts (
     draft_id       UUID PRIMARY KEY,
-    user_id        BIGINT REFERENCES users(user_id) ON DELETE CASCADE,
+    user_id        BIGINT NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
     status         VARCHAR(20) NOT NULL DEFAULT 'SAVED',
     draft_payload  JSONB NOT NULL,
     expires_at     TIMESTAMPTZ,
@@ -12,8 +12,6 @@ CREATE TABLE trip_drafts (
         CHECK (status IN ('SAVED', 'CONVERTED', 'EXPIRED')),
     CONSTRAINT ck_trip_drafts_payload_object
         CHECK (jsonb_typeof(draft_payload) = 'object'),
-    CONSTRAINT ck_trip_drafts_required_steps
-        CHECK (draft_payload ? 'basic' AND draft_payload ? 'style'),
     CONSTRAINT ck_trip_drafts_expiry
         CHECK (expires_at IS NULL OR expires_at > created_at)
 );
