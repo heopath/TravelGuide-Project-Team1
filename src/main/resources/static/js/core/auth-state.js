@@ -9,11 +9,17 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     function showAnonymous() {
+        document.documentElement.dataset.authenticated = "false";
+        document.documentElement.dataset.userRole = "";
+
         loginButton.hidden = false;
         userActions.hidden = true;
     }
 
     function showAuthenticated(member) {
+        document.documentElement.dataset.authenticated = "true";
+        document.documentElement.dataset.userRole = (member.role || "USER").toUpperCase();
+
         const nickname = member.nickname || member.email || "사용자";
         const initial = nickname.trim().charAt(0) || "사";
 
