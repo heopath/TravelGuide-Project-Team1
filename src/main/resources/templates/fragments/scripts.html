@@ -64,7 +64,7 @@ function navigateTo(route) {
 }
 
 document.addEventListener("click", function (event) {
-  const routeButton = event.target.closest("[data-route]:not(body)");
+  const routeButton = event.target.closest("button[data-route], a[data-route]");
   if (routeButton) {
     navigateTo(routeButton.dataset.route);
     return;
@@ -403,6 +403,7 @@ window.AllMyTripsModal = { openModal, closeModal, showToast, openDirectory, clos
 
 
     </script>
+    <script th:src="@{/js/core/trip-draft-store.js}" src="/js/core/trip-draft-store.js"></script>
     <script th:src="@{/js/core/loading.js}" src="/js/core/loading.js"></script>
     </th:block>
   </body>

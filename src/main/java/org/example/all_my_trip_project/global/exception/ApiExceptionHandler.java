@@ -1,24 +1,75 @@
 package org.example.all_my_trip_project.global.exception;
 
-import org.springframework.context.annotation.Profile;
+import lombok.extern.slf4j.Slf4j;
+import org.example.all_my_trip_project.global.response.ErrorResponse;
+import org.example.all_my_trip_project.global.response.ErrorResponse.FieldErrorDetail;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
-import java.time.LocalDateTime;
-import java.util.LinkedHashMap;
-import java.util.Map;
+import java.util.List;
 
-@RestControllerAdvice
-@Profile("!ui")
+@Slf4j
+@RestControllerAdvice(annotations = RestController.class)
 public class ApiExceptionHandler {
+
     @ExceptionHandler(IllegalArgumentException.class)
-    public ResponseEntity<Map<String, Object>> handleIllegalArgument(IllegalArgumentException exception) {
-        Map<String, Object> body = new LinkedHashMap<>();
-        body.put("timestamp", LocalDateTime.now());
-        body.put("status", HttpStatus.BAD_REQUEST.value());
-        body.put("message", exception.getMessage());
-        return ResponseEntity.badRequest().body(body);
+    public ResponseEntity<ErrorResponse> handleIllegalArgument(
+            IllegalArgumentException exception
+    ) {
+        return ResponseEntity.badRequest().body(
+                ErrorResponse.of(
+                        "BAD_REQUEST",
+                        exception.getMessage()
+                )
+        );
+    }
+
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public ResponseEntity<ErrorResponse> handleValidation(
+            MethodArgumentNotValidException exception
+    ) {
+        List<FieldErrorDetail> errors =
+                exception.getBindingResult()
+                        .getFieldErrors()
+                        .stream()
+                        .map(error -> new FieldErrorDetail(
+                                error.getField(),
+                                error.getDefaultMessage()
+                        ))
+                        .toList();
+
+        return ResponseEntity.badRequest()
+                .body(ErrorResponse.validation(errors));
+    }
+
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<ErrorResponse> handleException(
+            Exception exception
+    ) {
+        log.error("처리되지 않은 서버 오류", exception);
+
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(ErrorResponse.of(
+                        "INTERNAL_SERVER_ERROR",
+                        "서버에서 오류가 발생했습니다."
+                ));
+    }
+
+    @ExceptionHandler(BusinessException.class)
+    public ResponseEntity<ErrorResponse> handleBusinessException(
+            BusinessException exception
+    ) {
+        ErrorCode errorCode = exception.getErrorCode();
+
+        return ResponseEntity
+                .status(errorCode.getStatus())
+                .body(ErrorResponse.of(
+                        errorCode.name(),
+                        errorCode.getMessage()
+                ));
     }
 }
