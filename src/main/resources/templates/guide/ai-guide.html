@@ -23,7 +23,7 @@
               <p>현재 여행과 취향을 바탕으로 다음 코스를 제안해 드립니다.</p>
             </div>
             <div class="demo-status">
-              <label for="demo-mode">모의 응답 상태</label>
+              <label for="demo-mode">API 테스트 상태</label>
               <select id="demo-mode">
                 <option value="success">성공 응답</option>
                 <option value="failure">실패 응답</option>
@@ -78,7 +78,6 @@
       <div th:replace="~{fragments/footer :: footer}"></div>
     </div>
     <div th:replace="~{fragments/scripts :: appScripts}"></div>
-    <script th:src="@{/js/pages/guide/ai-guide-mock-data.js}" src="../../static/js/pages/guide/ai-guide-mock-data.js" defer></script>
     <script th:src="@{/js/pages/guide/ai-guide.js}" src="../../static/js/pages/guide/ai-guide.js" defer></script>
   </body>
 </html>

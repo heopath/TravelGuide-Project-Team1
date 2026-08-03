@@ -1,5 +1,7 @@
 {
   "success": true,
+  "code": "SUCCESS",
+  "message": "AI 여행 일정 추천이 완료되었습니다.",
   "data": {
     "answer": "광안리에서 저녁을 먹고 해변 야경까지 즐길 수 있도록 DAY 1 일정을 추천해요.",
     "days": [
@@ -17,6 +19,5 @@
       { "type": "HOTEL", "label": "광안리 숙소 검색", "url": "https://www.google.com/travel/hotels" }
     ],
     "sources": ["현재 일정", "부산 장소 데이터", "질문: 근처 저녁 맛집을 추천해줘"]
-  },
-  "message": "추천이 완료되었습니다."
+  }
 }

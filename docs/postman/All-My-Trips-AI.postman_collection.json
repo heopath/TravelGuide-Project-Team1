@@ -1,20 +1,45 @@
 {
   "info": {
-    "name": "All My Trips - AI Guide (API 계약 예시)",
-    "description": "실제 AI API는 아직 구현되지 않았습니다. 이 컬렉션은 팀장 DTO 확정 후 사용할 요청·응답 계약 예시이며, 현재 실행하면 성공하지 않습니다.",
+    "name": "All My Trips - AI Guide",
+    "description": "AI-02 Mock API 검증용 컬렉션입니다. Gemini와 DB는 연결하지 않습니다.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
-  "variable": [{ "key": "baseUrl", "value": "http://localhost:8080" }, { "key": "tripId", "value": "1" }],
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8080" }
+  ],
   "item": [
     {
-      "name": "[계약 예시] AI 일정 추천 요청",
-      "description": "향후 실제 API 구현 후 사용합니다. 현재는 화면의 requestMock()이 별도 JS 모의 DTO를 사용합니다.",
-      "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Accept", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"tripId\": {{tripId}},\n  \"question\": \"근처 저녁 맛집을 추천해줘\",\n  \"day\": 1\n}" }, "url": { "raw": "{{baseUrl}}/api/v1/ai/recommendations", "host": ["{{baseUrl}}"], "path": ["api", "v1", "ai", "recommendations"] } }
+      "name": "AI 일정 추천 성공",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Accept", "value": "application/json" }
+        ],
+        "body": { "mode": "raw", "raw": "{\n  \"question\": \"근처 저녁 맛집을 추천해줘\"\n}" },
+        "url": { "raw": "{{baseUrl}}/api/v1/ai-guides/generate", "host": ["{{baseUrl}}"], "path": ["api", "v1", "ai-guides", "generate"] }
+      }
     },
     {
-      "name": "[계약 예시] 빈 질문 오류 요청",
-      "description": "향후 Validation 규칙이 구현되면 4xx 및 success=false를 검증합니다.",
-      "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"tripId\": {{tripId}},\n  \"question\": \"\",\n  \"day\": 1\n}" }, "url": { "raw": "{{baseUrl}}/api/v1/ai/recommendations", "host": ["{{baseUrl}}"], "path": ["api", "v1", "ai", "recommendations"] } }
+      "name": "빈 질문 검증 오류",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "{\n  \"question\": \"\"\n}" },
+        "url": { "raw": "{{baseUrl}}/api/v1/ai-guides/generate", "host": ["{{baseUrl}}"], "path": ["api", "v1", "ai-guides", "generate"] }
+      }
+    },
+    {
+      "name": "Mock 서버 오류",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "X-AI-Mock-Mode", "value": "server-error" }
+        ],
+        "body": { "mode": "raw", "raw": "{\n  \"question\": \"서버 오류 테스트\"\n}" },
+        "url": { "raw": "{{baseUrl}}/api/v1/ai-guides/generate", "host": ["{{baseUrl}}"], "path": ["api", "v1", "ai-guides", "generate"] }
+      }
     }
   ]
 }
