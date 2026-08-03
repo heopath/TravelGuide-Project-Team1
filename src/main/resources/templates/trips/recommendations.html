@@ -19,7 +19,7 @@
       
     <section class="page-heading">
       <div>
-        <h1><span>01 </span>맞춤 여행지 추천</h1>
+        <h1 id="recommendationTitle"><span>01 </span>맞춤 여행지 추천</h1>
         <p>입력한 조건을 분석한 AI 추천 결과입니다.</p>
         <i>✦</i>
       </div>
@@ -62,5 +62,6 @@
       <div th:replace="~{fragments/footer :: footer}"></div>
     </div>
     <div th:replace="~{fragments/scripts :: appScripts}"></div>
+    <script th:src="@{/js/pages/trips/recommendations.js}" src="../../static/js/pages/trips/recommendations.js"></script>
   </body>
 </html>

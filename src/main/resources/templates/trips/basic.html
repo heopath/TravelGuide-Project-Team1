@@ -17,13 +17,7 @@
       <main id="page-content">
         <section class="page-shell">
       
-    <section class="page-heading">
-      <div>
-        <h1><span>01 </span>여행 계획</h1>
-        <p>몇 가지 정보만 알려주면 딱 맞는 여행을 제안할게요.</p>
-        <i>✦</i>
-      </div>
-      
+    <section class="page-heading basic-wizard-heading">
     <ol class="wizard">
       
         <li class="active">
@@ -42,26 +36,109 @@
   
     </section>
   
-      <section class="form-board">
+      <form class="form-board" id="tripBasicForm" novalidate>
         <div>
           <h2>어디로 떠나시나요?</h2>
-          <button class="input-button destination-trigger" type="button" data-destination-open>
-            <span>⌕</span>
-            <strong data-destination-label>도시 또는 지역 검색</strong>
-            <em>›</em>
-          </button>
-          <input type="hidden" name="destination" data-destination-value />
-          <div class="segmented small"><button class="selected">국내</button><button>해외</button></div>
+          <div class="destination-control" id="destinationControl">
+            <input class="destination-trigger" id="destinationTrigger" type="search"
+                   aria-label="목적지 검색" aria-autocomplete="list" aria-controls="destinationInlineList"
+                   aria-expanded="false" placeholder="여행지를 검색해보세요 (예: 파리, 일본, 하와이)" autocomplete="off" />
+            <section class="destination-inline-panel" id="destinationPanel" aria-labelledby="destinationPanelTitle">
+              <span class="destination-kicker">DESTINATION</span>
+              <h3 id="destinationPanelTitle">어디로 떠나볼까요?</h3>
+              <p>도시나 지역을 검색하고 여행 목적지를 선택하세요.</p>
+              <div class="destination-list" id="destinationInlineList" role="listbox" aria-live="polite"></div>
+              <div class="destination-popular" aria-label="인기 검색어">
+                <span>인기 검색어</span>
+                <button type="button" data-destination-keyword="파리">파리</button>
+                <button type="button" data-destination-keyword="도쿄">도쿄</button>
+                <button type="button" data-destination-keyword="다낭">다낭</button>
+                <button type="button" data-destination-keyword="방콕">방콕</button>
+                <button type="button" data-destination-keyword="뉴욕">뉴욕</button>
+              </div>
+            </section>
+            <input type="hidden" id="destination" name="destination" />
+            <span class="sr-only" id="destinationLabel">도시 또는 지역 검색</span>
+            <p class="field-error" id="destinationError" aria-live="polite"></p>
+          </div>
+
           <h2>여행 기간</h2>
-          <div class="date-pair"><button type="button" data-modal="date">2026.08.14</button><button type="button" data-modal="date">2026.08.17</button></div>
+          <div class="date-pair">
+            <div class="date-field">
+              <label for="startDate">시작일</label>
+              <input id="startDate" name="startDate" type="text" inputmode="none" readonly placeholder="시작일 선택" />
+              <p class="field-error" id="startDateError" aria-live="polite"></p>
+            </div>
+            <div class="date-field">
+              <label for="endDate">종료일</label>
+              <input id="endDate" name="endDate" type="text" inputmode="none" readonly placeholder="종료일 선택" />
+              <p class="field-error" id="endDateError" aria-live="polite"></p>
+            </div>
+          </div>
+          <div class="range-calendar" id="tripRangeCalendar" aria-label="여행 기간 선택">
+            <div class="range-calendar-header">
+              <button type="button" id="rangeCalendarPrev" aria-label="이전 달">‹</button>
+              <strong id="rangeCalendarTitle">여행 기간을 선택하세요</strong>
+              <button type="button" id="rangeCalendarNext" aria-label="다음 달">›</button>
+              <button type="button" id="rangeCalendarClose" aria-label="달력 닫기">×</button>
+            </div>
+            <div class="range-calendar-months">
+              <section class="range-month"><h3 id="rangeMonthTitle0"></h3><div class="range-weekdays"><span>일</span><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span>토</span></div><div class="range-days" id="rangeMonthGrid0"></div></section>
+              <section class="range-month"><h3 id="rangeMonthTitle1"></h3><div class="range-weekdays"><span>일</span><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span>토</span></div><div class="range-days" id="rangeMonthGrid1"></div></section>
+            </div>
+            <p class="range-calendar-hint" id="rangeCalendarHint">시작일을 선택한 후 종료일을 선택하세요.</p>
+          </div>
+                    <div class="trip-duration" id="tripDuration" aria-live="polite">
+                        <span class="trip-duration-icon" aria-hidden="true"></span>
+                        <span class="trip-duration-divider" aria-hidden="true"></span>
+                        <span class="trip-duration-copy">
+                            <strong class="trip-duration-value" id="tripDurationValue">기간을 선택해주세요.</strong>
+                            <span class="trip-duration-label">여행 기간</span>
+                        </span>
+                    </div>
         </div>
         <div>
           <h2>동행자 유형</h2>
-          <div class="choice-grid"><button class="">혼자</button><button class="">친구</button><button class="selected">연인</button><button class="">가족</button><button class="">부모님</button><button class="">아이와 함께</button></div>
-          <h2>예상 예산</h2><button class="input-button">1인 기준 300,000원</button>
+          <div class="choice-grid" id="companionOptions">
+            <button type="button" data-companion="ALONE" aria-pressed="false"><span>혼자</span></button>
+            <button type="button" data-companion="FRIEND" aria-pressed="false"><span>친구</span></button>
+            <button type="button" data-companion="COUPLE" aria-pressed="false"><span>연인</span></button>
+            <button type="button" data-companion="FAMILY" aria-pressed="false"><span>가족</span></button>
+            <button type="button" data-companion="PARENTS" aria-pressed="false"><span>부모님</span></button>
+            <button type="button" data-companion="CHILDREN" aria-pressed="false"><span>아이와 함께</span></button>
+          </div>
+          <p class="field-error" id="companionError" aria-live="polite"></p>
+
+          <h2><label for="totalBudget">예상 예산</label></h2>
+          <div class="budget-input">
+            <input class="input-button text-input" id="totalBudget" name="totalBudget" type="number"
+                   min="0" max="1000000000" step="10000" inputmode="numeric" placeholder="예: 3000000" />
+            <span>원</span>
+          </div>
+          <input id="budgetPerPerson" name="budgetPerPerson" type="hidden" />
+          <div class="budget-presets" aria-label="예산 빠른 선택">
+            <button type="button" data-budget="100000">~10만원</button>
+            <button type="button" data-budget="300000">10~30만원</button>
+            <button type="button" data-budget="500000">30~50만원</button>
+            <button type="button" data-budget="1000000">50만원 이상</button>
+          </div>
+          <div class="traveler-count-row">
+            <div>
+              <strong>여행 인원</strong>
+              <span>1명부터 최대 20명</span>
+            </div>
+            <div class="traveler-count-control" aria-label="여행 인원 선택">
+              <button type="button" id="travelerCountMinus" aria-label="여행 인원 줄이기">−</button>
+              <output id="travelerCountValue" for="travelerCountMinus travelerCountPlus">1명</output>
+              <button type="button" id="travelerCountPlus" aria-label="여행 인원 늘리기">+</button>
+              <p class="budget-per-person" id="budgetPerPersonHint" aria-live="polite">1인당 약 0원</p>
+            </div>
+          </div>
+          <p class="field-error" id="budgetError" aria-live="polite"></p>
         </div>
-        <button class="primary-button form-next" type="button" data-route="/trips/new/style">다음 · 스타일 설정</button>
-      </section>
+        <p class="form-message" id="basicFormMessage" tabindex="-1" aria-live="polite"></p>
+        <button class="primary-button form-next" id="basicNextButton" type="submit">여행 스타일 설정 →</button>
+      </form>
     </section>
       </main>
       <div th:replace="~{fragments/modals :: modalRoots}"><div id="directory-root"></div><div id="modal-root"></div><div id="toast-root" aria-live="polite"></div></div>
