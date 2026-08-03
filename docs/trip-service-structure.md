@@ -238,9 +238,46 @@ public record TripCreateRequest(
         Integer companionCount,
         BigDecimal budgetAmount
 ) {}
+
+public record TripUpdateRequest(
+        String title,
+        String destinationName,
+        CompanionType companionType,
+        Integer companionCount,
+        BigDecimal budgetAmount
+) {}
+
+public record TripPeriodUpdateRequest(
+        LocalDate startDate,
+        LocalDate endDate
+) {}
+
+public record TripResponse(
+        Long tripId,
+        String title,
+        String destinationName,
+        LocalDate startDate,
+        LocalDate endDate,
+        CompanionType companionType,
+        Integer companionCount,
+        BigDecimal budgetAmount,
+        String currencyCode,
+        TripStatus status,
+        OffsetDateTime createdAt,
+        OffsetDateTime updatedAt
+) {}
+
+public record TripCreateResult(
+        Long tripId,
+        int createdDayCount
+) {}
 ```
 
 `userId`, `status`, `source`, `createdAt`, `updatedAt`, `deletedAt`은 요청에서 받지 않고 인증 정보와 서버 정책으로 결정한다.
+
+`TripUpdateRequest`는 기간을 제외한 여행 기본정보 수정용이다. 기간은 충돌 검사와 일차 재구성이 필요하므로 `TripPeriodUpdateRequest`로 분리한다. `TripResponse`는 1차 화면에 필요한 공개 필드만 반환하고 `userId`, `source`, `deletedAt`은 노출하지 않는다.
+
+`TripCreateResult`는 생성 트랜잭션의 결과를 간결하게 전달하기 위해 `tripId`와 실제 생성된 `TripDay` 개수만 반환한다. 전체 여행 정보가 필요한 클라이언트는 생성 후 여행 조회 API를 사용하며, 1차에서는 `TripResponse trip`을 중첩해 반환하지 않는다.
 
 현재 TRIP-01 화면은 API 호출 전 단계이므로 다음 객체를 `sessionStorage`에 저장해 다음 화면으로 넘긴다.
 
@@ -352,6 +389,14 @@ Controller·Service·Mapper·DTO·DDL 계약을 변경해야 하면 담당자와
 - 기간 변경 충돌 시 여행·일차·일정 데이터가 변경되지 않음
 - 기간 연장 시 새 날짜의 `TripDay` 생성 및 날짜순 `dayNumber` 정렬
 - 일정이 없는 날짜를 제외할 때 빈 `TripDay` 삭제 및 전체 트랜잭션 성공
+- 제목이 없을 때 `목적지명 + 여행` 형식의 기본 제목 생성
+- 목적지 변경 시 자동 생성 제목만 변경되고 사용자가 수정한 제목은 유지
+- `SOLO` 동행 인원은 1명으로 저장
+- 동행 인원 1명과 20명 허용, 0명과 21명 거절
+- 한 일차의 100번째 일정 등록 성공
+- 한 일차의 101번째 일정 등록 거절
+- soft delete 후 일반 여행 조회와 목록에서 제외
+- 이미 삭제된 여행의 재삭제 요청 시 `404 TRIP_NOT_FOUND`
 
 ## 14. TRIP-00 완료 체크리스트
 
@@ -368,6 +413,7 @@ Controller·Service·Mapper·DTO·DDL 계약을 변경해야 하면 담당자와
 - [x] 후속 구현 Issue 분리안 작성
 - [x] 팀장 검토 의견 반영
 - [x] 1차 구현 정책 확정
+- [x] 1차 API DTO 필드 확정
 - [x] 후속 구현 PR 필수 테스트 정의
 
 ## 15. 문서 확정 후 구현 인수인계
