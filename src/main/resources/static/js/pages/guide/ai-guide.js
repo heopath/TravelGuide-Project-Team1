@@ -1,4 +1,4 @@
-/* AI-01: 화면 상태 제어. 모의 데이터는 ai-guide-mock-data.js에서 관리합니다. */
+/* AI-02: 화면 상태 제어와 AI Guide API 호출을 담당합니다. */
 document.addEventListener("DOMContentLoaded", () => {
   const form = document.querySelector("[data-ai-chat-form]");
   const input = document.querySelector("#chat-question");
@@ -81,12 +81,19 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   };
 
-  const requestMock = (question) => new Promise((resolve, reject) => {
-    window.setTimeout(() => {
-      if (mode.value === "failure") return reject(new Error("AI_MOCK_FAILURE"));
-      resolve(window.AiGuideMockData.createSuccessResponse(question));
-    }, 900);
-  });
+  const requestAiGuide = async (question) => {
+    const headers = { "Content-Type": "application/json", Accept: "application/json" };
+    if (mode.value === "failure") headers["X-AI-Mock-Mode"] = "server-error";
+
+    const response = await fetch("/api/v1/ai-guides/generate", {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ question })
+    });
+    const payload = await response.json().catch(() => null);
+    if (!response.ok || !payload?.success) throw new Error(payload?.message || "AI_GUIDE_REQUEST_FAILED");
+    return payload;
+  };
 
   const submit = (question) => {
     lastQuestion = question;
@@ -95,7 +102,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const loading = appendLoading();
     form.classList.add("is-disabled");
     submitButton.disabled = true;
-    requestMock(question)
+    requestAiGuide(question)
       .then(renderResponse)
       .catch(() => { errorBox.hidden = false; })
       .finally(() => {
