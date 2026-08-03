@@ -16,6 +16,8 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import java.util.List;
 
+import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.not;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
@@ -79,6 +81,19 @@ class AiGuideControllerTest {
     }
 
     @Test
+    void generateRejectsQuestionLongerThanFiveHundredCharacters() throws Exception {
+        String tooLongQuestion = "a".repeat(501);
+
+        mockMvc.perform(post("/api/v1/ai-guides/generate")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"question\":\"%s\"}".formatted(tooLongQuestion)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"))
+                .andExpect(jsonPath("$.errors[0].field").value("question"));
+    }
+
+    @Test
     void generateReturnsServerErrorForMockFailureMode() throws Exception {
         doThrow(new IllegalStateException("AI mock server error"))
                 .when(aiGuideService).generate(any(), eq(true));
@@ -89,7 +104,9 @@ class AiGuideControllerTest {
                         .content("{\"question\":\"서버 오류 테스트\"}"))
                 .andExpect(status().isInternalServerError())
                 .andExpect(jsonPath("$.success").value(false))
-                .andExpect(jsonPath("$.code").value("INTERNAL_SERVER_ERROR"));
+                .andExpect(jsonPath("$.code").value("INTERNAL_SERVER_ERROR"))
+                .andExpect(jsonPath("$.message").value("서버에서 오류가 발생했습니다."))
+                .andExpect(jsonPath("$.message").value(not(containsString("AI mock server error"))));
 
         verify(aiGuideService).generate(any(), eq(true));
     }

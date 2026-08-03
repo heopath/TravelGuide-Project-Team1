@@ -20,5 +20,5 @@ Postman 컬렉션은 AI-02 Mock API의 요청·응답과 Validation을 검증합
 
 | 실행 명령 | 결과 | 확인 내용 |
 | --- | --- | --- |
-| `./gradlew.bat test --tests org.example.all_my_trip_project.domain.ai.controller.AiGuideControllerTest` | 성공 | 정상 요청(200), 빈 질문 검증 오류(400), Mock 서버 오류(500) |
+| `./gradlew.bat test --tests org.example.all_my_trip_project.domain.ai.controller.AiGuideControllerTest` | 성공 | 정상 요청(200), 빈 질문·501자 초과 검증 오류(400), Mock 서버 오류(500) |
 | `./gradlew.bat test` | 성공 | 현재 프로젝트 전체 테스트 통과 |
