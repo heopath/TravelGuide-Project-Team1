@@ -20,19 +20,65 @@
     <section class="page-heading">
       <div>
         <h1>마이 페이지</h1>
-        <p>나의 정보와 예약 내역을 관리하세요.</p>
+        <p>나의 정보와 여행 취향을 관리하세요.</p>
         <i>✦</i>
       </div>
       
     </section>
   
-      <div class="profile-overview"><section class="white-panel profile-card"><div class="profile-avatar">민</div><div><h2>김마이티 님</h2><p>여행이 일상이 되는 순간 ✈</p><button class="outline-button">프로필 관리</button></div></section><div class="metric-card metric-0"><span>예약 내역</span><strong>3건</strong></div><div class="metric-card metric-1"><span>찜한 여행지</span><strong>12곳</strong></div><div class="metric-card metric-2"><span>여행 일정</span><strong>2개</strong></div><div class="metric-card metric-3"><span>포인트</span><strong>2,450P</strong></div></div>
-      <div class="mypage-grid"><section class="white-panel account-bookings"><h2>예약 내역</h2><div><span>✈</span><p><strong>인천 → 제주</strong><small>08.14 09:10</small></p><button type="button" data-modal="refund">예약 확정</button></div><div><span>▣</span><p><strong>Ocean Stay Jeju</strong><small>08.14–08.17</small></p><button data-route="/booking">예약 확정</button></div><div><span>★</span><p><strong>성산일출봉 투어</strong><small>08.15 05:30</small></p><button data-route="/booking">결제 완료</button></div></section><aside class="white-panel account-menu"><h2>내 정보</h2><button>결제 수단 관리<span>›</span></button><button>알림 설정<span>›</span></button><button>고객센터<span>›</span></button><button>회원정보 수정<span>›</span></button><button type="button" class="danger-link" data-modal="delete-account">로그아웃 · 회원 탈퇴<span>›</span></button></aside></div>
+      <div class="profile-overview">
+        <section class="white-panel profile-card" aria-busy="true" data-profile-card>
+          <div class="profile-avatar" data-profile-avatar>…</div>
+          <div class="profile-details">
+            <h2><span data-profile-nickname>회원정보를 불러오는 중</span> 님</h2>
+            <p data-profile-email>잠시만 기다려 주세요.</p>
+            <button class="outline-button" type="button" data-profile-edit>프로필 관리</button>
+            <form class="profile-edit-form" data-profile-form hidden>
+              <label for="mypage-nickname">닉네임</label>
+              <div class="profile-edit-row">
+                <input id="mypage-nickname" name="nickname" type="text" minlength="2" maxlength="20" required />
+                <button class="primary-button" type="submit">저장</button>
+                <button class="outline-button" type="button" data-profile-cancel>취소</button>
+              </div>
+              <p class="profile-form-error" data-profile-error role="alert"></p>
+            </form>
+          </div>
+        </section>
+        <div class="metric-card metric-0"><span>예약 내역</span><strong>준비 중</strong></div>
+        <div class="metric-card metric-1"><span>찜한 여행지</span><strong>준비 중</strong></div>
+        <div class="metric-card metric-2"><span>여행 일정</span><strong>준비 중</strong></div>
+        <div class="metric-card metric-3"><span>포인트</span><strong>준비 중</strong></div>
+      </div>
+      <div class="mypage-grid">
+        <section class="white-panel preference-card">
+          <div class="mypage-section-heading">
+            <div>
+              <h2>나의 여행 취향</h2>
+              <p>추천과 AI 일정 생성에 활용되는 장기 여행 선호입니다.</p>
+            </div>
+          </div>
+          <div class="preference-list" data-preference-list aria-live="polite">
+            <span class="preference-empty">여행 선호를 불러오는 중입니다.</span>
+          </div>
+        </section>
+        <section class="white-panel account-bookings">
+          <h2>예약 내역</h2>
+          <p class="mypage-placeholder">예약 기능 담당 API가 준비되면 이 영역에 실제 예약 내역이 표시됩니다.</p>
+        </section>
+        <aside class="white-panel account-menu">
+          <h2>내 정보</h2>
+          <button type="button" data-profile-edit-menu>회원정보 수정<span>›</span></button>
+          <button type="button" disabled>결제 수단 관리<span>준비 중</span></button>
+          <button type="button" disabled>알림 설정<span>준비 중</span></button>
+          <button type="button" disabled>고객센터<span>준비 중</span></button>
+        </aside>
+      </div>
     </section>
       </main>
       <div th:replace="~{fragments/modals :: modalRoots}"><div id="directory-root"></div><div id="modal-root"></div><div id="toast-root" aria-live="polite"></div></div>
       <div th:replace="~{fragments/footer :: footer}"></div>
     </div>
     <div th:replace="~{fragments/scripts :: appScripts}"></div>
+    <script th:src="@{/js/pages/mypage/mypage.js}" src="../../static/js/pages/mypage/mypage.js"></script>
   </body>
 </html>
