@@ -1,6 +1,7 @@
 package org.example.all_my_trip_project.domain.user.service;
 
 import org.example.all_my_trip_project.domain.user.dto.UpdatePreferencesRequest;
+import org.example.all_my_trip_project.domain.user.dto.UpdateMemberProfileRequest;
 import org.example.all_my_trip_project.domain.user.entity.UserEntity;
 import org.example.all_my_trip_project.domain.user.entity.UserPreferenceEntity;
 import org.example.all_my_trip_project.domain.user.repository.UserPreferenceRepository;
@@ -36,6 +37,46 @@ class MemberServiceTest {
 
     @InjectMocks
     private MemberService memberService;
+
+    @Test
+    void updateProfileChangesNickname() {
+        UserEntity user = activeUser();
+        when(userRepository.findById(11L)).thenReturn(Optional.of(user));
+        when(userRepository
+                .existsByNicknameAndUserIdNotAndDeletedAtIsNull(
+                        "새여행자",
+                        11L
+                ))
+                .thenReturn(false);
+
+        var result = memberService.updateProfile(
+                11L,
+                new UpdateMemberProfileRequest("  새여행자  ")
+        );
+
+        assertThat(result.nickname()).isEqualTo("새여행자");
+        assertThat(user.getNickname()).isEqualTo("새여행자");
+    }
+
+    @Test
+    void updateProfileRejectsDuplicatedNickname() {
+        when(userRepository.findById(11L))
+                .thenReturn(Optional.of(activeUser()));
+        when(userRepository
+                .existsByNicknameAndUserIdNotAndDeletedAtIsNull(
+                        "중복닉네임",
+                        11L
+                ))
+                .thenReturn(true);
+
+        assertThatThrownBy(() -> memberService.updateProfile(
+                11L,
+                new UpdateMemberProfileRequest("중복닉네임")
+        ))
+                .isInstanceOf(BusinessException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.NICKNAME_DUPLICATED);
+    }
 
     @Test
     void replacePreferencesUpdatesAddsAndRemovesExplicitPreferences() {

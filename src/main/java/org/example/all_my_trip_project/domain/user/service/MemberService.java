@@ -1,6 +1,8 @@
 package org.example.all_my_trip_project.domain.user.service;
 
 import lombok.RequiredArgsConstructor;
+import org.example.all_my_trip_project.domain.user.dto.MemberResponse;
+import org.example.all_my_trip_project.domain.user.dto.UpdateMemberProfileRequest;
 import org.example.all_my_trip_project.domain.user.dto.UpdatePreferencesRequest;
 import org.example.all_my_trip_project.domain.user.dto.UserPreferenceResponse;
 import org.example.all_my_trip_project.domain.user.entity.UserPreferenceEntity;
@@ -33,6 +35,33 @@ public class MemberService {
     public UserPreferenceResponse getPreferences(Long userId) {
         validateMember(userId);
         return loadPreferences(userId);
+    }
+
+    @Transactional
+    public MemberResponse updateProfile(
+            Long userId,
+            UpdateMemberProfileRequest request
+    ) {
+        UserEntity user = validateMember(userId);
+        String nickname = request.nickname().trim();
+
+        if (userRepository
+                .existsByNicknameAndUserIdNotAndDeletedAtIsNull(
+                        nickname,
+                        userId
+                )) {
+            throw new BusinessException(ErrorCode.NICKNAME_DUPLICATED);
+        }
+
+        user.updateNickname(nickname);
+
+        return new MemberResponse(
+                user.getUserId(),
+                user.getEmail(),
+                user.getNickname(),
+                user.getRole(),
+                user.getStatus()
+        );
     }
 
     @Transactional
@@ -94,7 +123,7 @@ public class MemberService {
         return loadPreferences(userId);
     }
 
-    private void validateMember(Long userId) {
+    private UserEntity validateMember(Long userId) {
         if (userId == null) {
             throw new BusinessException(ErrorCode.UNAUTHORIZED);
         }
@@ -112,6 +141,8 @@ public class MemberService {
                 || user.getDeletedAt() != null) {
             throw new BusinessException(ErrorCode.ACCOUNT_WITHDRAWN);
         }
+
+        return user;
     }
 
     private void validateNoDuplicateStyles(
