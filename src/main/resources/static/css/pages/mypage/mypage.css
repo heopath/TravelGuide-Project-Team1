@@ -125,6 +125,170 @@ body.page-mypage #page-content {
   }
 }
 
+.page-mypage .profile-overview {
+  display: grid;
+  grid-template-columns: minmax(320px, 2fr) repeat(4, minmax(120px, 1fr));
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.page-mypage .profile-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 18px;
+  min-height: 148px;
+  padding: 24px;
+}
+
+.page-mypage .profile-avatar {
+  display: grid;
+  flex: 0 0 64px;
+  width: 64px;
+  height: 64px;
+  place-items: center;
+  border-radius: 50%;
+  color: #fff;
+  background: linear-gradient(135deg, #1fa7ff, #7657ff);
+  font-size: 24px;
+  font-weight: 800;
+}
+
+.page-mypage .profile-details {
+  min-width: 0;
+  flex: 1;
+}
+
+.page-mypage .profile-details h2 {
+  margin: 2px 0 6px;
+}
+
+.page-mypage .profile-details > p {
+  margin: 0 0 14px;
+  color: #667085;
+  overflow-wrap: anywhere;
+}
+
+.page-mypage .profile-edit-form {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid #e8ecf4;
+}
+
+.page-mypage .profile-edit-form label {
+  display: block;
+  margin-bottom: 8px;
+  color: #344054;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.page-mypage .profile-edit-row {
+  display: flex;
+  gap: 8px;
+}
+
+.page-mypage .profile-edit-row input {
+  min-width: 0;
+  flex: 1;
+  height: 42px;
+  padding: 0 12px;
+  border: 1px solid #d0d5dd;
+  border-radius: 10px;
+  background: #fff;
+}
+
+.page-mypage .profile-edit-row input:focus {
+  border-color: #5271ff;
+  outline: 3px solid rgb(82 113 255 / 14%);
+}
+
+.page-mypage .profile-form-error {
+  min-height: 20px;
+  margin: 6px 0 0;
+  color: #d92d20;
+  font-size: 13px;
+}
+
+.page-mypage .metric-card {
+  min-height: 148px;
+}
+
+.page-mypage .metric-card strong {
+  font-size: 16px;
+}
+
+.page-mypage .mypage-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(260px, 1fr);
+  gap: 20px;
+}
+
+.page-mypage .preference-card {
+  grid-column: 1 / -1;
+  padding: 24px;
+}
+
+.page-mypage .mypage-section-heading h2,
+.page-mypage .account-bookings h2,
+.page-mypage .account-menu h2 {
+  margin-top: 0;
+}
+
+.page-mypage .mypage-section-heading p {
+  margin: 6px 0 0;
+  color: #667085;
+}
+
+.page-mypage .preference-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.page-mypage .preference-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 38px;
+  padding: 8px 12px;
+  border: 1px solid #dbe3ff;
+  border-radius: 999px;
+  color: #243b80;
+  background: #f3f6ff;
+  font-weight: 700;
+}
+
+.page-mypage .preference-chip small {
+  color: #667085;
+  font-weight: 600;
+}
+
+.page-mypage .preference-empty,
+.page-mypage .mypage-placeholder {
+  color: #667085;
+}
+
+.page-mypage .account-bookings,
+.page-mypage .account-menu {
+  padding: 24px;
+}
+
+.page-mypage .account-menu button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+@media (max-width: 1120px) {
+  .page-mypage .profile-overview {
+    grid-template-columns: repeat(4, 1fr);
+  }
+
+   .page-mypage .profile-card {
+     grid-column: 1 / -1;
+  }
+}
+
 @media (max-width: 760px) {
   body.page-mypage #page-content {
     min-height: calc(100vh - 64px);
@@ -142,4 +306,19 @@ body.page-mypage #page-content {
   .favorite-place-list {
     grid-template-columns: 1fr;
   }
+
+  .page-mypage .profile-overview,
+  .page-mypage .mypage-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .page-mypage .profile-card,
+  .page-mypage .preference-card {
+    grid-column: auto;
+  }
+
+   .page-mypage .profile-edit-row {
+     align-items: stretch;
+     flex-direction: column;
+   }
 }
