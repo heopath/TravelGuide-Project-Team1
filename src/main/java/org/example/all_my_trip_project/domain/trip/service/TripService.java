@@ -13,12 +13,15 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 import java.util.Objects;
 import java.util.ArrayList;
+import java.time.temporal.ChronoUnit;
 
 @Service
 @Profile("!ui")
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class TripService {
+    private static final long MAX_TRIP_DAYS = 30;
+
     private final TripDAO tripDAO;
     private final TripDayDAO tripDayDAO;
 
@@ -96,6 +99,10 @@ public class TripService {
         if (trip.getStartDate() != null && trip.getEndDate() != null
                 && trip.getEndDate().isBefore(trip.getStartDate())) {
             throw new IllegalArgumentException("여행 종료일은 시작일보다 빠를 수 없습니다.");
+        }
+        long tripDays = ChronoUnit.DAYS.between(trip.getStartDate(), trip.getEndDate()) + 1;
+        if (tripDays > MAX_TRIP_DAYS) {
+            throw new IllegalArgumentException("여행 기간은 최대 " + MAX_TRIP_DAYS + "일까지 설정할 수 있습니다.");
         }
     }
 }

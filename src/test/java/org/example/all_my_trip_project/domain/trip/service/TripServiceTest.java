@@ -21,6 +21,8 @@ import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.never;
+import static org.mockito.ArgumentMatchers.any;
 import org.mockito.ArgumentCaptor;
 
 @ExtendWith(MockitoExtension.class)
@@ -59,6 +61,40 @@ class TripServiceTest {
         verify(tripDayDAO, times(3)).insert(dayCaptor.capture());
         assertThat(dayCaptor.getAllValues()).extracting(TripDayDTO::getDayNumber)
                 .containsExactly(1, 2, 3);
+    }
+
+    @Test
+    void createWithDaysAllowsThirtyDayTrip() {
+        TripDTO trip = TripDTO.builder()
+                .startDate(LocalDate.of(2026, 8, 1))
+                .endDate(LocalDate.of(2026, 8, 30))
+                .build();
+        doAnswer(invocation -> {
+            ((TripDTO) invocation.getArgument(0)).setTripId(10L);
+            return 1;
+        }).when(tripDAO).insert(trip);
+        when(tripDAO.findById(10L)).thenReturn(Optional.of(trip));
+
+        TripCreateResult result = tripService.createWithDays(42L, trip);
+
+        assertThat(result.days()).hasSize(30);
+        verify(tripDAO).insert(trip);
+        verify(tripDayDAO, times(30)).insert(any(TripDayDTO.class));
+    }
+
+    @Test
+    void createWithDaysRejectsThirtyOneDayTripBeforeSaving() {
+        TripDTO trip = TripDTO.builder()
+                .startDate(LocalDate.of(2026, 8, 1))
+                .endDate(LocalDate.of(2026, 8, 31))
+                .build();
+
+        assertThatThrownBy(() -> tripService.createWithDays(42L, trip))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("여행 기간은 최대 30일까지 설정할 수 있습니다.");
+
+        verify(tripDAO, never()).insert(any(TripDTO.class));
+        verify(tripDayDAO, never()).insert(any(TripDayDTO.class));
     }
 
     @Test
