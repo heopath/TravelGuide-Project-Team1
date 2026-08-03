@@ -3,8 +3,143 @@ body.page-mypage #page-content {
   min-height: calc(100vh - 78px);
 }
 
+.favorite-places {
+  margin-top: 34px;
+  padding: 28px 32px 32px;
+}
+
+.favorite-places-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  margin-bottom: 20px;
+}
+
+.favorite-places-heading span {
+  color: var(--primary);
+  font-size: 11px;
+  font-weight: 850;
+  letter-spacing: .12em;
+}
+
+.favorite-places-heading h2 {
+  margin: 5px 0 0;
+  color: var(--navy);
+}
+
+.favorite-place-list {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.favorite-place-card {
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: #fff;
+}
+
+.favorite-place-card button {
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.favorite-place-image {
+  height: 132px;
+  overflow: hidden;
+  background: linear-gradient(135deg, #dce9ff, #edf3ff);
+}
+
+.favorite-place-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.favorite-place-image span {
+  height: 100%;
+  display: grid;
+  place-items: center;
+  color: var(--primary);
+  font-size: 28px;
+}
+
+.favorite-place-copy {
+  padding: 15px 16px 17px;
+}
+
+.favorite-place-copy strong,
+.favorite-place-copy span,
+.favorite-place-copy small {
+  display: block;
+}
+
+.favorite-place-copy strong {
+  overflow: hidden;
+  color: var(--navy);
+  font-size: 15px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.favorite-place-copy span {
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.favorite-place-copy small {
+  margin-top: 8px;
+  overflow: hidden;
+  color: var(--primary);
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.favorite-place-state {
+  grid-column: 1 / -1;
+  margin: 0;
+  padding: 32px 20px;
+  border: 1px dashed var(--border);
+  border-radius: 14px;
+  color: var(--muted);
+  text-align: center;
+}
+
+.favorite-place-state.error {
+  color: var(--danger);
+}
+
+@media (max-width: 1100px) {
+  .favorite-place-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 @media (max-width: 760px) {
   body.page-mypage #page-content {
     min-height: calc(100vh - 64px);
+  }
+
+  .favorite-places {
+    padding: 20px 14px;
+  }
+
+  .favorite-places-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .favorite-place-list {
+    grid-template-columns: 1fr;
   }
 }

@@ -4,6 +4,27 @@ document.addEventListener("DOMContentLoaded", function () {
   const destinationLabel = document.querySelector("[data-destination-label]");
   const destinationValue = document.querySelector("[data-destination-value]");
   const modalRoot = document.querySelector("#modal-root");
+  const startDateInput = document.querySelector("[data-trip-start-date]");
+  const endDateInput = document.querySelector("[data-trip-end-date]");
+  const budgetInput = document.querySelector("[data-trip-budget]");
+  const nextButton = document.querySelector("[data-basic-next]");
+  const draftKey = "all-my-trips-trip-draft";
+
+  function toDateValue(date) {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    return year + "-" + month + "-" + day;
+  }
+
+  function readDraft() {
+    try {
+      return JSON.parse(sessionStorage.getItem(draftKey) || "{}") || {};
+    } catch (error) {
+      sessionStorage.removeItem(draftKey);
+      return {};
+    }
+  }
 
   function closeDestinationModal() {
     modalRoot.replaceChildren();
@@ -108,16 +129,70 @@ document.addEventListener("DOMContentLoaded", function () {
 
   openButton.addEventListener("click", openDestinationModal);
 
+  const draft = readDraft();
   try {
     const saved = JSON.parse(sessionStorage.getItem("all-my-trips-destination") || "null");
-    if (saved && saved.label && saved.value) {
-      destinationLabel.textContent = saved.label;
-      destinationValue.value = saved.value;
+    const destination = saved || (draft.destinationName ? {
+      label: draft.destinationLabel || draft.destinationName,
+      value: draft.destinationName,
+    } : null);
+    if (destination && destination.label && destination.value) {
+      destinationLabel.textContent = destination.label;
+      destinationValue.value = destination.value;
       openButton.classList.add("has-value");
     }
   } catch (error) {
     sessionStorage.removeItem("all-my-trips-destination");
   }
+
+  const defaultStart = new Date();
+  defaultStart.setDate(defaultStart.getDate() + 7);
+  const defaultEnd = new Date(defaultStart);
+  defaultEnd.setDate(defaultEnd.getDate() + (draft.themeNights || 3));
+  startDateInput.value = draft.startDate || toDateValue(defaultStart);
+  endDateInput.value = draft.endDate || toDateValue(defaultEnd);
+  budgetInput.value = draft.budgetAmount || 300000;
+
+  if (draft.companionType) {
+    document.querySelectorAll("[data-companion-group] button").forEach(function (button) {
+      button.classList.toggle("selected", button.dataset.value === draft.companionType &&
+        (!draft.companionLabel || button.textContent.trim() === draft.companionLabel));
+    });
+  }
+
+  nextButton.addEventListener("click", function () {
+    const destinationName = destinationValue.value.trim();
+    const startDate = startDateInput.value;
+    const endDate = endDateInput.value;
+    const companion = document.querySelector("[data-companion-group] .selected");
+
+    if (!destinationName) {
+      window.AllMyTripsModal.showToast("여행 목적지를 선택해주세요.");
+      return;
+    }
+    if (!startDate || !endDate) {
+      window.AllMyTripsModal.showToast("여행 기간을 선택해주세요.");
+      return;
+    }
+    if (endDate < startDate) {
+      window.AllMyTripsModal.showToast("도착일은 출발일보다 빠를 수 없습니다.");
+      return;
+    }
+
+    const nextDraft = Object.assign({}, draft, {
+      destinationName: destinationName,
+      destinationLabel: destinationLabel.textContent.trim(),
+      startDate: startDate,
+      endDate: endDate,
+      companionType: companion ? companion.dataset.value : "SOLO",
+      companionLabel: companion ? companion.textContent.trim() : "혼자",
+      companionCount: 1,
+      budgetAmount: Number(budgetInput.value) || 0,
+      currencyCode: "KRW",
+    });
+    sessionStorage.setItem(draftKey, JSON.stringify(nextDraft));
+    window.location.href = "/trips/new/style";
+  });
 
   document.body.dataset.pageReady = "true";
 });

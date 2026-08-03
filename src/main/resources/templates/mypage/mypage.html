@@ -26,7 +26,19 @@
       
     </section>
   
-      <div class="profile-overview"><section class="white-panel profile-card"><div class="profile-avatar">민</div><div><h2>김마이티 님</h2><p>여행이 일상이 되는 순간 ✈</p><button class="outline-button">프로필 관리</button></div></section><div class="metric-card metric-0"><span>예약 내역</span><strong>3건</strong></div><div class="metric-card metric-1"><span>찜한 여행지</span><strong>12곳</strong></div><div class="metric-card metric-2"><span>여행 일정</span><strong>2개</strong></div><div class="metric-card metric-3"><span>포인트</span><strong>2,450P</strong></div></div>
+      <div class="profile-overview"><section class="white-panel profile-card"><div class="profile-avatar">민</div><div><h2>김마이티 님</h2><p>여행이 일상이 되는 순간 ✈</p><button class="outline-button">프로필 관리</button></div></section><div class="metric-card metric-0"><span>예약 내역</span><strong>3건</strong></div><div class="metric-card metric-1"><span>찜한 여행지</span><strong data-favorite-count>—</strong></div><div class="metric-card metric-2"><span>여행 일정</span><strong>2개</strong></div><div class="metric-card metric-3"><span>포인트</span><strong>2,450P</strong></div></div>
+      <section class="white-panel favorite-places" aria-labelledby="favorite-places-title">
+        <div class="favorite-places-heading">
+          <div>
+            <span>MY FAVORITES</span>
+            <h2 id="favorite-places-title">찜한 여행지</h2>
+          </div>
+          <button type="button" class="outline-button" data-route="/guide">여행지 더 찾아보기</button>
+        </div>
+        <div class="favorite-place-list" data-favorite-list aria-live="polite">
+          <p class="favorite-place-state">찜한 여행지를 불러오는 중입니다.</p>
+        </div>
+      </section>
       <div class="mypage-grid"><section class="white-panel account-bookings"><h2>예약 내역</h2><div><span>✈</span><p><strong>인천 → 제주</strong><small>08.14 09:10</small></p><button type="button" data-modal="refund">예약 확정</button></div><div><span>▣</span><p><strong>Ocean Stay Jeju</strong><small>08.14–08.17</small></p><button data-route="/booking">예약 확정</button></div><div><span>★</span><p><strong>성산일출봉 투어</strong><small>08.15 05:30</small></p><button data-route="/booking">결제 완료</button></div></section><aside class="white-panel account-menu"><h2>내 정보</h2><button>결제 수단 관리<span>›</span></button><button>알림 설정<span>›</span></button><button>고객센터<span>›</span></button><button>회원정보 수정<span>›</span></button><button type="button" class="danger-link" data-modal="delete-account">로그아웃 · 회원 탈퇴<span>›</span></button></aside></div>
     </section>
       </main>
@@ -34,5 +46,6 @@
       <div th:replace="~{fragments/footer :: footer}"></div>
     </div>
     <div th:replace="~{fragments/scripts :: appScripts}"></div>
+    <script th:src="@{/js/pages/mypage/mypage.js}" src="../../static/js/pages/mypage/mypage.js"></script>
   </body>
 </html>

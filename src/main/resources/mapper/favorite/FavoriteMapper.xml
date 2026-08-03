@@ -39,6 +39,14 @@
         LIMIT #{size} OFFSET #{offset}
     </select>
 
+    <select id="countByUserId" resultType="long">
+        SELECT COUNT(*)
+        FROM favorites f
+        JOIN places p ON p.place_id = f.place_id
+        WHERE f.user_id = #{userId}
+          AND p.is_active = TRUE
+    </select>
+
     <delete id="delete">
         DELETE FROM favorites
         WHERE user_id = #{userId}

@@ -16,5 +16,6 @@ public interface FavoriteMapper {
     List<FavoriteResult> findByUserId(@Param("userId") Long userId,
                                       @Param("offset") int offset,
                                       @Param("size") int size);
+    long countByUserId(@Param("userId") Long userId);
     int delete(@Param("userId") Long userId, @Param("placeId") Long placeId);
 }

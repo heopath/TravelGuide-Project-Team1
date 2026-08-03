@@ -30,6 +30,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
   function createPlaceCard(place) {
     const card = document.createElement("button");
+    const favoriteMarker = document.createElement("span");
     const category = document.createElement("span");
     const name = document.createElement("strong");
     const location = document.createElement("span");
@@ -37,8 +38,15 @@ document.addEventListener("DOMContentLoaded", function () {
 
     card.type = "button";
     card.className = "place-card category-" + String(place.category || "default").toLowerCase();
+    card.classList.toggle("favorite", Boolean(place.favorite));
     card.dataset.route = "/guide/places/" + place.placeId;
-    card.setAttribute("aria-label", place.name + " 상세 보기");
+    card.setAttribute("aria-label", (place.favorite ? "찜한 장소, " : "") + place.name + " 상세 보기");
+
+    if (place.favorite) {
+      favoriteMarker.className = "place-favorite-marker";
+      favoriteMarker.textContent = "♥ 찜한 장소";
+      card.appendChild(favoriteMarker);
+    }
 
     category.className = "place-category";
     category.textContent = categoryLabels[place.category] || place.category || "장소";
@@ -90,6 +98,7 @@ document.addEventListener("DOMContentLoaded", function () {
         if (category) params.set("category", category);
         const response = await fetch("/api/places?" + params.toString(), {
           headers: { Accept: "application/json" },
+          credentials: "same-origin",
           allMyTripsLoading: false,
         });
         if (!response.ok) throw new Error("장소 검색 API 요청에 실패했습니다.");
@@ -100,8 +109,9 @@ document.addEventListener("DOMContentLoaded", function () {
         placesById.set(place.placeId, place);
       });
       const places = Array.from(placesById.values()).sort(function (left, right) {
+        const favoriteDifference = Number(Boolean(right.favorite)) - Number(Boolean(left.favorite));
         const ratingDifference = Number(right.averageRating || 0) - Number(left.averageRating || 0);
-        return ratingDifference || right.placeId - left.placeId;
+        return favoriteDifference || ratingDifference || right.placeId - left.placeId;
       });
       if (currentRequest === requestSequence) renderPlaces(places);
     } catch (error) {

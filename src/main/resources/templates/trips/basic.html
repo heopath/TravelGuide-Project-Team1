@@ -51,16 +51,20 @@
             <em>›</em>
           </button>
           <input type="hidden" name="destination" data-destination-value />
-          <div class="segmented small"><button class="selected">국내</button><button>해외</button></div>
+          <div class="segmented small"><button type="button" class="selected" data-toggle-group>국내</button><button type="button" data-toggle-group>해외</button></div>
           <h2>여행 기간</h2>
-          <div class="date-pair"><button type="button" data-modal="date">2026.08.14</button><button type="button" data-modal="date">2026.08.17</button></div>
+          <div class="date-pair">
+            <label><span>출발일</span><input type="date" data-trip-start-date /></label>
+            <label><span>도착일</span><input type="date" data-trip-end-date /></label>
+          </div>
         </div>
         <div>
           <h2>동행자 유형</h2>
-          <div class="choice-grid"><button class="">혼자</button><button class="">친구</button><button class="selected">연인</button><button class="">가족</button><button class="">부모님</button><button class="">아이와 함께</button></div>
-          <h2>예상 예산</h2><button class="input-button">1인 기준 300,000원</button>
+          <div class="choice-grid" data-companion-group><button type="button" data-toggle-group data-value="SOLO">혼자</button><button type="button" data-toggle-group data-value="FRIENDS">친구</button><button type="button" class="selected" data-toggle-group data-value="COUPLE">연인</button><button type="button" data-toggle-group data-value="FAMILY">가족</button><button type="button" data-toggle-group data-value="FAMILY">부모님</button><button type="button" data-toggle-group data-value="FAMILY">아이와 함께</button></div>
+          <h2>예상 예산</h2>
+          <label class="budget-field"><input type="number" min="0" step="10000" value="300000" data-trip-budget /><span>원</span></label>
         </div>
-        <button class="primary-button form-next" type="button" data-route="/trips/new/style">다음 · 스타일 설정</button>
+        <button class="primary-button form-next" type="button" data-basic-next>다음 · 스타일 설정</button>
       </section>
     </section>
       </main>

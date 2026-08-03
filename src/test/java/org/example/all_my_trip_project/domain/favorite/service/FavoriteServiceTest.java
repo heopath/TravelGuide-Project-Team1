@@ -53,6 +53,15 @@ class FavoriteServiceTest {
     }
 
     @Test
+    void countFavoritesUsesUserId() {
+        when(favoriteDAO.countByUserId(1L)).thenReturn(3L);
+
+        assertThat(favoriteService.countFavorites(1L)).isEqualTo(3L);
+
+        verify(favoriteDAO).countByUserId(1L);
+    }
+
+    @Test
     void addRejectsMissingPlace() {
         when(placeDAO.findById(999L)).thenReturn(Optional.empty());
 

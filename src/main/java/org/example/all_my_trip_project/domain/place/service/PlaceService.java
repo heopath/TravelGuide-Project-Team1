@@ -43,12 +43,12 @@ public class PlaceService {
         );
     }
 
-    public List<PlaceDTO> getPage(int page, int size) {
+    public List<PlaceDTO> getPage(Long userId, int page, int size) {
         int offset = calculateOffset(page, size);
-        return placeDAO.findPage(offset, size);
+        return placeDAO.findPage(userId, offset, size);
     }
 
-    public List<PlaceDTO> search(String keyword, String category, String region,
+    public List<PlaceDTO> search(Long userId, String keyword, String category, String region,
                                  Long styleId, int page, int size) {
         int offset = calculateOffset(page, size);
         String normalizedKeyword = normalize(keyword);
@@ -62,6 +62,7 @@ public class PlaceService {
             normalizedCategory = normalizedCategory.toUpperCase(Locale.ROOT);
         }
         return placeDAO.search(
+                userId,
                 normalizedKeyword,
                 normalizedCategory,
                 normalizedRegion,

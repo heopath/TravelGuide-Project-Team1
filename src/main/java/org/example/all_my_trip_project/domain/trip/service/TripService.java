@@ -8,6 +8,7 @@ import org.springframework.context.annotation.Profile;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Objects;
 
 @Service
 @Profile("!ui")
@@ -23,17 +24,18 @@ public class TripService {
         return trip.getTripId();
     }
 
-    public TripDTO get(Long tripId) {
-        return tripDAO.findById(tripId)
-                .orElseThrow(() -> new IllegalArgumentException("여행을 찾을 수 없습니다. tripId=" + tripId));
+    public TripDTO get(Long userId, Long tripId) {
+        return requireOwnedTrip(userId, tripId);
     }
 
     public List<TripDTO> getByUser(Long userId) {
+        validateUserId(userId);
         return tripDAO.findByUserId(userId);
     }
 
     @Transactional
-    public void update(TripDTO trip) {
+    public void update(Long userId, TripDTO trip) {
+        requireOwnedTrip(userId, trip.getTripId());
         validateDates(trip);
         if (tripDAO.update(trip) == 0) {
             throw new IllegalArgumentException("수정할 여행을 찾을 수 없습니다. tripId=" + trip.getTripId());
@@ -41,9 +43,26 @@ public class TripService {
     }
 
     @Transactional
-    public void delete(Long tripId) {
+    public void delete(Long userId, Long tripId) {
+        requireOwnedTrip(userId, tripId);
         if (tripDAO.softDelete(tripId) == 0) {
             throw new IllegalArgumentException("삭제할 여행을 찾을 수 없습니다. tripId=" + tripId);
+        }
+    }
+
+    private TripDTO requireOwnedTrip(Long userId, Long tripId) {
+        validateUserId(userId);
+        TripDTO trip = tripDAO.findById(tripId)
+                .orElseThrow(() -> new IllegalArgumentException("여행을 찾을 수 없습니다."));
+        if (!Objects.equals(trip.getUserId(), userId)) {
+            throw new IllegalArgumentException("여행을 찾을 수 없습니다.");
+        }
+        return trip;
+    }
+
+    private void validateUserId(Long userId) {
+        if (userId == null || userId < 1) {
+            throw new IllegalArgumentException("userId는 1 이상이어야 합니다.");
         }
     }
 
