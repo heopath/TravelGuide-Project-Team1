@@ -303,21 +303,55 @@ function showToast(message) {
 function openDirectory() {
   const root = roots().directory;
   if (!root) return;
+
+  const isAuthenticated =
+      document.documentElement.dataset.authenticated === "true";
+
+  const userRole =
+      document.documentElement.dataset.userRole || "";
+
+  const visibleScreens = ALL_MY_TRIPS_SCREENS.filter(function (screen) {
+    const group = screen[2];
+
+    if (group === "auth") {
+      return !isAuthenticated;
+    }
+
+    if (group === "mypage") {
+      return isAuthenticated;
+    }
+
+    if (group === "admin") {
+      return isAuthenticated && userRole === "ADMIN";
+    }
+
+    return true;
+  });
+
   const groups = {};
-  ALL_MY_TRIPS_SCREENS.forEach(function (screen) {
+
+  visibleScreens.forEach(function (screen) {
     groups[screen[2]] = groups[screen[2]] || [];
     groups[screen[2]].push(screen);
   });
+
   const current = document.body.dataset.route;
+
   root.innerHTML = `
     <div class="drawer-backdrop">
       <aside class="screen-directory">
-        <div class="drawer-head"><div><span>ALL SCREENS</span><h2>전체 화면 21</h2></div><button data-directory-close>×</button></div>
+        <div class="drawer-head">
+          <div>
+            <span>ALL SCREENS</span>
+            <h2>전체 화면 ${visibleScreens.length}</h2>
+          </div>
+          <button data-directory-close>×</button>
+        </div>
         ${Object.keys(groups).map(function (group) {
-          return "<section><h3>" + group + "</h3>" + groups[group].map(function (screen) {
-            return '<button class="' + (current === screen[0] ? "active" : "") + '" data-route="' + screen[0] + '"><span>•</span><b>' + screen[1] + "</b><em>›</em></button>";
-          }).join("") + "</section>";
-        }).join("")}
+    return "<section><h3>" + group + "</h3>" + groups[group].map(function (screen) {
+      return '<button class="' + (current === screen[0] ? "active" : "") + '" data-route="' + screen[0] + '"><span>•</span><b>' + screen[1] + "</b><em>›</em></button>";
+    }).join("") + "</section>";
+  }).join("")}
       </aside>
     </div>
   `;
