@@ -15,3 +15,10 @@
 | AI-DOC-01 | Postman 컬렉션 확인 | 성공·검증 오류·Mock 서버 오류 요청을 실행할 수 있다. |
 
 Postman 컬렉션은 AI-02 Mock API의 요청·응답과 Validation을 검증합니다. Gemini와 DB 연동은 후속 작업입니다.
+
+## AI-02-1 자동화 테스트 결과
+
+| 실행 명령 | 결과 | 확인 내용 |
+| --- | --- | --- |
+| `./gradlew.bat test --tests org.example.all_my_trip_project.domain.ai.controller.AiGuideControllerTest` | 성공 | 정상 요청(200), 빈 질문 검증 오류(400), Mock 서버 오류(500) |
+| `./gradlew.bat test` | 성공 | 현재 프로젝트 전체 테스트 통과 |
