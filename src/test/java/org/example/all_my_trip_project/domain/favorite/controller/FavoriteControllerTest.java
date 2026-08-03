@@ -33,7 +33,7 @@ class FavoriteControllerTest {
     void listUsesAuthenticatedUserId() {
         when(favoriteService.getFavorites(42L, 0, 20)).thenReturn(List.of());
 
-        assertThat(favoriteController.list(principal, 0, 20)).isEmpty();
+        assertThat(favoriteController.list(principal, 0, 20).data()).isEmpty();
 
         verify(favoriteService).getFavorites(42L, 0, 20);
     }
@@ -49,9 +49,18 @@ class FavoriteControllerTest {
     void countUsesAuthenticatedUserId() {
         when(favoriteService.countFavorites(42L)).thenReturn(3L);
 
-        assertThat(favoriteController.count(principal)).isEqualTo(3L);
+        assertThat(favoriteController.count(principal).data()).isEqualTo(3L);
 
         verify(favoriteService).countFavorites(42L);
+    }
+
+    @Test
+    void statusChecksOnlyRequestedPlace() {
+        when(favoriteService.isFavorite(42L, 100L)).thenReturn(true);
+
+        assertThat(favoriteController.status(principal, 100L).data().favorite()).isTrue();
+
+        verify(favoriteService).isFavorite(42L, 100L);
     }
 
     @Test

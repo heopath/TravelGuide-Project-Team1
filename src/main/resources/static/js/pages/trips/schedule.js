@@ -46,8 +46,11 @@ document.addEventListener("DOMContentLoaded", function () {
       window.setTimeout(function () { window.location.href = "/auth/login"; }, 700);
       throw new Error("로그인이 필요합니다.");
     }
-    if (!response.ok) throw new Error("여행 일정을 불러오지 못했습니다.");
-    return response.json();
+    const payload = await response.json().catch(function () { return null; });
+    if (!response.ok || !payload?.success) {
+      throw new Error(payload?.message || "여행 일정을 불러오지 못했습니다.");
+    }
+    return payload.data;
   }
 
   function renderItems(items) {
@@ -91,7 +94,7 @@ document.addEventListener("DOMContentLoaded", function () {
     });
     showEmpty(timeline, "DAY " + day.dayNumber + " 일정을 불러오는 중입니다.");
     try {
-      renderItems(await requestJson("/api/trip-days/" + day.tripDayId + "/items"));
+      renderItems(await requestJson("/api/v1/trip-days/" + day.tripDayId + "/items"));
     } catch (error) {
       showEmpty(timeline, error.message);
     }
@@ -139,7 +142,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
   async function loadSchedule() {
     try {
-      const trips = await requestJson("/api/trips");
+      const trips = await requestJson("/api/v1/trips");
       if (trips.length === 0) {
         renderTripList(trips);
         title.textContent = "아직 만든 여행이 없습니다";
@@ -155,8 +158,8 @@ document.addEventListener("DOMContentLoaded", function () {
       }
 
       const results = await Promise.all([
-        requestJson("/api/trips/" + activeTripId),
-        requestJson("/api/trips/" + activeTripId + "/days"),
+        requestJson("/api/v1/trips/" + activeTripId),
+        requestJson("/api/v1/trips/" + activeTripId + "/days"),
       ]);
       const trip = results[0];
       title.textContent = trip.title;

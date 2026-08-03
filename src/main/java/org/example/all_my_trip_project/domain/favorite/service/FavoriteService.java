@@ -43,6 +43,11 @@ public class FavoriteService {
         return favoriteDAO.countByUserId(userId);
     }
 
+    public boolean isFavorite(Long userId, Long placeId) {
+        validateIds(userId, placeId);
+        return favoriteDAO.find(userId, placeId).isPresent();
+    }
+
     @Transactional
     public void remove(Long userId, Long placeId) {
         validateIds(userId, placeId);

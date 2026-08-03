@@ -62,6 +62,16 @@ class FavoriteServiceTest {
     }
 
     @Test
+    void isFavoriteChecksOnlyRequestedPlace() {
+        FavoriteResult favorite = new FavoriteResult();
+        when(favoriteDAO.find(1L, 100L)).thenReturn(Optional.of(favorite));
+
+        assertThat(favoriteService.isFavorite(1L, 100L)).isTrue();
+
+        verify(favoriteDAO).find(1L, 100L);
+    }
+
+    @Test
     void addRejectsMissingPlace() {
         when(placeDAO.findById(999L)).thenReturn(Optional.empty());
 

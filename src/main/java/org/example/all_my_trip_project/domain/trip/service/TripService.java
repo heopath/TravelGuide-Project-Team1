@@ -2,13 +2,17 @@ package org.example.all_my_trip_project.domain.trip.service;
 
 import lombok.RequiredArgsConstructor;
 import org.example.all_my_trip_project.domain.trip.dao.TripDAO;
+import org.example.all_my_trip_project.domain.trip.dao.TripDayDAO;
+import org.example.all_my_trip_project.domain.trip.dto.TripCreateResult;
 import org.example.all_my_trip_project.domain.trip.dto.TripDTO;
+import org.example.all_my_trip_project.domain.trip.dto.TripDayDTO;
 import org.springframework.stereotype.Service;
 import org.springframework.context.annotation.Profile;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Objects;
+import java.util.ArrayList;
 
 @Service
 @Profile("!ui")
@@ -16,12 +20,31 @@ import java.util.Objects;
 @Transactional(readOnly = true)
 public class TripService {
     private final TripDAO tripDAO;
+    private final TripDayDAO tripDayDAO;
 
     @Transactional
-    public Long create(TripDTO trip) {
+    public TripCreateResult createWithDays(Long userId, TripDTO trip) {
+        validateUserId(userId);
+        trip.setUserId(userId);
         validateDates(trip);
         tripDAO.insert(trip);
-        return trip.getTripId();
+
+        List<TripDayDTO> days = new ArrayList<>();
+        int dayNumber = 1;
+        for (var date = trip.getStartDate(); !date.isAfter(trip.getEndDate()); date = date.plusDays(1)) {
+            TripDayDTO day = TripDayDTO.builder()
+                    .tripId(trip.getTripId())
+                    .dayNumber(dayNumber)
+                    .tripDate(date)
+                    .title("DAY " + dayNumber)
+                    .build();
+            tripDayDAO.insert(day);
+            days.add(day);
+            dayNumber += 1;
+        }
+
+        TripDTO savedTrip = tripDAO.findById(trip.getTripId()).orElse(trip);
+        return new TripCreateResult(savedTrip, List.copyOf(days));
     }
 
     public TripDTO get(Long userId, Long tripId) {
@@ -67,6 +90,9 @@ public class TripService {
     }
 
     private void validateDates(TripDTO trip) {
+        if (trip.getStartDate() == null || trip.getEndDate() == null) {
+            throw new IllegalArgumentException("여행 시작일과 종료일은 필수입니다.");
+        }
         if (trip.getStartDate() != null && trip.getEndDate() != null
                 && trip.getEndDate().isBefore(trip.getStartDate())) {
             throw new IllegalArgumentException("여행 종료일은 시작일보다 빠를 수 없습니다.");

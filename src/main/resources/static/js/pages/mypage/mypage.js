@@ -66,12 +66,12 @@ document.addEventListener("DOMContentLoaded", function () {
   async function loadFavorites() {
     try {
       const responses = await Promise.all([
-        fetch("/api/favorites?page=0&size=100", {
+        fetch("/api/v1/favorites?page=0&size=100", {
           headers: { Accept: "application/json" },
           credentials: "same-origin",
           allMyTripsLoading: false,
         }),
-        fetch("/api/favorites/count", {
+        fetch("/api/v1/favorites/count", {
           headers: { Accept: "application/json" },
           credentials: "same-origin",
           allMyTripsLoading: false,
@@ -90,8 +90,11 @@ document.addEventListener("DOMContentLoaded", function () {
       const results = await Promise.all(responses.map(function (response) {
         return response.json();
       }));
-      const favorites = results[0];
-      const totalCount = results[1];
+      if (results.some(function (result) { return !result?.success; })) {
+        throw new Error("찜한 여행지 응답 형식이 올바르지 않습니다.");
+      }
+      const favorites = results[0].data;
+      const totalCount = results[1].data;
       favoriteCount.textContent = totalCount + "곳";
       favoriteList.replaceChildren();
 

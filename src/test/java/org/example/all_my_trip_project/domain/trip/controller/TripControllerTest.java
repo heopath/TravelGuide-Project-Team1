@@ -1,6 +1,7 @@
 package org.example.all_my_trip_project.domain.trip.controller;
 
 import org.example.all_my_trip_project.domain.trip.dto.TripDTO;
+import org.example.all_my_trip_project.domain.trip.dto.TripCreateResult;
 import org.example.all_my_trip_project.domain.trip.service.TripService;
 import org.example.all_my_trip_project.global.exception.BusinessException;
 import org.example.all_my_trip_project.global.exception.ErrorCode;
@@ -34,7 +35,7 @@ class TripControllerTest {
     void listUsesAuthenticatedUserId() {
         when(tripService.getByUser(42L)).thenReturn(List.of());
 
-        assertThat(tripController.getByUser(principal)).isEmpty();
+        assertThat(tripController.getByUser(principal).data()).isEmpty();
 
         verify(tripService).getByUser(42L);
     }
@@ -43,11 +44,11 @@ class TripControllerTest {
     void createOverridesClientUserIdWithAuthenticatedUserId() {
         TripDTO request = TripDTO.builder().userId(999L).title("서울 여행").build();
         TripDTO saved = TripDTO.builder().tripId(10L).userId(42L).title("서울 여행").build();
-        when(tripService.create(request)).thenReturn(10L);
-        when(tripService.get(42L, 10L)).thenReturn(saved);
+        TripCreateResult result = new TripCreateResult(saved, List.of());
+        when(tripService.createWithDays(42L, request)).thenReturn(result);
 
-        assertThat(tripController.create(principal, request).getBody()).isSameAs(saved);
-        assertThat(request.getUserId()).isEqualTo(42L);
+        assertThat(tripController.create(principal, request).getBody().data()).isSameAs(result);
+        verify(tripService).createWithDays(42L, request);
     }
 
     @Test

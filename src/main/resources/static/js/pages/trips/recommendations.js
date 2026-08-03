@@ -34,21 +34,6 @@ document.addEventListener("DOMContentLoaded", function () {
     firstCard.querySelector("[data-create-trip]").textContent = draft.destinationName + "으로 계획하기";
   }
 
-  async function createTripDay(tripId, dayNumber, tripDate) {
-    const response = await fetch("/api/trips/" + tripId + "/days", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Accept: "application/json" },
-      credentials: "same-origin",
-      body: JSON.stringify({
-        dayNumber: dayNumber,
-        tripDate: tripDate,
-        title: "DAY " + dayNumber,
-      }),
-      allMyTripsLoading: false,
-    });
-    if (!response.ok) throw new Error("여행 날짜를 생성하지 못했습니다.");
-  }
-
   async function createTrip(destination, button) {
     buttons.forEach(function (item) { item.disabled = true; });
     const originalText = button.textContent;
@@ -56,7 +41,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
     try {
       const purposeName = (draft.purpose || "여행").split(",")[0];
-      const response = await fetch("/api/trips", {
+      const response = await fetch("/api/v1/trips", {
         method: "POST",
         headers: { "Content-Type": "application/json", Accept: "application/json" },
         credentials: "same-origin",
@@ -83,18 +68,11 @@ document.addEventListener("DOMContentLoaded", function () {
         window.setTimeout(function () { window.location.href = "/auth/login"; }, 700);
         return;
       }
-      if (!response.ok) throw new Error("여행을 생성하지 못했습니다.");
-      const trip = await response.json();
-
-      const currentDate = new Date(draft.startDate + "T00:00:00");
-      for (let dayNumber = 1; dayNumber <= nights + 1; dayNumber += 1) {
-        const tripDate = new Date(currentDate);
-        tripDate.setDate(currentDate.getDate() + dayNumber - 1);
-        const dateValue = tripDate.getFullYear() + "-" +
-          String(tripDate.getMonth() + 1).padStart(2, "0") + "-" +
-          String(tripDate.getDate()).padStart(2, "0");
-        await createTripDay(trip.tripId, dayNumber, dateValue);
+      const payload = await response.json().catch(function () { return null; });
+      if (!response.ok || !payload?.success || !payload.data?.trip) {
+        throw new Error(payload?.message || "여행을 생성하지 못했습니다.");
       }
+      const trip = payload.data.trip;
 
       sessionStorage.removeItem(draftKey);
       sessionStorage.removeItem("all-my-trips-destination");
