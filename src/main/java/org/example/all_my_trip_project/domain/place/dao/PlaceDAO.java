@@ -26,10 +26,12 @@ public class PlaceDAO {
         return placeMapper.findStylesByPlaceId(placeId);
     }
     public List<PlaceDTO> findAll() { return placeMapper.findAll(); }
-    public List<PlaceDTO> findPage(int offset, int size) { return placeMapper.findPage(offset, size); }
-    public List<PlaceDTO> search(String keyword, String category, String region,
+    public List<PlaceDTO> findPage(Long userId, int offset, int size) {
+        return placeMapper.findPage(userId, offset, size);
+    }
+    public List<PlaceDTO> search(Long userId, String keyword, String category, String region,
                                  Long styleId, int offset, int size) {
-        return placeMapper.search(keyword, category, region, styleId, offset, size);
+        return placeMapper.search(userId, keyword, category, region, styleId, offset, size);
     }
     public int update(PlaceDTO place) { return placeMapper.update(place); }
     public int delete(Long placeId) { return placeMapper.delete(placeId); }

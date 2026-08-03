@@ -21,6 +21,7 @@
 | 로그인 | POST | `/api/v1/auth/login` | 불필요 |
 | 로그아웃 | POST | `/api/v1/auth/logout` | 필요 |
 | 내 정보 조회 | GET | `/api/v1/members/me` | 필요 |
+| 내 정보 수정 | PATCH | `/api/v1/members/me` | 필요 |
 
 ---
 
@@ -224,12 +225,69 @@ Cookie: JSESSIONID=세션값
 
 ---
 
-## 7. DTO 목록
+## 7. 내 정보 수정
+
+현재 로그인한 사용자의 닉네임을 수정한다. 사용자 ID와 이메일은 요청값으로 받지 않는다.
+
+### 요청
+
+```http
+PATCH /api/v1/members/me
+Content-Type: application/json
+Cookie: JSESSIONID=세션값
+```
+
+```json
+{
+  "nickname": "새여행자"
+}
+```
+
+### 검증 규칙
+
+- 닉네임은 필수다.
+- 앞뒤 공백을 제거한 값으로 저장한다.
+- 2자 이상 20자 이하만 허용한다.
+- 다른 활성 회원이 사용하는 닉네임은 저장할 수 없다.
+
+### 성공 응답
+
+- HTTP 상태: `200 OK`
+
+```json
+{
+  "success": true,
+  "code": "SUCCESS",
+  "message": "회원정보가 수정되었습니다.",
+  "data": {
+    "userId": 1,
+    "email": "user@example.com",
+    "nickname": "새여행자",
+    "role": "USER",
+    "status": "ACTIVE"
+  }
+}
+```
+
+### 발생 가능한 오류
+
+| 오류 코드 | HTTP 상태 | 의미 |
+|---|---:|---|
+| VALIDATION_ERROR | 400 | 닉네임 필수·길이 검증 실패 |
+| UNAUTHORIZED | 401 | 로그인이 필요함 |
+| ACCOUNT_SUSPENDED | 403 | 정지된 계정 |
+| ACCOUNT_WITHDRAWN | 403 | 탈퇴한 계정 |
+| NICKNAME_DUPLICATED | 409 | 이미 사용 중인 닉네임 |
+
+---
+
+## 8. DTO 목록
 
 | DTO | 용도 |
 |---|---|
 | SignupRequest | 회원가입 요청 |
 | LoginRequest | 로그인 요청 |
+| UpdateMemberProfileRequest | 닉네임 수정 요청 |
 | LoginResponse | 로그인 성공 응답 |
 | MemberResponse | 회원 정보 응답 |
 
@@ -237,7 +295,7 @@ Cookie: JSESSIONID=세션값
 
 ---
 
-## 8. 공통 오류 응답 예시
+## 9. 공통 오류 응답 예시
 
 ```json
 {
@@ -249,7 +307,7 @@ Cookie: JSESSIONID=세션값
 }
 ```
 
-## 9. 오류 코드 목록
+## 10. 오류 코드 목록
 
 | 오류 코드 | HTTP 상태 | 의미 |
 |---|---:|---|
@@ -261,7 +319,7 @@ Cookie: JSESSIONID=세션값
 | EMAIL_DUPLICATED | 409 | 이메일 중복 |
 | NICKNAME_DUPLICATED | 409 | 닉네임 중복 |
 
-## 10. 보안 규칙
+## 11. 보안 규칙
 
 - 원본 비밀번호를 DB와 로그에 저장하지 않는다.
 - 비밀번호는 BCrypt로 암호화한다.
@@ -271,12 +329,13 @@ Cookie: JSESSIONID=세션값
 - 운영 환경의 세션 쿠키에는 `HttpOnly`, `Secure`, `SameSite` 설정을 적용한다.
 - 세션·쿠키 인증을 사용하므로 상태 변경 요청에 대한 CSRF 보호를 적용한다.
 
-## 11. 완료 기준
+## 12. 완료 기준
 
 - [ ] 회원가입 명세 작성
 - [ ] 로그인 명세 작성
 - [ ] 로그아웃 명세 작성
 - [ ] 내 정보 조회 명세 작성
+- [ ] 내 정보 수정 명세 작성
 - [ ] 요청·응답 DTO 이름 확정
 - [ ] 오류 코드와 HTTP 상태 확정
 - [ ] 비밀번호 정보가 응답에서 제외되는지 확인

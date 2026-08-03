@@ -11,7 +11,7 @@
     <link rel="stylesheet" th:href="@{/css/common/components.css}" href="../../static/css/common/components.css" />
     <link rel="stylesheet" th:href="@{/css/pages/trips/schedule.css}" href="../../static/css/pages/trips/schedule.css" />
   </head>
-  <body class="page-schedule" data-route="/trips/busan/schedule">
+  <body class="page-schedule" th:attr="data-trip-id=${tripId}" data-trip-id="">
     <div class="app">
       <div th:replace="~{fragments/header :: header('schedule')}"></div>
       <main id="page-content">
@@ -23,38 +23,20 @@
         <p>날짜별 일정을 만들고 순서를 자유롭게 바꿔보세요.</p>
         <i>✦</i>
       </div>
-      <div class="heading-actions"><button type="button" class="outline-button" data-modal="share">공유하기</button><button type="button" class="primary-button" data-modal="add-place">+ 일정 추가</button></div>
+      <div class="heading-actions"><button type="button" class="outline-button" data-modal="share">공유하기</button><button type="button" class="primary-button" data-schedule-guide>+ 장소 찾아보기</button></div>
     </section>
   
       <div class="schedule-layout">
-        <aside class="white-panel trip-sidebar"><h2>나의 여행</h2><button class="selected"><strong>부산 미식 여행</strong><span>08.14–08.17</span></button><button class=""><strong>제주 가족 여행</strong><span>09.05–09.08</span></button><button class=""><strong>도쿄 쇼핑 여행</strong><span>10.02–10.05</span></button><button type="button" class="outline-button wide" data-modal="new-trip">+ 새 여행 만들기</button></aside>
-        <section class="white-panel schedule-main"><h2>부산 미식 여행</h2><div class="day-tabs"><button class="selected" data-toggle-group>DAY 1</button><button class="" data-toggle-group>DAY 2</button><button class="" data-toggle-group>DAY 3</button><button class="" data-toggle-group>DAY 4</button></div>
-    <div class="timeline">
-      
-        <button type="button" data-toast="부산역 도착 일정을 선택했습니다.">
-          <span>1</span><div><strong>부산역 도착</strong><small>10:20 · KTX 101</small></div>
-        </button>
-      
-        <button type="button" data-toast="감천문화마을 일정을 선택했습니다.">
-          <span>2</span><div><strong>감천문화마을</strong><small>11:30 · 2시간</small></div>
-        </button>
-      
-        <button type="button" data-toast="자갈치시장 일정을 선택했습니다.">
-          <span>3</span><div><strong>자갈치시장</strong><small>14:00 · 점심</small></div>
-        </button>
-      
-        <button type="button" data-toast="광안리 해변 일정을 선택했습니다.">
-          <span>4</span><div><strong>광안리 해변</strong><small>18:30 · 야경</small></div>
-        </button>
-      
-    </div>
+        <aside class="white-panel trip-sidebar"><h2>나의 여행</h2><div data-trip-list><p class="schedule-empty">여행을 불러오는 중입니다.</p></div><button type="button" class="outline-button wide" data-route="/trips/new/basic">+ 새 여행 만들기</button></aside>
+        <section class="white-panel schedule-main"><h2 data-schedule-title>여행 일정</h2><div class="day-tabs" data-day-tabs></div>
+    <div class="timeline" data-timeline><p class="schedule-empty">일정을 불러오는 중입니다.</p></div>
   </section>
         <aside class="schedule-side"><section class="white-panel"><h2>경로 미리보기</h2>
     <div class="mini-map ">
       <i class="road road-a"></i><i class="road road-b"></i><i class="road road-c"></i>
       <b class="pin pin-1">1</b><b class="pin pin-2">2</b><b class="pin pin-3">3</b><b class="pin pin-4">4</b>
     </div>
-  <button class="center-link" data-route="/trips/busan/map">큰 지도에서 보기</button></section><section class="white-panel memo-card"><h2>여행 메모</h2><p>회센터는 현지 추천 확인</p><p>광안대교 점등 20:00</p><p>우천 시 실내 일정 적용</p></section></aside>
+  <button class="center-link" type="button" data-schedule-guide>여행 가이드에서 장소 찾기</button></section><section class="white-panel memo-card"><h2>여행 정보</h2><p data-schedule-period>기간을 불러오는 중입니다.</p><p data-schedule-destination>목적지를 불러오는 중입니다.</p><p>장소 상세 페이지에서 원하는 DAY에 일정을 추가할 수 있습니다.</p></section></aside>
       </div>
     </section>
       </main>
@@ -62,5 +44,6 @@
       <div th:replace="~{fragments/footer :: footer}"></div>
     </div>
     <div th:replace="~{fragments/scripts :: appScripts}"></div>
+    <script th:src="@{/js/pages/trips/schedule.js}" src="../../static/js/pages/trips/schedule.js"></script>
   </body>
 </html>

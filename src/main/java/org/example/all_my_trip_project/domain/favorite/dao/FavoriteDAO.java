@@ -27,6 +27,10 @@ public class FavoriteDAO {
         return favoriteMapper.findByUserId(userId, offset, size);
     }
 
+    public long countByUserId(Long userId) {
+        return favoriteMapper.countByUserId(userId);
+    }
+
     public int delete(Long userId, Long placeId) {
         return favoriteMapper.delete(userId, placeId);
     }

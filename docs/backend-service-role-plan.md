@@ -548,7 +548,7 @@ presentation/
 2. Page Controller는 화면 이름과 최소 View Model만 반환한다. 데이터 변경, Repository 호출, 외부 API 호출은 넣지 않는다.
 3. API Controller는 입력 DTO 검증, 현재 사용자 조회, Service 호출, HTTP 상태·응답 변환까지만 담당한다.
 4. 인증된 사용자 ID를 요청 본문이나 쿼리에서 받지 않는다. `CurrentUserProvider`에서 가져온다.
-5. URL은 복수 명사와 리소스 중심으로 합의한다. 예: `/api/trips/{tripId}/itinerary-items`.
+5. URL은 `/api/v1` 아래 복수 명사와 리소스 중심으로 합의한다. 예: `/api/v1/trips/{tripId}/itinerary-items`.
 6. 화면 JavaScript는 자기 도메인의 `static/js/pages/{domain}` 파일에서 구현하고 인라인 스크립트를 추가하지 않는다.
 7. `static/js/common/api.js`, `navigation.js`, `modal.js`, 공통 fragment는 허민재가 초기 통합 창구를 맡는다. 변경이 필요하면 화면 담당자가 요구사항을 전달하고 공통 파일을 동시에 수정하지 않는다.
 8. 모달의 확인 버튼을 실제 기능으로 연결할 때 공통 `data-complete` 데모 처리와 중복 실행되지 않도록 해당 데모 속성을 제거하거나 기능별 이벤트로 교체한다.
@@ -573,7 +573,7 @@ public class TripPageController {
 }
 
 @RestController
-@RequestMapping("/api/trips")
+@RequestMapping("/api/v1/trips")
 @RequiredArgsConstructor
 public class TripApiController {
 
@@ -605,7 +605,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   const tripId = document.body.dataset.tripId;
   try {
     setLoading(true);
-    const trip = await window.AllMyTripsApi.get(`/api/trips/${tripId}`);
+    const trip = await window.AllMyTripsApi.get(`/api/v1/trips/${tripId}`);
     renderSchedule(trip.data);
   } catch (error) {
     renderPageError(error);

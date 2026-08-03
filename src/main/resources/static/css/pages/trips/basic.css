@@ -3,6 +3,45 @@ body.page-basic #page-content {
   min-height: calc(100vh - 78px);
 }
 
+.date-pair label,
+.budget-field {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 52px;
+  padding: 0 16px;
+  border: 1px solid #dfe3ea;
+  border-radius: 12px;
+  background: #fff;
+}
+
+.date-pair label {
+  flex: 1;
+}
+
+.date-pair label span,
+.budget-field span {
+  color: #7c8798;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.date-pair input,
+.budget-field input {
+  min-width: 0;
+  flex: 1;
+  border: 0;
+  background: transparent;
+  color: #172033;
+  font: inherit;
+  font-weight: 700;
+  outline: 0;
+}
+
+.budget-field {
+  width: 100%;
+}
+
 .destination-trigger {
   display: grid;
   grid-template-columns: auto 1fr auto;

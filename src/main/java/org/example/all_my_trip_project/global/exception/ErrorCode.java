@@ -32,6 +32,16 @@ public enum ErrorCode {
     ACCOUNT_WITHDRAWN(
             HttpStatus.FORBIDDEN,
             "탈퇴한 계정입니다."
+    ),
+
+    TRAVEL_STYLE_NOT_FOUND(
+            HttpStatus.NOT_FOUND,
+            "사용할 수 없는 여행 스타일이 포함되어 있습니다."
+    ),
+
+    TRAVEL_STYLE_DUPLICATED(
+            HttpStatus.BAD_REQUEST,
+            "동일한 여행 스타일을 중복해서 저장할 수 없습니다."
     );
 
     private final HttpStatus status;

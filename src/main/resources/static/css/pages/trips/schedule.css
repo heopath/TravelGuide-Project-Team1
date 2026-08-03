@@ -3,6 +3,153 @@ body.page-schedule #page-content {
   min-height: calc(100vh - 78px);
 }
 
+.trip-sidebar [data-trip-list] {
+  display: grid;
+  gap: 12px;
+  margin: 18px 0;
+}
+
+.trip-sidebar [data-trip-list] button {
+  position: relative;
+  width: 100%;
+  min-height: 92px;
+  padding: 16px 42px 16px 17px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 7px;
+  overflow: hidden;
+  border: 1px solid #e7ebf5;
+  border-radius: 16px;
+  background: #f8faff;
+  color: var(--navy);
+  text-align: left;
+  box-shadow: 0 5px 16px rgba(31, 43, 88, 0.035);
+  transition: transform 0.18s ease, border-color 0.18s ease,
+    background 0.18s ease, box-shadow 0.18s ease;
+}
+
+.trip-sidebar [data-trip-list] button::after {
+  content: "›";
+  position: absolute;
+  top: 50%;
+  right: 15px;
+  width: 25px;
+  height: 25px;
+  display: grid;
+  place-items: center;
+  transform: translateY(-50%);
+  border-radius: 50%;
+  background: #fff;
+  color: #9aa5ba;
+  font-size: 20px;
+  line-height: 1;
+}
+
+.trip-sidebar [data-trip-list] button:hover {
+  transform: translateY(-2px);
+  border-color: #cbd3ff;
+  background: #fff;
+  box-shadow: 0 10px 24px rgba(67, 79, 151, 0.1);
+}
+
+.trip-sidebar [data-trip-list] button strong {
+  max-width: 100%;
+  overflow: hidden;
+  display: -webkit-box;
+  font-size: 13px;
+  line-height: 1.35;
+  letter-spacing: -0.025em;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.trip-sidebar [data-trip-list] button span {
+  margin: 0;
+  color: #8993a8;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.trip-sidebar [data-trip-list] button.selected {
+  border-color: #b8c1ff;
+  background: linear-gradient(135deg, #f0f2ff 0%, #f7f4ff 100%);
+  color: var(--primary);
+  box-shadow: 0 10px 24px rgba(91, 104, 255, 0.13);
+}
+
+.trip-sidebar [data-trip-list] button.selected::before {
+  content: "";
+  position: absolute;
+  top: 15px;
+  bottom: 15px;
+  left: 0;
+  width: 4px;
+  border-radius: 0 4px 4px 0;
+  background: var(--gradient);
+}
+
+.trip-sidebar [data-trip-list] button.selected::after {
+  background: var(--primary);
+  color: #fff;
+}
+
+.trip-sidebar [data-trip-list] button.selected span {
+  color: #747fba;
+}
+
+.trip-sidebar > .outline-button {
+  min-height: 44px;
+  margin-top: 0;
+  border-style: dashed;
+  border-color: #cfd5e5;
+  border-radius: 14px;
+  color: #68748b;
+  font-size: 12px;
+}
+
+.trip-sidebar > .outline-button:hover {
+  border-color: var(--primary);
+  background: var(--primary-soft);
+  color: var(--primary);
+}
+
+.schedule-empty {
+  padding: 24px 12px;
+  color: #7c8798;
+  text-align: center;
+}
+
+.timeline button div {
+  min-width: 0;
+}
+
+.timeline button small {
+  display: block;
+  margin-top: 4px;
+  color: #657184;
+  line-height: 1.5;
+}
+
+.timeline .schedule-item {
+  cursor: default;
+}
+
+.timeline .schedule-item {
+  text-align: left;
+}
+
+.timeline .schedule-item.linked {
+  cursor: pointer;
+}
+
+.timeline .schedule-item div {
+  display: grid;
+  gap: 2px;
+}
+
 @media (max-width: 760px) {
   body.page-schedule #page-content {
     min-height: calc(100vh - 64px);

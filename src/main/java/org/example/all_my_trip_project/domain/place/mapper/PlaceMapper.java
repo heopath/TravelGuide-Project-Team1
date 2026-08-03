@@ -16,8 +16,11 @@ public interface PlaceMapper {
     List<PlaceImageResult> findImagesByPlaceId(Long placeId);
     List<PlaceStyleResult> findStylesByPlaceId(Long placeId);
     List<PlaceDTO> findAll();
-    List<PlaceDTO> findPage(@Param("offset") int offset, @Param("size") int size);
-    List<PlaceDTO> search(@Param("keyword") String keyword,
+    List<PlaceDTO> findPage(@Param("userId") Long userId,
+                            @Param("offset") int offset,
+                            @Param("size") int size);
+    List<PlaceDTO> search(@Param("userId") Long userId,
+                          @Param("keyword") String keyword,
                           @Param("category") String category,
                           @Param("region") String region,
                           @Param("styleId") Long styleId,

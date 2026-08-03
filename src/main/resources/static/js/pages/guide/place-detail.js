@@ -5,10 +5,10 @@ document.addEventListener("DOMContentLoaded", function () {
   const favoriteButton = document.querySelector("[data-favorite-toggle]");
   const addToTripButton = document.querySelector("[data-add-to-trip]");
   const modalRoot = document.querySelector("#modal-root");
-  const localUserId = 1;
   let currentPlaceId = null;
   let currentPlaceName = null;
   let favorite = false;
+  let favoriteAuthenticated = true;
   const categoryLabels = {
     ATTRACTION: "관광지",
     RESTAURANT: "맛집",
@@ -39,47 +39,69 @@ document.addEventListener("DOMContentLoaded", function () {
     favoriteButton.setAttribute("aria-pressed", String(favorite));
     favoriteButton.querySelector("span").textContent = favorite ? "♥" : "♡";
     favoriteButton.querySelector("strong").textContent =
-      favorite ? "즐겨찾기 해제" : "즐겨찾기에 추가";
+      favorite ? "찜 해제" : "찜하기";
   }
 
   async function loadFavoriteState(placeId) {
+    favoriteButton.disabled = true;
     try {
-      const response = await fetch("/api/favorites?userId=" + localUserId + "&page=0&size=100", {
+      const response = await fetch("/api/v1/favorites/" + placeId, {
         headers: { Accept: "application/json" },
+        credentials: "same-origin",
         allMyTripsLoading: false,
       });
-      if (!response.ok) throw new Error("즐겨찾기 조회에 실패했습니다.");
-      const favorites = await response.json();
-      favorite = favorites.some(function (item) {
-        return item.placeId === placeId;
-      });
+      if (response.status === 401) {
+        favoriteAuthenticated = false;
+        favorite = false;
+        renderFavoriteButton();
+        favoriteButton.disabled = false;
+        favoriteButton.title = "로그인 후 찜하기를 사용할 수 있습니다.";
+        return;
+      }
+      const payload = await response.json().catch(function () { return null; });
+      if (!response.ok || !payload?.success) throw new Error("찜 상태 조회에 실패했습니다.");
+      favoriteAuthenticated = true;
+      favorite = Boolean(payload.data?.favorite);
       renderFavoriteButton();
+      favoriteButton.disabled = false;
+      favoriteButton.removeAttribute("title");
     } catch (error) {
       favoriteButton.disabled = true;
-      favoriteButton.title = "즐겨찾기 상태를 불러오지 못했습니다.";
+      favoriteButton.title = "찜 상태를 불러오지 못했습니다.";
     }
   }
 
   async function toggleFavorite() {
     if (!currentPlaceId || favoriteButton.disabled) return;
+    if (!favoriteAuthenticated) {
+      window.AllMyTripsModal.showToast("로그인이 필요한 기능입니다.");
+      return;
+    }
     favoriteButton.disabled = true;
     const method = favorite ? "DELETE" : "POST";
-    const url = "/api/favorites?userId=" + localUserId + "&placeId=" + currentPlaceId;
+    const url = "/api/v1/favorites?placeId=" + currentPlaceId;
 
     try {
       const response = await fetch(url, {
         method: method,
         headers: { Accept: "application/json" },
+        credentials: "same-origin",
         allMyTripsLoading: false,
       });
-      if (!response.ok) throw new Error("즐겨찾기 변경에 실패했습니다.");
+      if (response.status === 401) {
+        favoriteAuthenticated = false;
+        favoriteButton.title = "로그인 후 찜하기를 사용할 수 있습니다.";
+        window.AllMyTripsModal.showToast("로그인이 필요한 기능입니다.");
+        return;
+      }
+      if (!response.ok) throw new Error("찜 상태 변경에 실패했습니다.");
       favorite = !favorite;
       renderFavoriteButton();
       window.AllMyTripsModal.showToast(
-        favorite ? "즐겨찾기에 추가했습니다." : "즐겨찾기에서 해제했습니다."
+        favorite ? "찜한 장소에 추가했습니다." : "찜을 해제했습니다."
       );
     } catch (error) {
-      window.AllMyTripsModal.showToast("즐겨찾기를 변경하지 못했습니다.");
+      window.AllMyTripsModal.showToast("찜 상태를 변경하지 못했습니다.");
     } finally {
       favoriteButton.disabled = false;
     }
@@ -87,6 +109,13 @@ document.addEventListener("DOMContentLoaded", function () {
 
   function closeTripModal() {
     modalRoot.replaceChildren();
+  }
+
+  function handleTripUnauthorized(response) {
+    if (response.status !== 401) return false;
+    closeTripModal();
+    window.AllMyTripsModal.showToast("로그인 후 일정에 장소를 추가할 수 있습니다.");
+    return true;
   }
 
   function renderModalMessage(container, message, isError) {
@@ -100,12 +129,15 @@ document.addEventListener("DOMContentLoaded", function () {
   async function addPlaceToDay(tripDayId, dayLabel, button) {
     button.disabled = true;
     try {
-      const itemResponse = await fetch("/api/trip-days/" + tripDayId + "/items", {
+      const itemResponse = await fetch("/api/v1/trip-days/" + tripDayId + "/items", {
         headers: { Accept: "application/json" },
+        credentials: "same-origin",
         allMyTripsLoading: false,
       });
-      if (!itemResponse.ok) throw new Error("일정 항목 조회에 실패했습니다.");
-      const items = await itemResponse.json();
+      if (handleTripUnauthorized(itemResponse)) return;
+      const itemPayload = await itemResponse.json().catch(function () { return null; });
+      if (!itemResponse.ok || !itemPayload?.success) throw new Error("일정 항목 조회에 실패했습니다.");
+      const items = itemPayload.data;
       const duplicate = items.some(function (item) {
         return item.placeId === currentPlaceId;
       });
@@ -117,9 +149,10 @@ document.addEventListener("DOMContentLoaded", function () {
       const nextOrder = items.reduce(function (maximum, item) {
         return Math.max(maximum, item.sortOrder || 0);
       }, 0) + 1;
-      const saveResponse = await fetch("/api/trip-days/" + tripDayId + "/items", {
+      const saveResponse = await fetch("/api/v1/trip-days/" + tripDayId + "/items", {
         method: "POST",
         headers: { "Content-Type": "application/json", Accept: "application/json" },
+        credentials: "same-origin",
         body: JSON.stringify({
           placeId: currentPlaceId,
           itemType: "PLACE",
@@ -130,6 +163,7 @@ document.addEventListener("DOMContentLoaded", function () {
         }),
         allMyTripsLoading: false,
       });
+      if (handleTripUnauthorized(saveResponse)) return;
       if (!saveResponse.ok) throw new Error("일정 저장에 실패했습니다.");
       closeTripModal();
       window.AllMyTripsModal.showToast(dayLabel + " 일정에 추가했습니다.");
@@ -142,12 +176,15 @@ document.addEventListener("DOMContentLoaded", function () {
   async function showTripDays(trip, container) {
     renderModalMessage(container, "여행 일정을 불러오는 중입니다.");
     try {
-      const response = await fetch("/api/trips/" + trip.tripId + "/days", {
+      const response = await fetch("/api/v1/trips/" + trip.tripId + "/days", {
         headers: { Accept: "application/json" },
+        credentials: "same-origin",
         allMyTripsLoading: false,
       });
-      if (!response.ok) throw new Error("여행 일자 조회에 실패했습니다.");
-      const days = await response.json();
+      if (handleTripUnauthorized(response)) return;
+      const payload = await response.json().catch(function () { return null; });
+      if (!response.ok || !payload?.success) throw new Error("여행 일자 조회에 실패했습니다.");
+      const days = payload.data;
       container.replaceChildren();
       if (days.length === 0) {
         renderModalMessage(container, "이 여행에는 아직 일정 날짜가 없습니다.");
@@ -193,12 +230,15 @@ document.addEventListener("DOMContentLoaded", function () {
     renderModalMessage(tripList, "내 여행을 불러오는 중입니다.");
 
     try {
-      const response = await fetch("/api/trips?userId=" + localUserId, {
+      const response = await fetch("/api/v1/trips", {
         headers: { Accept: "application/json" },
+        credentials: "same-origin",
         allMyTripsLoading: false,
       });
-      if (!response.ok) throw new Error("여행 목록 조회에 실패했습니다.");
-      const trips = await response.json();
+      if (handleTripUnauthorized(response)) return;
+      const payload = await response.json().catch(function () { return null; });
+      if (!response.ok || !payload?.success) throw new Error("여행 목록 조회에 실패했습니다.");
+      const trips = payload.data;
       tripList.replaceChildren();
       if (trips.length === 0) {
         renderModalMessage(tripList, "먼저 여행 계획을 만들어주세요.");
@@ -290,12 +330,14 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     try {
-      const response = await fetch("/api/places/" + match[1], {
+      const response = await fetch("/api/v1/places/" + match[1], {
         headers: { Accept: "application/json" },
         allMyTripsLoading: false,
       });
       if (!response.ok) throw new Error("장소 상세 요청에 실패했습니다.");
-      renderDetail(await response.json());
+      const payload = await response.json();
+      if (!payload.data) throw new Error("장소 상세 응답이 올바르지 않습니다.");
+      renderDetail(payload.data);
     } catch (error) {
       state.textContent = "장소 정보를 불러오지 못했습니다. 여행 가이드에서 다시 시도해주세요.";
       state.classList.add("error");

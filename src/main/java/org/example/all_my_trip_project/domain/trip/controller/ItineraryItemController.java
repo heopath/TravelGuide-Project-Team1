@@ -3,8 +3,13 @@ package org.example.all_my_trip_project.domain.trip.controller;
 import lombok.RequiredArgsConstructor;
 import org.example.all_my_trip_project.domain.trip.dto.ItineraryItemDTO;
 import org.example.all_my_trip_project.domain.trip.service.ItineraryItemService;
+import org.example.all_my_trip_project.global.exception.BusinessException;
+import org.example.all_my_trip_project.global.exception.ErrorCode;
+import org.example.all_my_trip_project.global.security.AuthenticatedUser;
+import org.example.all_my_trip_project.global.response.ApiResponse;
 import org.springframework.context.annotation.Profile;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.net.URI;
@@ -12,36 +17,52 @@ import java.util.List;
 
 @RestController
 @Profile("!ui")
-@RequestMapping("/api/trip-days/{tripDayId}/items")
+@RequestMapping("/api/v1/trip-days/{tripDayId}/items")
 @RequiredArgsConstructor
 public class ItineraryItemController {
     private final ItineraryItemService itineraryItemService;
 
     @PostMapping
-    public ResponseEntity<ItineraryItemDTO> create(@PathVariable Long tripDayId,
-                                                   @RequestBody ItineraryItemDTO item) {
+    public ResponseEntity<ApiResponse<ItineraryItemDTO>> create(
+            @AuthenticationPrincipal AuthenticatedUser principal,
+            @PathVariable Long tripDayId,
+            @RequestBody ItineraryItemDTO item) {
         item.setTripDayId(tripDayId);
-        Long id = itineraryItemService.create(item);
-        return ResponseEntity.created(URI.create("/api/trip-days/" + tripDayId + "/items/" + id)).body(item);
+        Long id = itineraryItemService.create(requireUserId(principal), item);
+        return ResponseEntity.created(URI.create("/api/v1/trip-days/" + tripDayId + "/items/" + id))
+                .body(ApiResponse.success("일정 항목이 추가되었습니다.", item));
     }
 
     @GetMapping
-    public List<ItineraryItemDTO> getByTripDay(@PathVariable Long tripDayId) {
-        return itineraryItemService.getByTripDay(tripDayId);
+    public ApiResponse<List<ItineraryItemDTO>> getByTripDay(
+            @AuthenticationPrincipal AuthenticatedUser principal,
+            @PathVariable Long tripDayId) {
+        return ApiResponse.success(itineraryItemService.getByTripDay(requireUserId(principal), tripDayId));
     }
 
     @PutMapping("/{itemId}")
-    public ItineraryItemDTO update(@PathVariable Long tripDayId, @PathVariable Long itemId,
-                                   @RequestBody ItineraryItemDTO item) {
+    public ApiResponse<ItineraryItemDTO> update(
+            @AuthenticationPrincipal AuthenticatedUser principal,
+            @PathVariable Long tripDayId, @PathVariable Long itemId,
+            @RequestBody ItineraryItemDTO item) {
         item.setTripDayId(tripDayId);
         item.setItineraryItemId(itemId);
-        itineraryItemService.update(item);
-        return item;
+        itineraryItemService.update(requireUserId(principal), item);
+        return ApiResponse.success("일정 항목이 수정되었습니다.", item);
     }
 
     @DeleteMapping("/{itemId}")
-    public ResponseEntity<Void> delete(@PathVariable Long tripDayId, @PathVariable Long itemId) {
-        itineraryItemService.delete(itemId);
-        return ResponseEntity.noContent().build();
+    public ResponseEntity<ApiResponse<Void>> delete(
+            @AuthenticationPrincipal AuthenticatedUser principal,
+            @PathVariable Long tripDayId, @PathVariable Long itemId) {
+        itineraryItemService.delete(requireUserId(principal), tripDayId, itemId);
+        return ResponseEntity.ok(ApiResponse.success("일정 항목이 삭제되었습니다.", null));
+    }
+
+    private Long requireUserId(AuthenticatedUser principal) {
+        if (principal == null) {
+            throw new BusinessException(ErrorCode.UNAUTHORIZED);
+        }
+        return principal.userId();
     }
 }

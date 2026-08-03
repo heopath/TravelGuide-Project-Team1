@@ -3,7 +3,7 @@
 ## 적용 대상
 
 - 캐시 이름: `placeDetail`
-- 대상 API: `GET /api/places/{placeId}`
+- 대상 API: `GET /api/v1/places/{placeId}`
 - 키: 장소 ID
 - 저장 내용: 장소 기본정보, 이미지 목록, 여행 스타일 목록
 
@@ -26,7 +26,7 @@ Redis 조회·저장·제거에 실패하면 경고 로그를 남기고 DB 처�
 
 ```text
 docker compose up -d redis
-GET http://localhost:8081/api/places/100
+GET http://localhost:8081/api/v1/places/100
 docker compose exec redis redis-cli --scan --pattern "*placeDetail*"
 ```
 

@@ -24,11 +24,17 @@
       </div>
       
     </section>
-  <div class="theme-grid"><button class="theme-card" data-route="/trips/recommendations"><div class="visual tone-sunset"></div><strong>이번 주말 부산 미식 여행</strong><span>맛집 8곳 · 2박 3일</span></button><button class="theme-card" data-route="/trips/recommendations"><div class="visual tone-mint"></div><strong>제주의 조용한 오름과 카페</strong><span>힐링 6곳 · 3박 4일</span></button><button class="theme-card" data-route="/trips/recommendations"><div class="visual tone-blue"></div><strong>서울 야경과 전시 산책</strong><span>문화 7곳 · 1박 2일</span></button><button class="theme-card" data-route="/trips/recommendations"><div class="visual tone-violet"></div><strong>아이와 함께하는 경주</strong><span>가족 9곳 · 2박 3일</span></button></div></section>
+  <div class="theme-grid">
+    <button type="button" class="theme-card" data-theme-card data-title="이번 주말 부산 미식 여행" data-destination="부산" data-purpose="맛집,관광" data-nights="2"><div class="visual tone-sunset"></div><strong>이번 주말 부산 미식 여행</strong><span>맛집 8곳 · 2박 3일</span></button>
+    <button type="button" class="theme-card" data-theme-card data-title="제주의 조용한 오름과 카페" data-destination="제주" data-purpose="힐링,카페" data-nights="3"><div class="visual tone-mint"></div><strong>제주의 조용한 오름과 카페</strong><span>힐링 6곳 · 3박 4일</span></button>
+    <button type="button" class="theme-card" data-theme-card data-title="서울 야경과 전시 산책" data-destination="서울" data-purpose="문화·전시,사진" data-nights="1"><div class="visual tone-blue"></div><strong>서울 야경과 전시 산책</strong><span>문화 7곳 · 1박 2일</span></button>
+    <button type="button" class="theme-card" data-theme-card data-title="아이와 함께하는 경주" data-destination="경주" data-purpose="가족,관광" data-nights="2"><div class="visual tone-violet"></div><strong>아이와 함께하는 경주</strong><span>가족 9곳 · 2박 3일</span></button>
+  </div></section>
       </main>
       <div th:replace="~{fragments/modals :: modalRoots}"><div id="directory-root"></div><div id="modal-root"></div><div id="toast-root" aria-live="polite"></div></div>
       <div th:replace="~{fragments/footer :: footer}"></div>
     </div>
     <div th:replace="~{fragments/scripts :: appScripts}"></div>
+    <script th:src="@{/js/pages/guide/themes.js}" src="../../static/js/pages/guide/themes.js"></script>
   </body>
 </html>
