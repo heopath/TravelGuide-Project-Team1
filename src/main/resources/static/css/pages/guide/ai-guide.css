@@ -1,10 +1,26 @@
-/* AI 여행 가이드 전용 스타일 */
-body.page-ai-guide #page-content {
-  min-height: calc(100vh - 78px);
-}
-
-@media (max-width: 760px) {
-  body.page-ai-guide #page-content {
-    min-height: calc(100vh - 64px);
-  }
-}
+body.page-ai-guide #page-content { background: linear-gradient(180deg,#f6f8ff 0,#f7f9fc 45%,#fff 100%); }
+.ai-heading { align-items: end; }
+.section-eyebrow { color: var(--primary); font-size: 11px; font-weight: 900; letter-spacing: .12em; }
+.demo-status { display:flex; align-items:center; gap:10px; padding:10px 12px; border:1px solid var(--border); border-radius:12px; background:#fff; color:var(--muted); font-size:12px; }
+.demo-status select { border:0; outline:0; color:var(--navy); font-weight:800; background:#fff; }
+.ai-layout { grid-template-columns:280px 1fr; }
+.ai-context { min-height:600px; padding:28px 22px; }
+.context-badge { width:48px; height:48px; display:grid; place-items:center; margin-bottom:18px; border-radius:16px; background:var(--gradient); color:#fff; font-size:23px; }
+.ai-context h2 { margin:0; color:var(--navy); font-size:21px; }.context-subtitle { color:var(--muted); font-size:12px; line-height:1.6; }
+.context-facts { display:grid; gap:10px; margin:24px 0 32px; padding:16px; border-radius:14px; background:#f4f5ff; }.context-facts span { color:var(--muted); font-size:11px; }.context-facts b { display:block; margin-bottom:3px; color:var(--navy); font-size:13px; }
+.ai-context h3 { margin-bottom:12px; color:var(--navy); font-size:13px; }.question-chip { width:100%; min-height:42px; margin-bottom:8px; padding:0 13px; border:1px solid var(--border); border-radius:10px; background:#fff; color:var(--navy); font-size:12px; text-align:left; transition:.15s; }.question-chip:hover { border-color:var(--primary); color:var(--primary); transform:translateX(2px); }
+.chat-panel { min-height:600px; padding:22px 26px 96px; }.chat-intro { display:flex; gap:10px; align-items:center; padding-bottom:18px; border-bottom:1px solid var(--border); }.chat-intro span { width:28px; height:28px; display:grid; place-items:center; border-radius:9px; background:var(--navy); color:#fff; font-size:10px; font-weight:900; }.chat-intro p { margin:0; color:var(--muted); font-size:12px; }.chat-messages { padding-top:18px; max-height:450px; overflow:auto; }.user-message { margin:10px 0 18px auto; padding:15px 18px; font-size:13px; }.ai-message { max-width:86%; margin:0 0 18px 0; padding:18px 20px; border-radius:16px 16px 16px 4px; background:#eef0ff; line-height:1.65; }.ai-message p { margin:0; }.ai-message small { margin-top:16px; }.ai-recommendations { display:grid; gap:8px; margin:15px 0; padding:0; list-style:none; }.ai-recommendations li { display:flex; flex-direction:column; padding:10px 12px; border-radius:10px; background:#fff; }.ai-recommendations strong { color:var(--navy); font-size:13px; }.ai-recommendations span { color:var(--muted); font-size:11px; }.ai-links { display:flex; gap:8px; flex-wrap:wrap; }.ai-links a { padding:8px 10px; border-radius:8px; background:#fff; color:var(--primary); font-size:11px; font-weight:800; text-decoration:none; }.ai-loading { display:flex; align-items:center; gap:10px; color:var(--muted); font-size:12px; }.loading-dot { color:var(--primary); animation:ai-pulse 1s infinite; }.loading-ellipsis { letter-spacing:2px; }.chat-error { margin:22px 0; padding:18px; border-radius:12px; background:#fff0f2; color:var(--danger); }.chat-error strong { font-size:14px; }.chat-error p { margin:7px 0 13px; color:#a35a66; font-size:12px; }.chat-error .outline-button { min-height:36px; padding:0 14px; border-color:#e6a3ad; color:var(--danger); }
+.chat-input { left:26px; right:26px; bottom:22px; }.chat-input.is-disabled { opacity:.65; }.chat-input button:disabled { cursor:wait; }
+.external-section { margin-top:42px; }.section-title-row { display:flex; align-items:end; justify-content:space-between; margin-bottom:16px; }.section-title-row h2 { margin:6px 0 0; color:var(--navy); font-size:22px; }.section-note { color:var(--muted); font-size:11px; }.external-grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; }.external-card { display:grid; grid-template-columns:46px 1fr auto; gap:12px; align-items:center; padding:20px; border:1px solid var(--border); border-radius:18px; background:#fff; box-shadow:0 8px 22px rgba(37,57,101,.05); }.external-icon { width:42px; height:42px; display:grid; place-items:center; border-radius:12px; background:var(--primary-soft); color:var(--primary); font-size:20px; }.hotel-card .external-icon { background:#fff4e9; color:#e17a35; }.external-type { color:var(--muted); font-size:10px; font-weight:800; }.external-card h3 { margin:3px 0; color:var(--navy); font-size:15px; }.external-card p { margin:0; color:var(--muted); font-size:11px; }.external-card>strong { color:var(--navy); font-size:15px; text-align:right; }.external-card>strong small { display:block; color:var(--muted); font-size:10px; font-weight:400; }.external-card>a { grid-column:2/-1; justify-self:end; color:var(--primary); font-size:12px; font-weight:850; text-decoration:none; }.external-card>a span { margin-left:4px; }
+.sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
+.ai-days { display:grid; gap:10px; margin:15px 0; }
+.ai-day-card { padding:12px; border-radius:12px; background:#fff; }
+.ai-day-card h3 { margin:0 0 8px; color:var(--primary); font-size:12px; }
+.ai-day-card .ai-recommendations { margin:0; }
+.ai-day-card .ai-recommendations li { display:grid; grid-template-columns:42px 1fr; gap:8px; padding:10px 0; border-radius:0; border-top:1px solid var(--border); }
+.ai-day-card .ai-recommendations li:first-child { border-top:0; }
+.ai-day-card .ai-recommendations time { color:var(--primary); font-size:11px; font-weight:850; }
+.ai-day-card .ai-recommendations strong,.ai-day-card .ai-recommendations span { display:block; }
+.ai-day-card .ai-recommendations span { margin-top:2px; }
+@keyframes ai-pulse { 50% { opacity:.25; transform:scale(1.3); } }
+@media (max-width:760px) { .ai-heading { display:block; }.demo-status { width:max-content; margin-top:18px; }.ai-layout { grid-template-columns:1fr; }.external-grid { grid-template-columns:1fr; }.external-card { grid-template-columns:42px 1fr; }.external-card>strong { grid-column:2; text-align:left; }.external-card>a { grid-column:2; justify-self:start; }.section-title-row { display:block; }.section-note { display:block; margin-top:7px; } }
