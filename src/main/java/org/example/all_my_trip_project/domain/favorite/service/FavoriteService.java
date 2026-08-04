@@ -33,11 +33,19 @@ public class FavoriteService {
     }
 
     public List<FavoriteResult> getFavorites(Long userId, int page, int size) {
-        if (userId == null || userId < 1) {
-            throw new IllegalArgumentException("userId는 1 이상이어야 합니다.");
-        }
+        validateUserId(userId);
         int offset = calculateOffset(page, size);
         return favoriteDAO.findByUserId(userId, offset, size);
+    }
+
+    public long countFavorites(Long userId) {
+        validateUserId(userId);
+        return favoriteDAO.countByUserId(userId);
+    }
+
+    public boolean isFavorite(Long userId, Long placeId) {
+        validateIds(userId, placeId);
+        return favoriteDAO.find(userId, placeId).isPresent();
     }
 
     @Transactional
@@ -47,11 +55,15 @@ public class FavoriteService {
     }
 
     private void validateIds(Long userId, Long placeId) {
-        if (userId == null || userId < 1) {
-            throw new IllegalArgumentException("userId는 1 이상이어야 합니다.");
-        }
+        validateUserId(userId);
         if (placeId == null || placeId < 1) {
             throw new IllegalArgumentException("placeId는 1 이상이어야 합니다.");
+        }
+    }
+
+    private void validateUserId(Long userId) {
+        if (userId == null || userId < 1) {
+            throw new IllegalArgumentException("userId는 1 이상이어야 합니다.");
         }
     }
 

@@ -1,62 +1,139 @@
 <!doctype html>
 <html lang="ko" xmlns:th="http://www.thymeleaf.org">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="All My Trips 여행 스타일" />
-    <title>여행 스타일 — All My Trips</title>
-    <link rel="icon" th:href="@{/images/icons/app-icon.png}" href="../../static/images/icons/app-icon.png" />
-    <link rel="stylesheet" th:href="@{/css/common/reset.css}" href="../../static/css/common/reset.css" />
-    <link rel="stylesheet" th:href="@{/css/common/layout.css}" href="../../static/css/common/layout.css" />
-    <link rel="stylesheet" th:href="@{/css/common/components.css}" href="../../static/css/common/components.css" />
-    <link rel="stylesheet" th:href="@{/css/pages/trips/style.css}" href="../../static/css/pages/trips/style.css" />
-  </head>
-  <body class="page-style" data-route="/trips/new/style">
-    <div class="app">
-      <div th:replace="~{fragments/header :: header('trips')}"></div>
-      <main id="page-content">
-        <section class="page-shell">
-      
-    <section class="page-heading">
-      <div>
-        <h1><span>01 </span>나의 여행 스타일</h1>
-        <p>좋아하는 키워드를 여러 개 골라주세요.</p>
-        <i>✦</i>
-      </div>
-      
-    <ol class="wizard">
-      
-        <li class="done">
-          <span>1</span><b>기본 정보</b><i></i>
-        </li>
-      
-        <li class="active">
-          <span>2</span><b>여행 스타일</b><i></i>
-        </li>
-      
-        <li class="">
-          <span>3</span><b>추천 결과</b>
-        </li>
-      
-    </ol>
-  
-    </section>
-  
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="All My Trips 여행 스타일" />
+  <title>여행 스타일 — All My Trips</title>
+  <link rel="icon" th:href="@{/images/icons/app-icon.png}" href="../../static/images/icons/app-icon.png" />
+  <link rel="stylesheet" th:href="@{/css/common/reset.css}" href="../../static/css/common/reset.css" />
+  <link rel="stylesheet" th:href="@{/css/common/layout.css}" href="../../static/css/common/layout.css" />
+  <link rel="stylesheet" th:href="@{/css/common/components.css}" href="../../static/css/common/components.css" />
+  <link rel="stylesheet" th:href="@{/css/pages/trips/style.css(v=20260803-wizard-unified)}" href="../../static/css/pages/trips/style.css?v=20260803-wizard-unified" />
+</head>
+<body class="page-style" data-route="/trips/new/style">
+<div class="app">
+  <div th:replace="~{fragments/header :: header('trips')}"></div>
+  <main id="page-content">
+    <section class="page-shell">
+      <section class="page-heading basic-wizard-heading">
+        <ol class="wizard">
+          <li class="done"><span>1</span><b>기본정보</b><i></i></li>
+          <li class="active"><span>2</span><b>여행 스타일</b><i></i></li>
+          <li><span>3</span><b>추천결과</b><i></i></li>
+          <li><span>4</span><b>여행일정</b></li>
+        </ol>
+      </section>
       <section class="style-board">
-        <div>
-          <h2>여행 목적</h2>
-          <div class="pill-grid"><button class="selected" data-toggle>관광</button><button class="selected" data-toggle>맛집</button><button class="" data-toggle>카페</button><button class="" data-toggle>힐링</button><button class="" data-toggle>쇼핑</button><button class="" data-toggle>액티비티</button><button class="" data-toggle>문화·전시</button><button class="selected" data-toggle>사진</button></div>
-          <h2>일정 스타일</h2><div class="segmented"><button class="selected">여유로운 여행</button><button>일반적인 여행</button><button>꽉 찬 여행</button></div>
-          <h2>예산 스타일</h2><div class="segmented"><button>가성비 여행</button><button class="selected">일반 여행</button><button>럭셔리 여행</button></div>
+        <div class="style-form-area">
+          <div class="style-section">
+            <h2>여행 목적</h2>
+            <div class="pill-grid" id="purposeOptions">
+              <button type="button" data-style-group="purpose" data-style-value="SIGHTSEEING" aria-pressed="false">관광</button>
+              <button type="button" data-style-group="purpose" data-style-value="FOOD" aria-pressed="false">맛집</button>
+              <button type="button" data-style-group="purpose" data-style-value="CAFE" aria-pressed="false">카페</button>
+              <button type="button" data-style-group="purpose" data-style-value="HEALING" aria-pressed="false">힐링</button>
+              <button type="button" data-style-group="purpose" data-style-value="SHOPPING" aria-pressed="false">쇼핑</button>
+              <button type="button" data-style-group="purpose" data-style-value="ACTIVITY" aria-pressed="false">액티비티</button>
+              <button type="button" data-style-group="purpose" data-style-value="CULTURE" aria-pressed="false">문화·전시</button>
+              <button type="button" data-style-group="purpose" data-style-value="PHOTO" aria-pressed="false">사진</button>
+              <button type="button" data-style-group="purpose" data-style-value="NATURE" aria-pressed="false">자연·풍경</button>
+              <button type="button" data-style-group="purpose" data-style-value="NIGHT" aria-pressed="false">야경·야간</button>
+              <button type="button" data-style-group="purpose" data-style-value="LOCAL" aria-pressed="false">로컬 체험</button>
+              <button type="button" data-style-group="purpose" data-style-value="FAMILY" aria-pressed="false">가족 체험</button>
+            </div>
+            <p class="field-error" id="purposeError" aria-live="polite"></p>
+          </div>
+          <div class="style-section">
+            <h2>일정</h2>
+            <div class="schedule-scale" id="scheduleOptions" role="group" aria-label="일정 속도 선택">
+              <div class="schedule-scale-track" aria-hidden="true"></div>
+              <button type="button" data-style-group="schedule" data-style-value="VERY_RELAXED" aria-pressed="false">
+                <span class="schedule-step">01</span>
+                <strong>아주 여유롭게</strong>
+              </button>
+              <button type="button" data-style-group="schedule" data-style-value="RELAXED" aria-pressed="false">
+                <span class="schedule-step">02</span>
+                <strong>여유로운 여행</strong>
+              </button>
+              <button type="button" data-style-group="schedule" data-style-value="BALANCED" aria-pressed="false">
+                <span class="schedule-step">03</span>
+                <strong>균형 있는 여행</strong>
+              </button>
+              <button type="button" data-style-group="schedule" data-style-value="FULL" aria-pressed="false">
+                <span class="schedule-step">04</span>
+                <strong>알찬 여행</strong>
+              </button>
+              <button type="button" data-style-group="schedule" data-style-value="THEME_FOCUSED" aria-pressed="false">
+                <span class="schedule-step">05</span>
+                <strong>테마 집중형</strong>
+              </button>
+            </div>
+            <p class="field-error" id="scheduleError" aria-live="polite"></p>
+          </div>
+          <div class="style-section">
+            <h2>예산</h2>
+            <div class="budget-scale" id="budgetOptions" role="group" aria-label="예산 단계 선택">
+              <div class="budget-scale-track" aria-hidden="true"></div>
+              <button type="button" data-style-group="budget" data-style-value="ECONOMY" aria-pressed="false">
+                <span class="budget-step">01</span>
+                <strong>초절약</strong>
+              </button>
+              <button type="button" data-style-group="budget" data-style-value="VALUE" aria-pressed="false">
+                <span class="budget-step">02</span>
+                <strong>가성비</strong>
+              </button>
+              <button type="button" data-style-group="budget" data-style-value="STANDARD" aria-pressed="false">
+                <span class="budget-step">03</span>
+                <strong>실속</strong>
+              </button>
+              <button type="button" data-style-group="budget" data-style-value="COMFORT" aria-pressed="false">
+                <span class="budget-step">04</span>
+                <strong>여유</strong>
+              </button>
+              <button type="button" data-style-group="budget" data-style-value="LUXURY" aria-pressed="false">
+                <span class="budget-step">05</span>
+                <strong>럭셔리</strong>
+              </button>
+            </div>
+            <p class="field-error" id="budgetError" aria-live="polite"></p>
+          </div>
         </div>
-        <aside class="selected-summary"><h2>선택한 취향</h2><strong>연인 · 3박 4일</strong><strong>관광 + 맛집 + 사진</strong><strong>여유로운 일정 · 일반 예산</strong><p>AI가 조건을 분석해 추천을 준비합니다.</p></aside>
-        <button class="primary-button style-next" type="button" data-route="/trips/recommendations">맞춤 여행지 추천받기</button>
+        <aside class="selected-summary">
+          <div class="boarding-pass-title" aria-live="polite">
+            <strong id="tripTitleDisplay">나의 여행</strong>
+            <button id="tripTitleEditButton" type="button" aria-label="여행 이름 수정">수정</button>
+          </div>
+          <div class="boarding-pass-title-editor" id="tripTitleEditor" hidden>
+            <label for="tripTitleInput">여행 이름</label>
+            <div>
+              <input id="tripTitleInput" type="text" maxlength="60" />
+              <button id="tripTitleSaveButton" type="button">저장</button>
+              <button id="tripTitleCancelButton" type="button">취소</button>
+            </div>
+            <p id="tripTitleError" aria-live="polite"></p>
+          </div>
+          <h2>여행 취향</h2>
+          <strong id="basicSummary">기본정보를 확인해주세요.</strong>
+          <strong id="purposeSummary">여행 목적을 선택해주세요.</strong>
+          <strong id="styleSummary">일정과 예산 스타일을 선택해주세요.</strong>
+          <div class="style-actions">
+            <button class="secondary-button" id="stylePreviousButton" type="button">이전</button>
+            <button class="primary-button style-next" id="styleNextButton" type="button">맞춤 여행지 생성 </button>
+          </div>
+        </aside>
+        <p class="form-message" id="styleFormMessage" tabindex="-1" aria-live="polite"></p>
       </section>
     </section>
-      </main>
-      <div th:replace="~{fragments/modals :: modalRoots}"><div id="directory-root"></div><div id="modal-root"></div><div id="toast-root" aria-live="polite"></div></div>
-      <div th:replace="~{fragments/footer :: footer}"></div>
-    </div>
-    <div th:replace="~{fragments/scripts :: appScripts}"></div>
-  </body>
+  </main>
+  <div th:replace="~{fragments/modals :: modalRoots}">
+    <div id="directory-root"></div>
+    <div id="modal-root"></div>
+    <div id="toast-root" aria-live="polite"></div>
+  </div>
+  <div th:replace="~{fragments/footer :: footer}"></div>
+</div>
+<div th:replace="~{fragments/scripts :: appScripts}"></div>
+<script th:src="@{/js/pages/trips/style.js}" src="../../static/js/pages/trips/style.js"></script>
+</body>
 </html>

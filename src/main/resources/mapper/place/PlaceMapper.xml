@@ -55,14 +55,28 @@
     </select>
 
     <select id="findPage" resultType="org.example.all_my_trip_project.domain.place.dto.PlaceDTO">
-        SELECT <include refid="columns"/> FROM places
+        SELECT <include refid="columns"/>,
+               EXISTS (
+                   SELECT 1
+                   FROM favorites f
+                   WHERE f.user_id = #{userId,jdbcType=BIGINT}
+                     AND f.place_id = places.place_id
+               ) AS favorite
+        FROM places
         WHERE is_active = TRUE
-        ORDER BY place_id DESC
+        ORDER BY favorite DESC, place_id DESC
         LIMIT #{size} OFFSET #{offset}
     </select>
 
     <select id="search" resultType="org.example.all_my_trip_project.domain.place.dto.PlaceDTO">
-        SELECT <include refid="columns"/> FROM places
+        SELECT <include refid="columns"/>,
+               EXISTS (
+                   SELECT 1
+                   FROM favorites f
+                   WHERE f.user_id = #{userId,jdbcType=BIGINT}
+                     AND f.place_id = places.place_id
+               ) AS favorite
+        FROM places
         <where>
             is_active = TRUE
             <if test="keyword != null and keyword != ''">
@@ -85,7 +99,7 @@
                 )
             </if>
         </where>
-        ORDER BY average_rating DESC, place_id DESC
+        ORDER BY favorite DESC, average_rating DESC, place_id DESC
         LIMIT #{size} OFFSET #{offset}
     </select>
 

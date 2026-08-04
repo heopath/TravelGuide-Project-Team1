@@ -59,34 +59,34 @@ class PlaceServiceTest {
                 .placeId(41L)
                 .name("부산 해운대")
                 .build();
-        when(placeDAO.findPage(40, 20)).thenReturn(List.of(firstPlace));
+        when(placeDAO.findPage(7L, 40, 20)).thenReturn(List.of(firstPlace));
 
-        List<PlaceDTO> result = placeService.getPage(2, 20);
+        List<PlaceDTO> result = placeService.getPage(7L, 2, 20);
 
         assertThat(result).containsExactly(firstPlace);
-        verify(placeDAO).findPage(40, 20);
+        verify(placeDAO).findPage(7L, 40, 20);
     }
 
     @Test
     void getPageReturnsEmptyListWhenNoPlacesExist() {
-        when(placeDAO.findPage(0, 20)).thenReturn(List.of());
+        when(placeDAO.findPage(null, 0, 20)).thenReturn(List.of());
 
-        List<PlaceDTO> result = placeService.getPage(0, 20);
+        List<PlaceDTO> result = placeService.getPage(null, 0, 20);
 
         assertThat(result).isEmpty();
-        verify(placeDAO).findPage(0, 20);
+        verify(placeDAO).findPage(null, 0, 20);
     }
 
     @Test
     void getPageRejectsNegativePage() {
-        assertThatThrownBy(() -> placeService.getPage(-1, 20))
+        assertThatThrownBy(() -> placeService.getPage(null, -1, 20))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("page는 0 이상이어야 합니다.");
     }
 
     @Test
     void getPageRejectsSizeLargerThanMaximum() {
-        assertThatThrownBy(() -> placeService.getPage(0, 101))
+        assertThatThrownBy(() -> placeService.getPage(null, 0, 101))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("size는 1 이상 100 이하여야 합니다.");
     }
@@ -99,23 +99,23 @@ class PlaceServiceTest {
                 .category("CAFE")
                 .region("서울")
                 .build();
-        when(placeDAO.search("서울", "CAFE", "서울", null, 10, 10))
+        when(placeDAO.search(7L, "서울", "CAFE", "서울", null, 10, 10))
                 .thenReturn(List.of(cafe));
 
-        List<PlaceDTO> result = placeService.search("  서울  ", " cafe ", " 서울 ", null, 1, 10);
+        List<PlaceDTO> result = placeService.search(7L, "  서울  ", " cafe ", " 서울 ", null, 1, 10);
 
         assertThat(result).containsExactly(cafe);
-        verify(placeDAO).search("서울", "CAFE", "서울", null, 10, 10);
+        verify(placeDAO).search(7L, "서울", "CAFE", "서울", null, 10, 10);
     }
 
     @Test
     void searchConvertsBlankConditionsToNull() {
-        when(placeDAO.search(null, null, null, null, 0, 20)).thenReturn(List.of());
+        when(placeDAO.search(null, null, null, null, null, 0, 20)).thenReturn(List.of());
 
-        List<PlaceDTO> result = placeService.search(" ", null, "\t", null, 0, 20);
+        List<PlaceDTO> result = placeService.search(null, " ", null, "\t", null, 0, 20);
 
         assertThat(result).isEmpty();
-        verify(placeDAO).search(null, null, null, null, 0, 20);
+        verify(placeDAO).search(null, null, null, null, null, 0, 20);
     }
 
     @Test
@@ -124,18 +124,18 @@ class PlaceServiceTest {
                 .placeId(88L)
                 .name("인천 ACTIVITY 088")
                 .build();
-        when(placeDAO.search(null, null, null, 4L, 0, 20))
+        when(placeDAO.search(7L, null, null, null, 4L, 0, 20))
                 .thenReturn(List.of(styledPlace));
 
-        List<PlaceDTO> result = placeService.search(null, null, null, 4L, 0, 20);
+        List<PlaceDTO> result = placeService.search(7L, null, null, null, 4L, 0, 20);
 
         assertThat(result).containsExactly(styledPlace);
-        verify(placeDAO).search(null, null, null, 4L, 0, 20);
+        verify(placeDAO).search(7L, null, null, null, 4L, 0, 20);
     }
 
     @Test
     void searchRejectsNonPositiveStyleId() {
-        assertThatThrownBy(() -> placeService.search(null, null, null, 0L, 0, 20))
+        assertThatThrownBy(() -> placeService.search(null, null, null, null, 0L, 0, 20))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("styleId는 1 이상이어야 합니다.");
     }

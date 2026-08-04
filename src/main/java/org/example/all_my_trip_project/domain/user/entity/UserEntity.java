@@ -71,6 +71,10 @@ public class UserEntity {
         this.lastLoginAt = OffsetDateTime.now(ZoneOffset.UTC);
     }
 
+    public void updateNickname(String nickname) {
+        this.nickname = nickname.trim();
+    }
+
     @PrePersist
     private void onCreate() {
         OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
