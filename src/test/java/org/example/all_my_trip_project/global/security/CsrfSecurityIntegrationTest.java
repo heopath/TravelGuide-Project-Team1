@@ -6,7 +6,6 @@ import org.example.all_my_trip_project.domain.favorite.service.FavoriteService;
 import org.example.all_my_trip_project.domain.trip.controller.ItineraryItemController;
 import org.example.all_my_trip_project.domain.trip.controller.TripController;
 import org.example.all_my_trip_project.domain.trip.dto.TripCreateResult;
-import org.example.all_my_trip_project.domain.trip.dto.TripDTO;
 import org.example.all_my_trip_project.domain.trip.service.ItineraryItemService;
 import org.example.all_my_trip_project.domain.trip.service.TripService;
 import org.example.all_my_trip_project.domain.user.controller.MemberController;
@@ -70,14 +69,23 @@ class CsrfSecurityIntegrationTest {
 
     @Test
     void tripCreationRequiresCsrfHeader() throws Exception {
-        TripDTO saved = TripDTO.builder().tripId(10L).userId(42L).build();
-        when(tripService.createWithDays(eq(42L), any())).thenReturn(new TripCreateResult(saved, List.of()));
+        when(tripService.create(eq(42L), any())).thenReturn(new TripCreateResult(10L, 3));
+        String body = """
+                {
+                  "destinationName": "서울",
+                  "startDate": "2026-08-10",
+                  "endDate": "2026-08-12",
+                  "companionType": "COUPLE",
+                  "companionCount": 2,
+                  "budgetAmount": 300000
+                }
+                """;
 
         mockMvc.perform(post("/api/v1/trips").with(authentication(authenticated))
-                        .contentType("application/json").content("{}"))
+                        .contentType("application/json").content(body))
                 .andExpect(status().isForbidden());
         mockMvc.perform(post("/api/v1/trips").with(authentication(authenticated)).with(csrf().asHeader())
-                        .contentType("application/json").content("{}"))
+                        .contentType("application/json").content(body))
                 .andExpect(status().isCreated());
     }
 

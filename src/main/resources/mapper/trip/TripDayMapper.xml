@@ -1,9 +1,17 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="org.example.all_my_trip_project.domain.trip.mapper.TripDayMapper">
-    <insert id="insert" useGeneratedKeys="true" keyProperty="tripDayId">
+    <insert id="insert" useGeneratedKeys="true" keyProperty="tripDayId" keyColumn="trip_day_id">
         INSERT INTO trip_days (trip_id, day_number, trip_date, title, memo)
         VALUES (#{tripId}, #{dayNumber}, #{tripDate}, #{title}, #{memo})
+    </insert>
+    <insert id="insertAll">
+        INSERT INTO trip_days (trip_id, day_number, trip_date, title, memo)
+        VALUES
+        <foreach collection="tripDays" item="tripDay" separator=",">
+            (#{tripDay.tripId}, #{tripDay.dayNumber}, #{tripDay.tripDate},
+             #{tripDay.title}, #{tripDay.memo})
+        </foreach>
     </insert>
     <select id="findById" resultType="org.example.all_my_trip_project.domain.trip.dto.TripDayDTO">
         SELECT * FROM trip_days WHERE trip_day_id = #{tripDayId}
