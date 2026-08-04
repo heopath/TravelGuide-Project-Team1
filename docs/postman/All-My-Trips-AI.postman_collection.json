@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "All My Trips - AI Guide",
-    "description": "AI-03 AI 여행 가이드 API 검증용 컬렉션입니다. ui 프로필에서는 Mock 응답을, ui,ai 프로필에서는 GEMINI_API_KEY 환경 변수로 Gemini 응답을 검증합니다. 키 값은 컬렉션 변수에 저장하지 않습니다.",
+    "description": "AI-03 AI 여행 가이드 API 검증용 컬렉션입니다. ui 프로필에서는 Mock 응답을, ai,ai-local 프로필에서는 GEMINI_API_KEY 환경 변수로 Gemini 응답을 검증합니다. 키 값은 컬렉션 변수에 저장하지 않습니다.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [

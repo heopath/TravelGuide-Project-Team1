@@ -4,6 +4,7 @@ import org.example.all_my_trip_project.domain.ai.dto.AiGuideDayResponse;
 import org.example.all_my_trip_project.domain.ai.dto.AiGuideItemResponse;
 import org.example.all_my_trip_project.domain.ai.dto.AiGuideResponse;
 import org.example.all_my_trip_project.domain.ai.service.AiGuideService;
+import org.example.all_my_trip_project.domain.ai.service.AiModelException;
 import org.example.all_my_trip_project.global.exception.ApiExceptionHandler;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -109,5 +110,20 @@ class AiGuideControllerTest {
                 .andExpect(jsonPath("$.message").value(not(containsString("AI mock server error"))));
 
         verify(aiGuideService).generate(any(), eq(true));
+    }
+
+    @Test
+    void generateReturnsSafeGatewayErrorWhenAiModelTimesOut() throws Exception {
+        doThrow(new AiModelException("Gemini request timed out"))
+                .when(aiGuideService).generate(any(), eq(false));
+
+        mockMvc.perform(post("/api/v1/ai-guides/generate")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"question\":\"시간 초과 테스트\"}"))
+                .andExpect(status().isBadGateway())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.code").value("AI_GENERATION_FAILED"))
+                .andExpect(jsonPath("$.message").value("AI 추천을 생성하지 못했습니다. 잠시 후 다시 시도해 주세요."))
+                .andExpect(jsonPath("$.message").value(not(containsString("Gemini request timed out"))));
     }
 }

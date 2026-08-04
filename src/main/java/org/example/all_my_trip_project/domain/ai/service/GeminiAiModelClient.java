@@ -2,20 +2,28 @@ package org.example.all_my_trip_project.domain.ai.service;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import lombok.RequiredArgsConstructor;
 import org.example.all_my_trip_project.domain.ai.dto.AiGuideDayResponse;
 import org.example.all_my_trip_project.domain.ai.dto.AiGuideRequest;
 import org.example.all_my_trip_project.domain.ai.dto.AiGuideResponse;
 import org.springframework.ai.chat.model.ChatModel;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
+import java.time.Duration;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.List;
 
 @Component
 @Profile("ai")
-@RequiredArgsConstructor
 public class GeminiAiModelClient implements AiModelClient {
+
+    private static final ExecutorService MODEL_CALL_EXECUTOR = Executors.newVirtualThreadPerTaskExecutor();
 
     private static final List<AiGuideResponse.ExternalLink> DEFAULT_EXTERNAL_LINKS = List.of(
             new AiGuideResponse.ExternalLink("FLIGHT", "항공권 검색", "https://www.google.com/travel/flights"),
@@ -24,11 +32,24 @@ public class GeminiAiModelClient implements AiModelClient {
 
     private final ChatModel chatModel;
     private final ObjectMapper objectMapper = new ObjectMapper();
+    private final Duration requestTimeout;
+
+    public GeminiAiModelClient(
+            ChatModel chatModel,
+            @Value("${ai.guide.gemini.timeout-seconds:30}") long timeoutSeconds
+    ) {
+        this(chatModel, Duration.ofSeconds(timeoutSeconds));
+    }
+
+    GeminiAiModelClient(ChatModel chatModel, Duration requestTimeout) {
+        this.chatModel = chatModel;
+        this.requestTimeout = requestTimeout;
+    }
 
     @Override
     public AiGuideResponse generate(AiGuideRequest request) {
         try {
-            String response = chatModel.call(createPrompt(request.question()));
+            String response = requestModel(createPrompt(request.question()));
             GeminiGuideContent content = objectMapper.readValue(extractJson(response), GeminiGuideContent.class);
             validate(content);
 
@@ -44,6 +65,21 @@ public class GeminiAiModelClient implements AiModelClient {
             throw exception;
         } catch (Exception exception) {
             throw new AiModelException("Gemini request failed", exception);
+        }
+    }
+
+    private String requestModel(String prompt) {
+        Future<String> future = MODEL_CALL_EXECUTOR.submit(() -> chatModel.call(prompt));
+        try {
+            return future.get(requestTimeout.toMillis(), TimeUnit.MILLISECONDS);
+        } catch (TimeoutException exception) {
+            future.cancel(true);
+            throw new AiModelException("Gemini request timed out", exception);
+        } catch (InterruptedException exception) {
+            Thread.currentThread().interrupt();
+            throw new AiModelException("Gemini request interrupted", exception);
+        } catch (ExecutionException exception) {
+            throw new AiModelException("Gemini request failed", exception.getCause());
         }
     }
 

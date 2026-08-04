@@ -24,7 +24,7 @@ Content-Type: application/json
 { "question": "부산에서 하루 동안 갈 만한 곳을 추천해줘" }
 ```
 
-성공 응답은 `ApiResponse<AiGuideResponse>` 형식이며 `answer`, `days`, `externalLinks`, `sources`를 반환합니다. Gemini에는 JSON만 반환하도록 요청하고, 파싱 실패나 모델 호출 실패는 내부 상세를 노출하지 않는 `502 AI_GENERATION_FAILED` 응답으로 처리합니다.
+성공 응답은 `ApiResponse<AiGuideResponse>` 형식이며 `answer`, `days`, `externalLinks`, `sources`를 반환합니다. Gemini에는 JSON만 반환하도록 요청하고, 파싱 실패·모델 호출 실패·30초 시간 초과는 내부 상세를 노출하지 않는 `502 AI_GENERATION_FAILED` 응답으로 처리합니다.
 
 ## 로컬 실행
 

@@ -1,5 +1,6 @@
 package org.example.all_my_trip_project.domain.ai.service;
 
+import java.time.Duration;
 import org.example.all_my_trip_project.domain.ai.dto.AiGuideRequest;
 import org.example.all_my_trip_project.domain.ai.dto.AiGuideResponse;
 import org.junit.jupiter.api.Test;
@@ -13,7 +14,7 @@ import static org.mockito.Mockito.when;
 class GeminiAiModelClientTest {
 
     private final ChatModel chatModel = mock(ChatModel.class);
-    private final GeminiAiModelClient client = new GeminiAiModelClient(chatModel);
+    private final GeminiAiModelClient client = new GeminiAiModelClient(chatModel, Duration.ofSeconds(1));
 
     @Test
     void generateMapsGeminiJsonToCurrentGuideDto() {
@@ -57,5 +58,18 @@ class GeminiAiModelClientTest {
         assertThatThrownBy(() -> client.generate(new AiGuideRequest("Plan a day")))
                 .isInstanceOf(AiModelException.class)
                 .hasMessage("Gemini response is not valid JSON");
+    }
+
+    @Test
+    void generateStopsWaitingWhenGeminiRequestTimesOut() {
+        GeminiAiModelClient shortTimeoutClient = new GeminiAiModelClient(chatModel, Duration.ofMillis(10));
+        when(chatModel.call(org.mockito.ArgumentMatchers.anyString())).thenAnswer(invocation -> {
+            Thread.sleep(200);
+            return "{}";
+        });
+
+        assertThatThrownBy(() -> shortTimeoutClient.generate(new AiGuideRequest("Plan a day")))
+                .isInstanceOf(AiModelException.class)
+                .hasMessage("Gemini request timed out");
     }
 }
