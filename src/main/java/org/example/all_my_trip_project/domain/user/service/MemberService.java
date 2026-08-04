@@ -44,6 +44,9 @@ public class MemberService {
     ) {
         UserEntity user = validateMember(userId);
         String nickname = request.nickname().trim();
+        if (nickname.length() < 2 || nickname.length() > 20) {
+            throw new IllegalArgumentException("닉네임은 2자 이상 20자 이하여야 합니다.");
+        }
 
         if (userRepository
                 .existsByNicknameAndUserIdNotAndDeletedAtIsNull(

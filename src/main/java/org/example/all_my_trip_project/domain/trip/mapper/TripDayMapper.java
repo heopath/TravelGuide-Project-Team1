@@ -11,6 +11,7 @@ public interface TripDayMapper {
     int insert(TripDayDTO tripDay);
     Optional<TripDayDTO> findById(Long tripDayId);
     List<TripDayDTO> findByTripId(Long tripId);
+    int moveOutOfDateRange(Long tripId);
     int update(TripDayDTO tripDay);
     int delete(Long tripDayId);
 }
