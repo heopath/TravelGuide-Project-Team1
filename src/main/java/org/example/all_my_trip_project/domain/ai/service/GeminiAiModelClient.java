@@ -7,6 +7,7 @@ import org.example.all_my_trip_project.domain.ai.dto.AiGuideRequest;
 import org.example.all_my_trip_project.domain.ai.dto.AiGuideResponse;
 import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
@@ -34,6 +35,7 @@ public class GeminiAiModelClient implements AiModelClient {
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final Duration requestTimeout;
 
+    @Autowired
     public GeminiAiModelClient(
             ChatModel chatModel,
             @Value("${ai.guide.gemini.timeout-seconds:30}") long timeoutSeconds

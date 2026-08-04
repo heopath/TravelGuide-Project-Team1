@@ -13,6 +13,7 @@ AiGuideController → AiGuideService → AiModelClient
 - `ui` 또는 기본 프로필: DB와 외부 AI 없이 Mock 응답을 반환합니다.
 - `ai` 프로필: Spring AI의 Google GenAI ChatModel로 Gemini를 호출하고, 모델 JSON을 `AiGuideResponse(days → items)`로 변환합니다.
 - `ai-local` 프로필: 로컬 Gemini 확인 시 DB·Redis·임베딩 자동 설정만 끄고, 다른 DB 의존 기능은 지연 초기화하여 AI 가이드 화면만 단독 확인할 수 있게 합니다.
+- `ai-integrated` 프로필: `local`의 PostgreSQL·Redis 설정을 유지하면서 Gemini ChatModel을 다시 켜는 전체 화면 통합 확인용 프로필입니다.
 - `prod,ai` 프로필: 운영 DB 설정은 `prod`에서 유지하고 AI 관련 설정만 `ai`에서 추가합니다.
 
 ## API 계약
@@ -42,6 +43,12 @@ $env:GEMINI_API_KEY = "발급받은_키"
 ```
 
 `GEMINI_API_KEY` 값은 `application*.properties`, Git, 문서, HTML, JavaScript에 절대 작성하거나 커밋하지 않습니다. AWS에서는 배포 환경 변수 또는 팀이 정한 Secret 저장소에서만 주입합니다.
+
+전체 사이트와 Gemini를 함께 확인하려면 Docker Desktop에서 `docker compose up -d`로 PostgreSQL·Redis를 시작한 뒤 아래 프로필 조합으로 실행합니다.
+
+```powershell
+.\gradlew.bat bootRun --args="--spring.profiles.active=local,ai,ai-integrated"
+```
 
 ## 화면 테스트 UI
 

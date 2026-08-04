@@ -22,6 +22,7 @@ Postman 컬렉션은 AI API의 요청·응답과 Validation을 검증합니다. 
 | --- | --- | --- |
 | AI-GEMINI-01 | `GEMINI_API_KEY`를 환경 변수로 설정하고 `ai,ai-local` 프로필 실행 | 질문에 맞는 `answer`, `days → items` 응답이 화면에 표시되고 Mock 상태 선택 UI는 보이지 않는다. |
 | AI-GEMINI-02 | Gemini가 호출·JSON 변환·30초 시간 초과에 실패 | `502`, `AI_GENERATION_FAILED`와 재시도 가능한 사용자 메시지가 반환되며 내부 예외 메시지와 API 키는 노출되지 않는다. |
+| AI-GEMINI-03 | Docker PostgreSQL·Redis 실행 후 `local,ai,ai-integrated` 프로필 실행 | AI 가이드와 회원·마이페이지 등 DB 의존 화면이 함께 정상 동작한다. |
 
 ## AI-02-1 자동화 테스트 결과
 
