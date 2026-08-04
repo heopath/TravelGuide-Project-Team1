@@ -29,7 +29,7 @@ Content-Type: application/json
 { "question": "부산에서 하루 동안 갈 만한 곳을 추천해줘" }
 ```
 
-성공 응답은 `ApiResponse<AiGuideResponse>` 형식이며 `answer`, `days`, `externalLinks`, `sources`를 반환합니다. Gemini에는 질문 기반 일정 JSON만 반환하도록 요청하고, 파싱 실패·모델 호출 실패·30초 시간 초과는 내부 상세를 노출하지 않는 `502 AI_GENERATION_FAILED` 응답으로 처리합니다.
+성공 응답은 `ApiResponse<AiGuideResponse>` 형식이며 `answer`, `days`, `externalLinks`, `sources`를 반환합니다. Gemini에는 질문 기반 일정 JSON만 반환하도록 요청하고, 파싱 실패·모델 호출 실패·SDK HTTP 25초 시간 초과는 내부 상세를 노출하지 않는 `502 AI_GENERATION_FAILED` 응답으로 처리합니다. Google GenAI SDK의 `HttpOptions.timeout`을 사용하므로 시간 초과 시 HTTP 요청이 SDK 수준에서 종료되며, 별도 virtual thread 작업을 남기지 않습니다.
 
 ## 로컬 실행
 
@@ -57,3 +57,5 @@ $env:GEMINI_API_KEY = "발급받은_키"
 ## 화면 테스트 UI
 
 `API 테스트 상태`의 성공/실패 선택과 `X-AI-Mock-Mode` 실패 재현은 `ai.guide.mock.enabled=true`인 Mock 화면에서만 동작합니다. `ai` 프로필에서는 선택 UI가 표시되지 않고 실패 헤더도 무시됩니다. 로컬 실제 Gemini 확인은 `ui,ai`가 아니라 `ai,ai-local` 프로필 조합을 사용합니다.
+
+AI 생성 API는 로그인과 CSRF 토큰이 모두 필요합니다. 화면은 요청 전 `GET /api/v1/csrf`에서 발급받은 토큰을 `X-CSRF-TOKEN` 헤더에 넣어 `POST /api/v1/ai-guides/generate`를 호출합니다.

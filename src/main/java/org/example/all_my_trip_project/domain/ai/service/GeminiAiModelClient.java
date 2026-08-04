@@ -7,18 +7,9 @@ import org.example.all_my_trip_project.domain.ai.dto.AiGuideItemResponse;
 import org.example.all_my_trip_project.domain.ai.dto.AiGuideRequest;
 import org.example.all_my_trip_project.domain.ai.dto.AiGuideResponse;
 import org.springframework.ai.chat.model.ChatModel;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
-import java.time.Duration;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import java.util.List;
 import java.util.regex.Pattern;
 
@@ -26,7 +17,6 @@ import java.util.regex.Pattern;
 @Profile("ai")
 public class GeminiAiModelClient implements AiModelClient {
 
-    private static final ExecutorService MODEL_CALL_EXECUTOR = Executors.newVirtualThreadPerTaskExecutor();
     private static final int MAX_DAYS = 30;
     private static final int MAX_ITEMS_PER_DAY = 10;
     private static final Pattern TIME_PATTERN = Pattern.compile("^([01]\\d|2[0-3]):[0-5]\\d$");
@@ -38,19 +28,8 @@ public class GeminiAiModelClient implements AiModelClient {
 
     private final ChatModel chatModel;
     private final ObjectMapper objectMapper = new ObjectMapper();
-    private final Duration requestTimeout;
-
-    @Autowired
-    public GeminiAiModelClient(
-            ChatModel chatModel,
-            @Value("${ai.guide.gemini.timeout-seconds:30}") long timeoutSeconds
-    ) {
-        this(chatModel, Duration.ofSeconds(timeoutSeconds));
-    }
-
-    GeminiAiModelClient(ChatModel chatModel, Duration requestTimeout) {
+    public GeminiAiModelClient(ChatModel chatModel) {
         this.chatModel = chatModel;
-        this.requestTimeout = requestTimeout;
     }
 
     @Override
@@ -76,17 +55,10 @@ public class GeminiAiModelClient implements AiModelClient {
     }
 
     private String requestModel(String prompt) {
-        Future<String> future = MODEL_CALL_EXECUTOR.submit(() -> chatModel.call(prompt));
         try {
-            return future.get(requestTimeout.toMillis(), TimeUnit.MILLISECONDS);
-        } catch (TimeoutException exception) {
-            future.cancel(true);
-            throw new AiModelException("Gemini request timed out", exception);
-        } catch (InterruptedException exception) {
-            Thread.currentThread().interrupt();
-            throw new AiModelException("Gemini request interrupted", exception);
-        } catch (ExecutionException exception) {
-            throw new AiModelException("Gemini request failed", exception.getCause());
+            return chatModel.call(prompt);
+        } catch (Exception exception) {
+            throw new AiModelException("Gemini request failed", exception);
         }
     }
 

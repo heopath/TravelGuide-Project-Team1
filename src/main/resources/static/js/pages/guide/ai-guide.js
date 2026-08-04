@@ -8,6 +8,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const mockEnabled = document.body.dataset.aiMockEnabled === "true";
   const submitButton = document.querySelector("[data-ai-submit]");
   let lastQuestion = "근처 저녁 맛집을 추천해줘";
+  let csrfToken;
 
   const create = (tag, text, className) => {
     const element = document.createElement(tag);
@@ -83,13 +84,27 @@ document.addEventListener("DOMContentLoaded", () => {
   };
 
   const requestAiGuide = async (question) => {
+    if (!csrfToken) {
+      const csrfResponse = await fetch("/api/v1/csrf", {
+        headers: { Accept: "application/json" },
+        credentials: "same-origin"
+      });
+      const csrfPayload = await csrfResponse.json().catch(() => null);
+      if (!csrfResponse.ok || !csrfPayload?.headerName || !csrfPayload?.token) {
+        throw new Error("CSRF_TOKEN_REQUEST_FAILED");
+      }
+      csrfToken = csrfPayload;
+    }
+
     const headers = { "Content-Type": "application/json", Accept: "application/json" };
+    headers[csrfToken.headerName] = csrfToken.token;
     if (mockEnabled && mode?.value === "failure") headers["X-AI-Mock-Mode"] = "server-error";
 
     const response = await fetch("/api/v1/ai-guides/generate", {
       method: "POST",
       headers,
-      body: JSON.stringify({ question })
+      body: JSON.stringify({ question }),
+      credentials: "same-origin"
     });
     const payload = await response.json().catch(() => null);
     if (!response.ok || !payload?.success) throw new Error(payload?.message || "AI_GUIDE_REQUEST_FAILED");

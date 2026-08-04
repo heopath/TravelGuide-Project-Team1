@@ -1,9 +1,11 @@
 package org.example.all_my_trip_project.domain.ai.service;
 
-import java.time.Duration;
+import java.util.stream.Stream;
 import org.example.all_my_trip_project.domain.ai.dto.AiGuideRequest;
 import org.example.all_my_trip_project.domain.ai.dto.AiGuideResponse;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.springframework.ai.chat.model.ChatModel;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -14,7 +16,7 @@ import static org.mockito.Mockito.when;
 class GeminiAiModelClientTest {
 
     private final ChatModel chatModel = mock(ChatModel.class);
-    private final GeminiAiModelClient client = new GeminiAiModelClient(chatModel, Duration.ofSeconds(1));
+    private final GeminiAiModelClient client = new GeminiAiModelClient(chatModel);
 
     @Test
     void generateMapsGeminiJsonToCurrentGuideDto() {
@@ -60,16 +62,24 @@ class GeminiAiModelClientTest {
                 .hasMessage("Gemini response is not valid JSON");
     }
 
-    @Test
-    void generateStopsWaitingWhenGeminiRequestTimesOut() {
-        GeminiAiModelClient shortTimeoutClient = new GeminiAiModelClient(chatModel, Duration.ofMillis(10));
-        when(chatModel.call(org.mockito.ArgumentMatchers.anyString())).thenAnswer(invocation -> {
-            Thread.sleep(200);
-            return "{}";
-        });
+    @ParameterizedTest
+    @MethodSource("invalidGuideResponses")
+    void generateRejectsMalformedGeminiGuideResponse(String malformedResponse) {
+        when(chatModel.call(org.mockito.ArgumentMatchers.anyString())).thenReturn(malformedResponse);
 
-        assertThatThrownBy(() -> shortTimeoutClient.generate(new AiGuideRequest("Plan a day")))
+        assertThatThrownBy(() -> client.generate(new AiGuideRequest("Plan a day")))
                 .isInstanceOf(AiModelException.class)
-                .hasMessage("Gemini request timed out");
+                .hasMessageContaining("Gemini response");
+    }
+
+    private static Stream<String> invalidGuideResponses() {
+        return Stream.of(
+                "{\"answer\":\"Guide\",\"days\":[{\"day\":0,\"title\":\"DAY 1\",\"items\":[{\"time\":\"10:00\",\"name\":\"Park\",\"reason\":\"Near\"}]}]}",
+                "{\"answer\":\"Guide\",\"days\":[{\"day\":1,\"title\":\"\",\"items\":[{\"time\":\"10:00\",\"name\":\"Park\",\"reason\":\"Near\"}]}]}",
+                "{\"answer\":\"Guide\",\"days\":[{\"day\":1,\"title\":\"DAY 1\",\"items\":[]}]}",
+                "{\"answer\":\"Guide\",\"days\":[{\"day\":1,\"title\":\"DAY 1\",\"items\":[{\"time\":\"25:00\",\"name\":\"Park\",\"reason\":\"Near\"}]}]}",
+                "{\"answer\":\"Guide\",\"days\":[{\"day\":1,\"title\":\"DAY 1\",\"items\":[{\"time\":\"10:00\",\"name\":\"\",\"reason\":\"Near\"}]}]}",
+                "{\"answer\":\"Guide\",\"days\":[{\"day\":1,\"title\":\"DAY 1\",\"items\":[{\"time\":\"10:00\",\"name\":\"Park\",\"reason\":\"\"}]}]}"
+        );
     }
 }
