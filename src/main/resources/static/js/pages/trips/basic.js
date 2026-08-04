@@ -24,7 +24,6 @@ document.addEventListener("DOMContentLoaded", function () {
   let selectedCompanion = "";
   let selectedDestination = null;
   let saving = false;
-  let proceededToStyle = false;
   let calendarViewDate = new Date();
   let destinationSearchTimer = null;
   let destinationRequestId = 0;
@@ -32,10 +31,6 @@ document.addEventListener("DOMContentLoaded", function () {
   const MAX_TRAVELERS = 20;
   const MAX_TRIP_DAYS = 30;
 
-  // 기본정보 화면을 정상적으로 통과하지 않고 다른 화면으로 나가면 입력값을 폐기한다.
-  window.addEventListener("pagehide", function () {
-    if (!proceededToStyle) sessionStorage.removeItem(DRAFT_KEY);
-  });
   const DEFAULT_DESTINATIONS = [
     { label: "서울", value: "SEOUL", countryCode: "KR" },
     { label: "부산", value: "BUSAN", countryCode: "KR" },
@@ -342,7 +337,7 @@ document.addEventListener("DOMContentLoaded", function () {
       const payload = await response.json();
       const places = Array.isArray(payload) ? payload : (payload.data || payload.content || []);
       const unique = new Map();
-      places.forEach(function (place) {sss
+      places.forEach(function (place) {
         const label = getCityName(place);
         if (!label || unique.has(label)) return;
         unique.set(label, {
@@ -596,7 +591,8 @@ document.addEventListener("DOMContentLoaded", function () {
     renderRangeCalendar();
   });
 
-  fields.nextButton.addEventListener("click", async function () {
+  form.addEventListener("submit", async function (event) {
+    event.preventDefault();
     if (saving) return;
     if (!validate()) {
       window.alert("모든 설정을 완료 후 버튼을 눌러주세요.");
@@ -614,7 +610,6 @@ document.addEventListener("DOMContentLoaded", function () {
       fields.message.textContent = "";
       fields.message.classList.remove("is-success", "is-error");
       window.setTimeout(function () {
-        proceededToStyle = true;
         window.location.href = (response.data && response.data.nextUrl) || "/trips/new/style";
       }, 350);
     } catch (error) {
@@ -652,7 +647,7 @@ document.addEventListener("DOMContentLoaded", function () {
   fields.startDate.value = saved.startDate || "";
   fields.endDate.value = saved.endDate || "";
   travelerCount = Math.min(MAX_TRAVELERS, Math.max(1, Number(saved.travelerCount) || 1));
-  fields.totalBudget.value = "";
+  fields.totalBudget.value = saved.totalBudget ?? saved.budgetPerPerson ?? "";
   if (saved.companion) {
     const savedButton = document.querySelector('[data-companion="' + saved.companion + '"]');
     if (savedButton) selectCompanion(savedButton, false);
