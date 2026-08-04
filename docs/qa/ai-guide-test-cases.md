@@ -1,4 +1,4 @@
-# AI-02 테스트 체크리스트
+# AI-03 테스트 체크리스트
 
 | ID | 시나리오 | 기대 결과 |
 | --- | --- | --- |
@@ -14,7 +14,14 @@
 | AI-API-01 | 빈 질문 API 요청 | 400, `success=false`, `VALIDATION_ERROR`가 반환된다. |
 | AI-DOC-01 | Postman 컬렉션 확인 | 성공·검증 오류·Mock 서버 오류 요청을 실행할 수 있다. |
 
-Postman 컬렉션은 AI-02 Mock API의 요청·응답과 Validation을 검증합니다. Gemini와 DB 연동은 후속 작업입니다.
+Postman 컬렉션은 AI API의 요청·응답과 Validation을 검증합니다. `ui` 프로필에서는 Mock 응답을, `ui,ai` 프로필에서는 Gemini 응답을 반환합니다.
+
+## AI-03 Gemini 연동 확인
+
+| ID | 시나리오 | 기대 결과 |
+| --- | --- | --- |
+| AI-GEMINI-01 | `GEMINI_API_KEY`를 환경 변수로 설정하고 `ai,ai-local` 프로필 실행 | 질문에 맞는 `answer`, `days → items` 응답이 화면에 표시되고 Mock 상태 선택 UI는 보이지 않는다. |
+| AI-GEMINI-02 | Gemini가 호출/JSON 변환에 실패 | `502`, `AI_GENERATION_FAILED`와 재시도 가능한 사용자 메시지가 반환되며 내부 예외 메시지와 API 키는 노출되지 않는다. |
 
 ## AI-02-1 자동화 테스트 결과
 

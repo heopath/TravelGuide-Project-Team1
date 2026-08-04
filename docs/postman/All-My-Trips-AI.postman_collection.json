@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "All My Trips - AI Guide",
-    "description": "AI-02 Mock API 검증용 컬렉션입니다. Gemini와 DB는 연결하지 않습니다.",
+    "description": "AI-03 AI 여행 가이드 API 검증용 컬렉션입니다. ui 프로필에서는 Mock 응답을, ui,ai 프로필에서는 GEMINI_API_KEY 환경 변수로 Gemini 응답을 검증합니다. 키 값은 컬렉션 변수에 저장하지 않습니다.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -16,7 +16,7 @@
           { "key": "Content-Type", "value": "application/json" },
           { "key": "Accept", "value": "application/json" }
         ],
-        "body": { "mode": "raw", "raw": "{\n  \"question\": \"근처 저녁 맛집을 추천해줘\"\n}" },
+        "body": { "mode": "raw", "raw": "{\n  \"question\": \"부산에서 하루 동안 갈 만한 곳을 추천해줘\"\n}" },
         "url": { "raw": "{{baseUrl}}/api/v1/ai-guides/generate", "host": ["{{baseUrl}}"], "path": ["api", "v1", "ai-guides", "generate"] }
       }
     },
@@ -30,7 +30,7 @@
       }
     },
     {
-      "name": "Mock 서버 오류",
+      "name": "Mock 서버 오류 (ui 프로필 전용)",
       "request": {
         "method": "POST",
         "header": [

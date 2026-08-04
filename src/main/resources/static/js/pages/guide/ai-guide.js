@@ -5,6 +5,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const messages = document.querySelector("[data-chat-messages]");
   const errorBox = document.querySelector("[data-chat-error]");
   const mode = document.querySelector("#demo-mode");
+  const mockEnabled = document.body.dataset.aiMockEnabled === "true";
   const submitButton = document.querySelector("[data-ai-submit]");
   let lastQuestion = "근처 저녁 맛집을 추천해줘";
 
@@ -83,7 +84,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const requestAiGuide = async (question) => {
     const headers = { "Content-Type": "application/json", Accept: "application/json" };
-    if (mode.value === "failure") headers["X-AI-Mock-Mode"] = "server-error";
+    if (mockEnabled && mode?.value === "failure") headers["X-AI-Mock-Mode"] = "server-error";
 
     const response = await fetch("/api/v1/ai-guides/generate", {
       method: "POST",
