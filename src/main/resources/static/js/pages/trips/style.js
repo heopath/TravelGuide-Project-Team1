@@ -1,85 +1,37 @@
-/* 여행 스타일 전용 JavaScript */
+/* 여행 스타일 선택과 초안 저장 */
 document.addEventListener("DOMContentLoaded", function () {
-  const draftKey = "all-my-trips-trip-draft";
-  const purposeGroup = document.querySelector("[data-purpose-group]");
-  const paceGroup = document.querySelector("[data-pace-group]");
-  const budgetStyleGroup = document.querySelector("[data-budget-style-group]");
-  const basicSummary = document.querySelector("[data-style-basic]");
-  const purposeSummary = document.querySelector("[data-style-purpose]");
-  const optionSummary = document.querySelector("[data-style-options]");
-  const nextButton = document.querySelector("[data-style-next]");
-  let draft;
-
-  try {
-    draft = JSON.parse(sessionStorage.getItem(draftKey) || "null");
-  } catch (error) {
-    draft = null;
-  }
-
-  if (!draft || !draft.destinationName || !draft.startDate || !draft.endDate) {
-    window.AllMyTripsModal.showToast("기본 여행 정보를 먼저 입력해주세요.");
-    window.setTimeout(function () { window.location.href = "/trips/new/basic"; }, 500);
-    return;
-  }
-
-  if (draft.purpose) {
-    const savedPurposes = draft.purpose.split(",");
-    purposeGroup.querySelectorAll("button").forEach(function (button) {
-      button.classList.toggle("selected", savedPurposes.includes(button.textContent.trim()));
-    });
-  }
-  if (draft.pace) {
-    paceGroup.querySelectorAll("button").forEach(function (button) {
-      button.classList.toggle("selected", button.dataset.value === draft.pace);
-    });
-  }
-  if (draft.accommodationStyle) {
-    budgetStyleGroup.querySelectorAll("button").forEach(function (button) {
-      button.classList.toggle("selected", button.dataset.value === draft.accommodationStyle);
-    });
-  }
-
-  function selectedTexts(group) {
-    return Array.from(group.querySelectorAll(".selected")).map(function (button) {
-      return button.textContent.trim();
-    });
-  }
-
-  function durationLabel() {
-    const start = new Date(draft.startDate + "T00:00:00");
-    const end = new Date(draft.endDate + "T00:00:00");
-    const nights = Math.round((end - start) / 86400000);
-    return nights + "박 " + (nights + 1) + "일";
-  }
-
-  function updateSummary() {
-    const purposes = selectedTexts(purposeGroup);
-    const pace = paceGroup.querySelector(".selected");
-    const budgetStyle = budgetStyleGroup.querySelector(".selected");
-    basicSummary.textContent = (draft.companionLabel || draft.companionType) + " · " + durationLabel() + " · " + draft.destinationName;
-    purposeSummary.textContent = purposes.length ? purposes.join(" + ") : "취향을 선택해주세요.";
-    optionSummary.textContent = pace.textContent.trim() + " · " + budgetStyle.textContent.trim();
-  }
-
-  [purposeGroup, paceGroup, budgetStyleGroup].forEach(function (group) {
-    group.addEventListener("click", function () { window.setTimeout(updateSummary, 0); });
-  });
-
-  nextButton.addEventListener("click", function () {
-    const purposes = selectedTexts(purposeGroup);
-    if (purposes.length === 0) {
-      window.AllMyTripsModal.showToast("여행 취향을 하나 이상 선택해주세요.");
-      return;
-    }
-    draft.purpose = purposes.join(",");
-    draft.pace = paceGroup.querySelector(".selected").dataset.value;
-    draft.accommodationStyle = budgetStyleGroup.querySelector(".selected").dataset.value;
-    draft.status = "DRAFT";
-    draft.source = draft.source || "MANUAL";
-    sessionStorage.setItem(draftKey, JSON.stringify(draft));
-    window.location.href = "/trips/recommendations";
-  });
-
-  updateSummary();
-  document.body.dataset.pageReady = "true";
+  const DRAFT_KEY = "tripDraft";
+  const purposeButtons = document.querySelectorAll('[data-style-group="purpose"]');
+  const scheduleButtons = document.querySelectorAll('[data-style-group="schedule"]');
+  const budgetButtons = document.querySelectorAll('[data-style-group="budget"]');
+  const previousButton = document.querySelector("#stylePreviousButton");
+  const nextButton = document.querySelector("#styleNextButton");
+  const formMessage = document.querySelector("#styleFormMessage");
+  if (!previousButton || !nextButton || !formMessage) return;
+  const labels = { SIGHTSEEING:"관광",FOOD:"맛집",CAFE:"카페",HEALING:"힐링",SHOPPING:"쇼핑",ACTIVITY:"액티비티",CULTURE:"문화·전시",PHOTO:"사진",NATURE:"자연·풍경",NIGHT:"야경·야간",LOCAL:"로컬 체험",FAMILY:"가족 체험",VERY_RELAXED:"아주 여유로운 일정",RELAXED:"여유로운 일정",BALANCED:"균형 있는 일정",FULL:"알찬 일정",THEME_FOCUSED:"테마 집중 일정",ECONOMY:"초절약 예산",VALUE:"가성비 예산",STANDARD:"실속 예산",COMFORT:"여유 예산",LUXURY:"럭셔리 예산",ALONE:"혼자",FRIEND:"친구",COUPLE:"연인",PARENTS:"부모님",CHILDREN:"아이와 함께" };
+  const state = { purposes: [], scheduleStyle: "", budgetStyle: "" };
+  let saving = false;
+  const TRIP_API_URL = "/api/v1/trips";
+  const companionTypeMap = { ALONE: "SOLO", FRIEND: "FRIENDS", COUPLE: "COUPLE", FAMILY: "FAMILY", PARENTS: "FAMILY", CHILDREN: "FAMILY" };
+  const paceMap = { VERY_RELAXED: "RELAXED", RELAXED: "RELAXED", BALANCED: "NORMAL", FULL: "PACKED", THEME_FOCUSED: "PACKED" };
+  function readDraft(){try{return JSON.parse(sessionStorage.getItem(DRAFT_KEY)||"{}")}catch(e){return {}}}
+  function writeDraft(draft){sessionStorage.setItem(DRAFT_KEY,JSON.stringify(draft))}
+  function buildAutoTitle(basic){const destination=String(basic.destinationLabel||basic.destination||"").trim();const month=basic.startDate?Number(String(basic.startDate).split("-")[1]):0;return destination?(month?month+"월의 ":"")+destination+" 여행":"나의 여행"}
+  function selectButton(button,selected){button.classList.toggle("selected",selected);button.setAttribute("aria-pressed",String(selected))}
+  function updateSummary(){const basic=readDraft().basic||{};const start=basic.startDate?new Date(basic.startDate+"T00:00:00"):null;const end=basic.endDate?new Date(basic.endDate+"T00:00:00"):null;const nights=start&&end?Math.round((end-start)/86400000):null;const basicText=[basic.destinationLabel||basic.destination,labels[basic.companion],nights===null?"":nights+"박 "+(nights+1)+"일"].filter(Boolean);document.querySelector("#basicSummary").textContent=basicText.length?basicText.join(" · "):"기본정보를 확인해주세요.";const title=document.querySelector("#tripTitleDisplay");if(title)title.textContent=basic.titleAutoGenerated===false&&basic.title?basic.title:buildAutoTitle(basic);const purposeText=state.purposes.map(v=>labels[v]||v);document.querySelector("#purposeSummary").textContent=purposeText.length?purposeText.join(" + "):"여행 목적을 선택해주세요.";const styleText=[labels[state.scheduleStyle],labels[state.budgetStyle]].filter(Boolean);document.querySelector("#styleSummary").textContent=styleText.length?styleText.join(" · "):"일정과 예산 스타일을 선택해주세요."}
+  function saveStyle(){const draft=readDraft();draft.style={purposes:state.purposes.slice(),scheduleStyle:state.scheduleStyle,budgetStyle:state.budgetStyle};writeDraft(draft);return draft}
+  function buildTripPayload(draft){const basic=draft.basic||{};return {title:basic.titleAutoGenerated===false&&basic.title?basic.title:buildAutoTitle(basic),destinationName:basic.destinationLabel||basic.destination||"",startDate:basic.startDate,endDate:basic.endDate,companionType:companionTypeMap[basic.companion]||"OTHER",companionCount:Number(basic.travelerCount||1),purpose:state.purposes.map(v=>labels[v]||v).join(", "),budgetAmount:Number(basic.totalBudget||0),currencyCode:"KRW",pace:paceMap[state.scheduleStyle]||null,status:"DRAFT",source:"MANUAL"}}
+  async function saveTrip(draft){const payload=buildTripPayload(draft);const response=await fetch(TRIP_API_URL,{method:"POST",headers:{"Content-Type":"application/json","Accept":"application/json"},body:JSON.stringify(payload)});if(response.status===404){return {data:{mock:true,nextUrl:"/trips/recommendations"},message:"여행 정보를 임시 저장했습니다."}}let body={};try{body=await response.json()}catch(error){}if(!response.ok){throw new Error(body.message||"Trip API 저장에 실패했습니다.")}return {data:body,message:"여행 정보를 저장했습니다."}}
+  function showError(id,message){const target=document.querySelector("#"+id);if(target)target.textContent=message||""}
+  function validate(){["purposeError","scheduleError","budgetError"].forEach(id=>showError(id,""));let valid=true;if(!state.purposes.length){showError("purposeError","여행 목적을 하나 이상 선택해주세요.");valid=false}if(!state.scheduleStyle){showError("scheduleError","일정 스타일을 선택해주세요.");valid=false}if(!state.budgetStyle){showError("budgetError","예산 스타일을 선택해주세요.");valid=false}return valid}
+  const titleDisplay=document.querySelector("#tripTitleDisplay");const titleEditor=document.querySelector("#tripTitleEditor");const titleInput=document.querySelector("#tripTitleInput");const titleEditButton=document.querySelector("#tripTitleEditButton");const titleSaveButton=document.querySelector("#tripTitleSaveButton");const titleCancelButton=document.querySelector("#tripTitleCancelButton");const titleError=document.querySelector("#tripTitleError");
+  function openTitleEditor(){const basic=readDraft().basic||{};titleInput.value=basic.title||buildAutoTitle(basic);titleError.textContent="";titleDisplay.parentElement.hidden=true;titleEditor.hidden=false;titleInput.focus();titleInput.select()}
+  function closeTitleEditor(){titleDisplay.parentElement.hidden=false;titleEditor.hidden=true}
+  function saveTitle(){const value=titleInput.value.trim();if(!value){titleError.textContent="여행 이름을 입력해주세요.";return}const draft=readDraft();draft.basic=draft.basic||{};draft.basic.title=value;draft.basic.titleAutoGenerated=false;writeDraft(draft);titleDisplay.textContent=value;closeTitleEditor()}
+  titleEditButton.addEventListener("click",openTitleEditor);titleSaveButton.addEventListener("click",saveTitle);titleCancelButton.addEventListener("click",closeTitleEditor);titleInput.addEventListener("keydown",function(event){if(event.key==="Enter")saveTitle();if(event.key==="Escape")closeTitleEditor()});
+  purposeButtons.forEach(button=>button.addEventListener("click",function(){const value=button.dataset.styleValue;const index=state.purposes.indexOf(value);if(index>=0){state.purposes.splice(index,1);selectButton(button,false)}else{state.purposes.push(value);selectButton(button,true)}saveStyle();updateSummary()}));
+  [[scheduleButtons,"scheduleStyle"],[budgetButtons,"budgetStyle"]].forEach(function(pair){pair[0].forEach(function(button){button.addEventListener("click",function(){pair[0].forEach(candidate=>selectButton(candidate,candidate===button));state[pair[1]]=button.dataset.styleValue;saveStyle();updateSummary()})})});
+  previousButton.addEventListener("click",function(){if(!saving){saveStyle();window.location.href="/trips/new/basic"}});
+  nextButton.addEventListener("click",async function(){if(saving)return;formMessage.textContent="";formMessage.classList.remove("is-error");if(!validate()){formMessage.textContent="선택하지 않은 여행 스타일이 있습니다.";formMessage.classList.add("is-error");formMessage.focus();return}saving=true;previousButton.disabled=true;nextButton.disabled=true;nextButton.setAttribute("aria-busy","true");nextButton.textContent="여행 정보 저장 중...";const draft=saveStyle();formMessage.textContent="Trip API에 여행 정보를 저장하고 있습니다.";try{const response=await saveTrip(draft);draft.trip=response.data||{};writeDraft(draft);formMessage.textContent=response.message||"여행 정보를 저장했습니다.";window.setTimeout(function(){window.location.href=(response.data&&response.data.nextUrl)||"/trips/recommendations"},350)}catch(error){saving=false;previousButton.disabled=false;nextButton.disabled=false;nextButton.removeAttribute("aria-busy");nextButton.textContent="맞춤 여행지 생성 ";formMessage.textContent=error.message||"저장에 실패했습니다. 잠시 후 다시 시도해주세요.";formMessage.classList.add("is-error");formMessage.focus()}});
+  const saved=readDraft().style||{};state.purposes=Array.isArray(saved.purposes)?saved.purposes.slice():[];state.scheduleStyle=saved.scheduleStyle||"";state.budgetStyle=saved.budgetStyle||"";if(state.budgetStyle==="EXPERIENCE")state.budgetStyle="STANDARD";purposeButtons.forEach(button=>selectButton(button,state.purposes.includes(button.dataset.styleValue)));scheduleButtons.forEach(button=>selectButton(button,state.scheduleStyle===button.dataset.styleValue));budgetButtons.forEach(button=>selectButton(button,state.budgetStyle===button.dataset.styleValue));updateSummary();document.body.dataset.pageReady="true";
 });
