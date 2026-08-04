@@ -33,7 +33,7 @@ public class AiGuideController {
         try {
             return ResponseEntity.ok(ApiResponse.success(
                     "AI 여행 일정 추천이 완료되었습니다.",
-                    aiGuideService.generate(request, "server-error".equals(mockMode))
+                    aiGuideService.generate(request, "server-error".equals(mockMode), principal.userId())
             ));
         } finally {
             requestGuard.release();

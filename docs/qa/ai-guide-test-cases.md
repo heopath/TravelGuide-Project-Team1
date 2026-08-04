@@ -27,6 +27,20 @@ Postman 컬렉션은 AI API의 요청·응답과 Validation을 검증합니다. 
 | AI-SEC-02 | 로그인 사용자가 CSRF 토큰 없이 AI 생성 요청 | `403 Forbidden`으로 거절된다. |
 | AI-SEC-03 | 로그인 사용자가 `GET /api/v1/csrf` 토큰을 `X-CSRF-TOKEN` 헤더에 포함해 AI 생성 요청 | `200 OK`와 AI 가이드 응답이 반환된다. |
 | AI-GEMINI-04 | Gemini가 day, title, items, time, name, reason 규칙을 어긴 JSON 반환 | `502 AI_GENERATION_FAILED`를 반환하며 화면 렌더링 오류가 발생하지 않는다. |
+| AI-HISTORY-01 | 로그인 사용자가 후속 질문 전송 | 최근 질문·응답 3세트가 Redis에서 조회되어 Gemini 프롬프트에 포함된다. |
+| AI-HISTORY-02 | 4번째 대화 이력 저장 | 가장 오래된 대화가 제거되고 최근 3세트만 30분 TTL로 유지된다. |
+| AI-HISTORY-03 | Redis 연결 실패 상태에서 AI 요청 | 질문 단독 Gemini 추천으로 대체되며 사용자에게 Redis 내부 오류를 노출하지 않는다. |
+| AI-HISTORY-04 | 실제 Redis에서 같은 사용자 동시 요청 2건을 10회 반복 | 각 회차의 최근 이력에 두 요청이 모두 남고, 3세트 제한과 30분 TTL이 유지된다. |
+
+실제 Redis 동시성 통합 테스트는 공유 Redis에 고유한 음수 사용자 ID 키만 만들고 테스트 후 해당 키를 삭제한다. SSH 터널을 연 뒤 아래 환경 변수를 설정해 실행한다. 비밀번호 값은 파일이나 Git에 저장하지 않는다.
+
+```powershell
+$env:AI_REDIS_INTEGRATION_TEST="true"
+$env:SPRING_DATA_REDIS_HOST="127.0.0.1"
+$env:SPRING_DATA_REDIS_PORT="16379"
+$env:SPRING_DATA_REDIS_PASSWORD="로컬 환경 변수의 Redis 비밀번호"
+.\gradlew.bat -g .gradle-ai03 test --tests org.example.all_my_trip_project.domain.ai.service.AiConversationHistoryRedisIntegrationTest
+```
 
 ## AI-02-1 자동화 테스트 결과
 

@@ -6,6 +6,7 @@ import org.example.all_my_trip_project.domain.ai.dto.AiGuideDayResponse;
 import org.example.all_my_trip_project.domain.ai.dto.AiGuideItemResponse;
 import org.example.all_my_trip_project.domain.ai.dto.AiGuideRequest;
 import org.example.all_my_trip_project.domain.ai.dto.AiGuideResponse;
+import org.example.all_my_trip_project.domain.ai.dto.AiConversationTurn;
 import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
@@ -33,9 +34,9 @@ public class GeminiAiModelClient implements AiModelClient {
     }
 
     @Override
-    public AiGuideResponse generate(AiGuideRequest request) {
+    public AiGuideResponse generate(AiGuideRequest request, List<AiConversationTurn> conversationHistory) {
         try {
-            String response = requestModel(createPrompt(request.question()));
+            String response = requestModel(createPrompt(request.question(), conversationHistory));
             GeminiGuideContent content = objectMapper.readValue(extractJson(response), GeminiGuideContent.class);
             validate(content);
 
@@ -62,7 +63,13 @@ public class GeminiAiModelClient implements AiModelClient {
         }
     }
 
-    private String createPrompt(String question) {
+    private String createPrompt(String question, List<AiConversationTurn> conversationHistory) {
+        String history = conversationHistory == null || conversationHistory.isEmpty()
+                ? "이전 대화 없음"
+                : conversationHistory.stream()
+                .map(turn -> "사용자: " + turn.question() + "\nAI: " + turn.answer())
+                .collect(java.util.stream.Collectors.joining("\n\n"));
+
         return """
                 당신은 한국 여행 일정 추천 도우미입니다.
                 사용자의 질문에 맞는 현실적인 여행 일정을 추천하세요.
@@ -87,8 +94,11 @@ public class GeminiAiModelClient implements AiModelClient {
                   ]
                 }
 
+                이전 대화:
+                %s
+
                 사용자 질문: %s
-                """.formatted(question);
+                """.formatted(history, question);
     }
 
     private String extractJson(String response) {

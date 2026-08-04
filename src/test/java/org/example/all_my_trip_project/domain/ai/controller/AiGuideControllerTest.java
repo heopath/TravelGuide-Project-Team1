@@ -26,6 +26,7 @@ import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.not;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -75,7 +76,7 @@ class AiGuideControllerTest {
                 List.of(),
                 List.of("현재 일정")
         );
-        org.mockito.Mockito.when(aiGuideService.generate(any(), eq(false))).thenReturn(response);
+        org.mockito.Mockito.when(aiGuideService.generate(any(), eq(false), isNull())).thenReturn(response);
 
         mockMvc.perform(post("/api/v1/ai-guides/generate")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -87,7 +88,7 @@ class AiGuideControllerTest {
                 .andExpect(jsonPath("$.data.days[0].day").value(1))
                 .andExpect(jsonPath("$.data.days[0].items[0].name").value("민락회센터"));
 
-        verify(aiGuideService).generate(any(), eq(false));
+        verify(aiGuideService).generate(any(), eq(false), isNull());
     }
 
     @Test
@@ -117,7 +118,7 @@ class AiGuideControllerTest {
     @Test
     void generateReturnsServerErrorForMockFailureMode() throws Exception {
         doThrow(new IllegalStateException("AI mock server error"))
-                .when(aiGuideService).generate(any(), eq(true));
+                .when(aiGuideService).generate(any(), eq(true), isNull());
 
         mockMvc.perform(post("/api/v1/ai-guides/generate")
                         .header("X-AI-Mock-Mode", "server-error")
@@ -129,13 +130,13 @@ class AiGuideControllerTest {
                 .andExpect(jsonPath("$.message").value("서버에서 오류가 발생했습니다."))
                 .andExpect(jsonPath("$.message").value(not(containsString("AI mock server error"))));
 
-        verify(aiGuideService).generate(any(), eq(true));
+        verify(aiGuideService).generate(any(), eq(true), isNull());
     }
 
     @Test
     void generateReturnsSafeGatewayErrorWhenAiModelTimesOut() throws Exception {
         doThrow(new AiModelException("Gemini request timed out"))
-                .when(aiGuideService).generate(any(), eq(false));
+                .when(aiGuideService).generate(any(), eq(false), isNull());
 
         mockMvc.perform(post("/api/v1/ai-guides/generate")
                         .contentType(MediaType.APPLICATION_JSON)
