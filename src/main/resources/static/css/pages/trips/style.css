@@ -1946,3 +1946,98 @@ body.page-style .style-actions .style-next::after {
   font-weight: 800;
   line-height: 1;
 }
+
+/* 여행 티켓형 우측 요약 카드: 상단 헤더, 절취선, 양쪽 절취 홈 */
+body.page-style .selected-summary {
+  background:
+    radial-gradient(circle at 0 88px, #f4f6ff 0 11px, transparent 12px),
+    radial-gradient(circle at 100% 88px, #f4f6ff 0 11px, transparent 12px),
+    #fff;
+}
+
+body.page-style .selected-summary .boarding-pass-title {
+  border-bottom: 1px dashed rgba(255, 255, 255, .58);
+}
+
+body.page-style .selected-summary .boarding-pass-title strong {
+  max-width: 235px;
+  min-width: 0;
+  max-height: 60px;
+  overflow: hidden;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  display: block;
+  text-overflow: clip;
+}
+
+body.page-style .selected-summary .boarding-pass-title button {
+  flex: 0 0 auto;
+}
+
+body.page-style .selected-summary h2 {
+  margin-top: 24px;
+}
+
+/* 스타일 선택 오류 문구를 기본정보 화면과 동일하게 표시 */
+body.page-style .field-error {
+  min-height: 22px;
+  margin: 6px 0 0;
+  color: #d93025;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+/* 여행 타이틀을 티켓 헤더의 대표 정보처럼 강조 */
+body.page-style .selected-summary::before {
+  height: 112px;
+  background:
+    radial-gradient(circle at 82% 18%, rgba(255,255,255,.25), transparent 25%),
+    linear-gradient(135deg, #7f94ff 0%, #365cf3 100%);
+}
+
+body.page-style .selected-summary .boarding-pass-title {
+  min-height: 112px;
+  align-items: flex-end;
+  padding: 0 24px 17px;
+  border-bottom: 2px dashed rgba(255,255,255,.72);
+}
+
+body.page-style .selected-summary .boarding-pass-title::before {
+  content: "TRAVEL TICKET";
+  position: absolute;
+  top: 14px;
+  left: 24px;
+  color: rgba(255,255,255,.78);
+  font-family: Arial, sans-serif;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .18em;
+}
+
+body.page-style .selected-summary .boarding-pass-title strong {
+  max-width: 242px;
+  max-height: 58px;
+  color: #fff;
+  font-family: "Arial Rounded MT Bold", "Trebuchet MS", "Noto Sans KR", sans-serif;
+  font-size: 24px;
+  font-weight: 800;
+  letter-spacing: -.035em;
+  line-height: 1.2;
+  text-shadow: 0 2px 7px rgba(25,45,145,.28);
+}
+
+body.page-style .selected-summary .boarding-pass-title button {
+  margin-bottom: 2px;
+  border-color: rgba(255,255,255,.86);
+  font-weight: 800;
+}
+
+body.page-style .selected-summary {
+  background:
+    radial-gradient(circle at 0 112px, #f4f6ff 0 12px, transparent 13px),
+    radial-gradient(circle at 100% 112px, #f4f6ff 0 12px, transparent 13px),
+    #fff;
+  border: 1px solid #d6def4;
+  box-shadow: 0 24px 52px rgba(41,58,112,.16), 0 4px 0 rgba(64,88,210,.08);
+}
