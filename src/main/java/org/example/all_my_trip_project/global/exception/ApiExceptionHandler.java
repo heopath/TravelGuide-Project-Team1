@@ -3,6 +3,7 @@ package org.example.all_my_trip_project.global.exception;
 import lombok.extern.slf4j.Slf4j;
 import org.example.all_my_trip_project.global.response.ErrorResponse;
 import org.example.all_my_trip_project.global.response.ErrorResponse.FieldErrorDetail;
+import org.example.all_my_trip_project.domain.ai.service.AiModelException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -15,6 +16,19 @@ import java.util.List;
 @Slf4j
 @RestControllerAdvice(annotations = RestController.class)
 public class ApiExceptionHandler {
+
+    @ExceptionHandler(AiModelException.class)
+    public ResponseEntity<ErrorResponse> handleAiModelException(
+            AiModelException exception
+    ) {
+        log.warn("AI model request failed", exception);
+
+        return ResponseEntity.status(HttpStatus.BAD_GATEWAY)
+                .body(ErrorResponse.of(
+                        "AI_GENERATION_FAILED",
+                        "AI 추천을 생성하지 못했습니다. 잠시 후 다시 시도해 주세요."
+                ));
+    }
 
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<ErrorResponse> handleIllegalArgument(

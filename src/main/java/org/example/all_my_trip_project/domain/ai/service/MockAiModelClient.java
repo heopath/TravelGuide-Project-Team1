@@ -5,10 +5,12 @@ import org.example.all_my_trip_project.domain.ai.dto.AiGuideItemResponse;
 import org.example.all_my_trip_project.domain.ai.dto.AiGuideRequest;
 import org.example.all_my_trip_project.domain.ai.dto.AiGuideResponse;
 import org.springframework.stereotype.Component;
+import org.springframework.context.annotation.Profile;
 
 import java.util.List;
 
 @Component
+@Profile("!ai")
 public class MockAiModelClient implements AiModelClient {
 
     @Override

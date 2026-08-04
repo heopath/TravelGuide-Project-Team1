@@ -4,8 +4,11 @@ import org.example.all_my_trip_project.domain.ai.dto.AiGuideDayResponse;
 import org.example.all_my_trip_project.domain.ai.dto.AiGuideItemResponse;
 import org.example.all_my_trip_project.domain.ai.dto.AiGuideResponse;
 import org.example.all_my_trip_project.domain.ai.service.AiGuideService;
+import org.example.all_my_trip_project.domain.ai.service.AiGuideRequestGuard;
+import org.example.all_my_trip_project.domain.ai.service.AiModelException;
 import org.example.all_my_trip_project.global.exception.ApiExceptionHandler;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
@@ -13,8 +16,11 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
 
 import java.util.List;
+import org.example.all_my_trip_project.global.security.AuthenticatedUser;
 
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.not;
@@ -32,14 +38,29 @@ class AiGuideControllerTest {
     @Mock
     private AiGuideService aiGuideService;
 
+    @Mock
+    private AiGuideRequestGuard requestGuard;
+
     private MockMvc mockMvc;
 
     @BeforeEach
     void setUp() {
+        SecurityContextHolder.getContext().setAuthentication(
+                UsernamePasswordAuthenticationToken.authenticated(
+                        new AuthenticatedUser(1L, "ai-test@example.com", "USER"),
+                        null,
+                        List.of()
+                )
+        );
         mockMvc = MockMvcBuilders
-                .standaloneSetup(new AiGuideController(aiGuideService))
+                .standaloneSetup(new AiGuideController(aiGuideService, requestGuard))
                 .setControllerAdvice(new ApiExceptionHandler())
                 .build();
+    }
+
+    @AfterEach
+    void clearSecurityContext() {
+        SecurityContextHolder.clearContext();
     }
 
     @Test
@@ -109,5 +130,20 @@ class AiGuideControllerTest {
                 .andExpect(jsonPath("$.message").value(not(containsString("AI mock server error"))));
 
         verify(aiGuideService).generate(any(), eq(true));
+    }
+
+    @Test
+    void generateReturnsSafeGatewayErrorWhenAiModelTimesOut() throws Exception {
+        doThrow(new AiModelException("Gemini request timed out"))
+                .when(aiGuideService).generate(any(), eq(false));
+
+        mockMvc.perform(post("/api/v1/ai-guides/generate")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"question\":\"시간 초과 테스트\"}"))
+                .andExpect(status().isBadGateway())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.code").value("AI_GENERATION_FAILED"))
+                .andExpect(jsonPath("$.message").value("AI 추천을 생성하지 못했습니다. 잠시 후 다시 시도해 주세요."))
+                .andExpect(jsonPath("$.message").value(not(containsString("Gemini request timed out"))));
     }
 }
