@@ -334,7 +334,7 @@ document.addEventListener("DOMContentLoaded", function () {
     const params = new URLSearchParams({ page: "0", size: "100" });
     if (keyword) params.set("keyword", keyword);
     try {
-      const response = await fetch("/api/places?" + params.toString(), {
+      const response = await fetch("/api/v1/places?" + params.toString(), {
         headers: { Accept: "application/json" },
         allMyTripsLoading: false,
       });
@@ -342,7 +342,7 @@ document.addEventListener("DOMContentLoaded", function () {
       const payload = await response.json();
       const places = Array.isArray(payload) ? payload : (payload.data || payload.content || []);
       const unique = new Map();
-      places.forEach(function (place) {
+      places.forEach(function (place) {sss
         const label = getCityName(place);
         if (!label || unique.has(label)) return;
         unique.set(label, {
