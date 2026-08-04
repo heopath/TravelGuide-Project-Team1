@@ -1,4 +1,5 @@
 document.addEventListener("DOMContentLoaded", function () {
+  const MAX_TITLE_LENGTH = 20;
   const title = document.querySelector("#recommendationTitle");
   if (!title) return;
   let draft = {};
@@ -16,7 +17,7 @@ document.addEventListener("DOMContentLoaded", function () {
       prefix.textContent = "03 ";
       title.appendChild(prefix);
     }
-    title.appendChild(document.createTextNode(generated));
+    title.appendChild(document.createTextNode(generated.slice(0, MAX_TITLE_LENGTH)));
   } catch (error) {
     // 제목을 읽지 못해도 추천 결과 화면은 정상 표시한다.
   }

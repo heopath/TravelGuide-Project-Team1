@@ -14,7 +14,6 @@ document.addEventListener("DOMContentLoaded", function () {
   let saving = false;
   const TRIP_API_URL = "/api/v1/trips";
   const companionTypeMap = { ALONE: "SOLO", FRIEND: "FRIENDS", COUPLE: "COUPLE", FAMILY: "FAMILY", PARENTS: "FAMILY", CHILDREN: "FAMILY" };
-  const paceMap = { VERY_RELAXED: "RELAXED", RELAXED: "RELAXED", BALANCED: "NORMAL", FULL: "PACKED", THEME_FOCUSED: "PACKED" };
   function readDraft(){try{return JSON.parse(sessionStorage.getItem(DRAFT_KEY)||"{}")}catch(e){return {}}}
   function writeDraft(draft){sessionStorage.setItem(DRAFT_KEY,JSON.stringify(draft))}
   function buildAutoTitle(basic){const destination=String(basic.destinationLabel||basic.destination||"").trim();const month=basic.startDate?Number(String(basic.startDate).split("-")[1]):0;return destination?(month?month+"월의 ":"")+destination+" 여행":"나의 여행"}
