@@ -58,7 +58,7 @@ class AiGuideSecurityTest {
 
     @Test
     void acceptsAuthenticatedAiGuideGenerationRequestWithValidCsrfToken() throws Exception {
-        when(aiGuideService.generate(any(), eq(false))).thenReturn(new AiGuideResponse(
+        when(aiGuideService.generate(any(), eq(false), eq(1L))).thenReturn(new AiGuideResponse(
                 "추천 결과", List.of(), List.of(), List.of("Gemini AI")
         ));
 
