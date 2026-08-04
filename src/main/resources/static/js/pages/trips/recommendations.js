@@ -1,8 +1,9 @@
 document.addEventListener("DOMContentLoaded", function () {
   const title = document.querySelector("#recommendationTitle");
   if (!title) return;
+  let draft = {};
   try {
-    const draft = JSON.parse(sessionStorage.getItem("tripDraft") || "{}");
+    draft = JSON.parse(sessionStorage.getItem("tripDraft") || "{}");
     const basic = draft.basic || {};
     const destination = basic.destinationLabel || basic.destination || "";
     const month = basic.startDate ? Number(String(basic.startDate).split("-")[1]) : 0;
@@ -12,11 +13,25 @@ document.addEventListener("DOMContentLoaded", function () {
     const prefix = title.querySelector("span");
     title.replaceChildren();
     if (prefix) {
-      prefix.textContent = "01 ";
+      prefix.textContent = "03 ";
       title.appendChild(prefix);
     }
     title.appendChild(document.createTextNode(generated));
   } catch (error) {
     // 제목을 읽지 못해도 추천 결과 화면은 정상 표시한다.
   }
+
+  document.querySelectorAll("[data-select-destination]").forEach(function (button) {
+    button.addEventListener("click", function () {
+      const selectedDestination = button.dataset.selectDestination;
+      draft.recommendation = { destinationName: selectedDestination };
+      sessionStorage.setItem("tripDraft", JSON.stringify(draft));
+
+      const createdTrip = draft.trip && draft.trip.trip ? draft.trip.trip : draft.trip;
+      const tripId = Number(createdTrip && createdTrip.tripId);
+      window.location.href = Number.isInteger(tripId) && tripId > 0
+        ? "/trips/" + tripId + "/schedule"
+        : "/trips/schedule";
+    });
+  });
 });
