@@ -30,6 +30,7 @@ public class AuthService {
         String nickname = request.nickname().trim();
 
         validateEmailDuplicate(email);
+        validateNicknameLength(nickname);
         validateNicknameDuplicate(nickname);
 
         String passwordHash =
@@ -105,6 +106,12 @@ public class AuthService {
             throw new BusinessException(
                     ErrorCode.NICKNAME_DUPLICATED
             );
+        }
+    }
+
+    private void validateNicknameLength(String nickname) {
+        if (nickname.length() < 2 || nickname.length() > 20) {
+            throw new IllegalArgumentException("닉네임은 2자 이상 20자 이하여야 합니다.");
         }
     }
 

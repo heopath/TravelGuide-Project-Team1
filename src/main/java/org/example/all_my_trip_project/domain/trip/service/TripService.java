@@ -61,10 +61,14 @@ public class TripService {
 
     @Transactional
     public void update(Long userId, TripDTO trip) {
-        requireOwnedTrip(userId, trip.getTripId());
+        TripDTO savedTrip = requireOwnedTrip(userId, trip.getTripId());
         validateDates(trip);
         if (tripDAO.update(trip) == 0) {
             throw new IllegalArgumentException("수정할 여행을 찾을 수 없습니다. tripId=" + trip.getTripId());
+        }
+        if (!Objects.equals(savedTrip.getStartDate(), trip.getStartDate())
+                || !Objects.equals(savedTrip.getEndDate(), trip.getEndDate())) {
+            synchronizeDays(trip);
         }
     }
 
@@ -103,6 +107,32 @@ public class TripService {
         long tripDays = ChronoUnit.DAYS.between(trip.getStartDate(), trip.getEndDate()) + 1;
         if (tripDays > MAX_TRIP_DAYS) {
             throw new IllegalArgumentException("여행 기간은 최대 " + MAX_TRIP_DAYS + "일까지 설정할 수 있습니다.");
+        }
+    }
+
+    private void synchronizeDays(TripDTO trip) {
+        List<TripDayDTO> existingDays = new ArrayList<>(tripDayDAO.findByTripId(trip.getTripId()));
+        tripDayDAO.moveOutOfDateRange(trip.getTripId());
+
+        int desiredCount = (int) ChronoUnit.DAYS.between(trip.getStartDate(), trip.getEndDate()) + 1;
+        for (int index = 0; index < desiredCount; index++) {
+            int dayNumber = index + 1;
+            if (index < existingDays.size()) {
+                TripDayDTO day = existingDays.get(index);
+                day.setDayNumber(dayNumber);
+                day.setTripDate(trip.getStartDate().plusDays(index));
+                tripDayDAO.update(day);
+            } else {
+                tripDayDAO.insert(TripDayDTO.builder()
+                        .tripId(trip.getTripId())
+                        .dayNumber(dayNumber)
+                        .tripDate(trip.getStartDate().plusDays(index))
+                        .title("DAY " + dayNumber)
+                        .build());
+            }
+        }
+        for (int index = desiredCount; index < existingDays.size(); index++) {
+            tripDayDAO.delete(existingDays.get(index).getTripDayId());
         }
     }
 }

@@ -79,6 +79,19 @@ class MemberServiceTest {
     }
 
     @Test
+    void updateProfileValidatesNicknameAfterTrimming() {
+        when(userRepository.findById(11L)).thenReturn(Optional.of(activeUser()));
+
+        assertThatThrownBy(() -> memberService.updateProfile(
+                11L, new UpdateMemberProfileRequest(" a ")))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("닉네임은 2자 이상 20자 이하여야 합니다.");
+
+        verify(userRepository, never())
+                .existsByNicknameAndUserIdNotAndDeletedAtIsNull("a", 11L);
+    }
+
+    @Test
     void replacePreferencesUpdatesAddsAndRemovesExplicitPreferences() {
         UserPreferenceEntity sightseeing =
                 UserPreferenceEntity.explicit(11L, (short) 1, (short) 50);

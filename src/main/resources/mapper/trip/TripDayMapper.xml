@@ -11,6 +11,12 @@
     <select id="findByTripId" resultType="org.example.all_my_trip_project.domain.trip.dto.TripDayDTO">
         SELECT * FROM trip_days WHERE trip_id = #{tripId} ORDER BY day_number
     </select>
+    <update id="moveOutOfDateRange">
+        UPDATE trip_days
+        SET day_number = day_number + 100,
+            trip_date = trip_date + 1000
+        WHERE trip_id = #{tripId}
+    </update>
     <update id="update">
         UPDATE trip_days
         SET day_number = #{dayNumber}, trip_date = #{tripDate},

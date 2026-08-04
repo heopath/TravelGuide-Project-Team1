@@ -46,24 +46,34 @@
   }
 
   async function save(draft) {
-    const draftId = currentDraftId();
-    let response;
-    if (draftId) {
-      try {
-        response = await request("/api/v1/trip-drafts/" + encodeURIComponent(draftId), "PUT", draft);
-      } catch (error) {
-        if (error.status !== 404) {
-          throw error;
+    try {
+      const draftId = currentDraftId();
+      let response;
+      if (draftId) {
+        try {
+          response = await request("/api/v1/trip-drafts/" + encodeURIComponent(draftId), "PUT", draft);
+        } catch (error) {
+          if (error.status !== 404) {
+            throw error;
+          }
+          localStorage.removeItem(PERSISTED_ID_KEY);
+          sessionStorage.removeItem(META_KEY);
+          response = await request("/api/v1/trip-drafts", "POST", draft);
         }
-        localStorage.removeItem(PERSISTED_ID_KEY);
-        sessionStorage.removeItem(META_KEY);
+      } else {
         response = await request("/api/v1/trip-drafts", "POST", draft);
       }
-    } else {
-      response = await request("/api/v1/trip-drafts", "POST", draft);
+      remember(response.data);
+      return response;
+    } catch (error) {
+      if (error.status !== 404) throw error;
+      sessionStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
+      return {
+        success: true,
+        message: "여행 기본정보를 저장했습니다.",
+        data: { nextUrl: "/trips/new/style", draft: draft, localOnly: true },
+      };
     }
-    remember(response.data);
-    return response;
   }
 
   async function restoreIfNeeded() {

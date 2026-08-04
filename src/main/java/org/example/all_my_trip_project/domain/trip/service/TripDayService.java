@@ -17,12 +17,18 @@ import java.util.Objects;
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class TripDayService {
+    private static final int MAX_TRIP_DAYS = 30;
     private final TripDayDAO tripDayDAO;
     private final TripDAO tripDAO;
 
     @Transactional
     public Long create(Long userId, TripDayDTO tripDay) {
-        requireOwnedTrip(userId, tripDay.getTripId());
+        TripDTO trip = requireOwnedTrip(userId, tripDay.getTripId());
+        List<TripDayDTO> existingDays = tripDayDAO.findByTripId(tripDay.getTripId());
+        if (existingDays.size() >= MAX_TRIP_DAYS) {
+            throw new IllegalArgumentException("여행 일자는 최대 30개까지 등록할 수 있습니다.");
+        }
+        validateDay(trip, tripDay, existingDays, null);
         tripDayDAO.insert(tripDay);
         return tripDay.getTripDayId();
     }
@@ -34,7 +40,8 @@ public class TripDayService {
 
     @Transactional
     public void update(Long userId, TripDayDTO tripDay) {
-        requireOwnedDay(userId, tripDay.getTripId(), tripDay.getTripDayId());
+        TripDTO trip = requireOwnedDay(userId, tripDay.getTripId(), tripDay.getTripDayId());
+        validateDay(trip, tripDay, tripDayDAO.findByTripId(tripDay.getTripId()), tripDay.getTripDayId());
         if (tripDayDAO.update(tripDay) == 0) {
             throw new IllegalArgumentException("수정할 여행 일자를 찾을 수 없습니다.");
         }
@@ -48,20 +55,46 @@ public class TripDayService {
         }
     }
 
-    private void requireOwnedTrip(Long userId, Long tripId) {
+    private TripDTO requireOwnedTrip(Long userId, Long tripId) {
         TripDTO trip = tripDAO.findById(tripId)
                 .orElseThrow(() -> new IllegalArgumentException("여행을 찾을 수 없습니다."));
         if (!Objects.equals(trip.getUserId(), userId)) {
             throw new IllegalArgumentException("여행을 찾을 수 없습니다.");
         }
+        return trip;
     }
 
-    private void requireOwnedDay(Long userId, Long tripId, Long tripDayId) {
-        requireOwnedTrip(userId, tripId);
+    private TripDTO requireOwnedDay(Long userId, Long tripId, Long tripDayId) {
+        TripDTO trip = requireOwnedTrip(userId, tripId);
         TripDayDTO savedDay = tripDayDAO.findById(tripDayId)
                 .orElseThrow(() -> new IllegalArgumentException("여행 일자를 찾을 수 없습니다."));
         if (!Objects.equals(savedDay.getTripId(), tripId)) {
             throw new IllegalArgumentException("여행 일자를 찾을 수 없습니다.");
+        }
+        return trip;
+    }
+
+    private void validateDay(TripDTO trip, TripDayDTO candidate,
+                             List<TripDayDTO> existingDays, Long excludedDayId) {
+        if (candidate.getDayNumber() == null || candidate.getTripDate() == null) {
+            throw new IllegalArgumentException("dayNumber와 tripDate는 필수입니다.");
+        }
+        long tripLength = java.time.temporal.ChronoUnit.DAYS
+                .between(trip.getStartDate(), trip.getEndDate()) + 1;
+        if (candidate.getDayNumber() < 1 || candidate.getDayNumber() > tripLength
+                || candidate.getDayNumber() > MAX_TRIP_DAYS) {
+            throw new IllegalArgumentException("dayNumber는 여행 기간 안의 일차여야 합니다.");
+        }
+        if (candidate.getTripDate().isBefore(trip.getStartDate())
+                || candidate.getTripDate().isAfter(trip.getEndDate())) {
+            throw new IllegalArgumentException("tripDate는 여행 시작일과 종료일 사이여야 합니다.");
+        }
+        boolean duplicated = existingDays.stream()
+                .filter(day -> !Objects.equals(day.getTripDayId(), excludedDayId))
+                .anyMatch(day -> Objects.equals(day.getDayNumber(), candidate.getDayNumber())
+                        || Objects.equals(day.getTripDate(), candidate.getTripDate()));
+        if (duplicated) {
+            throw new IllegalArgumentException("dayNumber와 tripDate는 여행 안에서 중복될 수 없습니다.");
         }
     }
 }

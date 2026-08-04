@@ -1,3 +1,39 @@
+(function installCsrfAwareFetch() {
+  const nativeFetch = window.fetch.bind(window);
+  let csrfTokenPromise;
+
+  function isUnsafeSameOriginRequest(input, options) {
+    const method = (options?.method || (input instanceof Request ? input.method : "GET")).toUpperCase();
+    if (!["POST", "PUT", "PATCH", "DELETE"].includes(method)) return false;
+    const url = new URL(input instanceof Request ? input.url : input, window.location.href);
+    return url.origin === window.location.origin;
+  }
+
+  async function csrfToken() {
+    if (!csrfTokenPromise) {
+      csrfTokenPromise = nativeFetch("/api/v1/csrf", {
+        credentials: "same-origin",
+        headers: { Accept: "application/json" },
+        allMyTripsLoading: false,
+      }).then(function (response) {
+        if (!response.ok) throw new Error("CSRF 토큰을 발급받지 못했습니다.");
+        return response.json();
+      }).then(function (payload) { return payload.token; });
+    }
+    return csrfTokenPromise;
+  }
+
+  window.fetch = async function csrfAwareFetch(input, options) {
+    if (!isUnsafeSameOriginRequest(input, options)) return nativeFetch(input, options);
+    const token = await csrfToken();
+    const requestOptions = { ...(options || {}) };
+    requestOptions.credentials = requestOptions.credentials || "same-origin";
+    requestOptions.headers = new Headers(requestOptions.headers || {});
+    requestOptions.headers.set("X-CSRF-TOKEN", token);
+    return nativeFetch(input, requestOptions);
+  };
+})();
+
 window.AllMyTripsApi = {
   async get(url) {
     const response = await fetch(url, { headers: { Accept: "application/json" } });

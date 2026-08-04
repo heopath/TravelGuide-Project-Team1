@@ -14,6 +14,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.util.Optional;
 import java.time.LocalDate;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -138,5 +139,29 @@ class TripServiceTest {
         assertThatThrownBy(() -> tripService.get(42L, 10L))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("여행을 찾을 수 없습니다.");
+    }
+
+    @Test
+    void updateSynchronizesExistingDaysWhenPeriodChanges() {
+        TripDTO saved = TripDTO.builder().tripId(10L).userId(42L)
+                .startDate(LocalDate.of(2026, 8, 10)).endDate(LocalDate.of(2026, 8, 12)).build();
+        TripDTO update = TripDTO.builder().tripId(10L).userId(42L)
+                .startDate(LocalDate.of(2026, 8, 11)).endDate(LocalDate.of(2026, 8, 12)).build();
+        TripDayDTO first = TripDayDTO.builder().tripDayId(21L).tripId(10L).dayNumber(1)
+                .tripDate(LocalDate.of(2026, 8, 10)).title("첫날").build();
+        TripDayDTO second = TripDayDTO.builder().tripDayId(22L).tripId(10L).dayNumber(2)
+                .tripDate(LocalDate.of(2026, 8, 11)).title("둘째날").build();
+        TripDayDTO removed = TripDayDTO.builder().tripDayId(23L).tripId(10L).dayNumber(3)
+                .tripDate(LocalDate.of(2026, 8, 12)).build();
+        when(tripDAO.findById(10L)).thenReturn(Optional.of(saved));
+        when(tripDAO.update(update)).thenReturn(1);
+        when(tripDayDAO.findByTripId(10L)).thenReturn(List.of(first, second, removed));
+
+        tripService.update(42L, update);
+
+        verify(tripDayDAO).moveOutOfDateRange(10L);
+        assertThat(first.getTripDate()).isEqualTo(LocalDate.of(2026, 8, 11));
+        assertThat(second.getTripDate()).isEqualTo(LocalDate.of(2026, 8, 12));
+        verify(tripDayDAO).delete(23L);
     }
 }
