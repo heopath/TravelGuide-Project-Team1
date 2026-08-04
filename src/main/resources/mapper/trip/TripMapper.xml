@@ -8,7 +8,7 @@
         status, source, created_at, updated_at, deleted_at
     </sql>
 
-    <insert id="insert" useGeneratedKeys="true" keyProperty="tripId">
+    <insert id="insert" useGeneratedKeys="true" keyProperty="tripId" keyColumn="trip_id">
         INSERT INTO trips (
             user_id, title, destination_name, start_date, end_date,
             companion_type, companion_count, purpose, budget_amount, currency_code,

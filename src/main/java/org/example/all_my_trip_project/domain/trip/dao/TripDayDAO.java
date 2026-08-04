@@ -16,6 +16,7 @@ public class TripDayDAO {
     private final TripDayMapper tripDayMapper;
 
     public int insert(TripDayDTO tripDay) { return tripDayMapper.insert(tripDay); }
+    public int insertAll(List<TripDayDTO> tripDays) { return tripDayMapper.insertAll(tripDays); }
     public Optional<TripDayDTO> findById(Long tripDayId) { return tripDayMapper.findById(tripDayId); }
     public List<TripDayDTO> findByTripId(Long tripId) { return tripDayMapper.findByTripId(tripId); }
     public int moveOutOfDateRange(Long tripId) { return tripDayMapper.moveOutOfDateRange(tripId); }
