@@ -11,6 +11,7 @@ import org.example.all_my_trip_project.domain.trip.service.support.TripCreationF
 import org.example.all_my_trip_project.domain.trip.type.CompanionType;
 import org.example.all_my_trip_project.domain.user.dao.UserDAO;
 import org.example.all_my_trip_project.domain.user.dto.UserDTO;
+import org.example.all_my_trip_project.domain.user.type.UserStatus;
 import org.example.all_my_trip_project.global.exception.BusinessException;
 import org.example.all_my_trip_project.global.exception.ErrorCode;
 import org.junit.jupiter.api.BeforeEach;
@@ -58,7 +59,7 @@ class TripServiceTest {
                 new TripCreationFactory()
         );
         lenient().when(userDAO.findById(42L)).thenReturn(Optional.of(
-                UserDTO.builder().userId(42L).status("ACTIVE").build()
+                UserDTO.builder().userId(42L).status(UserStatus.ACTIVE.name()).build()
         ));
     }
 
@@ -150,7 +151,7 @@ class TripServiceTest {
     }
 
     @Test
-    void createPropagatesBatchInsertFailureForTransactionRollback() {
+    void createPropagatesBatchInsertFailure() {
         TripCreateRequest request = request(
                 null,
                 LocalDate.of(2026, 8, 10),
@@ -167,6 +168,46 @@ class TripServiceTest {
         assertThatThrownBy(() -> tripService.create(42L, request))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessage("DAY 저장 실패");
+    }
+
+    @Test
+    void createRejectsUnknownUserBeforeSaving() {
+        when(userDAO.findById(43L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> tripService.create(43L, validRequest()))
+                .isInstanceOf(BusinessException.class)
+                .extracting(exception -> ((BusinessException) exception).getErrorCode())
+                .isEqualTo(ErrorCode.UNAUTHORIZED);
+
+        verifyNoTripSaved();
+    }
+
+    @Test
+    void createRejectsSuspendedUserBeforeSaving() {
+        when(userDAO.findById(43L)).thenReturn(Optional.of(
+                UserDTO.builder().userId(43L).status(UserStatus.SUSPENDED.name()).build()
+        ));
+
+        assertThatThrownBy(() -> tripService.create(43L, validRequest()))
+                .isInstanceOf(BusinessException.class)
+                .extracting(exception -> ((BusinessException) exception).getErrorCode())
+                .isEqualTo(ErrorCode.ACCOUNT_SUSPENDED);
+
+        verifyNoTripSaved();
+    }
+
+    @Test
+    void createRejectsWithdrawnUserBeforeSaving() {
+        when(userDAO.findById(43L)).thenReturn(Optional.of(
+                UserDTO.builder().userId(43L).status(UserStatus.WITHDRAWN.name()).build()
+        ));
+
+        assertThatThrownBy(() -> tripService.create(43L, validRequest()))
+                .isInstanceOf(BusinessException.class)
+                .extracting(exception -> ((BusinessException) exception).getErrorCode())
+                .isEqualTo(ErrorCode.ACCOUNT_WITHDRAWN);
+
+        verifyNoTripSaved();
     }
 
     @Test
@@ -195,6 +236,21 @@ class TripServiceTest {
         }).when(tripDAO).insert(any(TripDTO.class));
         doAnswer(invocation -> ((List<?>) invocation.getArgument(0)).size())
                 .when(tripDayDAO).insertAll(anyList());
+    }
+
+    private TripCreateRequest validRequest() {
+        return request(
+                null,
+                LocalDate.of(2026, 8, 10),
+                LocalDate.of(2026, 8, 12),
+                CompanionType.COUPLE,
+                2
+        );
+    }
+
+    private void verifyNoTripSaved() {
+        verify(tripDAO, never()).insert(any(TripDTO.class));
+        verify(tripDayDAO, never()).insertAll(anyList());
     }
 
     private TripCreateRequest request(

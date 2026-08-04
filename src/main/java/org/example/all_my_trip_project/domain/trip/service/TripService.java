@@ -3,6 +3,7 @@ package org.example.all_my_trip_project.domain.trip.service;
 import lombok.RequiredArgsConstructor;
 import org.example.all_my_trip_project.domain.user.dao.UserDAO;
 import org.example.all_my_trip_project.domain.user.dto.UserDTO;
+import org.example.all_my_trip_project.domain.user.type.UserStatus;
 import org.example.all_my_trip_project.domain.trip.dao.TripDAO;
 import org.example.all_my_trip_project.domain.trip.dao.TripDayDAO;
 import org.example.all_my_trip_project.domain.trip.dto.TripCreateRequest;
@@ -103,10 +104,10 @@ public class TripService {
         validateUserId(userId);
         UserDTO user = userDAO.findById(userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.UNAUTHORIZED));
-        if ("SUSPENDED".equals(user.getStatus())) {
+        if (UserStatus.SUSPENDED.matches(user.getStatus())) {
             throw new BusinessException(ErrorCode.ACCOUNT_SUSPENDED);
         }
-        if (!"ACTIVE".equals(user.getStatus())) {
+        if (!UserStatus.ACTIVE.matches(user.getStatus())) {
             throw new BusinessException(ErrorCode.ACCOUNT_WITHDRAWN);
         }
     }
