@@ -1,5 +1,9 @@
 # AI 여행 가이드 API (AI-03)
 
+## 현재 구현 범위
+
+이번 AI-03은 **사용자 질문 기반 Gemini 일정 생성** 범위입니다. Gemini에 전달하는 정보는 질문 문자열뿐이며, 현재 여행, 사용자 선호, 기존 일정, 장소 DB는 아직 프롬프트에 포함하지 않습니다. 해당 데이터 연동과 RAG는 후속 작업으로 분리합니다.
+
 ## 구성
 
 AI 여행 가이드는 현재 화면 DTO를 유지한 채 실행 프로필에 따라 모델 구현체를 선택합니다.
@@ -25,7 +29,7 @@ Content-Type: application/json
 { "question": "부산에서 하루 동안 갈 만한 곳을 추천해줘" }
 ```
 
-성공 응답은 `ApiResponse<AiGuideResponse>` 형식이며 `answer`, `days`, `externalLinks`, `sources`를 반환합니다. Gemini에는 JSON만 반환하도록 요청하고, 파싱 실패·모델 호출 실패·30초 시간 초과는 내부 상세를 노출하지 않는 `502 AI_GENERATION_FAILED` 응답으로 처리합니다.
+성공 응답은 `ApiResponse<AiGuideResponse>` 형식이며 `answer`, `days`, `externalLinks`, `sources`를 반환합니다. Gemini에는 질문 기반 일정 JSON만 반환하도록 요청하고, 파싱 실패·모델 호출 실패·30초 시간 초과는 내부 상세를 노출하지 않는 `502 AI_GENERATION_FAILED` 응답으로 처리합니다.
 
 ## 로컬 실행
 

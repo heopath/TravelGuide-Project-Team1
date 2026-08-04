@@ -24,6 +24,11 @@ public enum ErrorCode {
             "로그인이 필요합니다."
     ),
 
+    AI_REQUEST_LIMIT_EXCEEDED(
+            HttpStatus.TOO_MANY_REQUESTS,
+            "AI 추천 요청이 너무 많습니다. 잠시 후 다시 시도해 주세요."
+    ),
+
     ACCOUNT_SUSPENDED(
             HttpStatus.FORBIDDEN,
             "정지된 계정입니다."

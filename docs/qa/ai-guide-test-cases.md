@@ -14,7 +14,7 @@
 | AI-API-01 | 빈 질문 API 요청 | 400, `success=false`, `VALIDATION_ERROR`가 반환된다. |
 | AI-DOC-01 | Postman 컬렉션 확인 | 성공·검증 오류·Mock 서버 오류 요청을 실행할 수 있다. |
 
-Postman 컬렉션은 AI API의 요청·응답과 Validation을 검증합니다. `ui` 프로필에서는 Mock 응답을, `ui,ai` 프로필에서는 Gemini 응답을 반환합니다.
+Postman 컬렉션은 AI API의 요청·응답과 Validation을 검증합니다. `ui` 프로필에서는 Mock 응답을, `ai,ai-local` 프로필에서는 Gemini 응답을 반환합니다.
 
 ## AI-03 Gemini 연동 확인
 

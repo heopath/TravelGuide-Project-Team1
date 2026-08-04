@@ -3,6 +3,7 @@ package org.example.all_my_trip_project.domain.ai.service;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.example.all_my_trip_project.domain.ai.dto.AiGuideDayResponse;
+import org.example.all_my_trip_project.domain.ai.dto.AiGuideItemResponse;
 import org.example.all_my_trip_project.domain.ai.dto.AiGuideRequest;
 import org.example.all_my_trip_project.domain.ai.dto.AiGuideResponse;
 import org.springframework.ai.chat.model.ChatModel;
@@ -19,12 +20,16 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.List;
+import java.util.regex.Pattern;
 
 @Component
 @Profile("ai")
 public class GeminiAiModelClient implements AiModelClient {
 
     private static final ExecutorService MODEL_CALL_EXECUTOR = Executors.newVirtualThreadPerTaskExecutor();
+    private static final int MAX_DAYS = 30;
+    private static final int MAX_ITEMS_PER_DAY = 10;
+    private static final Pattern TIME_PATTERN = Pattern.compile("^([01]\\d|2[0-3]):[0-5]\\d$");
 
     private static final List<AiGuideResponse.ExternalLink> DEFAULT_EXTERNAL_LINKS = List.of(
             new AiGuideResponse.ExternalLink("FLIGHT", "항공권 검색", "https://www.google.com/travel/flights"),
@@ -134,8 +139,21 @@ public class GeminiAiModelClient implements AiModelClient {
 
     private void validate(GeminiGuideContent content) {
         if (content == null || content.answer() == null || content.answer().isBlank()
-                || content.days() == null || content.days().isEmpty()) {
+                || content.days() == null || content.days().isEmpty() || content.days().size() > MAX_DAYS) {
             throw new AiModelException("Gemini response is missing guide data");
+        }
+        for (AiGuideDayResponse day : content.days()) {
+            if (day == null || day.day() < 1 || day.title() == null || day.title().isBlank()
+                    || day.items() == null || day.items().isEmpty() || day.items().size() > MAX_ITEMS_PER_DAY) {
+                throw new AiModelException("Gemini response has an invalid day");
+            }
+            for (AiGuideItemResponse item : day.items()) {
+                if (item == null || item.time() == null || !TIME_PATTERN.matcher(item.time()).matches()
+                        || item.name() == null || item.name().isBlank()
+                        || item.reason() == null || item.reason().isBlank()) {
+                    throw new AiModelException("Gemini response has an invalid schedule item");
+                }
+            }
         }
     }
 

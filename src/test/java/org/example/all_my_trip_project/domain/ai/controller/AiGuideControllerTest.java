@@ -4,9 +4,11 @@ import org.example.all_my_trip_project.domain.ai.dto.AiGuideDayResponse;
 import org.example.all_my_trip_project.domain.ai.dto.AiGuideItemResponse;
 import org.example.all_my_trip_project.domain.ai.dto.AiGuideResponse;
 import org.example.all_my_trip_project.domain.ai.service.AiGuideService;
+import org.example.all_my_trip_project.domain.ai.service.AiGuideRequestGuard;
 import org.example.all_my_trip_project.domain.ai.service.AiModelException;
 import org.example.all_my_trip_project.global.exception.ApiExceptionHandler;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
@@ -14,8 +16,11 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
 
 import java.util.List;
+import org.example.all_my_trip_project.global.security.AuthenticatedUser;
 
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.not;
@@ -33,14 +38,29 @@ class AiGuideControllerTest {
     @Mock
     private AiGuideService aiGuideService;
 
+    @Mock
+    private AiGuideRequestGuard requestGuard;
+
     private MockMvc mockMvc;
 
     @BeforeEach
     void setUp() {
+        SecurityContextHolder.getContext().setAuthentication(
+                UsernamePasswordAuthenticationToken.authenticated(
+                        new AuthenticatedUser(1L, "ai-test@example.com", "USER"),
+                        null,
+                        List.of()
+                )
+        );
         mockMvc = MockMvcBuilders
-                .standaloneSetup(new AiGuideController(aiGuideService))
+                .standaloneSetup(new AiGuideController(aiGuideService, requestGuard))
                 .setControllerAdvice(new ApiExceptionHandler())
                 .build();
+    }
+
+    @AfterEach
+    void clearSecurityContext() {
+        SecurityContextHolder.clearContext();
     }
 
     @Test
