@@ -12,6 +12,11 @@ public class TripPageController {
     @Value("${kakao.maps.javascript-key:}")
     private String kakaoJavascriptKey;
 
+    @GetMapping("/trips/new/plan")
+    public String newTripPlan() {
+        return "trips/plan";
+    }
+
     @GetMapping("/trips/new/basic")
     public String newTripBasic() {
         return "trips/basic";
