@@ -1,43 +1,65 @@
 {
   "info": {
     "name": "All My Trips - AI Guide",
-    "description": "AI-03 AI 여행 가이드 API 검증용 컬렉션입니다. ui 프로필에서는 Mock 응답을, ai,ai-local 프로필에서는 GEMINI_API_KEY 환경 변수로 Gemini 응답을 검증합니다. 키 값은 컬렉션 변수에 저장하지 않습니다.",
+    "description": "AI Guide API collection. Authenticate first, call GET /api/v1/csrf, then send the returned token in the configured CSRF header.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
-    { "key": "baseUrl", "value": "http://localhost:8080" }
+    { "key": "baseUrl", "value": "http://localhost:8080" },
+    { "key": "tripId", "value": "1" },
+    { "key": "csrfHeaderName", "value": "X-CSRF-TOKEN" },
+    { "key": "csrfToken", "value": "" }
   ],
   "item": [
     {
-      "name": "AI 일정 추천 성공",
+      "name": "Get CSRF token",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "const payload = pm.response.json();",
+              "pm.collectionVariables.set('csrfHeaderName', payload.headerName);",
+              "pm.collectionVariables.set('csrfToken', payload.token);"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Accept", "value": "application/json" }],
+        "url": { "raw": "{{baseUrl}}/api/v1/csrf", "host": ["{{baseUrl}}"], "path": ["api", "v1", "csrf"] }
+      }
+    },
+    {
+      "name": "Generate guide with owned trip",
       "request": {
         "method": "POST",
         "header": [
           { "key": "Content-Type", "value": "application/json" },
-          { "key": "Accept", "value": "application/json" }
+          { "key": "Accept", "value": "application/json" },
+          { "key": "{{csrfHeaderName}}", "value": "{{csrfToken}}" }
         ],
-        "body": { "mode": "raw", "raw": "{\n  \"question\": \"부산에서 하루 동안 갈 만한 곳을 추천해줘\"\n}" },
+        "body": { "mode": "raw", "raw": "{\n  \"tripId\": {{tripId}},\n  \"question\": \"Recommend dinner that fits my current itinerary\"\n}" },
         "url": { "raw": "{{baseUrl}}/api/v1/ai-guides/generate", "host": ["{{baseUrl}}"], "path": ["api", "v1", "ai-guides", "generate"] }
       }
     },
     {
-      "name": "빈 질문 검증 오류",
+      "name": "Validation error - missing tripId",
       "request": {
         "method": "POST",
-        "header": [{ "key": "Content-Type", "value": "application/json" }],
-        "body": { "mode": "raw", "raw": "{\n  \"question\": \"\"\n}" },
+        "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "{{csrfHeaderName}}", "value": "{{csrfToken}}" }],
+        "body": { "mode": "raw", "raw": "{\n  \"question\": \"Recommend dinner\"\n}" },
         "url": { "raw": "{{baseUrl}}/api/v1/ai-guides/generate", "host": ["{{baseUrl}}"], "path": ["api", "v1", "ai-guides", "generate"] }
       }
     },
     {
-      "name": "Mock 서버 오류 (ui 프로필 전용)",
+      "name": "Trip not found or not owned",
       "request": {
         "method": "POST",
-        "header": [
-          { "key": "Content-Type", "value": "application/json" },
-          { "key": "X-AI-Mock-Mode", "value": "server-error" }
-        ],
-        "body": { "mode": "raw", "raw": "{\n  \"question\": \"서버 오류 테스트\"\n}" },
+        "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "{{csrfHeaderName}}", "value": "{{csrfToken}}" }],
+        "body": { "mode": "raw", "raw": "{\n  \"tripId\": 999999999,\n  \"question\": \"Recommend dinner\"\n}" },
         "url": { "raw": "{{baseUrl}}/api/v1/ai-guides/generate", "host": ["{{baseUrl}}"], "path": ["api", "v1", "ai-guides", "generate"] }
       }
     }
