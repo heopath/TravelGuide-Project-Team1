@@ -56,6 +56,7 @@ const ALL_MY_TRIPS_TEMPLATE_ROUTES = {
   "/home": "home/home",
   "/auth/login": "auth/login",
   "/auth/signup": "auth/signup",
+  "/trips/new/plan": "trips/plan",
   "/trips/new/basic": "trips/basic",
   "/trips/new/style": "trips/style",
   "/guide": "guide/guide",
@@ -149,6 +150,11 @@ const ALL_MY_TRIPS_SCREENS = [
     "auth"
   ],
   [
+    "/trips/new/plan",
+    "여행 계획 방식",
+    "trips"
+  ],
+  [
     "/trips/new/basic",
     "여행 기본 정보",
     "trips"
@@ -156,10 +162,6 @@ const ALL_MY_TRIPS_SCREENS = [
   [
     "/trips/new/style",
     "여행 스타일",
-    "trips"
-  ],
-  [
-    "여행지 추천",
     "trips"
   ],
   [

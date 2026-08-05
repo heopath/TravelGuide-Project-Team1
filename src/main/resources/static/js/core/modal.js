@@ -25,10 +25,6 @@ const ALL_MY_TRIPS_SCREENS = [
     "trips"
   ],
   [
-    "여행지 추천",
-    "trips"
-  ],
-  [
     "/guide",
     "여행 가이드",
     "guide"
