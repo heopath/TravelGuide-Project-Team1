@@ -2,6 +2,7 @@ const ALL_MY_TRIPS_TEMPLATE_ROUTES = {
   "/home": "home/home",
   "/auth/login": "auth/login",
   "/auth/signup": "auth/signup",
+  "/trips/new/plan": "trips/plan",
   "/trips/new/basic": "trips/basic",
   "/trips/new/style": "trips/style",
   "/guide": "guide/guide",
