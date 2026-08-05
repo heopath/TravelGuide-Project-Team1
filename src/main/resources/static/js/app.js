@@ -58,7 +58,6 @@ const ALL_MY_TRIPS_TEMPLATE_ROUTES = {
   "/auth/signup": "auth/signup",
   "/trips/new/basic": "trips/basic",
   "/trips/new/style": "trips/style",
-  "/trips/recommendations": "trips/recommendations",
   "/guide": "guide/guide",
   "/guide/places/haeundae": "guide/place-detail",
   "/trips/busan/schedule": "trips/schedule",
@@ -160,7 +159,6 @@ const ALL_MY_TRIPS_SCREENS = [
     "trips"
   ],
   [
-    "/trips/recommendations",
     "여행지 추천",
     "trips"
   ],
