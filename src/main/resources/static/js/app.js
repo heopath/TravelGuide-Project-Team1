@@ -63,6 +63,7 @@ const ALL_MY_TRIPS_TEMPLATE_ROUTES = {
   "/guide/places/haeundae": "guide/place-detail",
   "/trips/busan/schedule": "trips/schedule",
   "/trips/busan/map": "trips/map",
+  "/ai-trip-plan": "guide/ai-trip-plan",
   "/ai-guide": "guide/ai-guide",
   "/trips/busan/optimize": "trips/optimize",
   "/guide/themes": "guide/themes",
@@ -182,6 +183,11 @@ const ALL_MY_TRIPS_SCREENS = [
   [
     "/trips/busan/map",
     "지도 기반 경로",
+    "trips"
+  ],
+  [
+    "/ai-trip-plan",
+    "AI 여행계획",
     "trips"
   ],
   [

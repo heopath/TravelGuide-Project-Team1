@@ -7,6 +7,8 @@ import org.springframework.web.bind.annotation.GetMapping;
 
 @Controller
 public class AiPageController {
+    @Value("${kakao.maps.javascript-key:}")
+    private String kakaoJavascriptKey;
 
     @Value("${ai.guide.mock.enabled:false}")
     private boolean mockEnabled;
@@ -15,5 +17,11 @@ public class AiPageController {
     public String aiGuide(Model model) {
         model.addAttribute("aiMockEnabled", mockEnabled);
         return "guide/ai-guide";
+    }
+
+    @GetMapping("/ai-trip-plan")
+    public String aiTripPlan(Model model) {
+        model.addAttribute("kakaoJavascriptKey", kakaoJavascriptKey);
+        return "guide/ai-trip-plan";
     }
 }

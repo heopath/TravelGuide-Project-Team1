@@ -37,19 +37,33 @@
                   <h1>All My Trips</h1>
                   <p>마이티와 함께, 상상하던 여행 속으로.</p>
                 </div>
-                <div class="home-search">
-                  <button type="button" data-modal="destination"><span>✈</span><b>어디로 가세요?</b></button>
-                  <button type="button" data-modal="date"><span>▣</span><b>가는 날</b></button>
-                  <button type="button" data-modal="guests"><span>♙</span><b>여행 인원</b></button>
-                  <button class="search-submit" type="button" data-route="/trips/new/basic" aria-label="여행 검색">⌕</button>
-                </div>
+                <form class="home-search" data-ai-trip-search novalidate>
+                  <label class="home-search-field" for="home-destination">
+                    <span aria-hidden="true">✈</span><b>어디로 가세요?</b>
+                    <input id="home-destination" name="destination" type="text" maxlength="80" autocomplete="off" placeholder="여행지를 입력하세요" required />
+                  </label>
+                  <label class="home-search-field" for="home-start-date">
+                    <span aria-hidden="true">▣</span><b>여행 기간</b>
+                    <span class="home-date-range">
+                      <input id="home-start-date" name="startDate" type="date" aria-label="여행 시작일" required />
+                      <i aria-hidden="true">~</i>
+                      <input id="home-end-date" name="endDate" type="date" aria-label="여행 종료일" required />
+                    </span>
+                  </label>
+                  <label class="home-search-field" for="home-travelers">
+                    <span aria-hidden="true">♙</span><b>여행 인원</b>
+                    <input id="home-travelers" name="travelers" type="number" min="1" max="20" value="1" inputmode="numeric" required />
+                  </label>
+                  <button class="search-submit" type="submit" aria-label="AI 여행계획 만들기" disabled>⌕</button>
+                </form>
+                <p class="home-search-error" data-ai-trip-search-error role="alert" hidden></p>
                 <p class="hero-caption">목적지, 날짜, 인원만 알려주면 마이티가 취향에 맞는 여행을 제안해요.</p>
               </div>
 
               <div class="home-world-finale" data-world-finale>
                 <span>YOUR TRIP, YOUR STORY</span>
                 <h2>이제, 당신의 여행을<br />시작해 보세요.</h2>
-                <button type="button" data-route="/trips/new/basic">여행 계획 만들기 <b>→</b></button>
+                <button type="button" data-route="/ai-trip-plan">AI 여행계획 만들기 <b>→</b></button>
               </div>
 
               <div class="home-world-progress" aria-hidden="true"><i data-world-progress></i></div>
