@@ -1,6 +1,9 @@
 package org.example.all_my_trip_project.domain.place.controller;
 
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.example.all_my_trip_project.domain.place.dto.KakaoPlaceCreateRequest;
+import org.example.all_my_trip_project.domain.place.dto.PlaceCreationResult;
 import org.example.all_my_trip_project.domain.place.dto.PlaceDTO;
 import org.example.all_my_trip_project.domain.place.dto.PlaceDetailResult;
 import org.example.all_my_trip_project.domain.place.service.PlaceService;
@@ -22,10 +25,18 @@ public class PlaceController {
     private final PlaceService placeService;
 
     @PostMapping
-    public ResponseEntity<ApiResponse<PlaceDTO>> create(@RequestBody PlaceDTO place) {
-        Long id = placeService.create(place);
-        return ResponseEntity.created(URI.create("/api/v1/places/" + id))
-                .body(ApiResponse.success("장소가 생성되었습니다.", placeService.get(id)));
+    public ResponseEntity<ApiResponse<PlaceDTO>> create(
+            @Valid @RequestBody KakaoPlaceCreateRequest request) {
+        PlaceCreationResult result = placeService.findOrCreateKakaoPlace(request);
+        ApiResponse<PlaceDTO> body = ApiResponse.success(
+                result.created() ? "장소가 생성되었습니다." : "기존 장소를 불러왔습니다.",
+                result.place()
+        );
+        if (result.created()) {
+            return ResponseEntity.created(URI.create("/api/v1/places/" + result.place().getPlaceId()))
+                    .body(body);
+        }
+        return ResponseEntity.ok(body);
     }
 
     @GetMapping("/{placeId}")
@@ -53,18 +64,5 @@ public class PlaceController {
             places = placeService.getPage(userId, page, size);
         }
         return ApiResponse.success(places);
-    }
-
-    @PutMapping("/{placeId}")
-    public ApiResponse<PlaceDTO> update(@PathVariable Long placeId, @RequestBody PlaceDTO place) {
-        place.setPlaceId(placeId);
-        placeService.update(place);
-        return ApiResponse.success("장소 정보가 수정되었습니다.", placeService.get(placeId));
-    }
-
-    @DeleteMapping("/{placeId}")
-    public ResponseEntity<ApiResponse<Void>> delete(@PathVariable Long placeId) {
-        placeService.delete(placeId);
-        return ResponseEntity.ok(ApiResponse.success("장소가 삭제되었습니다.", null));
     }
 }

@@ -17,7 +17,10 @@ import java.util.Optional;
 public class PlaceDAO {
     private final PlaceMapper placeMapper;
 
-    public int insert(PlaceDTO place) { return placeMapper.insert(place); }
+    public int insertKakaoIfAbsent(PlaceDTO place) { return placeMapper.insertKakaoIfAbsent(place); }
+    public Optional<PlaceDTO> findByExternal(String provider, String externalPlaceId) {
+        return placeMapper.findByExternal(provider, externalPlaceId);
+    }
     public Optional<PlaceDTO> findById(Long placeId) { return placeMapper.findById(placeId); }
     public List<PlaceImageResult> findImagesByPlaceId(Long placeId) {
         return placeMapper.findImagesByPlaceId(placeId);
@@ -33,6 +36,4 @@ public class PlaceDAO {
                                  Long styleId, int offset, int size) {
         return placeMapper.search(userId, keyword, category, region, styleId, offset, size);
     }
-    public int update(PlaceDTO place) { return placeMapper.update(place); }
-    public int delete(Long placeId) { return placeMapper.delete(placeId); }
 }

@@ -1,7 +1,9 @@
 package org.example.all_my_trip_project.domain.place.service;
 
 import org.example.all_my_trip_project.domain.place.dao.PlaceDAO;
+import org.example.all_my_trip_project.domain.place.dto.KakaoPlaceCreateRequest;
 import org.example.all_my_trip_project.domain.place.dto.PlaceDTO;
+import org.example.all_my_trip_project.domain.place.dto.PlaceCreationResult;
 import org.example.all_my_trip_project.domain.place.dto.PlaceDetailResult;
 import org.example.all_my_trip_project.domain.place.dto.PlaceImageResult;
 import org.example.all_my_trip_project.domain.place.dto.PlaceStyleResult;
@@ -12,9 +14,11 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.List;
+import java.math.BigDecimal;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -26,6 +30,45 @@ class PlaceServiceTest {
 
     @InjectMocks
     private PlaceService placeService;
+
+    @Test
+    void createsKakaoPlaceOnceAndReturnsPersistedPlace() {
+        KakaoPlaceCreateRequest request = kakaoRequest("12345");
+        PlaceDTO persisted = PlaceDTO.builder()
+                .placeId(100L)
+                .externalProvider("KAKAO")
+                .externalPlaceId("12345")
+                .name("해운대")
+                .build();
+        when(placeDAO.insertKakaoIfAbsent(any(PlaceDTO.class))).thenReturn(1);
+        when(placeDAO.findByExternal("KAKAO", "12345")).thenReturn(java.util.Optional.of(persisted));
+
+        PlaceCreationResult result = placeService.findOrCreateKakaoPlace(request);
+
+        assertThat(result.created()).isTrue();
+        assertThat(result.place()).isSameAs(persisted);
+    }
+
+    @Test
+    void duplicateKakaoPlaceReturnsExistingPlace() {
+        KakaoPlaceCreateRequest request = kakaoRequest("12345");
+        PlaceDTO existing = PlaceDTO.builder().placeId(100L).externalPlaceId("12345").build();
+        when(placeDAO.insertKakaoIfAbsent(any(PlaceDTO.class))).thenReturn(0);
+        when(placeDAO.findByExternal("KAKAO", "12345")).thenReturn(java.util.Optional.of(existing));
+
+        PlaceCreationResult result = placeService.findOrCreateKakaoPlace(request);
+
+        assertThat(result.created()).isFalse();
+        assertThat(result.place()).isSameAs(existing);
+    }
+
+    private KakaoPlaceCreateRequest kakaoRequest(String externalPlaceId) {
+        return new KakaoPlaceCreateRequest(
+                externalPlaceId, "ATTRACTION", "해운대", "부산", "해운대구", "부산 해운대구",
+                new BigDecimal("35.1587"), new BigDecimal("129.1604"), null,
+                "https://place.map.kakao.com/12345"
+        );
+    }
 
     @Test
     void getDetailCombinesPlaceImagesAndStyles() {

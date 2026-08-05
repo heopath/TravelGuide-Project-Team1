@@ -383,20 +383,12 @@ document.addEventListener("DOMContentLoaded", function () {
 
   async function findOrCreatePlace(kakaoPlace) {
     const placePayload = {
-      externalProvider:"KAKAO", externalPlaceId:kakaoPlace.id, category:mapKakaoCategory(kakaoPlace),
-      name:kakaoPlace.place_name, countryCode:"KR", region:kakaoPlace.address_name?.split(" ")[0] || "",
+      externalPlaceId:kakaoPlace.id, category:mapKakaoCategory(kakaoPlace),
+      name:kakaoPlace.place_name, region:kakaoPlace.address_name?.split(" ")[0] || "",
       city:kakaoPlace.address_name?.split(" ")[1] || "", address:kakaoPlace.road_address_name || kakaoPlace.address_name,
-      latitude:Number(kakaoPlace.y), longitude:Number(kakaoPlace.x), phone:kakaoPlace.phone, websiteUrl:kakaoPlace.place_url, active:true,
+      latitude:Number(kakaoPlace.y), longitude:Number(kakaoPlace.x), phone:kakaoPlace.phone, websiteUrl:kakaoPlace.place_url,
     };
-    try {
-      return await api("/api/v1/places", {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(placePayload)});
-    } catch (error) {
-      if (error.status !== 409 && error.status !== 500) throw error;
-      const matches = await api("/api/v1/places?keyword=" + encodeURIComponent(kakaoPlace.place_name) + "&size=20");
-      const existing = matches.find(function (place) { return place.externalProvider === "KAKAO" && String(place.externalPlaceId) === String(kakaoPlace.id); });
-      if (!existing) throw error;
-      return existing;
-    }
+    return api("/api/v1/places", {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(placePayload)});
   }
 
   async function addPlaceToDay(kakaoPlace) {

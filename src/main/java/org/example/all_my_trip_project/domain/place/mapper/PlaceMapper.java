@@ -11,7 +11,9 @@ import java.util.Optional;
 
 @Mapper
 public interface PlaceMapper {
-    int insert(PlaceDTO place);
+    int insertKakaoIfAbsent(PlaceDTO place);
+    Optional<PlaceDTO> findByExternal(@Param("provider") String provider,
+                                      @Param("externalPlaceId") String externalPlaceId);
     Optional<PlaceDTO> findById(Long placeId);
     List<PlaceImageResult> findImagesByPlaceId(Long placeId);
     List<PlaceStyleResult> findStylesByPlaceId(Long placeId);
@@ -26,6 +28,4 @@ public interface PlaceMapper {
                           @Param("styleId") Long styleId,
                           @Param("offset") int offset,
                           @Param("size") int size);
-    int update(PlaceDTO place);
-    int delete(Long placeId);
 }

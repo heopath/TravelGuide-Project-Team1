@@ -2,9 +2,10 @@ package org.example.all_my_trip_project.domain.place.service;
 
 import lombok.RequiredArgsConstructor;
 import org.example.all_my_trip_project.domain.place.dao.PlaceDAO;
+import org.example.all_my_trip_project.domain.place.dto.KakaoPlaceCreateRequest;
+import org.example.all_my_trip_project.domain.place.dto.PlaceCreationResult;
 import org.example.all_my_trip_project.domain.place.dto.PlaceDTO;
 import org.example.all_my_trip_project.domain.place.dto.PlaceDetailResult;
-import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.context.annotation.Profile;
@@ -23,9 +24,26 @@ public class PlaceService {
     private final PlaceDAO placeDAO;
 
     @Transactional
-    public Long create(PlaceDTO place) {
-        placeDAO.insert(place);
-        return place.getPlaceId();
+    public PlaceCreationResult findOrCreateKakaoPlace(KakaoPlaceCreateRequest request) {
+        PlaceDTO candidate = PlaceDTO.builder()
+                .externalProvider("KAKAO")
+                .externalPlaceId(request.externalPlaceId().trim())
+                .category(request.category())
+                .name(request.name().trim())
+                .countryCode("KR")
+                .region(request.region())
+                .city(request.city())
+                .address(request.address())
+                .latitude(request.latitude())
+                .longitude(request.longitude())
+                .phone(request.phone())
+                .websiteUrl(request.websiteUrl())
+                .active(true)
+                .build();
+        boolean created = placeDAO.insertKakaoIfAbsent(candidate) > 0;
+        PlaceDTO place = placeDAO.findByExternal("KAKAO", candidate.getExternalPlaceId())
+                .orElseThrow(() -> new IllegalStateException("카카오 장소 저장 결과를 찾을 수 없습니다."));
+        return new PlaceCreationResult(place, created);
     }
 
     public PlaceDTO get(Long placeId) {
@@ -94,21 +112,5 @@ public class PlaceService {
             return null;
         }
         return value.trim();
-    }
-
-    @Transactional
-    @CacheEvict(cacheNames = "placeDetail", key = "#place.placeId")
-    public void update(PlaceDTO place) {
-        if (placeDAO.update(place) == 0) {
-            throw new IllegalArgumentException("수정할 장소를 찾을 수 없습니다. placeId=" + place.getPlaceId());
-        }
-    }
-
-    @Transactional
-    @CacheEvict(cacheNames = "placeDetail", key = "#placeId")
-    public void delete(Long placeId) {
-        if (placeDAO.delete(placeId) == 0) {
-            throw new IllegalArgumentException("삭제할 장소를 찾을 수 없습니다. placeId=" + placeId);
-        }
     }
 }

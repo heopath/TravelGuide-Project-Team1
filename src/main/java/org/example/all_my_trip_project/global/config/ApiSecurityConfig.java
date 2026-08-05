@@ -36,6 +36,7 @@ public class ApiSecurityConfig {
                 .securityMatcher("/api/**")
                 .authorizeHttpRequests(authorize -> authorize
                         .requestMatchers(HttpMethod.POST, "/api/v1/ai-guides/generate").authenticated()
+                        .requestMatchers(HttpMethod.POST, "/api/v1/places").authenticated()
                         .anyRequest().permitAll()
                 )
                 .csrf(csrf -> csrf

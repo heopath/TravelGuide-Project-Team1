@@ -3,6 +3,10 @@ package org.example.all_my_trip_project.global.security;
 import org.example.all_my_trip_project.domain.auth.service.AuthService;
 import org.example.all_my_trip_project.domain.favorite.controller.FavoriteController;
 import org.example.all_my_trip_project.domain.favorite.service.FavoriteService;
+import org.example.all_my_trip_project.domain.place.controller.PlaceController;
+import org.example.all_my_trip_project.domain.place.dto.PlaceCreationResult;
+import org.example.all_my_trip_project.domain.place.dto.PlaceDTO;
+import org.example.all_my_trip_project.domain.place.service.PlaceService;
 import org.example.all_my_trip_project.domain.trip.controller.ItineraryItemController;
 import org.example.all_my_trip_project.domain.trip.controller.TripController;
 import org.example.all_my_trip_project.domain.trip.dto.TripCreateResult;
@@ -39,7 +43,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @WebMvcTest(controllers = {
         CsrfController.class, TripController.class, FavoriteController.class,
-        ItineraryItemController.class, MemberController.class
+        ItineraryItemController.class, MemberController.class, PlaceController.class
 })
 @Import({ApiSecurityConfig.class, SecurityConfig.class})
 @ActiveProfiles("test")
@@ -50,6 +54,7 @@ class CsrfSecurityIntegrationTest {
     @MockitoBean FavoriteService favoriteService;
     @MockitoBean ItineraryItemService itineraryItemService;
     @MockitoBean MemberService memberService;
+    @MockitoBean PlaceService placeService;
     @MockitoBean AuthService authService;
 
     private final AuthenticatedUser principal =
@@ -109,6 +114,35 @@ class CsrfSecurityIntegrationTest {
                 .andExpect(status().isForbidden());
         mockMvc.perform(post("/api/v1/trip-days/20/items").with(authentication(authenticated)).with(csrf().asHeader())
                         .contentType("application/json").content("{}"))
+                .andExpect(status().isCreated());
+    }
+
+    @Test
+    void placeLookupIsPublicButCreationRequiresLoginAndCsrf() throws Exception {
+        String body = """
+                {
+                  "externalPlaceId": "12345",
+                  "category": "ATTRACTION",
+                  "name": "해운대",
+                  "region": "부산",
+                  "city": "해운대구",
+                  "address": "부산 해운대구",
+                  "latitude": 35.1587,
+                  "longitude": 129.1604,
+                  "websiteUrl": "https://place.map.kakao.com/12345"
+                }
+                """;
+        PlaceDTO place = PlaceDTO.builder().placeId(100L).name("해운대").build();
+        when(placeService.findOrCreateKakaoPlace(any())).thenReturn(new PlaceCreationResult(place, true));
+        when(placeService.getPage(null, 0, 20)).thenReturn(List.of());
+
+        mockMvc.perform(get("/api/v1/places"))
+                .andExpect(status().isOk());
+        mockMvc.perform(post("/api/v1/places").with(csrf().asHeader())
+                        .contentType("application/json").content(body))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(post("/api/v1/places").with(authentication(authenticated)).with(csrf().asHeader())
+                        .contentType("application/json").content(body))
                 .andExpect(status().isCreated());
     }
 
