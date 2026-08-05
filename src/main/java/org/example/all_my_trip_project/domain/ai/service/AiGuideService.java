@@ -23,9 +23,9 @@ public class AiGuideService {
         if (mockEnabled && simulateServerError) {
             throw new IllegalStateException("AI mock server error");
         }
-        List<AiConversationTurn> history = conversationHistoryService.load(userId);
+        List<AiConversationTurn> history = conversationHistoryService.load(userId, request.tripId());
         AiGuideResponse response = aiModelClient.generate(request, history, contextService.load(userId, request));
-        conversationHistoryService.append(userId, request.question(), response.answer());
+        conversationHistoryService.append(userId, request.tripId(), request.question(), response.answer());
         return response;
     }
 }

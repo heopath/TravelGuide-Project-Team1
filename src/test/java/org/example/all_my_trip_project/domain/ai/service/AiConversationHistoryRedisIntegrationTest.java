@@ -55,7 +55,9 @@ class AiConversationHistoryRedisIntegrationTest {
         @SuppressWarnings("unchecked")
         ObjectProvider<StringRedisTemplate> templateProvider = mock(ObjectProvider.class);
         when(templateProvider.getIfAvailable()).thenReturn(redisTemplate);
-        historyService = new AiConversationHistoryService(templateProvider);
+        @SuppressWarnings("unchecked")
+        ObjectProvider<AiConversationPersistenceService> persistenceProvider = mock(ObjectProvider.class);
+        historyService = new AiConversationHistoryService(templateProvider, persistenceProvider);
     }
 
     @AfterEach

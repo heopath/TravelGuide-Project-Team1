@@ -52,7 +52,10 @@ class GeminiAiModelClientTest {
 
         ArgumentCaptor<String> prompt = ArgumentCaptor.forClass(String.class);
         verify(chatModel).call(prompt.capture());
-        assertThat(prompt.getValue()).contains("Recommend a cafe", "Busan", "Food travel", "Near Gwangalli", "Gwangalli dinner");
+        assertThat(prompt.getValue()).contains(
+                "Recommend a cafe", "Busan", "Food travel", "Near Gwangalli", "Gwangalli dinner",
+                "count the candidates exactly from top to bottom", "Do not choose a different candidate"
+        );
     }
 
     @Test
