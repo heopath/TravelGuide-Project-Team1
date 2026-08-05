@@ -36,6 +36,9 @@ public class ApiSecurityConfig {
                 .securityMatcher("/api/**")
                 .authorizeHttpRequests(authorize -> authorize
                         .requestMatchers(HttpMethod.POST, "/api/v1/ai-guides/generate").authenticated()
+                        // 장소는 여러 사용자의 일정이 참조하는 공용 데이터이므로 생성은 로그인 사용자만 허용한다.
+                        // 조회(GET)는 비로그인 탐색을 허용해야 하므로 permitAll을 유지한다.
+                        .requestMatchers(HttpMethod.POST, "/api/v1/places").authenticated()
                         .anyRequest().permitAll()
                 )
                 .csrf(csrf -> csrf
