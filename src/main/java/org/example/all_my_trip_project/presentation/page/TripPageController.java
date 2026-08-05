@@ -21,13 +21,7 @@ public class TripPageController {
     public String newTripStyle() {
         return "trips/style";
     }
-
-    @GetMapping("/trips/recommendations")
-    public String tripRecommendations() {
-        return "trips/recommendations";
-    }
-
-    @GetMapping("/trips/schedule")
+@GetMapping("/trips/schedule")
     public String tripSchedule(Model model) {
         model.addAttribute("kakaoJavascriptKey", kakaoJavascriptKey);
         return "trips/schedule";

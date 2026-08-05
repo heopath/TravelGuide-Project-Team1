@@ -36,7 +36,12 @@ document.addEventListener("DOMContentLoaded", function () {
         throw new Error(result.message || "로그인에 실패했습니다.");
       }
 
-      window.location.href = "/home";
+      const redirectUrl = sessionStorage.getItem("postLoginRedirect") || "/home";
+      sessionStorage.removeItem("postLoginRedirect");
+      const safeRedirect = redirectUrl.startsWith("/") && !redirectUrl.startsWith("//")
+        ? redirectUrl
+        : "/home";
+      window.location.href = safeRedirect;
     } catch (error) {
       errorMessage.textContent = error.message;
       errorMessage.hidden = false;
