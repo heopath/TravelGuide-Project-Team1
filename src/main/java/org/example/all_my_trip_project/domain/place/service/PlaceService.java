@@ -95,7 +95,8 @@ public class PlaceService {
         }
         return value.trim();
     }
-
+    
+    // update()·delete()는 공개 API로 노출하지 않는다. 관리자용 장소 관리와 외부 동기화(2차 구현)에서 사용 예정.
     @Transactional
     @CacheEvict(cacheNames = "placeDetail", key = "#place.placeId")
     public void update(PlaceDTO place) {

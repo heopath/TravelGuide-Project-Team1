@@ -40,13 +40,15 @@ domain
 | Controller | 기본 URL | 역할 |
 | --- | --- | --- |
 | `MemberController` | `/api/v1/members` | 인증된 본인의 정보 조회·수정 및 여행 선호 관리 |
-| `PlaceController` | `/api/v1/places` | 장소 등록·검색·조회·수정·삭제 |
+| `PlaceController` | `/api/v1/places` | 장소 등록(로그인 필요)·검색·조회 |
 | `TripController` | `/api/v1/trips` | 여행·날짜별 DAY 원자적 등록, 회원별 조회·수정·삭제 |
 | `TripDayController` | `/api/v1/trips/{tripId}/days` | 여행 일자 조회·수정·삭제 및 개별 등록 |
 | `ItineraryItemController` | `/api/v1/trip-days/{tripDayId}/items` | 세부 일정 등록·조회·수정·삭제 |
 | `FavoriteController` | `/api/v1/favorites` | 찜 등록·목록·개수·장소별 상태 조회·해제 |
 
 `ApiExceptionHandler`는 잘못된 ID나 날짜에 대해 HTTP 400과 오류 메시지를 JSON으로 반환한다.
+
+> 장소 마스터 데이터를 인증 없이 수정·삭제할 수 있던 `PUT /api/v1/places/{placeId}`와 `DELETE /api/v1/places/{placeId}`는 제거했다. 장소는 여러 사용자의 일정이 참조하는 공용 데이터라 임의 변경 시 타인의 일정이 함께 깨진다. 호출하는 화면이 없었고, 관리자용 장소 관리와 외부 동기화는 2차 구현의 `PlaceSyncService`·`AdminService` 범위에서 다룬다. `POST /api/v1/places`는 일정 화면의 `findOrCreatePlace()`가 사용하므로 유지하되 `ApiSecurityConfig`에서 인증을 요구하도록 바꿨다.
 
 > 초기 스캐폴딩이던 `UserController`(`/api/users`)는 제거했다. 인증 없이 전체 회원 조회·수정·탈퇴가 가능한 경로였고, 호출하는 화면이 없었으며, 기능은 세션 인증을 거치는 `MemberController`가 대체한다. 관리자용 회원 관리는 2차 구현의 `AdminService` 범위에서 다룬다.
 

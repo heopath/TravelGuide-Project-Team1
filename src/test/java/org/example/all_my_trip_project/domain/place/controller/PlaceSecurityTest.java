@@ -1,8 +1,7 @@
-package org.example.all_my_trip_project.domain.ai.controller;
+package org.example.all_my_trip_project.domain.place.controller;
 
-import org.example.all_my_trip_project.domain.ai.service.AiGuideRequestGuard;
-import org.example.all_my_trip_project.domain.ai.service.AiGuideService;
-import org.example.all_my_trip_project.domain.ai.dto.AiGuideResponse;
+import org.example.all_my_trip_project.domain.place.dto.PlaceDTO;
+import org.example.all_my_trip_project.domain.place.service.PlaceService;
 import org.example.all_my_trip_project.global.config.ApiSecurityConfig;
 import org.example.all_my_trip_project.global.security.AuthenticatedUser;
 import org.junit.jupiter.api.Test;
@@ -12,72 +11,79 @@ import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@WebMvcTest(AiGuideController.class)
+// PlaceController는 @Profile("!ui")이고 기본 프로필이 ui이므로, 빈이 등록되도록 test 프로필을 활성화한다.
+@WebMvcTest(PlaceController.class)
 @Import(ApiSecurityConfig.class)
-class AiGuideSecurityTest {
+@ActiveProfiles("test")
+class PlaceSecurityTest {
 
-    // AiGuideRequest는 tripId를 필수로 요구하므로 본문에 함께 담는다.
-    private static final String AI_GUIDE_JSON = """
-            {"question":"여행 추천","tripId":1}
+    private static final String PLACE_JSON = """
+            {"externalProvider":"KAKAO","externalPlaceId":"1","category":"ATTRACTION",
+             "name":"성산일출봉","countryCode":"KR","region":"제주","city":"서귀포시","active":true}
             """;
 
     @Autowired
     private MockMvc mockMvc;
 
     @MockitoBean
-    private AiGuideService aiGuideService;
-
-    @MockitoBean
-    private AiGuideRequestGuard requestGuard;
+    private PlaceService placeService;
 
     @Test
-    void rejectsUnauthenticatedAiGuideGenerationRequestEvenWithCsrfToken() throws Exception {
-        mockMvc.perform(post("/api/v1/ai-guides/generate")
+    void rejectsUnauthenticatedPlaceCreationEvenWithCsrfToken() throws Exception {
+        mockMvc.perform(post("/api/v1/places")
                         .with(csrf().asHeader())
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(AI_GUIDE_JSON))
+                        .content(PLACE_JSON))
                 .andExpect(status().isForbidden());
     }
 
     @Test
-    void rejectsAuthenticatedAiGuideGenerationRequestWithoutCsrfToken() throws Exception {
-        mockMvc.perform(post("/api/v1/ai-guides/generate")
+    void rejectsAuthenticatedPlaceCreationWithoutCsrfToken() throws Exception {
+        mockMvc.perform(post("/api/v1/places")
                         .with(authentication(authenticatedUser()))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(AI_GUIDE_JSON))
+                        .content(PLACE_JSON))
                 .andExpect(status().isForbidden());
     }
 
     @Test
-    void acceptsAuthenticatedAiGuideGenerationRequestWithValidCsrfToken() throws Exception {
-        when(aiGuideService.generate(any(), eq(false), eq(1L))).thenReturn(new AiGuideResponse(
-                "추천 결과", List.of(), List.of(), List.of("Gemini AI")
-        ));
+    void acceptsAuthenticatedPlaceCreationWithValidCsrfToken() throws Exception {
+        when(placeService.create(any(PlaceDTO.class))).thenReturn(1L);
+        when(placeService.get(1L)).thenReturn(new PlaceDTO());
 
-        mockMvc.perform(post("/api/v1/ai-guides/generate")
+        mockMvc.perform(post("/api/v1/places")
                         .with(authentication(authenticatedUser()))
                         .with(csrf().asHeader())
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(AI_GUIDE_JSON))
+                        .content(PLACE_JSON))
+                .andExpect(status().isCreated());
+    }
+
+    @Test
+    void allowsAnonymousPlaceLookup() throws Exception {
+        when(placeService.getPage(null, 0, 20)).thenReturn(List.of());
+
+        mockMvc.perform(get("/api/v1/places"))
                 .andExpect(status().isOk());
     }
 
     private UsernamePasswordAuthenticationToken authenticatedUser() {
         return UsernamePasswordAuthenticationToken.authenticated(
-                new AuthenticatedUser(1L, "ai-test@example.com", "USER"),
+                new AuthenticatedUser(1L, "place-test@example.com", "USER"),
                 null,
                 List.of(new SimpleGrantedAuthority("ROLE_USER"))
         );

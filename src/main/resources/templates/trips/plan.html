@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="All My Trips 여행 계획 방식 선택" />
+  <title>여행 계획 — All My Trips</title>
+  <link rel="icon" th:href="@{/images/icons/app-icon.png}" href="../../static/images/icons/app-icon.png" />
+  <link rel="stylesheet" th:href="@{/css/common/reset.css}" href="../../static/css/common/reset.css" />
+  <link rel="stylesheet" th:href="@{/css/common/layout.css}" href="../../static/css/common/layout.css" />
+  <link rel="stylesheet" th:href="@{/css/common/components.css}" href="../../static/css/common/components.css" />
+  <link rel="stylesheet" th:href="@{/css/pages/trips/plan.css}" href="../../static/css/pages/trips/plan.css" />
+</head>
+<body class="page-plan" data-route="/trips/new/plan">
+  <div class="app">
+    <div th:replace="~{fragments/header :: header('trips')}"></div>
+
+    <main id="page-content">
+      <section class="plan-shell">
+        <ol class="plan-wizard" aria-label="여행 계획 단계">
+          <li class="active"><span>1</span><b>계획 방식</b><i></i></li>
+          <li><span>2</span><b>기본 정보</b><i></i></li>
+          <li><span>3</span><b>여행 스타일</b><i></i></li>
+          <li><span>4</span><b>여행 일정</b></li>
+        </ol>
+
+        <section class="plan-heading" aria-labelledby="planTitle">
+          <p class="plan-context">서울 · 친구와 · 3박 4일</p>
+          <h1 id="planTitle">여행 계획, 어떻게 시작할까요?</h1>
+          <p>입력하신 기본 정보를 바탕으로 직접 일정을 짜거나, AI가 취향을 분석해 추천해 드릴 수 있어요.</p>
+        </section>
+
+        <form class="plan-choice-grid" id="planChoiceForm" novalidate>
+          <button class="plan-card is-selected" type="button" data-plan-mode="manual" data-route="/trips/new/basic" aria-pressed="true">
+            <span class="plan-card-check" aria-hidden="true">✓</span>
+            <span class="plan-card-content">
+              <span class="plan-card-icon plan-card-icon-manual" aria-hidden="true">⌁</span>
+              <span class="plan-card-label manual-label">직접 설계</span>
+              <strong>내가 직접<br />계획하기</strong>
+              <small>원하는 일정과 장소를 직접 구성해요</small>
+            </span>
+            <span class="plan-card-scene scene-palace" aria-hidden="true"><span class="sun"></span><span class="mountain mountain-a"></span><span class="mountain mountain-b"></span><span class="palace-roof roof-a"></span><span class="palace-roof roof-b"></span><span class="palace-body"></span></span>
+            <span class="plan-card-arrow" aria-hidden="true">→</span>
+          </button>
+
+          <button class="plan-card" type="button" data-plan-mode="ai" aria-pressed="false">
+            <span class="plan-card-check" aria-hidden="true">✓</span>
+            <span class="plan-card-content">
+              <span class="plan-card-icon plan-card-icon-ai" aria-hidden="true">✧</span>
+              <span class="plan-card-label ai-label">AI 추천</span>
+              <strong>AI 추천<br />여행지 받기</strong>
+              <small>취향에 맞는 코스를 빠르게 추천받아요</small>
+            </span>
+            <span class="plan-card-scene scene-tower" aria-hidden="true"><span class="skyline"></span><span class="tower tower-main"></span><span class="tower tower-tip"></span><span class="hill"></span><span class="blossom blossom-a"></span><span class="blossom blossom-b"></span></span>
+            <span class="plan-card-arrow" aria-hidden="true">→</span>
+          </button>
+        </form>
+      </section>
+    </main>
+
+    <div th:replace="~{fragments/modals :: modalRoots}"><div id="directory-root"></div><div id="modal-root"></div><div id="toast-root" aria-live="polite"></div></div>
+    <div th:replace="~{fragments/footer :: footer}"></div>
+    <div th:replace="~{fragments/scripts :: appScripts}"></div>
+  </div>
+
+  <script th:src="@{/js/pages/trips/plan.js}" src="../../static/js/pages/trips/plan.js"></script>
+</body>
+</html>

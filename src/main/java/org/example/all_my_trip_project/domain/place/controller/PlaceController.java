@@ -54,17 +54,4 @@ public class PlaceController {
         }
         return ApiResponse.success(places);
     }
-
-    @PutMapping("/{placeId}")
-    public ApiResponse<PlaceDTO> update(@PathVariable Long placeId, @RequestBody PlaceDTO place) {
-        place.setPlaceId(placeId);
-        placeService.update(place);
-        return ApiResponse.success("장소 정보가 수정되었습니다.", placeService.get(placeId));
-    }
-
-    @DeleteMapping("/{placeId}")
-    public ResponseEntity<ApiResponse<Void>> delete(@PathVariable Long placeId) {
-        placeService.delete(placeId);
-        return ResponseEntity.ok(ApiResponse.success("장소가 삭제되었습니다.", null));
-    }
 }
