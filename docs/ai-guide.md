@@ -20,13 +20,23 @@ AiGuideController → AiGuideService → AiModelClient
 - `ai-integrated` 프로필: `local`의 PostgreSQL·Redis 설정을 유지하면서 Gemini ChatModel을 다시 켜는 전체 화면 통합 확인용 프로필입니다.
 - `prod,ai` 프로필: 운영 DB 설정은 `prod`에서 유지하고 AI 관련 설정만 `ai`에서 추가합니다.
 
+## AI-05 여행·선호 컨텍스트
+
+- AI 가이드 URL에 `/ai-guide?tripId={tripId}`를 전달하면 화면이 해당 값을 요청 본문의 `tripId`로 보냅니다.
+- 서버는 기존 `TripService`, `TripDayService`, `ItineraryItemService`를 통해 로그인 사용자가 소유한 여행·DAY·일정 항목만 조회합니다. AI 가이드에서 여행, DAY, 일정 항목을 새로 생성하거나 수정하지 않습니다.
+- 여행 목적지·기간·동행·예산·이동/음식/숙소 선호·DAY 제목/메모·기존 일정 항목과 사용자 여행 선호를 Gemini 프롬프트에 전달합니다.
+- `tripId`는 필수이며, 누락 또는 양의 정수가 아닌 값은 `400 VALIDATION_ERROR`로 거절합니다.
+- 다른 사용자의 `tripId`를 전달하면 기존 여행 조회의 소유권 검증에 따라 요청이 거절됩니다.
+
+여행 생성 화면은 `POST /api/v1/trips` 응답으로 받은 `tripId`를 일정 화면과 AI 가이드에 동일하게 전달해야 합니다. 임의의 `tripId`를 새로 만들거나 DB에 중복 저장하면 안 됩니다.
+
 ## API 계약
 
 ```http
 POST /api/v1/ai-guides/generate
 Content-Type: application/json
 
-{ "question": "부산에서 하루 동안 갈 만한 곳을 추천해줘" }
+{ "question": "부산에서 하루 동안 갈 만한 곳을 추천해줘", "tripId": 12 }
 ```
 
 성공 응답은 `ApiResponse<AiGuideResponse>` 형식이며 `answer`, `days`, `externalLinks`, `sources`를 반환합니다. Gemini에는 질문 기반 일정 JSON만 반환하도록 요청하고, 파싱 실패·모델 호출 실패·SDK HTTP 25초 시간 초과는 내부 상세를 노출하지 않는 `502 AI_GENERATION_FAILED` 응답으로 처리합니다. Google GenAI SDK의 `HttpOptions.timeout`을 사용하므로 시간 초과 시 HTTP 요청이 SDK 수준에서 종료되며, 별도 virtual thread 작업을 남기지 않습니다.

@@ -14,6 +14,7 @@ import java.util.List;
 public class AiGuideService {
     private final AiModelClient aiModelClient;
     private final AiConversationHistoryService conversationHistoryService;
+    private final AiGuideContextService contextService;
 
     @Value("${ai.guide.mock.enabled:false}")
     private boolean mockEnabled;
@@ -23,7 +24,7 @@ public class AiGuideService {
             throw new IllegalStateException("AI mock server error");
         }
         List<AiConversationTurn> history = conversationHistoryService.load(userId);
-        AiGuideResponse response = aiModelClient.generate(request, history);
+        AiGuideResponse response = aiModelClient.generate(request, history, contextService.load(userId, request));
         conversationHistoryService.append(userId, request.question(), response.answer());
         return response;
     }
