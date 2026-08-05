@@ -90,7 +90,8 @@ public class AiConversationHistoryService {
             try {
                 persistenceService.append(userId, tripId, question, answer);
             } catch (Exception exception) {
-                log.warn("Failed to save AI conversation to database. userId={}", userId, exception);
+                log.warn("Failed to save AI conversation to database. userId={}, tripId={}",
+                        userId, tripId, exception);
             }
         }
     }

@@ -7,12 +7,15 @@ import org.example.all_my_trip_project.domain.ai.repository.AiChatMessageReposit
 import org.example.all_my_trip_project.domain.ai.repository.AiChatSessionRepository;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.springframework.dao.DataIntegrityViolationException;
 
 import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -20,8 +23,9 @@ class AiConversationPersistenceServiceTest {
 
     private final AiChatSessionRepository sessionRepository = mock(AiChatSessionRepository.class);
     private final AiChatMessageRepository messageRepository = mock(AiChatMessageRepository.class);
+    private final AiChatSessionCreationService sessionCreationService = mock(AiChatSessionCreationService.class);
     private final AiConversationPersistenceService service =
-            new AiConversationPersistenceService(sessionRepository, messageRepository);
+            new AiConversationPersistenceService(sessionRepository, messageRepository, sessionCreationService);
 
     @Test
     void savesQuestionAndAnswerForTheUsersTrip() {
@@ -32,6 +36,7 @@ class AiConversationPersistenceServiceTest {
 
         service.append(1L, 12L, "question", "answer");
 
+        verify(sessionRepository).acquireConversationCreationLock(1L, 12L);
         @SuppressWarnings("unchecked")
         ArgumentCaptor<List<AiChatMessageEntity>> messagesCaptor = ArgumentCaptor.forClass(List.class);
         verify(messageRepository).saveAll(messagesCaptor.capture());
@@ -68,5 +73,21 @@ class AiConversationPersistenceServiceTest {
         service.delete(1L, 12L);
 
         verify(sessionRepository).deleteByUserIdAndTripIdAndStatus(1L, 12L, AiChatSessionEntity.ACTIVE);
+    }
+
+    @Test
+    void reloadsTheSessionWhenConcurrentFirstCreationHitsTheUniqueConstraint() {
+        AiChatSessionEntity existingSession = AiChatSessionEntity.active(1L, 12L);
+        when(sessionRepository.findActiveForUpdate(1L, 12L, AiChatSessionEntity.ACTIVE))
+                .thenReturn(Optional.empty(), Optional.of(existingSession));
+        doThrow(new DataIntegrityViolationException("duplicate active session"))
+                .when(sessionCreationService).create(1L, 12L);
+        when(messageRepository.countBySession(existingSession)).thenReturn(0);
+
+        service.append(1L, 12L, "question", "answer");
+
+        verify(sessionRepository).acquireConversationCreationLock(1L, 12L);
+        verify(messageRepository).saveAll(org.mockito.ArgumentMatchers.anyList());
+        verify(sessionRepository, times(2)).findActiveForUpdate(1L, 12L, AiChatSessionEntity.ACTIVE);
     }
 }

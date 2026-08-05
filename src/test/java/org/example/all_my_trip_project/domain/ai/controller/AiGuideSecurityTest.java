@@ -43,7 +43,7 @@ class AiGuideSecurityTest {
         mockMvc.perform(post("/api/v1/ai-guides/generate")
                         .with(csrf().asHeader())
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"question\":\"여행 추천\"}"))
+                        .content("{\"tripId\":1,\"question\":\"travel recommendation\"}"))
                 .andExpect(status().isForbidden());
     }
 
@@ -52,7 +52,7 @@ class AiGuideSecurityTest {
         mockMvc.perform(post("/api/v1/ai-guides/generate")
                         .with(authentication(authenticatedUser()))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"question\":\"여행 추천\"}"))
+                        .content("{\"tripId\":1,\"question\":\"travel recommendation\"}"))
                 .andExpect(status().isForbidden());
     }
 
@@ -66,7 +66,7 @@ class AiGuideSecurityTest {
                         .with(authentication(authenticatedUser()))
                         .with(csrf().asHeader())
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"question\":\"여행 추천\"}"))
+                        .content("{\"tripId\":1,\"question\":\"travel recommendation\"}"))
                 .andExpect(status().isOk());
     }
 

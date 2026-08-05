@@ -11,6 +11,20 @@ import java.util.Optional;
 
 public interface AiChatSessionRepository extends JpaRepository<AiChatSessionEntity, Long> {
 
+    /**
+     * Serializes first-session creation for one user/trip pair across application instances.
+     * The unique index remains the final integrity guarantee.
+     */
+    @Query(value = """
+            select pg_advisory_xact_lock(
+                hashtextextended(cast(:userId as text) || ':' || cast(:tripId as text), 0)
+            )
+            """, nativeQuery = true)
+    Object acquireConversationCreationLock(
+            @Param("userId") Long userId,
+            @Param("tripId") Long tripId
+    );
+
     Optional<AiChatSessionEntity> findByUserIdAndTripIdAndStatus(Long userId, Long tripId, String status);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)

@@ -7,6 +7,7 @@ import org.example.all_my_trip_project.domain.ai.entity.AiChatSessionEntity;
 import org.example.all_my_trip_project.domain.ai.repository.AiChatMessageRepository;
 import org.example.all_my_trip_project.domain.ai.repository.AiChatSessionRepository;
 import org.springframework.context.annotation.Profile;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -24,6 +25,7 @@ public class AiConversationPersistenceService {
 
     private final AiChatSessionRepository sessionRepository;
     private final AiChatMessageRepository messageRepository;
+    private final AiChatSessionCreationService sessionCreationService;
 
     @Transactional(readOnly = true)
     public List<AiConversationTurn> loadRecentTurns(Long userId, Long tripId) {
@@ -42,15 +44,26 @@ public class AiConversationPersistenceService {
             return;
         }
 
+        sessionRepository.acquireConversationCreationLock(userId, tripId);
         AiChatSessionEntity session = sessionRepository
                 .findActiveForUpdate(userId, tripId, AiChatSessionEntity.ACTIVE)
-                .orElseGet(() -> sessionRepository.save(AiChatSessionEntity.active(userId, tripId)));
+                .orElseGet(() -> createOrFindSession(userId, tripId));
         int nextSequence = messageRepository.countBySession(session) + 1;
         messageRepository.saveAll(List.of(
                 AiChatMessageEntity.user(session, question, nextSequence),
                 AiChatMessageEntity.assistant(session, answer, nextSequence + 1)
         ));
         session.touch();
+    }
+
+    private AiChatSessionEntity createOrFindSession(Long userId, Long tripId) {
+        try {
+            return sessionCreationService.create(userId, tripId);
+        } catch (DataIntegrityViolationException exception) {
+            return sessionRepository
+                    .findActiveForUpdate(userId, tripId, AiChatSessionEntity.ACTIVE)
+                    .orElseThrow(() -> exception);
+        }
     }
 
     @Transactional

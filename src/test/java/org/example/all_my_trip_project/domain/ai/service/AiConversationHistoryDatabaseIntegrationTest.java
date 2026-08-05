@@ -11,6 +11,10 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
 
 import java.time.LocalDate;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -70,6 +74,46 @@ class AiConversationHistoryDatabaseIntegrationTest {
 
         assertThat(historyService.load(userId, tripId))
                 .containsExactly(new AiConversationTurn("first question", "first answer"));
+    }
+
+    @Test
+    void keepsBothConcurrentFirstTurnsInOneActiveSession() throws Exception {
+        createTemporaryUserAndTrip();
+
+        CountDownLatch ready = new CountDownLatch(2);
+        CountDownLatch start = new CountDownLatch(1);
+        try (ExecutorService executor = Executors.newFixedThreadPool(2)) {
+            Future<?> first = executor.submit(() -> appendAfterStart(ready, start, "question-1", "answer-1"));
+            Future<?> second = executor.submit(() -> appendAfterStart(ready, start, "question-2", "answer-2"));
+            ready.await();
+            start.countDown();
+            first.get();
+            second.get();
+        }
+
+        Integer sessionCount = jdbcTemplate.queryForObject("""
+                select count(*) from ai_chat_sessions
+                where user_id = ? and trip_id = ? and status = 'ACTIVE'
+                """, Integer.class, userId, tripId);
+        Integer messageCount = jdbcTemplate.queryForObject("""
+                select count(*) from ai_chat_messages message
+                join ai_chat_sessions session on session.ai_chat_session_id = message.ai_chat_session_id
+                where session.user_id = ? and session.trip_id = ? and session.status = 'ACTIVE'
+                """, Integer.class, userId, tripId);
+
+        assertThat(sessionCount).isEqualTo(1);
+        assertThat(messageCount).isEqualTo(4);
+    }
+
+    private void appendAfterStart(CountDownLatch ready, CountDownLatch start, String question, String answer) {
+        ready.countDown();
+        try {
+            start.await();
+            persistenceService.append(userId, tripId, question, answer);
+        } catch (InterruptedException exception) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException("Concurrent test interrupted", exception);
+        }
     }
 
     private void createTemporaryUserAndTrip() {
