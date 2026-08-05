@@ -48,6 +48,16 @@ class PlaceSecurityTest {
                         .with(csrf().asHeader())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(PLACE_JSON))
+                .andExpect(status().isUnauthorized());
+    }
+
+    // CsrfFilter는 ExceptionTranslationFilter보다 앞에서 동작하며 자체 AccessDeniedHandler로 응답한다.
+    // 따라서 CSRF 실패는 로그인 여부와 무관하게 항상 403이고, 401은 인증 실패에만 사용된다.
+    @Test
+    void rejectsUnauthenticatedPlaceCreationWithoutCsrfToken() throws Exception {
+        mockMvc.perform(post("/api/v1/places")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(PLACE_JSON))
                 .andExpect(status().isForbidden());
     }
 
