@@ -27,54 +27,110 @@ public class AiConversationHistoryService {
             """.formatted(MAX_TURNS), Long.class);
 
     private final ObjectProvider<StringRedisTemplate> redisTemplateProvider;
+    private final ObjectProvider<AiConversationPersistenceService> persistenceServiceProvider;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-    public AiConversationHistoryService(ObjectProvider<StringRedisTemplate> redisTemplateProvider) {
+    public AiConversationHistoryService(
+            ObjectProvider<StringRedisTemplate> redisTemplateProvider,
+            ObjectProvider<AiConversationPersistenceService> persistenceServiceProvider
+    ) {
         this.redisTemplateProvider = redisTemplateProvider;
+        this.persistenceServiceProvider = persistenceServiceProvider;
     }
 
     public List<AiConversationTurn> load(Long userId) {
+        return load(userId, null);
+    }
+
+    public List<AiConversationTurn> load(Long userId, Long tripId) {
         if (userId == null) {
             return List.of();
         }
 
         StringRedisTemplate redisTemplate = redisTemplateProvider.getIfAvailable();
-        if (redisTemplate == null) {
-            return List.of();
-        }
-
-        try {
-            List<String> serializedTurns = redisTemplate.opsForList().range(key(userId), 0, -1);
-            if (serializedTurns == null || serializedTurns.isEmpty()) {
-                return List.of();
+        if (redisTemplate != null) {
+            try {
+                List<String> serializedTurns = redisTemplate.opsForList().range(key(userId, tripId), 0, -1);
+                if (serializedTurns != null && !serializedTurns.isEmpty()) {
+                    return serializedTurns.stream().map(this::deserialize).toList();
+                }
+            } catch (Exception exception) {
+                log.warn("Failed to load recent AI conversation from Redis. userId={}", userId, exception);
             }
-            return serializedTurns.stream().map(this::deserialize).toList();
-        } catch (Exception exception) {
-            log.warn("AI 대화 이력을 불러오지 못해 질문 단독 추천으로 처리합니다. userId={}", userId, exception);
-            return List.of();
         }
+        return loadFromDatabase(userId, tripId);
     }
 
     public void append(Long userId, String question, String answer) {
+        append(userId, null, question, answer);
+    }
+
+    public void append(Long userId, Long tripId, String question, String answer) {
         if (userId == null) {
             return;
         }
 
         StringRedisTemplate redisTemplate = redisTemplateProvider.getIfAvailable();
-        if (redisTemplate == null) {
-            return;
+        if (redisTemplate != null) {
+            try {
+                String serializedTurn = objectMapper.writeValueAsString(new AiConversationTurn(question, answer));
+                redisTemplate.execute(
+                        APPEND_HISTORY_SCRIPT,
+                        List.of(key(userId, tripId)),
+                        serializedTurn,
+                        String.valueOf(HISTORY_TTL.toSeconds())
+                );
+            } catch (Exception exception) {
+                log.warn("Failed to save recent AI conversation to Redis. userId={}", userId, exception);
+            }
         }
 
+        AiConversationPersistenceService persistenceService = persistenceServiceProvider.getIfAvailable();
+        if (persistenceService != null) {
+            try {
+                persistenceService.append(userId, tripId, question, answer);
+            } catch (Exception exception) {
+                log.warn("Failed to save AI conversation to database. userId={}", userId, exception);
+            }
+        }
+    }
+
+    public void delete(Long userId, Long tripId) {
+        if (userId == null) {
+            return;
+        }
+        StringRedisTemplate redisTemplate = redisTemplateProvider.getIfAvailable();
+        if (redisTemplate != null) {
+            try {
+                redisTemplate.delete(key(userId, tripId));
+            } catch (Exception exception) {
+                log.warn("Failed to delete recent AI conversation from Redis. userId={}", userId, exception);
+            }
+        }
+
+        AiConversationPersistenceService persistenceService = persistenceServiceProvider.getIfAvailable();
+        if (persistenceService != null) {
+            try {
+                persistenceService.delete(userId, tripId);
+            } catch (Exception exception) {
+                log.warn("Failed to delete AI conversation from database. userId={}", userId, exception);
+            }
+        }
+    }
+
+    private List<AiConversationTurn> loadFromDatabase(Long userId, Long tripId) {
+        if (tripId == null) {
+            return List.of();
+        }
+        AiConversationPersistenceService persistenceService = persistenceServiceProvider.getIfAvailable();
+        if (persistenceService == null) {
+            return List.of();
+        }
         try {
-            String serializedTurn = objectMapper.writeValueAsString(new AiConversationTurn(question, answer));
-            redisTemplate.execute(
-                    APPEND_HISTORY_SCRIPT,
-                    List.of(key(userId)),
-                    serializedTurn,
-                    String.valueOf(HISTORY_TTL.toSeconds())
-            );
+            return persistenceService.loadRecentTurns(userId, tripId);
         } catch (Exception exception) {
-            log.warn("AI 대화 이력을 저장하지 못했지만 추천 결과는 유지합니다. userId={}", userId, exception);
+            log.warn("Failed to load AI conversation from database. userId={}", userId, exception);
+            return List.of();
         }
     }
 
@@ -86,7 +142,7 @@ public class AiConversationHistoryService {
         }
     }
 
-    private String key(Long userId) {
-        return KEY_PREFIX + userId;
+    private String key(Long userId, Long tripId) {
+        return KEY_PREFIX + userId + (tripId == null ? "" : ":trip:" + tripId);
     }
 }
