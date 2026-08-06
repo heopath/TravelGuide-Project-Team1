@@ -1,4 +1,4 @@
-/* 여행 가이드 장소 검색 */
+/* 추천 장소 검색 */
 document.addEventListener("DOMContentLoaded", function () {
   const form = document.querySelector("[data-place-search]");
   const keywordInput = document.querySelector("#guide-keyword");
@@ -19,6 +19,15 @@ document.addEventListener("DOMContentLoaded", function () {
     ACTIVITY: "체험",
     TRANSPORT: "교통",
   };
+  const categoryIcons = {
+    ATTRACTION: "✦",
+    RESTAURANT: "●",
+    CAFE: "☕",
+    ACCOMMODATION: "⌂",
+    FESTIVAL: "♪",
+    ACTIVITY: "↗",
+    TRANSPORT: "◆",
+  };
 
   function showState(message, isError) {
     state.textContent = message;
@@ -30,11 +39,17 @@ document.addEventListener("DOMContentLoaded", function () {
 
   function createPlaceCard(place) {
     const card = document.createElement("button");
+    const visual = document.createElement("span");
+    const icon = document.createElement("span");
     const favoriteMarker = document.createElement("span");
     const category = document.createElement("span");
+    const body = document.createElement("span");
+    const meta = document.createElement("span");
     const name = document.createElement("strong");
     const location = document.createElement("span");
-    const rating = document.createElement("small");
+    const footer = document.createElement("span");
+    const rating = document.createElement("span");
+    const detailLink = document.createElement("span");
 
     card.type = "button";
     card.className = "place-card category-" + String(place.category || "default").toLowerCase();
@@ -42,23 +57,37 @@ document.addEventListener("DOMContentLoaded", function () {
     card.dataset.route = "/guide/places/" + place.placeId;
     card.setAttribute("aria-label", (place.favorite ? "찜한 장소, " : "") + place.name + " 상세 보기");
 
-    if (place.favorite) {
-      favoriteMarker.className = "place-favorite-marker";
-      favoriteMarker.textContent = "♥ 찜한 장소";
-      card.appendChild(favoriteMarker);
-    }
-
+    visual.className = "place-card-visual";
+    icon.className = "place-card-icon";
+    icon.textContent = categoryIcons[place.category] || "✦";
     category.className = "place-category";
     category.textContent = categoryLabels[place.category] || place.category || "장소";
-    name.textContent = place.name;
+    visual.append(icon, category);
+
+    if (place.favorite) {
+      favoriteMarker.className = "place-favorite-marker";
+      favoriteMarker.textContent = "♥ 찜";
+      visual.appendChild(favoriteMarker);
+    }
+
+    body.className = "place-card-body";
+    meta.className = "place-card-meta";
     location.className = "place-location";
     location.textContent = [place.region, place.city].filter(Boolean).join(" · ") || "지역 정보 없음";
+    meta.appendChild(location);
+    name.textContent = place.name;
+
+    footer.className = "place-card-footer";
     rating.className = "place-rating";
     rating.textContent = place.averageRating == null
       ? "평점 정보 없음"
       : "★ " + Number(place.averageRating).toFixed(1);
+    detailLink.className = "place-detail-link";
+    detailLink.textContent = "자세히 보기  →";
+    footer.append(rating, detailLink);
+    body.append(meta, name, footer);
 
-    card.append(category, name, location, rating);
+    card.append(visual, body);
     return card;
   }
 
