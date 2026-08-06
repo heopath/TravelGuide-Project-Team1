@@ -29,6 +29,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @Import(ApiSecurityConfig.class)
 class AiGuideSecurityTest {
 
+    // AiGuideRequest는 tripId를 필수로 요구하므로 본문에 함께 담는다.
+    private static final String AI_GUIDE_JSON = """
+            {"question":"여행 추천","tripId":1}
+            """;
+
     @Autowired
     private MockMvc mockMvc;
 
@@ -43,8 +48,8 @@ class AiGuideSecurityTest {
         mockMvc.perform(post("/api/v1/ai-guides/generate")
                         .with(csrf().asHeader())
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"question\":\"여행 추천\"}"))
-                .andExpect(status().isForbidden());
+                        .content(AI_GUIDE_JSON))
+                .andExpect(status().isUnauthorized());
     }
 
     @Test
@@ -52,13 +57,13 @@ class AiGuideSecurityTest {
         mockMvc.perform(post("/api/v1/ai-guides/generate")
                         .with(authentication(authenticatedUser()))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"question\":\"여행 추천\"}"))
+                        .content(AI_GUIDE_JSON))
                 .andExpect(status().isForbidden());
     }
 
     @Test
     void acceptsAuthenticatedAiGuideGenerationRequestWithValidCsrfToken() throws Exception {
-        when(aiGuideService.generate(any(), eq(false))).thenReturn(new AiGuideResponse(
+        when(aiGuideService.generate(any(), eq(false), eq(1L))).thenReturn(new AiGuideResponse(
                 "추천 결과", List.of(), List.of(), List.of("Gemini AI")
         ));
 
@@ -66,7 +71,7 @@ class AiGuideSecurityTest {
                         .with(authentication(authenticatedUser()))
                         .with(csrf().asHeader())
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"question\":\"여행 추천\"}"))
+                        .content(AI_GUIDE_JSON))
                 .andExpect(status().isOk());
     }
 

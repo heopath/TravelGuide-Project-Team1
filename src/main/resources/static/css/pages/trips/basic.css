@@ -40,10 +40,11 @@ body.page-basic .date-field label {
 }
 
 body.page-basic .field-error {
-  min-height: 18px;
+  min-height: 22px;
   margin: 6px 0 0;
   color: #d93025;
-  font-size: 12px;
+  font-size: 15px;
+  font-weight: 700;
 }
 
 body.page-basic .trip-duration,
@@ -54,13 +55,39 @@ body.page-basic .field-help {
 }
 
 body.page-basic .budget-input {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 10px;
 }
 
+body.page-basic .budget-input.is-error::after {
+  content: "예상 예산을 입력해주세요.";
+  position: absolute;
+  right: 38px;
+  bottom: calc(100% + 6px);
+  display: block;
+  color: #d93025;
+  font-size: 15px;
+  font-weight: 800;
+  line-height: 1.2;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+body.page-basic .budget-input.is-error input,
+body.page-basic .budget-input.is-error input::placeholder {
+  color: inherit;
+  caret-color: auto;
+}
+
 body.page-basic .budget-input .text-input {
   flex: 1;
+}
+
+body.page-basic .budget-input .text-input::placeholder {
+  color: #9aa4b8 !important;
+  opacity: 1;
 }
 
 body.page-basic .budget-input span {
@@ -329,6 +356,25 @@ body.page-basic .trip-duration {
   background: transparent !important;
   box-shadow: none !important;
   color: var(--basic-text) !important;
+}
+
+/* 저장 상태 메시지는 다음 단계 버튼 바로 위에 표시한다. */
+body.page-basic .form-message {
+  position: absolute;
+  right: 20px;
+  bottom: 89px;
+  width: min(360px, calc(100% - 68px));
+  margin: 0;
+  text-align: right;
+  z-index: 2;
+}
+
+@media (max-width: 760px) {
+  body.page-basic .form-message {
+    right: 18px;
+    bottom: 86px;
+    width: calc(100% - 36px);
+  }
 }
 
 body.page-basic .trip-duration::before,

@@ -2,10 +2,12 @@ package org.example.all_my_trip_project.domain.ai.service;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.example.all_my_trip_project.domain.ai.dto.AiGuideContext;
 import org.example.all_my_trip_project.domain.ai.dto.AiGuideDayResponse;
 import org.example.all_my_trip_project.domain.ai.dto.AiGuideItemResponse;
 import org.example.all_my_trip_project.domain.ai.dto.AiGuideRequest;
 import org.example.all_my_trip_project.domain.ai.dto.AiGuideResponse;
+import org.example.all_my_trip_project.domain.ai.dto.AiConversationTurn;
 import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
@@ -33,9 +35,13 @@ public class GeminiAiModelClient implements AiModelClient {
     }
 
     @Override
-    public AiGuideResponse generate(AiGuideRequest request) {
+    public AiGuideResponse generate(AiGuideRequest request, List<AiConversationTurn> conversationHistory,
+                                    AiGuideContext context) {
         try {
-            String response = requestModel(createPrompt(request.question()));
+            String response = requestModel(createPrompt(request.question(), conversationHistory)
+                    + "\n\nConversation ordering rule: When the user refers to the first, second, third, or another ordinal candidate from a previous answer, count the candidates exactly from top to bottom in that previous answer. Do not choose a different candidate. If the previous answer does not contain an unambiguous ordered list, ask the user to clarify instead of guessing."
+                    + "\n\nTravel context (use only provided facts; do not invent missing facts):\n"
+                    + formatContext(context));
             GeminiGuideContent content = objectMapper.readValue(extractJson(response), GeminiGuideContent.class);
             validate(content);
 
@@ -62,7 +68,13 @@ public class GeminiAiModelClient implements AiModelClient {
         }
     }
 
-    private String createPrompt(String question) {
+    private String createPrompt(String question, List<AiConversationTurn> conversationHistory) {
+        String history = conversationHistory == null || conversationHistory.isEmpty()
+                ? "이전 대화 없음"
+                : conversationHistory.stream()
+                .map(turn -> "사용자: " + turn.question() + "\nAI: " + turn.answer())
+                .collect(java.util.stream.Collectors.joining("\n\n"));
+
         return """
                 당신은 한국 여행 일정 추천 도우미입니다.
                 사용자의 질문에 맞는 현실적인 여행 일정을 추천하세요.
@@ -87,8 +99,42 @@ public class GeminiAiModelClient implements AiModelClient {
                   ]
                 }
 
+                이전 대화:
+                %s
+
                 사용자 질문: %s
-                """.formatted(question);
+                """.formatted(history, question);
+    }
+
+    private String formatContext(AiGuideContext context) {
+        if (context == null) return "No travel or preference context is available.";
+
+        String preferences = context.preferences().isEmpty()
+                ? "none"
+                : context.preferences().stream()
+                .map(preference -> preference.name() + " (score=" + preference.score() + ")")
+                .collect(java.util.stream.Collectors.joining(", "));
+        if (context.trip() == null) return "User preferences: " + preferences;
+
+        AiGuideContext.Trip trip = context.trip();
+        String days = trip.days().stream()
+                .map(day -> "DAY " + day.dayNumber() + " " + day.tripDate()
+                        + (day.title() == null ? "" : " - " + day.title())
+                        + (day.memo() == null || day.memo().isBlank() ? "" : " (" + day.memo() + ")")
+                        + ", items=" + day.items().stream()
+                        .map(item -> item.startTime() + " " + item.title()
+                                + (item.memo() == null || item.memo().isBlank() ? "" : " (" + item.memo() + ")"))
+                        .collect(java.util.stream.Collectors.joining(", ")))
+                .collect(java.util.stream.Collectors.joining(", "));
+        return "Trip id=" + trip.tripId()
+                + ", destination=" + trip.destinationName()
+                + ", dates=" + trip.startDate() + " to " + trip.endDate()
+                + ", companion=" + trip.companionType()
+                + ", purpose=" + trip.purpose()
+                + ", food preference=" + trip.foodPreference()
+                + ", transport=" + trip.transportPreference()
+                + ", existing days=" + days
+                + ", user preferences=" + preferences;
     }
 
     private String extractJson(String response) {

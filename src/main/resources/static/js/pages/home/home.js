@@ -1,5 +1,88 @@
 /* 메인 화면 — 스크롤 위치로 영상 시간을 제어하는 scroll-scrub */
 document.addEventListener("DOMContentLoaded", function () {
+  const tripSearchForm = document.querySelector("[data-ai-trip-search]");
+  const tripSearchError = document.querySelector("[data-ai-trip-search-error]");
+
+  if (tripSearchForm) {
+    const startDate = tripSearchForm.elements.startDate;
+    const endDate = tripSearchForm.elements.endDate;
+    const submitButton = tripSearchForm.querySelector(".search-submit");
+    const today = new Date().toISOString().slice(0, 10);
+    startDate.min = today;
+    endDate.min = today;
+
+    function travelDuration() {
+      if (!startDate.value || !endDate.value) return 0;
+      return Math.round((Date.parse(endDate.value + "T00:00:00") - Date.parse(startDate.value + "T00:00:00")) / 86400000) + 1;
+    }
+
+    function updateSearchSubmitState() {
+      const destination = tripSearchForm.elements.destination.value.trim();
+      const travelers = Number(tripSearchForm.elements.travelers.value);
+      const isValid = Boolean(destination)
+        && travelDuration() >= 1
+        && travelDuration() <= 30
+        && Number.isInteger(travelers)
+        && travelers >= 1
+        && travelers <= 20;
+      submitButton.disabled = !isValid;
+      if (isValid) tripSearchError.hidden = true;
+    }
+
+    startDate.addEventListener("change", function () {
+      endDate.min = startDate.value || today;
+      if (endDate.value && endDate.value < startDate.value) endDate.value = "";
+      updateSearchSubmitState();
+    });
+    [tripSearchForm.elements.destination, endDate, tripSearchForm.elements.travelers].forEach(function (field) {
+      field.addEventListener("input", updateSearchSubmitState);
+      field.addEventListener("change", updateSearchSubmitState);
+    });
+    updateSearchSubmitState();
+
+    tripSearchForm.addEventListener("submit", function (event) {
+      event.preventDefault();
+      const formData = new FormData(tripSearchForm);
+      const destination = String(formData.get("destination") || "").trim();
+      const selectedStartDate = String(formData.get("startDate") || "");
+      const selectedEndDate = String(formData.get("endDate") || "");
+      const travelers = Number(formData.get("travelers"));
+      const duration = travelDuration();
+
+      if (!destination || !selectedStartDate || !selectedEndDate || !Number.isInteger(travelers) || travelers < 1 || travelers > 20) {
+        tripSearchError.textContent = "여행지, 여행 기간, 여행 인원을 모두 입력해 주세요.";
+        tripSearchError.hidden = false;
+        return;
+      }
+      if (duration < 1 || duration > 30) {
+        tripSearchError.textContent = "여행 기간은 최대 30일까지 선택할 수 있어요.";
+        tripSearchError.hidden = false;
+        return;
+      }
+
+      tripSearchError.hidden = true;
+      let draft = {};
+      try { draft = JSON.parse(sessionStorage.getItem("tripDraft") || "{}"); } catch (error) { draft = {}; }
+      draft.basic = {
+        ...(draft.basic || {}),
+        destination: destination,
+        destinationLabel: destination,
+        startDate: selectedStartDate,
+        endDate: selectedEndDate,
+        travelerCount: travelers,
+      };
+      delete draft.plan;
+      sessionStorage.setItem("tripDraft", JSON.stringify(draft));
+      const nextUrl = "/trips/new/plan";
+      if (window.AllMyTripsLoading) {
+        window.AllMyTripsLoading.show();
+        window.setTimeout(function () { window.location.href = nextUrl; }, 350);
+        return;
+      }
+      window.location.href = nextUrl;
+    });
+  }
+
   const world = document.querySelector("[data-scroll-world]");
   const video = document.querySelector("[data-world-video]");
   const intro = document.querySelector("[data-world-intro]");
