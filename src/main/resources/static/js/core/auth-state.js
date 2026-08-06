@@ -2,7 +2,8 @@ document.addEventListener("DOMContentLoaded", function () {
     const loginButton = document.querySelector("[data-auth-login]");
     const userActions = document.querySelector("[data-auth-user]");
     const avatarButton = document.querySelector("[data-auth-avatar]");
-    const logoutButton = document.querySelector("[data-auth-logout]");
+    // 헤더 말고도 로그아웃 버튼을 두는 화면(마이페이지 사이드바)이 있어 전부 연결한다.
+    const logoutButtons = document.querySelectorAll("[data-auth-logout]");
 
     if (!loginButton || !userActions) {
         return;
@@ -67,7 +68,10 @@ document.addEventListener("DOMContentLoaded", function () {
         }
     }
 
-    if (logoutButton) {
+    logoutButtons.forEach(function (logoutButton) {
+        // 아이콘 등 자식 요소를 가진 버튼도 있으므로 원래 마크업을 보관했다가 실패 시 되돌린다.
+        const originalMarkup = logoutButton.innerHTML;
+
         logoutButton.addEventListener("click", async function () {
             logoutButton.disabled = true;
             logoutButton.textContent = "처리 중...";
@@ -100,10 +104,10 @@ document.addEventListener("DOMContentLoaded", function () {
                 }
 
                 logoutButton.disabled = false;
-                logoutButton.textContent = "로그아웃";
+                logoutButton.innerHTML = originalMarkup;
             }
         });
-    }
+    });
 
     loadAuthenticationState();
 });
