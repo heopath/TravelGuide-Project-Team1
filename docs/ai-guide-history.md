@@ -27,4 +27,4 @@ AI 여행 가이드는 빠른 대화 맥락을 Redis에 유지하고, 로그인 
 
 ## 실행 확인
 
-`local,ai,ai-integrated` 프로필에서 PostgreSQL과 Redis 연결 후 같은 `tripId`로 AI 요청을 두 번 전송한다. Redis 키를 만료 또는 삭제한 뒤 다시 요청했을 때 DB에 저장된 최근 대화가 Gemini 프롬프트에 전달되는지 로그/디버깅으로 확인한다.
+`local,ai` 프로필에서 PostgreSQL과 Redis 연결 후 같은 `tripId`로 AI 요청을 두 번 전송한다. Redis 키를 만료 또는 삭제한 뒤 다시 요청했을 때 DB에 저장된 최근 대화가 Gemini 프롬프트에 전달되는지 로그/디버깅으로 확인한다.
