@@ -302,6 +302,11 @@ document.addEventListener("DOMContentLoaded", function () {
       const dates = document.createElement("span");
       button.type = "button";
       button.classList.toggle("selected", trip.tripId === activeTripId);
+      // 목록에서 다른 여행으로 전환할 수 있어야 한다. data-route는 navigation.js가 전역 위임으로 처리한다.
+      // 초안 미리보기(tripId 없음)와 현재 열려 있는 여행에는 붙이지 않는다.
+      if (trip.tripId && trip.tripId !== activeTripId) {
+        button.dataset.route = "/trips/" + trip.tripId + "/schedule";
+      }
       name.textContent = trip.title;
       destination.className = "trip-destination";
       destination.textContent = trip.destinationName || trip.destinationLabel || trip.destination || "목적지 미정";
@@ -400,7 +405,8 @@ document.addEventListener("DOMContentLoaded", function () {
       title.textContent = result[0].title;
       if (period) period.textContent = "여행 기간 · " + result[0].startDate + " ~ " + result[0].endDate;
       if (destination) destination.textContent = "목적지 · " + result[0].destinationName;
-      renderTripList([result[0]]);
+      // 사이드바는 내 여행 전체를 보여준다. 활성 여행 하나만 넘기면 목록에서 나머지가 사라진다.
+      renderTripList(trips);
       renderDays(result[1]);
     } catch (error) {
       if ((error.status === 401 || error.status === 404) && renderDraftSchedule()) return;
