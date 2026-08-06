@@ -1,6 +1,17 @@
 (() => {
   const DRAFT_KEY = "tripDraft";
   const cards = [...document.querySelectorAll('[data-plan-mode]')];
+  const aiStep = document.querySelector("[data-ai-step]");
+  const finalStep = document.querySelector("[data-final-step]");
+
+  function updateWizard(mode) {
+    const isAi = mode === "AI";
+    if (aiStep) aiStep.hidden = !isAi;
+    if (finalStep) {
+      finalStep.querySelector("span").textContent = isAi ? "4" : "3";
+      finalStep.querySelector("b").textContent = isAi ? "추천 결과" : "여행 일정";
+    }
+  }
 
   function readDraft() {
     try {
@@ -22,7 +33,9 @@
 
   cards.forEach((card) => {
     card.addEventListener('click', () => {
-      savePlanMode(card.dataset.planMode === "manual" ? "MANUAL" : "AI");
+      const mode = card.dataset.planMode === "manual" ? "MANUAL" : "AI";
+      savePlanMode(mode);
+      updateWizard(mode);
       cards.forEach((item) => {
         const selected = item === card;
         item.classList.toggle('is-selected', selected);
@@ -30,4 +43,5 @@
       });
     });
   });
+  updateWizard((readDraft().plan || {}).mode || "MANUAL");
 })();

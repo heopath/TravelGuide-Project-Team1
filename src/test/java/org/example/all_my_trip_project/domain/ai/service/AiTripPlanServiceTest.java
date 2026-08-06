@@ -5,6 +5,7 @@ import org.example.all_my_trip_project.domain.ai.dto.AiTripPlanResponse;
 import org.junit.jupiter.api.Test;
 
 import java.time.LocalDate;
+import java.math.BigDecimal;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -20,9 +21,12 @@ class AiTripPlanServiceTest {
                 LocalDate.of(2026, 8, 12),
                 2,
                 "커플",
-                "맛집과 카페",
-                "적당하게",
-                "여유 있게"
+                "맛집, 카페",
+                "균형있는",
+                "대중교통",
+                "유명 맛집",
+                "호텔",
+                new BigDecimal("1000000")
         ));
 
         assertThat(response.title()).isEqualTo("부산 3일 여행 초안");
@@ -41,7 +45,7 @@ class AiTripPlanServiceTest {
         assertThat(response.days().getFirst().items().getFirst().title())
                 .contains("부산", "브런치");
         assertThat(response.days().getFirst().items().get(1).description())
-                .contains("2명", "예약형 체험");
+                .contains("2명", "1,000,000원");
     }
 
     @Test
@@ -52,9 +56,12 @@ class AiTripPlanServiceTest {
                 LocalDate.of(2026, 8, 31),
                 1,
                 "혼자",
-                "도시 명소",
-                "여유롭게",
-                "알뜰하게"
+                "관광",
+                "여유로운",
+                "대중교통",
+                "로컬 맛집",
+                "호텔",
+                new BigDecimal("500000")
         );
 
         assertThatThrownBy(() -> aiTripPlanService.generate(request))
