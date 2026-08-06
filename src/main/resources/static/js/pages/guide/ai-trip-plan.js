@@ -20,7 +20,9 @@ document.addEventListener("DOMContentLoaded", function () {
   let kakaoRouteLine = null;
   let mapRenderSequence = 0;
   let currentPlan = null;
+  let currentConditions = null;
   let activeDayIndex = 0;
+  let savingPlan = false;
 
   function setPanelVisible(panel, visible) {
     panel.hidden = !visible;
@@ -251,6 +253,7 @@ document.addEventListener("DOMContentLoaded", function () {
       accommodation_style: style.accommodationStyle || "선호 없음",
       budget_amount: Number(basic.totalBudget || 0),
     };
+    currentConditions = request;
     showPlanState("loading");
     try {
       const response = await fetch("/api/v1/ai-trip-plans/generate", {
@@ -268,7 +271,101 @@ document.addEventListener("DOMContentLoaded", function () {
     } finally {}
   }
 
+  function ensureKakaoPlaces() {
+    return new Promise(function (resolve) {
+      if (!window.kakao?.maps) { resolve(false); return; }
+      window.kakao.maps.load(function () {
+        if (!kakaoPlaces) kakaoPlaces = new window.kakao.maps.services.Places();
+        resolve(true);
+      });
+    });
+  }
+
+  async function resolveAllPlanPlaces() {
+    if (!await ensureKakaoPlaces()) return [];
+    const resolvedPlaces = [];
+    for (const day of currentPlan?.days || []) {
+      const foundPlaces = await Promise.all((day.places || []).map(findRecommendedPlace));
+      foundPlaces.filter(Boolean).forEach(function (found) {
+        const kakaoPlace = found.kakaoPlace;
+        resolvedPlaces.push({
+          day: day.day,
+          number: found.number,
+          externalPlaceId: String(kakaoPlace.id),
+          name: kakaoPlace.place_name,
+          address: kakaoPlace.road_address_name || kakaoPlace.address_name || "",
+          latitude: Number(kakaoPlace.y),
+          longitude: Number(kakaoPlace.x),
+          phone: kakaoPlace.phone || "",
+          websiteUrl: kakaoPlace.place_url || "",
+          category: kakaoPlace.category_name || found.category || "",
+          description: found.description || "",
+        });
+      });
+    }
+    return resolvedPlaces;
+  }
+
+  async function savePlan() {
+    const saveButton = document.querySelector("[data-plan-save]");
+    if (savingPlan || !currentPlan || !currentConditions || !saveButton) return;
+    savingPlan = true;
+    saveButton.disabled = true;
+    saveButton.setAttribute("aria-busy", "true");
+    saveButton.textContent = "장소 확인 중...";
+    try {
+      const resolvedPlaces = await resolveAllPlanPlaces();
+      saveButton.textContent = "일정 준비 중...";
+      const response = await fetch("/api/v1/ai-trip-plans/save", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify({
+          title: basic.title || currentPlan.title,
+          conditions: currentConditions,
+          plan: currentPlan,
+          resolvedPlaces: resolvedPlaces,
+        }),
+      });
+      const payload = await response.json().catch(function () { return null; });
+      if (response.status === 401) {
+        saveButton.disabled = false;
+        saveButton.removeAttribute("aria-busy");
+        saveButton.textContent = "이 일정으로 직접 수정하기";
+        if (window.confirm("AI 여행을 저장하려면 로그인이 필요합니다. 로그인 페이지로 이동할까요?")) {
+          window.location.href = "/auth/login?redirect=" + encodeURIComponent(window.location.pathname);
+        }
+        return;
+      }
+      if (!response.ok || !payload?.success || !payload.data?.tripId) {
+        throw new Error(payload?.message || "AI 여행을 저장하지 못했습니다.");
+      }
+      const savedDraft = readCurrentDraft();
+      savedDraft.trip = {
+        tripId: payload.data.tripId,
+        source: "AI",
+        status: "CONFIRMED",
+      };
+      sessionStorage.setItem("tripDraft", JSON.stringify(savedDraft));
+      saveButton.textContent = "일정 불러오는 중...";
+      window.setTimeout(function () {
+        window.location.href = "/trips/" + payload.data.tripId + "/schedule";
+      }, 500);
+    } catch (saveError) {
+      saveButton.disabled = false;
+      saveButton.removeAttribute("aria-busy");
+      saveButton.textContent = "이 일정으로 직접 수정하기";
+      window.alert(saveError.message || "AI 여행을 저장하지 못했습니다.");
+    } finally {
+      savingPlan = false;
+    }
+  }
+
+  function readCurrentDraft() {
+    try { return JSON.parse(sessionStorage.getItem("tripDraft") || "{}"); } catch (error) { return {}; }
+  }
+
   document.querySelector("[data-plan-retry]").addEventListener("click", generatePlan);
+  document.querySelector("[data-plan-save]").addEventListener("click", savePlan);
   if (!destination || !startDate || !endDate || !style.purpose) {
     showPlanState("error");
     document.querySelector("[data-plan-error] p").textContent = "기본정보와 여행 스타일을 모두 입력한 뒤 다시 시도해 주세요.";

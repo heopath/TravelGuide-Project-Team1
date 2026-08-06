@@ -18,6 +18,7 @@ public class PlaceDAO {
     private final PlaceMapper placeMapper;
 
     public int insert(PlaceDTO place) { return placeMapper.insert(place); }
+    public Long upsert(PlaceDTO place) { return placeMapper.upsert(place); }
     public Optional<PlaceDTO> findById(Long placeId) { return placeMapper.findById(placeId); }
     public List<PlaceImageResult> findImagesByPlaceId(Long placeId) {
         return placeMapper.findImagesByPlaceId(placeId);
