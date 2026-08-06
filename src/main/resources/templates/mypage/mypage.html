@@ -16,75 +16,105 @@
       <div th:replace="~{fragments/header :: header('mypage')}"></div>
       <main id="page-content">
         <section class="page-shell">
-      
+
     <section class="page-heading">
       <div>
         <h1>마이 페이지</h1>
-        <p>나의 정보와 여행 취향을 관리하세요.</p>
+        <p>나의 여행 정보와 활동을 한눈에 관리하세요.</p>
         <i>✦</i>
       </div>
-      
     </section>
-  
-      <div class="profile-overview">
-        <section class="white-panel profile-card" aria-busy="true" data-profile-card>
-          <div class="profile-avatar" data-profile-avatar>…</div>
-          <div class="profile-details">
-            <h2><span data-profile-nickname>회원정보를 불러오는 중</span> 님</h2>
-            <p data-profile-email>잠시만 기다려 주세요.</p>
-            <button class="outline-button" type="button" data-profile-edit>프로필 관리</button>
-            <form class="profile-edit-form" data-profile-form hidden>
-              <label for="mypage-nickname">닉네임</label>
-              <div class="profile-edit-row">
-                <input id="mypage-nickname" name="nickname" type="text" minlength="2" maxlength="20" required />
-                <button class="primary-button" type="submit">저장</button>
-                <button class="outline-button" type="button" data-profile-cancel>취소</button>
-              </div>
-              <p class="profile-form-error" data-profile-error role="alert"></p>
-            </form>
-          </div>
-        </section>
-        <div class="metric-card metric-0"><span>예약 내역</span><strong>준비 중</strong></div>
-         <div class="metric-card metric-1"><span>찜한 여행지</span><strong data-favorite-count>—</strong></div>
-        <div class="metric-card metric-2"><span>여행 일정</span><strong>준비 중</strong></div>
-        <div class="metric-card metric-3"><span>포인트</span><strong>준비 중</strong></div>
-       </div>
-       <section class="white-panel favorite-places" aria-labelledby="favorite-places-title">
-         <div class="favorite-places-heading">
-           <div>
-             <span>MY FAVORITES</span>
-             <h2 id="favorite-places-title">찜한 여행지</h2>
-           </div>
-           <button type="button" class="outline-button" data-route="/guide">여행지 더 찾아보기</button>
-         </div>
-         <div class="favorite-place-list" data-favorite-list aria-live="polite">
-           <p class="favorite-place-state">찜한 여행지를 불러오는 중입니다.</p>
-         </div>
-       </section>
-       <div class="mypage-grid">
-        <section class="white-panel preference-card">
-          <div class="mypage-section-heading">
-            <div>
-              <h2>나의 여행 취향</h2>
-              <p>추천과 AI 일정 생성에 활용되는 장기 여행 선호입니다.</p>
+
+      <div class="mypage-layout">
+        <aside class="white-panel mypage-sidebar" aria-busy="true" data-profile-card>
+          <div class="mypage-identity">
+            <div class="profile-avatar" data-profile-avatar>…</div>
+            <div class="mypage-identity-copy">
+              <strong><span data-profile-nickname>회원정보를 불러오는 중</span> 님</strong>
+              <span data-profile-email>잠시만 기다려 주세요.</span>
             </div>
           </div>
-          <div class="preference-list" data-preference-list aria-live="polite">
-            <span class="preference-empty">여행 선호를 불러오는 중입니다.</span>
+
+          <form class="profile-edit-form" data-profile-form hidden>
+            <label for="mypage-nickname">닉네임</label>
+            <div class="profile-edit-row">
+              <input id="mypage-nickname" name="nickname" type="text" minlength="2" maxlength="20" required />
+              <button class="primary-button" type="submit">저장</button>
+              <button class="outline-button" type="button" data-profile-cancel>취소</button>
+            </div>
+            <p class="profile-form-error" data-profile-error role="alert"></p>
+          </form>
+
+          <nav class="mypage-nav" aria-label="마이 페이지 메뉴">
+            <button type="button" class="is-current" aria-current="page"><span aria-hidden="true">⌂</span>대시보드</button>
+            <button type="button" data-route="/trips/schedule"><span aria-hidden="true">▤</span>내 여행</button>
+            <button type="button" disabled><span aria-hidden="true">▦</span>예약 내역<em>준비 중</em></button>
+            <button type="button" data-route="/guide"><span aria-hidden="true">♡</span>찜한 여행지</button>
+            <button type="button" disabled><span aria-hidden="true">☆</span>리뷰 &amp; 후기<em>준비 중</em></button>
+          </nav>
+
+          <div class="mypage-nav secondary">
+            <button type="button" disabled><span aria-hidden="true">◇</span>알림<em>준비 중</em></button>
+            <button type="button" data-profile-edit><span aria-hidden="true">⚙</span>계정 설정</button>
+            <button type="button" disabled><span aria-hidden="true">◎</span>고객센터<em>준비 중</em></button>
           </div>
-        </section>
-        <section class="white-panel account-bookings">
-          <h2>예약 내역</h2>
-          <p class="mypage-placeholder">예약 기능 담당 API가 준비되면 이 영역에 실제 예약 내역이 표시됩니다.</p>
-        </section>
-        <aside class="white-panel account-menu">
-          <h2>내 정보</h2>
-          <button type="button" data-profile-edit-menu>회원정보 수정<span>›</span></button>
-          <button type="button" disabled>결제 수단 관리<span>준비 중</span></button>
-          <button type="button" disabled>알림 설정<span>준비 중</span></button>
-          <button type="button" disabled>고객센터<span>준비 중</span></button>
+
+          <button type="button" class="outline-button wide mypage-logout" data-auth-logout>
+            <span aria-hidden="true">↪</span> 로그아웃
+          </button>
         </aside>
-       </div>
+
+        <div class="mypage-panels">
+
+          <section class="white-panel mypage-panel" aria-labelledby="mypage-trips-title">
+            <div class="mypage-panel-head">
+              <h2 id="mypage-trips-title">최근 여행 일정</h2>
+              <span class="mypage-count"><strong data-trip-count>—</strong></span>
+            </div>
+            <div class="trip-summary-list" data-trip-list aria-live="polite">
+              <p class="mypage-state">여행 일정을 불러오는 중입니다.</p>
+            </div>
+            <button type="button" class="outline-button wide mypage-panel-foot" data-route="/trips/schedule" data-trip-more hidden>
+              내 여행 전체 보기 →
+            </button>
+          </section>
+
+          <section class="white-panel mypage-panel" aria-labelledby="mypage-reservations-title">
+            <div class="mypage-panel-head">
+              <h2 id="mypage-reservations-title">최근 예약 내역</h2>
+            </div>
+            <p class="mypage-state">관광 티켓 예약 기능이 준비되면 이곳에 표시됩니다.</p>
+          </section>
+
+          <section class="white-panel mypage-panel" aria-labelledby="mypage-recent-title">
+            <div class="mypage-panel-head">
+              <h2 id="mypage-recent-title">최근 본 여행지</h2>
+            </div>
+            <p class="mypage-state">여행지 상세 화면이 준비되면 최근 조회한 여행지가 이곳에 표시됩니다.</p>
+          </section>
+
+          <section class="white-panel mypage-panel" aria-labelledby="mypage-activity-title">
+            <div class="mypage-panel-head">
+              <h2 id="mypage-activity-title">활동 내역</h2>
+            </div>
+            <p class="mypage-state">여행 생성·예약·리뷰 활동이 기록되면 이곳에 표시됩니다.</p>
+          </section>
+
+          <section class="white-panel mypage-panel mypage-panel-wide" id="mypage-favorites" aria-labelledby="mypage-favorites-title">
+            <div class="mypage-panel-head">
+              <h2 id="mypage-favorites-title">찜한 여행지</h2>
+              <span class="mypage-count"><strong data-favorite-count>—</strong></span>
+            </div>
+            <div class="favorite-place-list" data-favorite-list aria-live="polite">
+              <p class="favorite-place-state">찜한 여행지를 불러오는 중입니다.</p>
+            </div>
+            <button type="button" class="outline-button wide mypage-panel-foot" data-route="/guide">
+              여행지 더 찾아보기 →
+            </button>
+          </section>
+
+        </div>
+      </div>
     </section>
       </main>
       <div th:replace="~{fragments/modals :: modalRoots}"><div id="directory-root"></div><div id="modal-root"></div><div id="toast-root" aria-live="polite"></div></div>
