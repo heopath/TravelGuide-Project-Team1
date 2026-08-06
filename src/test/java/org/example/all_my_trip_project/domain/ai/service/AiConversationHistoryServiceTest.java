@@ -23,6 +23,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -34,6 +35,8 @@ class AiConversationHistoryServiceTest {
     @Mock
     private ObjectProvider<StringRedisTemplate> redisTemplateProvider;
     @Mock
+    private ObjectProvider<AiConversationPersistenceService> persistenceServiceProvider;
+    @Mock
     private StringRedisTemplate redisTemplate;
     @Mock
     private ListOperations<String, String> listOperations;
@@ -44,8 +47,8 @@ class AiConversationHistoryServiceTest {
 
     @BeforeEach
     void setUp() {
-        when(redisTemplateProvider.getIfAvailable()).thenReturn(redisTemplate);
-        when(redisTemplate.opsForList()).thenReturn(listOperations);
+        lenient().when(redisTemplateProvider.getIfAvailable()).thenReturn(redisTemplate);
+        lenient().when(redisTemplate.opsForList()).thenReturn(listOperations);
         lenient().when(listOperations.range(anyString(), eq(0L), eq(-1L))).thenAnswer(invocation ->
                 List.copyOf(fakeRedisLists.getOrDefault(invocation.getArgument(0), List.of()))
         );
@@ -60,7 +63,7 @@ class AiConversationHistoryServiceTest {
                     }
                     return 1L;
                 });
-        historyService = new AiConversationHistoryService(redisTemplateProvider);
+        historyService = new AiConversationHistoryService(redisTemplateProvider, persistenceServiceProvider);
     }
 
     @Test
@@ -106,5 +109,38 @@ class AiConversationHistoryServiceTest {
                 .thenThrow(new IllegalStateException("Redis unavailable"));
 
         assertThat(historyService.load(1L)).isEmpty();
+    }
+
+    @Test
+    void loadsDatabaseHistoryWhenRedisHistoryIsEmpty() {
+        AiConversationPersistenceService persistenceService = mock(AiConversationPersistenceService.class);
+        when(persistenceServiceProvider.getIfAvailable()).thenReturn(persistenceService);
+        when(persistenceService.loadRecentTurns(1L, 11L))
+                .thenReturn(List.of(new AiConversationTurn("older question", "older answer")));
+
+        assertThat(historyService.load(1L, 11L))
+                .containsExactly(new AiConversationTurn("older question", "older answer"));
+    }
+
+    @Test
+    void storesConversationInDatabaseWhenRedisIsUnavailable() {
+        AiConversationPersistenceService persistenceService = mock(AiConversationPersistenceService.class);
+        when(persistenceServiceProvider.getIfAvailable()).thenReturn(persistenceService);
+        when(redisTemplateProvider.getIfAvailable()).thenReturn(null);
+
+        historyService.append(1L, 11L, "question", "answer");
+
+        verify(persistenceService).append(1L, 11L, "question", "answer");
+    }
+
+    @Test
+    void deletesRedisAndDatabaseHistoryForTheRequestedTrip() {
+        AiConversationPersistenceService persistenceService = mock(AiConversationPersistenceService.class);
+        when(persistenceServiceProvider.getIfAvailable()).thenReturn(persistenceService);
+
+        historyService.delete(1L, 11L);
+
+        verify(redisTemplate).delete("ai:guide:conversation:1:trip:11");
+        verify(persistenceService).delete(1L, 11L);
     }
 }

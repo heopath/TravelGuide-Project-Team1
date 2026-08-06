@@ -28,21 +28,21 @@ class AiGuideServiceTest {
         List<AiConversationTurn> history = List.of(new AiConversationTurn("Recommend a cafe", "Try a cafe nearby"));
         AiGuideContext context = new AiGuideContext(null, List.of());
         AiGuideResponse response = new AiGuideResponse("Added restaurants", List.of(), List.of(), List.of());
-        when(conversationHistoryService.load(1L)).thenReturn(history);
+        when(conversationHistoryService.load(1L, 12L)).thenReturn(history);
         when(contextService.load(1L, request)).thenReturn(context);
         when(aiModelClient.generate(request, history, context)).thenReturn(response);
 
         service.generate(request, false, 1L);
 
         verify(aiModelClient).generate(request, history, context);
-        verify(conversationHistoryService).append(1L, request.question(), response.answer());
+        verify(conversationHistoryService).append(1L, 12L, request.question(), response.answer());
     }
 
     @Test
     void doesNotStoreConversationWhenAiGenerationFails() {
         AiGuideRequest request = new AiGuideRequest("Failure test", null);
         AiGuideContext context = new AiGuideContext(null, List.of());
-        when(conversationHistoryService.load(1L)).thenReturn(List.of());
+        when(conversationHistoryService.load(1L, null)).thenReturn(List.of());
         when(contextService.load(1L, request)).thenReturn(context);
         when(aiModelClient.generate(request, List.of(), context)).thenThrow(new AiModelException("Gemini failed"));
 
@@ -51,6 +51,7 @@ class AiGuideServiceTest {
 
         verify(conversationHistoryService, never()).append(
                 org.mockito.ArgumentMatchers.anyLong(),
+                org.mockito.ArgumentMatchers.any(),
                 org.mockito.ArgumentMatchers.anyString(),
                 org.mockito.ArgumentMatchers.anyString()
         );

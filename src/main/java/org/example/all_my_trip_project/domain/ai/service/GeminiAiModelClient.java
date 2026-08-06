@@ -39,6 +39,7 @@ public class GeminiAiModelClient implements AiModelClient {
                                     AiGuideContext context) {
         try {
             String response = requestModel(createPrompt(request.question(), conversationHistory)
+                    + "\n\nConversation ordering rule: When the user refers to the first, second, third, or another ordinal candidate from a previous answer, count the candidates exactly from top to bottom in that previous answer. Do not choose a different candidate. If the previous answer does not contain an unambiguous ordered list, ask the user to clarify instead of guessing."
                     + "\n\nTravel context (use only provided facts; do not invent missing facts):\n"
                     + formatContext(context));
             GeminiGuideContent content = objectMapper.readValue(extractJson(response), GeminiGuideContent.class);

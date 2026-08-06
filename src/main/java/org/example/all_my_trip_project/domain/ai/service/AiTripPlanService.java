@@ -45,7 +45,7 @@ public class AiTripPlanService {
     }
 
     private AiTripPlanResponse generateMockPlan(AiTripPlanRequest request, int totalDays) {
-        ThemePlan themePlan = themePlan(request.theme());
+        ThemePlan themePlan = themePlan(request.purpose());
         List<String> times = paceTimes(request.pace());
 
         List<AiTripPlanDayResponse> days = java.util.stream.IntStream.range(0, totalDays)
@@ -56,7 +56,9 @@ public class AiTripPlanService {
                 request.destination() + " " + totalDays + "일 여행 초안",
                 request.startDate().format(DAY_FORMATTER) + " ~ " + request.endDate().format(DAY_FORMATTER)
                         + " · " + request.travelers() + "명 · " + request.companion()
-                        + " · " + request.theme() + " · " + request.pace() + " · " + request.budget(),
+                        + " · " + request.purpose() + " · " + request.pace()
+                        + " · " + request.transportPreference() + " · " + request.foodPreference()
+                        + " · " + request.accommodationStyle(),
                 recommendedPlaces(request, themePlan),
                 days,
                 "SERVER_MOCK"
@@ -121,9 +123,12 @@ public class AiTripPlanService {
                 여행 기간: %s ~ %s (%d일)
                 여행 인원: %d명
                 동행 유형: %s
-                여행 테마: %s
+                여행 목적: %s
                 하루 일정 속도: %s
-                예산 정도: %s
+                이동 선호: %s
+                음식 선호: %s
+                숙박 형태: %s
+                총 예산: %s원
 
                 응답 조건:
                 - title, summary, recommendedPlaces, days 필드를 가진 JSON 객체만 반환합니다.
@@ -139,7 +144,8 @@ public class AiTripPlanService {
                 - 마크다운, 코드 블록, JSON 이외의 문장은 절대 넣지 않습니다.
                 """.formatted(
                 request.destination(), request.startDate(), request.endDate(), totalDays, request.travelers(),
-                request.companion(), request.theme(), request.pace(), request.budget(), totalDays
+                request.companion(), request.purpose(), request.pace(), request.transportPreference(),
+                request.foodPreference(), request.accommodationStyle(), request.budgetAmount(), totalDays
         );
     }
 
@@ -192,7 +198,7 @@ public class AiTripPlanService {
     ) {
         LocalDate date = request.startDate().plusDays(index);
         String companionDescription = companionDescription(request.companion());
-        String budgetDescription = budgetDescription(request.budget());
+        String budgetDescription = budgetDescription(request.budgetAmount());
         List<AiTripPlanItemResponse> items = List.of(
                 new AiTripPlanItemResponse(
                         times.get(0),
@@ -207,7 +213,8 @@ public class AiTripPlanService {
                 new AiTripPlanItemResponse(
                         times.get(2),
                         themePlan.third(),
-                        "이동 시간을 줄이고 " + request.pace() + " 둘러볼 수 있도록 구성했어요."
+                        request.transportPreference() + " 이동을 기준으로 동선을 줄이고 "
+                                + request.pace() + " 둘러볼 수 있도록 구성했어요."
                 ),
                 new AiTripPlanItemResponse(
                         times.get(3),
@@ -236,13 +243,14 @@ public class AiTripPlanService {
                 new AiTripPlanPlaceResponse(1, "추천 명소", request.destination() + " " + themePlan.first(),
                         day + "일차 오전에 들르기 좋은 추천 명소예요.", 0, 0),
                 new AiTripPlanPlaceResponse(2, "식사 장소", request.destination() + " " + themePlan.second(),
-                        request.budget() + " 예산에 맞춘 식사 장소예요.", 0, 0),
+                        request.foodPreference() + " 선호와 총 예산에 맞춘 식사 장소예요.", 0, 0),
                 new AiTripPlanPlaceResponse(3, "추천 명소", request.destination() + " " + themePlan.third(),
                         day + "일차 오후 동선에 맞춘 추천 명소예요.", 0, 0)
         ));
         if (day < totalDays) {
-            places.add(new AiTripPlanPlaceResponse(4, "숙소", request.destination() + " 중심 숙소",
-                    day + "일차 일정 후 이동하기 편한 숙소 권역이에요.", 0, 0));
+            places.add(new AiTripPlanPlaceResponse(4, "숙소",
+                    request.destination() + " " + request.accommodationStyle(),
+                    day + "일차 일정 후 이동하기 편한 " + request.accommodationStyle() + " 추천이에요.", 0, 0));
         }
         return List.copyOf(places);
     }
@@ -274,19 +282,19 @@ public class AiTripPlanService {
         return List.of(
                 new AiTripPlanPlaceResponse(
                         1, "추천 명소", request.destination() + " " + themePlan.first(),
-                        request.theme() + " 여행의 시작점으로 추천하는 대표 장소예요.", 24, 31
+                        request.purpose() + " 여행의 시작점으로 추천하는 대표 장소예요.", 24, 31
                 ),
                 new AiTripPlanPlaceResponse(
                         2, "식사 장소", "현지 인기 식당",
-                        request.budget() + " 예산에 맞춘 점심 식사 추천 장소예요.", 61, 25
+                        request.foodPreference() + " 선호에 맞춘 점심 식사 추천 장소예요.", 61, 25
                 ),
                 new AiTripPlanPlaceResponse(
                         3, "추천 명소", themePlan.third(),
                         request.pace() + " 일정 속도에 맞춰 들르기 좋은 오후 장소예요.", 46, 67
                 ),
                 new AiTripPlanPlaceResponse(
-                        4, "숙소", request.destination() + " 중심 숙소",
-                        "저녁 일정 후 편하게 이동할 수 있는 숙소 권역을 추천해요.", 78, 60
+                        4, "숙소", request.destination() + " " + request.accommodationStyle(),
+                        "저녁 일정 후 편하게 이동할 수 있는 " + request.accommodationStyle() + "을 추천해요.", 78, 60
                 )
         );
     }
@@ -298,13 +306,16 @@ public class AiTripPlanService {
                 "자연과 휴식", new ThemePlan("자연 명소에서 가벼운 산책", "풍경을 즐기는 여유로운 점심", "휴식 명소에서 느긋한 오후"),
                 "문화와 예술", new ThemePlan("대표 문화·예술 공간 관람", "현지 감성 식당에서 점심", "전시와 골목 문화 산책")
         );
-        return plans.getOrDefault(theme, plans.get("도시 명소"));
+        if (theme.contains("맛집") || theme.contains("카페")) return plans.get("맛집과 카페");
+        if (theme.contains("자연") || theme.contains("힐링")) return plans.get("자연과 휴식");
+        if (theme.contains("문화") || theme.contains("전시")) return plans.get("문화와 예술");
+        return plans.get("도시 명소");
     }
 
     private List<String> paceTimes(String pace) {
         return switch (pace) {
-            case "알차게" -> List.of("09:00", "12:00", "14:30", "18:30");
-            case "적당하게" -> List.of("09:30", "12:30", "15:00", "19:00");
+            case "알찬", "테마집중" -> List.of("09:00", "12:00", "14:30", "18:30");
+            case "균형있는" -> List.of("09:30", "12:30", "15:00", "19:00");
             default -> List.of("10:00", "13:00", "15:30", "19:00");
         };
     }
@@ -318,12 +329,9 @@ public class AiTripPlanService {
         };
     }
 
-    private String budgetDescription(String budget) {
-        return switch (budget) {
-            case "알뜰하게" -> "대중교통과 무료·합리적인 체험을 우선으로 추천해요.";
-            case "여유 있게" -> "예약형 체험과 편안한 이동을 고려해 추천해요.";
-            default -> "이동 편의와 인기 장소를 균형 있게 담았어요.";
-        };
+    private String budgetDescription(java.math.BigDecimal budget) {
+        if (budget == null || budget.signum() <= 0) return "선택한 여행 스타일을 중심으로 구성했어요.";
+        return "총 " + String.format(Locale.KOREAN, "%,.0f", budget) + "원 예산 안에서 균형 있게 구성했어요.";
     }
 
     private record ThemePlan(String first, String second, String third) {

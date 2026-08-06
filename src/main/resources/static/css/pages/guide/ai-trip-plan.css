@@ -6,6 +6,7 @@ body.page-ai-trip-plan #page-content { background: linear-gradient(180deg, #f5f8
 .trip-condition-card span { color: var(--muted); font-size: 12px; font-weight: 750; }
 .trip-condition-card strong { margin-top: 9px; color: var(--navy); font-size: 19px; }
 .ai-plan-layout { display: grid; grid-template-columns: 330px 1fr; gap: 24px; align-items: start; }
+.ai-plan-layout.ai-plan-layout-result { grid-template-columns: minmax(0, 1fr); }
 .plan-preferences { padding: 28px; }
 .plan-icon { width: 48px; height: 48px; display: grid; place-items: center; border-radius: 16px; background: var(--gradient); color: #fff; font-size: 22px; }
 .plan-preferences h2 { margin: 18px 0 8px; font-size: 21px; }
