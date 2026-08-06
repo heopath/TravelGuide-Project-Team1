@@ -20,6 +20,29 @@
         )
     </insert>
 
+    <select id="upsert" resultType="long" affectData="true" flushCache="true">
+        INSERT INTO places (
+            external_provider, external_place_id, category, name, country_code,
+            address, latitude, longitude, description, phone, website_url, is_active
+        ) VALUES (
+            #{externalProvider}, #{externalPlaceId}, #{category}, #{name},
+            COALESCE(#{countryCode}, 'KR'), #{address}, #{latitude}, #{longitude},
+            #{description}, #{phone}, #{websiteUrl}, TRUE
+        )
+        ON CONFLICT (external_provider, external_place_id) DO UPDATE SET
+            category = EXCLUDED.category,
+            name = EXCLUDED.name,
+            address = EXCLUDED.address,
+            latitude = EXCLUDED.latitude,
+            longitude = EXCLUDED.longitude,
+            description = COALESCE(EXCLUDED.description, places.description),
+            phone = COALESCE(EXCLUDED.phone, places.phone),
+            website_url = COALESCE(EXCLUDED.website_url, places.website_url),
+            is_active = TRUE,
+            updated_at = CURRENT_TIMESTAMP(6)
+        RETURNING place_id
+    </select>
+
     <select id="findById" resultType="org.example.all_my_trip_project.domain.place.dto.PlaceDTO">
         SELECT <include refid="columns"/> FROM places WHERE place_id = #{placeId}
     </select>
