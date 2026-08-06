@@ -62,6 +62,80 @@
         "body": { "mode": "raw", "raw": "{\n  \"tripId\": 999999999,\n  \"question\": \"Recommend dinner\"\n}" },
         "url": { "raw": "{{baseUrl}}/api/v1/ai-guides/generate", "host": ["{{baseUrl}}"], "path": ["api", "v1", "ai-guides", "generate"] }
       }
+    },
+    {
+      "name": "Unauthenticated - expects 401",
+      "description": "Send a valid CSRF token without logging in. CSRF passes, authentication fails, so the response is 401 UNAUTHORIZED. Clear the session cookie before running.",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('returns 401', () => pm.response.to.have.status(401));",
+              "pm.test('code is UNAUTHORIZED', () => pm.expect(pm.response.json().code).to.eql('UNAUTHORIZED'));"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Accept", "value": "application/json" },
+          { "key": "{{csrfHeaderName}}", "value": "{{csrfToken}}" }
+        ],
+        "body": { "mode": "raw", "raw": "{\n  \"tripId\": {{tripId}},\n  \"question\": \"Recommend dinner\"\n}" },
+        "url": { "raw": "{{baseUrl}}/api/v1/ai-guides/generate", "host": ["{{baseUrl}}"], "path": ["api", "v1", "ai-guides", "generate"] }
+      }
+    },
+    {
+      "name": "Missing CSRF token - expects 403",
+      "description": "CsrfFilter runs before ExceptionTranslationFilter and answers with its own handler, so a missing token is 403 regardless of login state - never 401.",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": ["pm.test('returns 403', () => pm.response.to.have.status(403));"],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Accept", "value": "application/json" }
+        ],
+        "body": { "mode": "raw", "raw": "{\n  \"tripId\": {{tripId}},\n  \"question\": \"Recommend dinner\"\n}" },
+        "url": { "raw": "{{baseUrl}}/api/v1/ai-guides/generate", "host": ["{{baseUrl}}"], "path": ["api", "v1", "ai-guides", "generate"] }
+      }
+    },
+    {
+      "name": "Members me - unauthenticated expects 401",
+      "description": "GET requests skip CSRF, so this returns 401 directly and is the simplest way to confirm the auth failure body format.",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('returns 401', () => pm.response.to.have.status(401));",
+              "pm.test('body matches ErrorResponse', () => {",
+              "  const b = pm.response.json();",
+              "  pm.expect(b.success).to.eql(false);",
+              "  pm.expect(b.code).to.eql('UNAUTHORIZED');",
+              "  pm.expect(b.data).to.eql(null);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Accept", "value": "application/json" }],
+        "url": { "raw": "{{baseUrl}}/api/v1/members/me", "host": ["{{baseUrl}}"], "path": ["api", "v1", "members", "me"] }
+      }
     }
   ]
 }
