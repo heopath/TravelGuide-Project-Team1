@@ -463,13 +463,6 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   async function createManualTrip(draft) {
-    if (document.documentElement.dataset.authenticated !== "true") {
-      sessionStorage.setItem("postLoginRedirect", window.location.pathname + window.location.search);
-      if (window.confirm("여행 일정을 만들려면 로그인이 필요합니다. 로그인 페이지로 이동할까요?")) {
-        window.location.href = "/auth/login";
-      }
-      throw new Error("로그인 후 여행 일정을 만들어 주세요.");
-    }
     const basic = draft.basic || {};
     const response = await fetch("/api/v1/trips", {
       method: "POST",
@@ -484,6 +477,11 @@ document.addEventListener("DOMContentLoaded", function () {
         budgetAmount: Number(basic.totalBudget || 0),
       }),
     });
+    if (response.status === 401) {
+      const unauthorized = new Error("로그인이 필요합니다.");
+      unauthorized.unauthorized = true;
+      throw unauthorized;
+    }
     const body = await response.json().catch(function () { return {}; });
     if (!response.ok) throw new Error(body.message || "여행 정보를 저장하지 못했습니다.");
     const tripId = Number(body.data && body.data.tripId);
@@ -667,6 +665,13 @@ document.addEventListener("DOMContentLoaded", function () {
       }, 350);
     } catch (error) {
       setSaving(false);
+      if (error && error.unauthorized) {
+        if (window.confirm("로그인이 필요합니다. 로그인 페이지로 이동할까요?")) {
+          const redirect = window.location.pathname + window.location.search;
+          window.location.href = "/auth/login?redirect=" + encodeURIComponent(redirect);
+        }
+        return;
+      }
       const reason = error && error.message
         ? error.message
         : "알 수 없는 오류가 발생했습니다.";
