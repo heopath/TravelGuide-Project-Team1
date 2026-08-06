@@ -3,8 +3,8 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="All My Trips 여행 가이드" />
-    <title>여행 가이드 — All My Trips</title>
+    <meta name="description" content="All My Trips 추천 장소" />
+    <title>추천 장소 — All My Trips</title>
     <link rel="icon" th:href="@{/images/icons/app-icon.png}" href="../../static/images/icons/app-icon.png" />
     <link rel="stylesheet" th:href="@{/css/common/reset.css}" href="../../static/css/common/reset.css" />
     <link rel="stylesheet" th:href="@{/css/common/layout.css}" href="../../static/css/common/layout.css" />
@@ -15,45 +15,49 @@
     <div class="app">
       <div th:replace="~{fragments/header :: header('guide')}"></div>
       <main id="page-content">
-        <section class="page-shell">
-      
-    <section class="page-heading">
-      <div>
-        <h1><span>03 </span>여행 가이드</h1>
-        <p>현지 정보와 인기 장소를 한눈에 확인하세요.</p>
-        <i>✦</i>
-      </div>
-      
-    </section>
-  
-      <form class="guide-search" data-place-search data-no-global-loading>
-        <span class="guide-search-icon" aria-hidden="true">⌕</span>
-        <input id="guide-keyword" name="keyword" type="search"
-               aria-label="장소 검색" placeholder="어디로 떠나볼까요?" autocomplete="off" />
-        <button type="submit">검색</button>
-      </form>
-      <div class="filter-row" role="group" aria-label="장소 카테고리">
-        <button type="button" class="selected" data-category="">전체</button>
-        <button type="button" data-category="ATTRACTION">관광지</button>
-        <button type="button" data-category="RESTAURANT">맛집</button>
-        <button type="button" data-category="CAFE">카페</button>
-        <button type="button" data-category="ACCOMMODATION">숙소</button>
-        <button type="button" data-category="ACTIVITY">체험</button>
-        <button type="button" data-category="FESTIVAL">축제</button>
-        <button type="button" data-category="TRANSPORT">교통</button>
-      </div>
-      <div class="guide-layout">
-        <section class="white-panel place-results-panel">
-          <div class="place-results-heading">
-            <h2 data-result-title>추천 장소</h2>
-            <span data-result-count aria-live="polite"></span>
-          </div>
-          <div class="place-state" data-place-state aria-live="polite">장소를 불러오는 중입니다.</div>
-          <div class="place-grid" data-place-results hidden></div>
+        <section class="page-shell guide-shell">
+          <section class="guide-hero">
+            <div class="guide-hero-copy">
+              <span class="guide-eyebrow">PLACE DISCOVERY</span>
+              <h1>어디로 떠나볼까요?</h1>
+              <p>지역이나 장소를 검색하고, 마음에 드는 곳은 찜해 두세요.</p>
+            </div>
+
+            <form class="guide-search" data-place-search data-no-global-loading>
+              <span class="guide-search-icon" aria-hidden="true"></span>
+              <input id="guide-keyword" name="keyword" type="search"
+                     aria-label="장소 검색" placeholder="지역 또는 장소 이름을 입력하세요" autocomplete="off" />
+              <button type="submit">장소 검색</button>
+            </form>
+
+            <div class="guide-filter-area">
+              <span class="guide-filter-label">카테고리</span>
+              <div class="filter-row" role="group" aria-label="장소 카테고리">
+                <button type="button" class="selected" data-category="">전체</button>
+                <button type="button" data-category="ATTRACTION">관광지</button>
+                <button type="button" data-category="RESTAURANT">맛집</button>
+                <button type="button" data-category="CAFE">카페</button>
+                <button type="button" data-category="ACCOMMODATION">숙소</button>
+                <button type="button" data-category="ACTIVITY">체험</button>
+                <button type="button" data-category="FESTIVAL">축제</button>
+                <button type="button" data-category="TRANSPORT">교통</button>
+              </div>
+            </div>
+          </section>
+
+          <section class="place-results-panel">
+            <div class="place-results-heading">
+              <div>
+                <span class="results-eyebrow">EXPLORE PLACES</span>
+                <h2 data-result-title>추천 장소</h2>
+                <p>지금 둘러보기 좋은 장소를 모았어요.</p>
+              </div>
+              <span class="result-count" data-result-count aria-live="polite"></span>
+            </div>
+            <div class="place-state" data-place-state aria-live="polite">장소를 불러오는 중입니다.</div>
+            <div class="place-grid" data-place-results hidden></div>
+          </section>
         </section>
-        <aside class="side-stack"><section class="white-panel weather-card"><h2>오늘의 날씨</h2><span>부산, 대한민국</span><strong>☀ 24°C</strong><p>맑음 · 최고 27°</p></section><section class="white-panel info-card"><h2>여행 정보</h2><p>환율 JPY 9.20</p><p>일몰 19:32</p><p>혼잡도 보통</p><p>추천 해운대 야경</p></section></aside>
-      </div>
-    </section>
       </main>
       <div th:replace="~{fragments/modals :: modalRoots}"><div id="directory-root"></div><div id="modal-root"></div><div id="toast-root" aria-live="polite"></div></div>
       <div th:replace="~{fragments/footer :: footer}"></div>
