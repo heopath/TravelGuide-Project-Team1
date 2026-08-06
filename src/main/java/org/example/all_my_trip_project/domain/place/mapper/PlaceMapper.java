@@ -12,6 +12,7 @@ import java.util.Optional;
 @Mapper
 public interface PlaceMapper {
     int insert(PlaceDTO place);
+    Long upsert(PlaceDTO place);
     Optional<PlaceDTO> findById(Long placeId);
     List<PlaceImageResult> findImagesByPlaceId(Long placeId);
     List<PlaceStyleResult> findStylesByPlaceId(Long placeId);

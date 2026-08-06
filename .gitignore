@@ -1,6 +1,7 @@
 HELP.md
 .gradle
 .gradle-user-home/
+.gradle-ai03/
 build/
 !gradle/wrapper/gradle-wrapper.jar
 !**/src/main/**/build/

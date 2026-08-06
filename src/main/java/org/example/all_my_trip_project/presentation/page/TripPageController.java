@@ -12,6 +12,11 @@ public class TripPageController {
     @Value("${kakao.maps.javascript-key:}")
     private String kakaoJavascriptKey;
 
+    @GetMapping("/trips/new/plan")
+    public String newTripPlan() {
+        return "trips/plan";
+    }
+
     @GetMapping("/trips/new/basic")
     public String newTripBasic() {
         return "trips/basic";
@@ -21,13 +26,7 @@ public class TripPageController {
     public String newTripStyle() {
         return "trips/style";
     }
-
-    @GetMapping("/trips/recommendations")
-    public String tripRecommendations() {
-        return "trips/recommendations";
-    }
-
-    @GetMapping("/trips/schedule")
+@GetMapping("/trips/schedule")
     public String tripSchedule(Model model) {
         model.addAttribute("kakaoJavascriptKey", kakaoJavascriptKey);
         return "trips/schedule";

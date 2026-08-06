@@ -11,7 +11,7 @@
     <link rel="stylesheet" th:href="@{/css/common/components.css}" href="../../static/css/common/components.css" />
     <link rel="stylesheet" th:href="@{/css/pages/guide/ai-guide.css}" href="../../static/css/pages/guide/ai-guide.css" />
   </head>
-  <body class="page-ai-guide" data-route="/ai-guide">
+  <body class="page-ai-guide" data-route="/ai-guide" th:attr="data-ai-mock-enabled=${aiMockEnabled}">
     <div class="app">
       <div th:replace="~{fragments/header :: header('guide')}"></div>
       <main id="page-content">
@@ -20,9 +20,9 @@
             <div>
               <span class="section-eyebrow">AI TRAVEL GUIDE</span>
               <h1>여행에 대해 무엇이든 물어보세요</h1>
-              <p>현재 여행과 취향을 바탕으로 다음 코스를 제안해 드립니다.</p>
+              <p>입력한 질문을 바탕으로 Gemini가 여행 일정 초안을 제안해 드립니다.</p>
             </div>
-            <div class="demo-status">
+            <div class="demo-status" th:if="${aiMockEnabled}">
               <label for="demo-mode">API 테스트 상태</label>
               <select id="demo-mode">
                 <option value="success">성공 응답</option>
@@ -34,11 +34,11 @@
           <div class="ai-layout">
             <aside class="white-panel ai-context">
               <div class="context-badge">✦</div>
-              <h2>부산 미식 여행</h2>
-              <p class="context-subtitle">DAY 1 · 광안리 → 해운대 → 청사포</p>
+              <h2>질문 기반 추천</h2>
+              <p class="context-subtitle">현재 단계에서는 질문만 Gemini에 전달됩니다.</p>
               <div class="context-facts">
-                <span><b>3박 4일</b>여행 기간</span>
-                <span><b>맛집 · 카페</b>여행 스타일</span>
+                <span><b>여행 정보</b>후속 연동 예정</span>
+                <span><b>사용자 선호</b>후속 연동 예정</span>
               </div>
               <h3>추천 질문</h3>
               <button type="button" class="question-chip" data-chat-question="근처 저녁 맛집을 추천해줘">근처 저녁 맛집 추천</button>
@@ -48,13 +48,13 @@
             </aside>
 
             <section class="white-panel chat-panel" id="chat-panel" aria-live="polite">
-              <div class="chat-intro"><span>AI</span><p>여행 조건을 알려주시면 맞춤 추천을 시작할게요.</p></div>
+              <div class="chat-intro"><span>AI</span><p>여행 조건을 질문으로 알려주시면 Gemini 일정 생성을 시작할게요.</p></div>
               <div class="chat-messages" data-chat-messages>
-                <div class="ai-message"><p>안녕하세요! 부산 미식 여행의 다음 코스를 함께 찾아볼까요?</p><small>부산 여행 데이터 · 현재 일정</small></div>
+                <div class="ai-message"><p>안녕하세요! 여행 조건을 질문으로 알려주시면 Gemini가 일정 초안을 만들어 드립니다.</p><small>질문 기반 Gemini 추천</small></div>
               </div>
               <div class="chat-error" data-chat-error hidden>
-                <strong>추천을 불러오지 못했어요</strong>
-                <p>잠시 후 다시 시도하거나 질문을 조금 바꿔보세요.</p>
+                <strong data-chat-error-title>추천을 불러오지 못했어요</strong>
+                <p data-chat-error-message>잠시 후 다시 시도하거나 질문을 조금 바꿔보세요.</p>
                 <button type="button" class="outline-button" data-retry>다시 시도</button>
               </div>
               <div class="chat-input" data-ai-chat-form>
@@ -68,8 +68,8 @@
           <section class="external-section">
             <div class="section-title-row"><div><span class="section-eyebrow">BOOKING LINKS</span><h2>추천 일정에 필요한 예약</h2></div><span class="section-note">외부 예약 사이트로 이동합니다</span></div>
             <div class="external-grid">
-              <article class="external-card flight-card"><div class="external-icon">✈</div><div><span class="external-type">항공</span><h3>김포 → 부산</h3><p>부산 미식 여행 · 항공권 비교</p></div><strong>검색 비교<small>Google Travel</small></strong><a href="https://www.google.com/travel/flights" target="_blank" rel="noopener noreferrer">항공권 검색 <span>↗</span></a></article>
-              <article class="external-card hotel-card"><div class="external-icon">▣</div><div><span class="external-type">숙소</span><h3>광안리 숙소</h3><p>부산 미식 여행 · 2인 1실</p></div><strong>검색 비교<small>Google Travel</small></strong><a href="https://www.google.com/travel/hotels" target="_blank" rel="noopener noreferrer">숙소 검색 <span>↗</span></a></article>
+              <article class="external-card flight-card"><div class="external-icon">✈</div><div><span class="external-type">항공</span><h3>항공권 비교</h3><p>여행 조건에 맞는 항공권을 검색해 보세요.</p></div><strong>검색 비교<small>Google Travel</small></strong><a href="https://www.google.com/travel/flights" target="_blank" rel="noopener noreferrer">항공권 검색 <span>↗</span></a></article>
+              <article class="external-card hotel-card"><div class="external-icon">▣</div><div><span class="external-type">숙소</span><h3>숙소 비교</h3><p>여행 조건에 맞는 숙소를 검색해 보세요.</p></div><strong>검색 비교<small>Google Travel</small></strong><a href="https://www.google.com/travel/hotels" target="_blank" rel="noopener noreferrer">숙소 검색 <span>↗</span></a></article>
             </div>
           </section>
         </section>

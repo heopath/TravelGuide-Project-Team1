@@ -1,44 +1,140 @@
 {
   "info": {
     "name": "All My Trips - AI Guide",
-    "description": "AI-02 Mock API 검증용 컬렉션입니다. Gemini와 DB는 연결하지 않습니다.",
+    "description": "AI Guide API collection. Authenticate first, call GET /api/v1/csrf, then send the returned token in the configured CSRF header.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
-    { "key": "baseUrl", "value": "http://localhost:8080" }
+    { "key": "baseUrl", "value": "http://localhost:8080" },
+    { "key": "tripId", "value": "1" },
+    { "key": "csrfHeaderName", "value": "X-CSRF-TOKEN" },
+    { "key": "csrfToken", "value": "" }
   ],
   "item": [
     {
-      "name": "AI 일정 추천 성공",
+      "name": "Get CSRF token",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "const payload = pm.response.json();",
+              "pm.collectionVariables.set('csrfHeaderName', payload.headerName);",
+              "pm.collectionVariables.set('csrfToken', payload.token);"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Accept", "value": "application/json" }],
+        "url": { "raw": "{{baseUrl}}/api/v1/csrf", "host": ["{{baseUrl}}"], "path": ["api", "v1", "csrf"] }
+      }
+    },
+    {
+      "name": "Generate guide with owned trip",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Accept", "value": "application/json" },
+          { "key": "{{csrfHeaderName}}", "value": "{{csrfToken}}" }
+        ],
+        "body": { "mode": "raw", "raw": "{\n  \"tripId\": {{tripId}},\n  \"question\": \"Recommend dinner that fits my current itinerary\"\n}" },
+        "url": { "raw": "{{baseUrl}}/api/v1/ai-guides/generate", "host": ["{{baseUrl}}"], "path": ["api", "v1", "ai-guides", "generate"] }
+      }
+    },
+    {
+      "name": "Validation error - missing tripId",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "{{csrfHeaderName}}", "value": "{{csrfToken}}" }],
+        "body": { "mode": "raw", "raw": "{\n  \"question\": \"Recommend dinner\"\n}" },
+        "url": { "raw": "{{baseUrl}}/api/v1/ai-guides/generate", "host": ["{{baseUrl}}"], "path": ["api", "v1", "ai-guides", "generate"] }
+      }
+    },
+    {
+      "name": "Trip not found or not owned",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "{{csrfHeaderName}}", "value": "{{csrfToken}}" }],
+        "body": { "mode": "raw", "raw": "{\n  \"tripId\": 999999999,\n  \"question\": \"Recommend dinner\"\n}" },
+        "url": { "raw": "{{baseUrl}}/api/v1/ai-guides/generate", "host": ["{{baseUrl}}"], "path": ["api", "v1", "ai-guides", "generate"] }
+      }
+    },
+    {
+      "name": "Unauthenticated - expects 401",
+      "description": "Send a valid CSRF token without logging in. CSRF passes, authentication fails, so the response is 401 UNAUTHORIZED. Clear the session cookie before running.",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('returns 401', () => pm.response.to.have.status(401));",
+              "pm.test('code is UNAUTHORIZED', () => pm.expect(pm.response.json().code).to.eql('UNAUTHORIZED'));"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Accept", "value": "application/json" },
+          { "key": "{{csrfHeaderName}}", "value": "{{csrfToken}}" }
+        ],
+        "body": { "mode": "raw", "raw": "{\n  \"tripId\": {{tripId}},\n  \"question\": \"Recommend dinner\"\n}" },
+        "url": { "raw": "{{baseUrl}}/api/v1/ai-guides/generate", "host": ["{{baseUrl}}"], "path": ["api", "v1", "ai-guides", "generate"] }
+      }
+    },
+    {
+      "name": "Missing CSRF token - expects 403",
+      "description": "CsrfFilter runs before ExceptionTranslationFilter and answers with its own handler, so a missing token is 403 regardless of login state - never 401.",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": ["pm.test('returns 403', () => pm.response.to.have.status(403));"],
+            "type": "text/javascript"
+          }
+        }
+      ],
       "request": {
         "method": "POST",
         "header": [
           { "key": "Content-Type", "value": "application/json" },
           { "key": "Accept", "value": "application/json" }
         ],
-        "body": { "mode": "raw", "raw": "{\n  \"question\": \"근처 저녁 맛집을 추천해줘\"\n}" },
+        "body": { "mode": "raw", "raw": "{\n  \"tripId\": {{tripId}},\n  \"question\": \"Recommend dinner\"\n}" },
         "url": { "raw": "{{baseUrl}}/api/v1/ai-guides/generate", "host": ["{{baseUrl}}"], "path": ["api", "v1", "ai-guides", "generate"] }
       }
     },
     {
-      "name": "빈 질문 검증 오류",
+      "name": "Members me - unauthenticated expects 401",
+      "description": "GET requests skip CSRF, so this returns 401 directly and is the simplest way to confirm the auth failure body format.",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('returns 401', () => pm.response.to.have.status(401));",
+              "pm.test('body matches ErrorResponse', () => {",
+              "  const b = pm.response.json();",
+              "  pm.expect(b.success).to.eql(false);",
+              "  pm.expect(b.code).to.eql('UNAUTHORIZED');",
+              "  pm.expect(b.data).to.eql(null);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
       "request": {
-        "method": "POST",
-        "header": [{ "key": "Content-Type", "value": "application/json" }],
-        "body": { "mode": "raw", "raw": "{\n  \"question\": \"\"\n}" },
-        "url": { "raw": "{{baseUrl}}/api/v1/ai-guides/generate", "host": ["{{baseUrl}}"], "path": ["api", "v1", "ai-guides", "generate"] }
-      }
-    },
-    {
-      "name": "Mock 서버 오류",
-      "request": {
-        "method": "POST",
-        "header": [
-          { "key": "Content-Type", "value": "application/json" },
-          { "key": "X-AI-Mock-Mode", "value": "server-error" }
-        ],
-        "body": { "mode": "raw", "raw": "{\n  \"question\": \"서버 오류 테스트\"\n}" },
-        "url": { "raw": "{{baseUrl}}/api/v1/ai-guides/generate", "host": ["{{baseUrl}}"], "path": ["api", "v1", "ai-guides", "generate"] }
+        "method": "GET",
+        "header": [{ "key": "Accept", "value": "application/json" }],
+        "url": { "raw": "{{baseUrl}}/api/v1/members/me", "host": ["{{baseUrl}}"], "path": ["api", "v1", "members", "me"] }
       }
     }
   ]

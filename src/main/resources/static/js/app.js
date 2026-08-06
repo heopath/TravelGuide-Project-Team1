@@ -56,13 +56,14 @@ const ALL_MY_TRIPS_TEMPLATE_ROUTES = {
   "/home": "home/home",
   "/auth/login": "auth/login",
   "/auth/signup": "auth/signup",
+  "/trips/new/plan": "trips/plan",
   "/trips/new/basic": "trips/basic",
   "/trips/new/style": "trips/style",
-  "/trips/recommendations": "trips/recommendations",
   "/guide": "guide/guide",
   "/guide/places/haeundae": "guide/place-detail",
   "/trips/busan/schedule": "trips/schedule",
   "/trips/busan/map": "trips/map",
+  "/ai-trip-plan": "guide/ai-trip-plan",
   "/ai-guide": "guide/ai-guide",
   "/trips/busan/optimize": "trips/optimize",
   "/guide/themes": "guide/themes",
@@ -150,6 +151,11 @@ const ALL_MY_TRIPS_SCREENS = [
     "auth"
   ],
   [
+    "/trips/new/plan",
+    "여행 계획 방식",
+    "trips"
+  ],
+  [
     "/trips/new/basic",
     "여행 기본 정보",
     "trips"
@@ -160,13 +166,8 @@ const ALL_MY_TRIPS_SCREENS = [
     "trips"
   ],
   [
-    "/trips/recommendations",
-    "여행지 추천",
-    "trips"
-  ],
-  [
     "/guide",
-    "여행 가이드",
+    "추천 장소",
     "guide"
   ],
   [
@@ -182,6 +183,11 @@ const ALL_MY_TRIPS_SCREENS = [
   [
     "/trips/busan/map",
     "지도 기반 경로",
+    "trips"
+  ],
+  [
+    "/ai-trip-plan",
+    "AI 여행계획",
     "trips"
   ],
   [

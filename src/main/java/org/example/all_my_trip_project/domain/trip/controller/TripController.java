@@ -2,6 +2,7 @@ package org.example.all_my_trip_project.domain.trip.controller;
 
 import lombok.RequiredArgsConstructor;
 import org.example.all_my_trip_project.domain.trip.dto.TripDTO;
+import org.example.all_my_trip_project.domain.trip.dto.TripCreateRequest;
 import org.example.all_my_trip_project.domain.trip.dto.TripCreateResult;
 import org.example.all_my_trip_project.domain.trip.service.TripService;
 import org.example.all_my_trip_project.global.exception.BusinessException;
@@ -12,6 +13,7 @@ import org.springframework.context.annotation.Profile;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+import jakarta.validation.Valid;
 
 import java.net.URI;
 import java.util.List;
@@ -26,10 +28,10 @@ public class TripController {
     @PostMapping
     public ResponseEntity<ApiResponse<TripCreateResult>> create(
             @AuthenticationPrincipal AuthenticatedUser principal,
-            @RequestBody TripDTO trip) {
+            @Valid @RequestBody TripCreateRequest request) {
         Long userId = requireUserId(principal);
-        TripCreateResult result = tripService.createWithDays(userId, trip);
-        return ResponseEntity.created(URI.create("/api/v1/trips/" + result.trip().getTripId()))
+        TripCreateResult result = tripService.create(userId, request);
+        return ResponseEntity.created(URI.create("/api/v1/trips/" + result.tripId()))
                 .body(ApiResponse.success("여행과 날짜별 일정이 생성되었습니다.", result));
     }
 

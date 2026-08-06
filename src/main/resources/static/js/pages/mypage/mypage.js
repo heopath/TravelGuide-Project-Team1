@@ -99,7 +99,7 @@ document.addEventListener("DOMContentLoaded", function () {
       favoriteList.replaceChildren();
 
       if (favorites.length === 0) {
-        showState("아직 찜한 여행지가 없습니다. 여행 가이드에서 관심 장소를 추가해보세요.", false);
+        showState("아직 찜한 여행지가 없습니다. 추천 장소에서 관심 장소를 추가해보세요.", false);
         return;
       }
 
@@ -164,7 +164,9 @@ document.addEventListener("DOMContentLoaded", function () {
     const cancelButton = document.querySelector("[data-profile-cancel]");
     const nicknameInput = editForm?.elements.namedItem("nickname");
     const formError = document.querySelector("[data-profile-error]");
-    const preferenceList = document.querySelector("[data-preference-list]");
+    const tripList = document.querySelector("[data-trip-list]");
+    const tripCount = document.querySelector("[data-trip-count]");
+    const tripMoreButton = document.querySelector("[data-trip-more]");
 
     let currentMember = null;
 
@@ -187,33 +189,99 @@ document.addEventListener("DOMContentLoaded", function () {
       }
     }
 
-    function renderPreferences(preferenceResponse) {
-      if (!preferenceList) return;
+    const TRIP_PREVIEW_COUNT = 3;
+    const tripStatusLabels = {
+      DRAFT: "작성 중",
+      PLANNED: "진행 예정",
+      ONGOING: "진행 중",
+      COMPLETED: "완료",
+      CANCELLED: "취소",
+    };
 
-      const preferences = preferenceResponse?.preferences || [];
-      preferenceList.replaceChildren();
+    function formatTripPeriod(startDate, endDate) {
+      const toDotted = function (value) {
+        return String(value || "").replaceAll("-", ".");
+      };
+      const start = toDotted(startDate);
+      const end = toDotted(endDate);
+      if (!start) return "";
+      return end && end !== start ? start + " ~ " + end : start;
+    }
 
-      if (preferences.length === 0) {
-        const empty = document.createElement("span");
-        empty.className = "preference-empty";
-        empty.textContent = "아직 저장된 여행 선호가 없습니다.";
-        preferenceList.appendChild(empty);
+    function createTripCard(trip) {
+      const item = document.createElement("button");
+      item.type = "button";
+      item.className = "trip-summary-card";
+      item.dataset.route = "/trips/" + trip.tripId + "/schedule";
+      item.setAttribute("aria-label", (trip.title || "여행") + " 일정 열기");
+
+      const copy = document.createElement("span");
+      copy.className = "trip-summary-copy";
+
+      const title = document.createElement("strong");
+      title.textContent = trip.title || trip.destinationName || "이름 없는 여행";
+
+      const meta = document.createElement("span");
+      meta.textContent = [trip.destinationName, formatTripPeriod(trip.startDate, trip.endDate)]
+        .filter(Boolean)
+        .join(" · ");
+
+      copy.append(title, meta);
+
+      const status = document.createElement("em");
+      status.className = "trip-summary-status status-" + String(trip.status || "").toLowerCase();
+      status.textContent = tripStatusLabels[trip.status] || trip.status || "";
+
+      item.append(copy, status);
+      return item;
+    }
+
+    function renderTrips(trips) {
+      if (!tripList) return;
+
+      const list = Array.isArray(trips) ? trips : [];
+      // 지표는 응답 길이로 계산한다. 화면에는 최근 몇 건만 보여주므로 렌더링 개수와 다르다.
+      if (tripCount) tripCount.textContent = list.length + "개";
+
+      tripList.replaceChildren();
+
+      if (list.length === 0) {
+        const empty = document.createElement("p");
+        empty.className = "mypage-state";
+        empty.textContent = "아직 만든 여행이 없습니다.";
+
+        const start = document.createElement("button");
+        start.type = "button";
+        start.className = "outline-button wide";
+        start.dataset.route = "/trips/new/plan";
+        start.textContent = "새 여행 만들기 →";
+
+        tripList.append(empty, start);
+        if (tripMoreButton) tripMoreButton.hidden = true;
         return;
       }
 
-      preferences.forEach(function (preference) {
-        const chip = document.createElement("span");
-        chip.className = "preference-chip";
-
-        const name = document.createElement("span");
-        name.textContent = preference.name;
-
-        const score = document.createElement("small");
-        score.textContent = preference.preferenceScore + "점";
-
-        chip.append(name, score);
-        preferenceList.appendChild(chip);
+      // 최근 생성 순으로 보여준다. 서버 정렬에 의존하지 않고 화면에서 한 번 더 정렬한다.
+      const sorted = list.slice().sort(function (a, b) {
+        return String(b.createdAt || "").localeCompare(String(a.createdAt || ""));
       });
+
+      sorted.slice(0, TRIP_PREVIEW_COUNT).forEach(function (trip) {
+        tripList.appendChild(createTripCard(trip));
+      });
+
+      if (tripMoreButton) tripMoreButton.hidden = list.length <= TRIP_PREVIEW_COUNT;
+    }
+
+    function showTripState(message) {
+      if (!tripList) return;
+      tripList.replaceChildren();
+      const state = document.createElement("p");
+      state.className = "mypage-state error";
+      state.textContent = message;
+      tripList.appendChild(state);
+      if (tripCount) tripCount.textContent = "—";
+      if (tripMoreButton) tripMoreButton.hidden = true;
     }
 
     function showEditForm() {
@@ -275,19 +343,14 @@ document.addEventListener("DOMContentLoaded", function () {
         if (emailText) emailText.textContent = error.message;
       });
 
-    const preferenceRequest = request("/api/v1/members/me/preferences")
-      .then(renderPreferences)
+    const tripRequest = request("/api/v1/trips")
+      .then(renderTrips)
       .catch(function (error) {
-        if (preferenceList) {
-          preferenceList.innerHTML = "";
-          const errorMessage = document.createElement("span");
-          errorMessage.className = "preference-empty";
-          errorMessage.textContent = error.message;
-          preferenceList.appendChild(errorMessage);
-        }
+        showTripState(error.message || "여행 일정을 불러오지 못했습니다.");
       });
 
-    Promise.allSettled([memberRequest, preferenceRequest]).then(function () {
+    // 한 요청이 실패해도 나머지 영역은 정상 렌더링되도록 allSettled를 유지한다.
+    Promise.allSettled([memberRequest, tripRequest]).then(function () {
       document.body.dataset.pageReady = "true";
     });
   });

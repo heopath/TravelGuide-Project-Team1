@@ -25,13 +25,8 @@ const ALL_MY_TRIPS_SCREENS = [
     "trips"
   ],
   [
-    "/trips/recommendations",
-    "여행지 추천",
-    "trips"
-  ],
-  [
     "/guide",
-    "여행 가이드",
+    "추천 장소",
     "guide"
   ],
   [
@@ -213,7 +208,7 @@ function openDirectory() {
   root.innerHTML = `
     <div class="drawer-backdrop">
       <aside class="screen-directory">
-        <div class="drawer-head"><div><span>ALL SCREENS</span><h2>전체 화면 21</h2></div><button data-directory-close>×</button></div>
+        <div class="drawer-head"><div><span>ALL SCREENS</span><h2>전체 화면 ${ALL_MY_TRIPS_SCREENS.length}</h2></div><button data-directory-close>×</button></div>
         ${Object.keys(groups).map(function (group) {
           return "<section><h3>" + group + "</h3>" + groups[group].map(function (screen) {
             return '<button class="' + (current === screen[0] ? "active" : "") + '" data-route="' + screen[0] + '"><span>•</span><b>' + screen[1] + "</b><em>›</em></button>";

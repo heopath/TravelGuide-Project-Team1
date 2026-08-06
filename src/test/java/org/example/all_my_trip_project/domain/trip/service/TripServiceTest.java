@@ -2,29 +2,40 @@ package org.example.all_my_trip_project.domain.trip.service;
 
 import org.example.all_my_trip_project.domain.trip.dao.TripDAO;
 import org.example.all_my_trip_project.domain.trip.dao.TripDayDAO;
+import org.example.all_my_trip_project.domain.trip.dto.TripCreateRequest;
 import org.example.all_my_trip_project.domain.trip.dto.TripCreateResult;
 import org.example.all_my_trip_project.domain.trip.dto.TripDTO;
 import org.example.all_my_trip_project.domain.trip.dto.TripDayDTO;
+import org.example.all_my_trip_project.domain.trip.service.support.TripCreateValidator;
+import org.example.all_my_trip_project.domain.trip.service.support.TripCreationFactory;
+import org.example.all_my_trip_project.domain.trip.type.CompanionType;
+import org.example.all_my_trip_project.domain.user.dao.UserDAO;
+import org.example.all_my_trip_project.domain.user.dto.UserDTO;
+import org.example.all_my_trip_project.domain.user.type.UserStatus;
+import org.example.all_my_trip_project.global.exception.BusinessException;
+import org.example.all_my_trip_project.global.exception.ErrorCode;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.util.Optional;
+import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.List;
+import java.util.Optional;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.Mockito.when;
-import static org.mockito.Mockito.doAnswer;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.never;
 import static org.mockito.ArgumentMatchers.any;
-import org.mockito.ArgumentCaptor;
+import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class TripServiceTest {
@@ -33,94 +44,170 @@ class TripServiceTest {
     private TripDAO tripDAO;
     @Mock
     private TripDayDAO tripDayDAO;
+    @Mock
+    private UserDAO userDAO;
 
-    @InjectMocks
     private TripService tripService;
 
+    @BeforeEach
+    void setUp() {
+        tripService = new TripService(
+                tripDAO,
+                tripDayDAO,
+                userDAO,
+                new TripCreateValidator(),
+                new TripCreationFactory()
+        );
+        lenient().when(userDAO.findById(42L)).thenReturn(Optional.of(
+                UserDTO.builder().userId(42L).status(UserStatus.ACTIVE.name()).build()
+        ));
+    }
+
     @Test
-    void createWithDaysStoresTripAndEveryDayTogether() {
-        TripDTO trip = TripDTO.builder()
-                .userId(999L)
-                .startDate(LocalDate.of(2026, 8, 10))
-                .endDate(LocalDate.of(2026, 8, 12))
-                .build();
-        doAnswer(invocation -> {
-            ((TripDTO) invocation.getArgument(0)).setTripId(10L);
-            return 1;
-        }).when(tripDAO).insert(trip);
-        when(tripDAO.findById(10L)).thenReturn(Optional.of(trip));
+    void createStoresTripAndEveryDayTogether() {
+        TripCreateRequest request = request(
+                null,
+                LocalDate.of(2026, 8, 10),
+                LocalDate.of(2026, 8, 12),
+                CompanionType.COUPLE,
+                2
+        );
+        prepareSuccessfulInsert();
 
-        TripCreateResult result = tripService.createWithDays(42L, trip);
+        TripCreateResult result = tripService.create(42L, request);
 
-        assertThat(result.trip().getUserId()).isEqualTo(42L);
-        assertThat(result.days()).extracting(TripDayDTO::getTripDate)
+        assertThat(result.tripId()).isEqualTo(10L);
+        assertThat(result.createdDayCount()).isEqualTo(3);
+
+        ArgumentCaptor<TripDTO> tripCaptor = ArgumentCaptor.forClass(TripDTO.class);
+        verify(tripDAO).insert(tripCaptor.capture());
+        assertThat(tripCaptor.getValue().getTitle()).isEqualTo("부산 여행");
+        assertThat(tripCaptor.getValue().getUserId()).isEqualTo(42L);
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<List<TripDayDTO>> daysCaptor = ArgumentCaptor.forClass(List.class);
+        verify(tripDayDAO).insertAll(daysCaptor.capture());
+        assertThat(daysCaptor.getValue()).extracting(TripDayDTO::getTripDate)
                 .containsExactly(
                         LocalDate.of(2026, 8, 10),
                         LocalDate.of(2026, 8, 11),
                         LocalDate.of(2026, 8, 12));
-        ArgumentCaptor<TripDayDTO> dayCaptor = ArgumentCaptor.forClass(TripDayDTO.class);
-        verify(tripDayDAO, times(3)).insert(dayCaptor.capture());
-        assertThat(dayCaptor.getAllValues()).extracting(TripDayDTO::getDayNumber)
+        assertThat(daysCaptor.getValue()).extracting(TripDayDTO::getDayNumber)
                 .containsExactly(1, 2, 3);
     }
 
     @Test
-    void createWithDaysAllowsThirtyDayTrip() {
-        TripDTO trip = TripDTO.builder()
-                .startDate(LocalDate.of(2026, 8, 1))
-                .endDate(LocalDate.of(2026, 8, 30))
-                .build();
-        doAnswer(invocation -> {
-            ((TripDTO) invocation.getArgument(0)).setTripId(10L);
-            return 1;
-        }).when(tripDAO).insert(trip);
-        when(tripDAO.findById(10L)).thenReturn(Optional.of(trip));
+    void createAllowsThirtyDayTrip() {
+        TripCreateRequest request = request(
+                "여름 휴가",
+                LocalDate.of(2026, 8, 1),
+                LocalDate.of(2026, 8, 30),
+                CompanionType.FAMILY,
+                4
+        );
+        prepareSuccessfulInsert();
 
-        TripCreateResult result = tripService.createWithDays(42L, trip);
+        TripCreateResult result = tripService.create(42L, request);
 
-        assertThat(result.days()).hasSize(30);
-        verify(tripDAO).insert(trip);
-        verify(tripDayDAO, times(30)).insert(any(TripDayDTO.class));
+        assertThat(result.createdDayCount()).isEqualTo(30);
+        verify(tripDayDAO).insertAll(anyList());
     }
 
     @Test
-    void createWithDaysRejectsThirtyOneDayTripBeforeSaving() {
-        TripDTO trip = TripDTO.builder()
-                .startDate(LocalDate.of(2026, 8, 1))
-                .endDate(LocalDate.of(2026, 8, 31))
-                .build();
+    void createRejectsThirtyOneDayTripBeforeSaving() {
+        TripCreateRequest request = request(
+                null,
+                LocalDate.of(2026, 8, 1),
+                LocalDate.of(2026, 8, 31),
+                CompanionType.COUPLE,
+                2
+        );
 
-        assertThatThrownBy(() -> tripService.createWithDays(42L, trip))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("여행 기간은 최대 30일까지 설정할 수 있습니다.");
+        assertThatThrownBy(() -> tripService.create(42L, request))
+                .isInstanceOf(BusinessException.class)
+                .extracting(exception -> ((BusinessException) exception).getErrorCode())
+                .isEqualTo(ErrorCode.INVALID_TRIP_PERIOD);
 
         verify(tripDAO, never()).insert(any(TripDTO.class));
-        verify(tripDayDAO, never()).insert(any(TripDayDTO.class));
+        verify(tripDayDAO, never()).insertAll(anyList());
     }
 
     @Test
-    void createWithDaysPropagatesDayInsertFailureForTransactionRollback() {
-        TripDTO trip = TripDTO.builder()
-                .startDate(LocalDate.of(2026, 8, 10))
-                .endDate(LocalDate.of(2026, 8, 12))
-                .build();
+    void createRejectsSoloWithMoreThanOneCompanion() {
+        TripCreateRequest request = request(
+                null,
+                LocalDate.of(2026, 8, 1),
+                LocalDate.of(2026, 8, 1),
+                CompanionType.SOLO,
+                2
+        );
+
+        assertThatThrownBy(() -> tripService.create(42L, request))
+                .isInstanceOf(BusinessException.class)
+                .extracting(exception -> ((BusinessException) exception).getErrorCode())
+                .isEqualTo(ErrorCode.INVALID_COMPANION_COUNT);
+
+        verify(tripDAO, never()).insert(any(TripDTO.class));
+    }
+
+    @Test
+    void createPropagatesBatchInsertFailure() {
+        TripCreateRequest request = request(
+                null,
+                LocalDate.of(2026, 8, 10),
+                LocalDate.of(2026, 8, 12),
+                CompanionType.COUPLE,
+                2
+        );
         doAnswer(invocation -> {
             ((TripDTO) invocation.getArgument(0)).setTripId(10L);
             return 1;
-        }).when(tripDAO).insert(trip);
-        AtomicInteger inserts = new AtomicInteger();
-        doAnswer(invocation -> {
-            if (inserts.incrementAndGet() == 2) {
-                throw new IllegalStateException("DAY 저장 실패");
-            }
-            return 1;
-        }).when(tripDayDAO).insert(org.mockito.ArgumentMatchers.any(TripDayDTO.class));
+        }).when(tripDAO).insert(any(TripDTO.class));
+        when(tripDayDAO.insertAll(anyList())).thenThrow(new IllegalStateException("DAY 저장 실패"));
 
-        assertThatThrownBy(() -> tripService.createWithDays(42L, trip))
+        assertThatThrownBy(() -> tripService.create(42L, request))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessage("DAY 저장 실패");
+    }
 
-        verify(tripDayDAO, times(2)).insert(org.mockito.ArgumentMatchers.any(TripDayDTO.class));
+    @Test
+    void createRejectsUnknownUserBeforeSaving() {
+        when(userDAO.findById(43L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> tripService.create(43L, validRequest()))
+                .isInstanceOf(BusinessException.class)
+                .extracting(exception -> ((BusinessException) exception).getErrorCode())
+                .isEqualTo(ErrorCode.UNAUTHORIZED);
+
+        verifyNoTripSaved();
+    }
+
+    @Test
+    void createRejectsSuspendedUserBeforeSaving() {
+        when(userDAO.findById(43L)).thenReturn(Optional.of(
+                UserDTO.builder().userId(43L).status(UserStatus.SUSPENDED.name()).build()
+        ));
+
+        assertThatThrownBy(() -> tripService.create(43L, validRequest()))
+                .isInstanceOf(BusinessException.class)
+                .extracting(exception -> ((BusinessException) exception).getErrorCode())
+                .isEqualTo(ErrorCode.ACCOUNT_SUSPENDED);
+
+        verifyNoTripSaved();
+    }
+
+    @Test
+    void createRejectsWithdrawnUserBeforeSaving() {
+        when(userDAO.findById(43L)).thenReturn(Optional.of(
+                UserDTO.builder().userId(43L).status(UserStatus.WITHDRAWN.name()).build()
+        ));
+
+        assertThatThrownBy(() -> tripService.create(43L, validRequest()))
+                .isInstanceOf(BusinessException.class)
+                .extracting(exception -> ((BusinessException) exception).getErrorCode())
+                .isEqualTo(ErrorCode.ACCOUNT_WITHDRAWN);
+
+        verifyNoTripSaved();
     }
 
     @Test
@@ -137,8 +224,51 @@ class TripServiceTest {
         when(tripDAO.findById(10L)).thenReturn(Optional.of(trip));
 
         assertThatThrownBy(() -> tripService.get(42L, 10L))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("여행을 찾을 수 없습니다.");
+                .isInstanceOf(BusinessException.class)
+                .extracting(exception -> ((BusinessException) exception).getErrorCode())
+                .isEqualTo(ErrorCode.TRIP_NOT_FOUND);
+    }
+
+    private void prepareSuccessfulInsert() {
+        doAnswer(invocation -> {
+            ((TripDTO) invocation.getArgument(0)).setTripId(10L);
+            return 1;
+        }).when(tripDAO).insert(any(TripDTO.class));
+        doAnswer(invocation -> ((List<?>) invocation.getArgument(0)).size())
+                .when(tripDayDAO).insertAll(anyList());
+    }
+
+    private TripCreateRequest validRequest() {
+        return request(
+                null,
+                LocalDate.of(2026, 8, 10),
+                LocalDate.of(2026, 8, 12),
+                CompanionType.COUPLE,
+                2
+        );
+    }
+
+    private void verifyNoTripSaved() {
+        verify(tripDAO, never()).insert(any(TripDTO.class));
+        verify(tripDayDAO, never()).insertAll(anyList());
+    }
+
+    private TripCreateRequest request(
+            String title,
+            LocalDate startDate,
+            LocalDate endDate,
+            CompanionType companionType,
+            int companionCount
+    ) {
+        return new TripCreateRequest(
+                title,
+                "부산",
+                startDate,
+                endDate,
+                companionType,
+                companionCount,
+                BigDecimal.valueOf(300_000)
+        );
     }
 
     @Test

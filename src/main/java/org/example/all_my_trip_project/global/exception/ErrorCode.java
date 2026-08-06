@@ -24,6 +24,11 @@ public enum ErrorCode {
             "로그인이 필요합니다."
     ),
 
+    AI_REQUEST_LIMIT_EXCEEDED(
+            HttpStatus.TOO_MANY_REQUESTS,
+            "AI 추천 요청이 너무 많습니다. 잠시 후 다시 시도해 주세요."
+    ),
+
     ACCOUNT_SUSPENDED(
             HttpStatus.FORBIDDEN,
             "정지된 계정입니다."
@@ -52,6 +57,31 @@ public enum ErrorCode {
     WEATHER_DATE_OUT_OF_RANGE(
             HttpStatus.BAD_REQUEST,
             "날씨는 오늘부터 3일 이내 일정만 확인할 수 있습니다."
+    ),
+
+    INVALID_TRIP_REQUEST(
+            HttpStatus.BAD_REQUEST,
+            "여행 생성 요청값이 올바르지 않습니다."
+    ),
+
+    INVALID_TRIP_PERIOD(
+            HttpStatus.BAD_REQUEST,
+            "여행 기간은 시작일과 종료일을 포함해 1일 이상 30일 이하여야 합니다."
+    ),
+
+    INVALID_COMPANION_COUNT(
+            HttpStatus.BAD_REQUEST,
+            "동행 인원은 1명 이상 20명 이하여야 하며 혼자 여행은 1명이어야 합니다."
+    ),
+
+    TRIP_NOT_FOUND(
+            HttpStatus.NOT_FOUND,
+            "여행을 찾을 수 없습니다."
+    ),
+
+    TRIP_CREATE_FAILED(
+            HttpStatus.INTERNAL_SERVER_ERROR,
+            "여행을 생성하지 못했습니다."
     );
 
     private final HttpStatus status;

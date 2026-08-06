@@ -30,6 +30,8 @@ document.addEventListener("DOMContentLoaded", function () {
   let travelerCount = 1;
   const MAX_TRAVELERS = 20;
   const MAX_TRIP_DAYS = 30;
+  const companionTypeMap = { ALONE: "SOLO", FRIEND: "FRIENDS", COUPLE: "COUPLE", FAMILY: "FAMILY", PARENTS: "FAMILY", CHILDREN: "FAMILY" };
+
   const DEFAULT_DESTINATIONS = [
     { label: "서울", value: "SEOUL", countryCode: "KR" },
     { label: "부산", value: "BUSAN", countryCode: "KR" },
@@ -72,6 +74,26 @@ document.addEventListener("DOMContentLoaded", function () {
     return countryName ? destination.label + " · " + countryName : destination.label;
   }
 
+  function getCityName(place) {
+    const region = String(place.region || "").trim();
+    const city = String(place.city || "").trim();
+    const metropolitanNames = {
+      서울: "서울특별시",
+      부산: "부산광역시",
+      대구: "대구광역시",
+      인천: "인천광역시",
+      광주: "광주광역시",
+      대전: "대전광역시",
+      울산: "울산광역시",
+      세종: "세종특별자치시",
+    };
+
+    // API의 city 값이 수영구·해운대구처럼 구 단위로 내려오면 상위 도시명만 사용한다.
+    if (region && city.endsWith("구")) return metropolitanNames[region] || region;
+    if (region && metropolitanNames[region]) return metropolitanNames[region];
+    return city || region || String(place.name || "").trim();
+  }
+
   function readDraft() {
     try {
       return JSON.parse(sessionStorage.getItem(DRAFT_KEY) || "{}");
@@ -82,6 +104,22 @@ document.addEventListener("DOMContentLoaded", function () {
 
   function writeDraft(draft) {
     sessionStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
+  }
+
+  function isAiPlan() {
+    return (readDraft().plan || {}).mode === "AI";
+  }
+
+  function updateFlowUi() {
+    const ai = isAiPlan();
+    const aiStep = document.querySelector("[data-ai-step]");
+    const finalStep = document.querySelector("[data-final-step]");
+    if (aiStep) aiStep.hidden = !ai;
+    if (finalStep) {
+      finalStep.querySelector("span").textContent = ai ? "4" : "3";
+      finalStep.querySelector("b").textContent = ai ? "추천 결과" : "여행 일정";
+    }
+    fields.nextButton.textContent = ai ? "여행 스타일 설정 →" : "여행 일정 만들기 →";
   }
 
   function buildAutoTitle(destinationLabel, startDate) {
@@ -227,6 +265,8 @@ document.addEventListener("DOMContentLoaded", function () {
           }
           fields.endDate.min = fields.startDate.value || getTodayKeyInDestinationTimeZone();
           updateDuration();
+          setError("startDateError", "");
+          setError("endDateError", "");
           renderRangeCalendar();
           if (fields.startDate.value && fields.endDate.value) closeRangeCalendar();
         });
@@ -306,7 +346,7 @@ document.addEventListener("DOMContentLoaded", function () {
     const params = new URLSearchParams({ page: "0", size: "100" });
     if (keyword) params.set("keyword", keyword);
     try {
-      const response = await fetch("/api/places?" + params.toString(), {
+      const response = await fetch("/api/v1/places?" + params.toString(), {
         headers: { Accept: "application/json" },
         allMyTripsLoading: false,
       });
@@ -315,7 +355,7 @@ document.addEventListener("DOMContentLoaded", function () {
       const places = Array.isArray(payload) ? payload : (payload.data || payload.content || []);
       const unique = new Map();
       places.forEach(function (place) {
-        const label = [place.region, place.city, place.name].filter(Boolean).join(" · ");
+        const label = getCityName(place);
         if (!label || unique.has(label)) return;
         unique.set(label, {
           label: label,
@@ -343,6 +383,8 @@ document.addEventListener("DOMContentLoaded", function () {
     });
     fields.message.textContent = "";
     fields.message.classList.remove("is-error", "is-success");
+    const budgetInput = document.querySelector(".budget-input");
+    if (budgetInput) budgetInput.classList.remove("is-error");
 
     if (!fields.destination.value.trim()) {
       setError("destinationError", "여행 목적지를 입력해주세요.");
@@ -377,9 +419,11 @@ document.addEventListener("DOMContentLoaded", function () {
       setError("companionError", "동행자 유형을 선택해주세요.");
       valid = false;
     }
-    const budget = Number(fields.totalBudget.value);
-    if (!Number.isFinite(budget) || budget < 0) {
-      setError("budgetError", "총 예산을 0원 이상 입력해주세요.");
+    const budgetValue = fields.totalBudget.value.trim();
+    const budget = Number(budgetValue);
+    if (!budgetValue || !Number.isFinite(budget) || budget < 0) {
+      if (budgetInput) budgetInput.classList.add("is-error");
+      setError("budgetError", "");
       valid = false;
     }
     if (!Number.isInteger(travelerCount) || travelerCount < 1 || travelerCount > MAX_TRAVELERS) {
@@ -413,18 +457,68 @@ document.addEventListener("DOMContentLoaded", function () {
     saving = active;
     fields.nextButton.disabled = active;
     fields.nextButton.setAttribute("aria-busy", String(active));
-    fields.nextButton.textContent = active ? "입력 내용 저장 중..." : "다음 · 스타일 설정";
+    fields.nextButton.textContent = active
+      ? (isAiPlan() ? "입력 내용 저장 중..." : "여행 생성 중...")
+      : (isAiPlan() ? "여행 스타일 설정 →" : "여행 일정 만들기 →");
   }
 
+  async function createManualTrip(draft) {
+    const basic = draft.basic || {};
+    const response = await fetch("/api/v1/trips", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify({
+        title: basic.title || buildAutoTitle(basic.destinationLabel, basic.startDate),
+        destinationName: basic.destinationLabel || basic.destination,
+        startDate: basic.startDate,
+        endDate: basic.endDate,
+        companionType: companionTypeMap[basic.companion] || "OTHER",
+        companionCount: Number(basic.travelerCount || 1),
+        budgetAmount: Number(basic.totalBudget || 0),
+      }),
+    });
+    if (response.status === 401) {
+      const unauthorized = new Error("로그인이 필요합니다.");
+      unauthorized.unauthorized = true;
+      throw unauthorized;
+    }
+    const body = await response.json().catch(function () { return {}; });
+    if (!response.ok) throw new Error(body.message || "여행 정보를 저장하지 못했습니다.");
+    const tripId = Number(body.data && body.data.tripId);
+    if (!Number.isInteger(tripId) || tripId < 1) throw new Error("생성된 여행 ID를 확인할 수 없습니다.");
+    return tripId;
+  }
+
+  // Trip API가 준비되기 전까지는 현재 브라우저의 sessionStorage를 mock 저장소로 사용한다.
+  // API 연결 시 window.ALL_MY_TRIPS_TRIP_API_READY를 true로 바꾸면 DraftStore를 사용할 수 있다.
   async function saveDraft(draft) {
-    if (window.AllMyTripsDraftStore && typeof window.AllMyTripsDraftStore.save === "function") {
+    if (window.ALL_MY_TRIPS_TRIP_API_READY === true
+      && window.AllMyTripsDraftStore
+      && typeof window.AllMyTripsDraftStore.save === "function") {
       return window.AllMyTripsDraftStore.save(draft);
     }
-    return { data: { nextUrl: "/trips/new/style" }, message: "여행 기본정보를 저장했습니다." };
+
+    await new Promise(function (resolve) { window.setTimeout(resolve, 350); });
+    return {
+      data: { mock: true, nextUrl: "/trips/new/style" },
+      message: "여행 기본정보를 임시 저장했습니다.",
+    };
   }
 
   companionButtons.forEach(function (button) {
-    button.addEventListener("click", function () { selectCompanion(button, true); });
+    button.addEventListener("click", function () {
+      if (selectedCompanion === button.dataset.companion) {
+        selectedCompanion = "";
+        travelerCount = 1;
+        companionButtons.forEach(function (candidate) {
+          candidate.classList.remove("selected");
+          candidate.setAttribute("aria-pressed", "false");
+        });
+        updateBudgetSummary();
+        return;
+      }
+      selectCompanion(button, true);
+    });
   });
   const destinationSearchInput = fields.destinationTrigger;
   const destinationList = document.querySelector("#destinationInlineList");
@@ -492,6 +586,7 @@ document.addEventListener("DOMContentLoaded", function () {
       });
       updateBudgetSummary();
       setError("budgetError", "");
+      fields.totalBudget.closest(".budget-input").classList.remove("is-error");
     });
   });
   fields.totalBudget.addEventListener("input", function () {
@@ -500,6 +595,7 @@ document.addEventListener("DOMContentLoaded", function () {
     });
     updateBudgetSummary();
     setError("budgetError", "");
+    fields.totalBudget.closest(".budget-input").classList.remove("is-error");
   });
   fields.travelerCountMinus.addEventListener("click", function () {
     travelerCount = Math.max(1, travelerCount - 1);
@@ -528,17 +624,24 @@ document.addEventListener("DOMContentLoaded", function () {
     calendarViewDate = new Date(calendarViewDate.getFullYear(), calendarViewDate.getMonth() + 1, 1);
     renderRangeCalendar();
   });
-  fields.startDate.addEventListener("change", function () { updateDuration(); renderRangeCalendar(); });
-  fields.endDate.addEventListener("change", function () { updateDuration(); renderRangeCalendar(); });
+  fields.startDate.addEventListener("change", function () {
+    updateDuration();
+    setError("startDateError", "");
+    setError("endDateError", "");
+    renderRangeCalendar();
+  });
+  fields.endDate.addEventListener("change", function () {
+    updateDuration();
+    setError("startDateError", "");
+    setError("endDateError", "");
+    renderRangeCalendar();
+  });
 
   form.addEventListener("submit", async function (event) {
     event.preventDefault();
-    if (saving || !validate()) {
-      if (!saving) {
-        fields.message.textContent = "입력하지 않은 기본 정보가 있습니다.";
-        fields.message.classList.add("is-error");
-        fields.message.focus();
-      }
+    if (saving) return;
+    if (!validate()) {
+      window.alert("모든 설정을 완료 후 버튼을 눌러주세요.");
       return;
     }
 
@@ -546,24 +649,38 @@ document.addEventListener("DOMContentLoaded", function () {
     draft.basic = collectBasic();
     writeDraft(draft);
     setSaving(true);
-    fields.message.textContent = "여행 기본정보를 저장하고 있습니다.";
+    fields.message.textContent = "";
 
     try {
+      if (!isAiPlan()) {
+        const tripId = await createManualTrip(draft);
+        window.location.href = "/trips/" + tripId + "/schedule";
+        return;
+      }
       const response = await saveDraft(draft);
-      fields.message.textContent = response.message || "여행 기본정보를 저장했습니다.";
-      fields.message.classList.add("is-success");
+      fields.message.textContent = "";
+      fields.message.classList.remove("is-success", "is-error");
       window.setTimeout(function () {
         window.location.href = (response.data && response.data.nextUrl) || "/trips/new/style";
       }, 350);
     } catch (error) {
       setSaving(false);
-      fields.message.textContent = "저장에 실패했습니다. 잠시 후 다시 시도해주세요.";
-      fields.message.classList.add("is-error");
-      fields.message.focus();
+      if (error && error.unauthorized) {
+        if (window.confirm("로그인이 필요합니다. 로그인 페이지로 이동할까요?")) {
+          const redirect = window.location.pathname + window.location.search;
+          window.location.href = "/auth/login?redirect=" + encodeURIComponent(redirect);
+        }
+        return;
+      }
+      const reason = error && error.message
+        ? error.message
+        : "알 수 없는 오류가 발생했습니다.";
+      window.alert("다음 단계로 이동하지 못했습니다.\n사유: " + reason);
     }
   });
 
   const saved = readDraft().basic || {};
+  updateFlowUi();
   if (!saved.title || saved.titleAutoGenerated !== false) {
     saved.title = buildAutoTitle(saved.destinationLabel || saved.destination, saved.startDate);
     saved.titleAutoGenerated = true;
@@ -589,7 +706,7 @@ document.addEventListener("DOMContentLoaded", function () {
   fields.startDate.value = saved.startDate || "";
   fields.endDate.value = saved.endDate || "";
   travelerCount = Math.min(MAX_TRAVELERS, Math.max(1, Number(saved.travelerCount) || 1));
-  fields.totalBudget.value = saved.totalBudget ?? saved.budgetPerPerson ?? "300000";
+  fields.totalBudget.value = saved.totalBudget ?? saved.budgetPerPerson ?? "";
   if (saved.companion) {
     const savedButton = document.querySelector('[data-companion="' + saved.companion + '"]');
     if (savedButton) selectCompanion(savedButton, false);

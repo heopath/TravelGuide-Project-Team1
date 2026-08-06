@@ -1,7 +1,9 @@
 package org.example.all_my_trip_project.domain.trip.controller;
 
 import org.example.all_my_trip_project.domain.trip.dto.TripDTO;
+import org.example.all_my_trip_project.domain.trip.dto.TripCreateRequest;
 import org.example.all_my_trip_project.domain.trip.dto.TripCreateResult;
+import org.example.all_my_trip_project.domain.trip.type.CompanionType;
 import org.example.all_my_trip_project.domain.trip.service.TripService;
 import org.example.all_my_trip_project.global.exception.BusinessException;
 import org.example.all_my_trip_project.global.exception.ErrorCode;
@@ -12,6 +14,8 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -41,14 +45,21 @@ class TripControllerTest {
     }
 
     @Test
-    void createOverridesClientUserIdWithAuthenticatedUserId() {
-        TripDTO request = TripDTO.builder().userId(999L).title("서울 여행").build();
-        TripDTO saved = TripDTO.builder().tripId(10L).userId(42L).title("서울 여행").build();
-        TripCreateResult result = new TripCreateResult(saved, List.of());
-        when(tripService.createWithDays(42L, request)).thenReturn(result);
+    void createUsesAuthenticatedUserId() {
+        TripCreateRequest request = new TripCreateRequest(
+                "서울 여행",
+                "서울",
+                LocalDate.of(2026, 8, 10),
+                LocalDate.of(2026, 8, 12),
+                CompanionType.COUPLE,
+                2,
+                BigDecimal.valueOf(300_000)
+        );
+        TripCreateResult result = new TripCreateResult(10L, 3);
+        when(tripService.create(42L, request)).thenReturn(result);
 
         assertThat(tripController.create(principal, request).getBody().data()).isSameAs(result);
-        verify(tripService).createWithDays(42L, request);
+        verify(tripService).create(42L, request);
     }
 
     @Test

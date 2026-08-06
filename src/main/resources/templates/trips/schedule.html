@@ -1,72 +1,357 @@
 <!doctype html>
 <html lang="ko" xmlns:th="http://www.thymeleaf.org">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="All My Trips 여행 일정 편집" />
-    <title>여행 일정 편집 — All My Trips</title>
-    <link rel="icon" th:href="@{/images/icons/app-icon.png}" href="../../static/images/icons/app-icon.png" />
-    <link rel="stylesheet" th:href="@{/css/common/reset.css}" href="../../static/css/common/reset.css" />
-    <link rel="stylesheet" th:href="@{/css/common/layout.css}" href="../../static/css/common/layout.css" />
-    <link rel="stylesheet" th:href="@{/css/common/components.css}" href="../../static/css/common/components.css" />
-    <link rel="stylesheet" th:href="@{/css/pages/trips/schedule.css}" href="../../static/css/pages/trips/schedule.css" />
-  </head>
-  <body class="page-schedule" th:attr="data-trip-id=${tripId}" data-trip-id="">
-    <div class="app">
-      <div th:replace="~{fragments/header :: header('trips')}"></div>
-      <main id="page-content">
-        <section class="page-shell">
-    <section class="page-heading basic-wizard-heading">
-      <ol class="wizard">
-        <li class="done"><span>1</span><b>기본정보</b><i></i></li>
-        <li class="done"><span>2</span><b>여행 스타일</b><i></i></li>
-        <li class="done"><span>3</span><b>추천결과</b><i></i></li>
-        <li class="active"><span>4</span><b>여행일정</b></li>
-      </ol>
-    </section>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="All My Trips 여행 일정 편집" />
 
-    <section class="page-heading">
-      <div>
-        <h1><span>04 </span>여행 일정</h1>
-        <p>날짜별 일정을 만들고 순서를 자유롭게 바꿔보세요.</p>
-        <i>✦</i>
-      </div>
-      <div class="heading-actions"><button type="button" class="outline-button" data-modal="share">공유하기</button><button type="button" class="primary-button" data-schedule-guide>+ 장소 찾아보기</button></div>
-    </section>
-  
+  <title>여행 일정 편집 — All My Trips</title>
+
+  <link
+          rel="icon"
+          th:href="@{/images/icons/app-icon.png}"
+          href="../../static/images/icons/app-icon.png"
+  />
+  <link
+          rel="stylesheet"
+          th:href="@{/css/common/reset.css}"
+          href="../../static/css/common/reset.css"
+  />
+  <link
+          rel="stylesheet"
+          th:href="@{/css/common/layout.css}"
+          href="../../static/css/common/layout.css"
+  />
+  <link
+          rel="stylesheet"
+          th:href="@{/css/common/components.css}"
+          href="../../static/css/common/components.css"
+  />
+  <link
+          rel="stylesheet"
+          th:href="@{/css/pages/trips/schedule.css}"
+          href="../../static/css/pages/trips/schedule.css"
+  />
+</head>
+
+<body
+        class="page-schedule"
+        th:attr="data-trip-id=${tripId}"
+        data-trip-id=""
+>
+<div class="app">
+  <div th:replace="~{fragments/header :: header('trips')}"></div>
+
+  <main id="page-content">
+    <section class="page-shell">
+      <section class="page-heading basic-wizard-heading">
+        <ol class="wizard">
+          <li class="done">
+            <span>1</span>
+            <b>계획 방식</b>
+            <i></i>
+          </li>
+
+          <li class="done">
+            <span>2</span>
+            <b>기본 정보</b>
+            <i></i>
+          </li>
+
+          <li class="active">
+            <span>3</span>
+            <b>여행 일정</b>
+          </li>
+        </ol>
+
+        <button
+                type="button"
+                class="primary-button schedule-save-button"
+                data-schedule-save
+        >
+          ▣&nbsp; 여행 저장하기
+        </button>
+      </section>
+
       <div class="schedule-layout schedule-planner-layout">
-        <aside class="white-panel trip-sidebar"><h2>현재 여행</h2><div data-trip-list><p class="schedule-empty">여행을 불러오는 중입니다.</p></div><button type="button" class="outline-button wide" data-route="/trips/new/basic">+ 새 여행 만들기</button></aside>
+        <aside class="schedule-sidebar">
+          <section class="white-panel trip-sidebar">
+            <h2>내 여행</h2>
+
+            <div data-trip-list>
+              <p class="schedule-empty">
+                여행을 불러오는 중입니다.
+              </p>
+            </div>
+
+          </section>
+
+          <section class="white-panel featured-places">
+            <h3>
+              <span class="featured-heart">♥</span>
+              이 지역의 찜한 여행지
+            </h3>
+
+            <div class="featured-place-list">
+              <article
+                class="featured-place"
+                data-featured-place
+                data-place-id="favorite-gyeongbokgung"
+                data-place-name="경복궁"
+                data-place-address="서울 종로구 사직로 161"
+                data-place-latitude="37.579617"
+                data-place-longitude="126.977041"
+              >
+                <span class="place-thumb palace-thumb"></span>
+                <strong>경복궁</strong>
+                <em>★ 4.7</em>
+                <button type="button" class="featured-place-add" aria-label="경복궁 일정에 추가">
+                  <span class="featured-place-add-icon">＋</span>
+                  <span class="featured-place-add-label">일정에 추가하기</span>
+                </button>
+              </article>
+
+              <article
+                class="featured-place"
+                data-featured-place
+                data-place-id="favorite-seoul-tower"
+                data-place-name="서울타워"
+                data-place-address="서울 용산구 남산공원길 105"
+                data-place-latitude="37.551169"
+                data-place-longitude="126.988227"
+              >
+                <span class="place-thumb tower-thumb"></span>
+                <strong>서울타워</strong>
+                <em>★ 4.6</em>
+                <button type="button" class="featured-place-add" aria-label="서울타워 일정에 추가">
+                  <span class="featured-place-add-icon">＋</span>
+                  <span class="featured-place-add-label">일정에 추가하기</span>
+                </button>
+              </article>
+
+              <article
+                class="featured-place"
+                data-featured-place
+                data-place-id="favorite-lotte-world"
+                data-place-name="롯데월드"
+                data-place-address="서울 송파구 올림픽로 240"
+                data-place-latitude="37.511120"
+                data-place-longitude="127.098167"
+              >
+                <span class="place-thumb mall-thumb"></span>
+                <strong>롯데월드</strong>
+                <em>★ 4.5</em>
+                <button type="button" class="featured-place-add" aria-label="롯데월드 일정에 추가">
+                  <span class="featured-place-add-icon">＋</span>
+                  <span class="featured-place-add-label">일정에 추가하기</span>
+                </button>
+              </article>
+
+              <article
+                class="featured-place"
+                data-featured-place
+                data-place-id="favorite-bukchon"
+                data-place-name="북촌한옥마을"
+                data-place-address="서울 종로구 계동길 37"
+                data-place-latitude="37.582604"
+                data-place-longitude="126.983012"
+              >
+                <span class="place-thumb village-thumb"></span>
+                <strong>북촌한옥마을</strong>
+                <em>★ 4.5</em>
+                <button type="button" class="featured-place-add" aria-label="북촌한옥마을 일정에 추가">
+                  <span class="featured-place-add-icon">＋</span>
+                  <span class="featured-place-add-label">일정에 추가하기</span>
+                </button>
+              </article>
+
+              <article
+                class="featured-place"
+                data-featured-place
+                data-place-id="favorite-hangang"
+                data-place-name="한강공원"
+                data-place-address="서울 영등포구 여의동로 330"
+                data-place-latitude="37.528372"
+                data-place-longitude="126.932602"
+              >
+                <span class="place-thumb river-thumb"></span>
+                <strong>한강공원</strong>
+                <em>★ 4.4</em>
+                <button type="button" class="featured-place-add" aria-label="한강공원 일정에 추가">
+                  <span class="featured-place-add-icon">＋</span>
+                  <span class="featured-place-add-label">일정에 추가하기</span>
+                </button>
+              </article>
+            </div>
+
+            <button
+                    type="button"
+                    class="more-places"
+                    data-schedule-guide
+            >
+              더보기&nbsp; ›
+            </button>
+          </section>
+        </aside>
+
         <section class="schedule-center">
           <section class="white-panel map-panel">
-            <div class="panel-title-row"><div><h2>여행 지도</h2><p>선택한 DAY의 이동 경로입니다.</p></div><span data-map-status>지도 준비 중</span></div>
-            <div class="schedule-map" data-schedule-map><div class="map-placeholder">카카오 지도 키를 설정하면 지도가 표시됩니다.</div></div>
+            <div class="panel-title-row">
+              <div>
+                <h2>여행 지도</h2>
+                <p>선택한 날짜의 장소를 표시하세요.</p>
+              </div>
+
+              <span class="map-status" data-map-status hidden>지도 준비 중</span>
+              <button type="button" class="map-expand-button">
+                ♧&nbsp; 지도 크게 보기
+              </button>
+            </div>
+
+            <div class="schedule-map" data-schedule-map>
+              <div class="map-placeholder">
+                카카오 지도 키를 설정하면 지도가 표시됩니다.
+              </div>
+            </div>
           </section>
-          <section class="white-panel schedule-main"><div class="schedule-title-row"><h2 data-schedule-title>여행 일정</h2><button type="button" class="outline-button" data-toggle-route>경로선 ON</button></div><div class="day-tabs" data-day-tabs></div>
-            <div class="timeline" data-timeline><p class="schedule-empty">일정을 불러오는 중입니다.</p></div>
+
+          <section class="white-panel schedule-main">
+            <div class="schedule-title-row">
+              <div>
+                <h2 data-schedule-title>여행 캘린더 / 일정 확인</h2>
+                <p>선택한 날짜의 일정을 계획해보세요.</p>
+              </div>
+
+              <button
+                      type="button"
+                      class="outline-button"
+                      data-toggle-route
+              >
+                전체 보기
+              </button>
+            </div>
+
+            <div class="day-tabs" data-day-tabs></div>
+
+            <div class="timeline" data-timeline>
+              <p class="schedule-empty">
+                일정을 불러오는 중입니다.
+              </p>
+            </div>
           </section>
         </section>
+
         <aside class="schedule-side">
           <section class="white-panel place-search-panel">
-            <div class="panel-title-row"><div><h2>장소 추가</h2><p>장소를 검색해 선택한 DAY에 추가하세요.</p></div></div>
-            <form class="schedule-search" data-place-search-form data-no-global-loading><input type="search" data-place-keyword placeholder="장소명 또는 주차장을 검색하세요" aria-label="일정 장소 검색" /><button type="submit" class="primary-button">검색</button></form>
-            <div class="place-search-results" data-place-results><p class="schedule-empty">검색 결과가 여기에 표시됩니다.</p></div>
+            <div class="panel-title-row">
+              <div>
+                <h2>장소 추가</h2>
+                <p>장소를 검색해 선택한 DAY에 추가하세요.</p>
+              </div>
+            </div>
+
+            <form
+                    class="schedule-search"
+                    data-place-search-form
+                    data-no-global-loading
+            >
+              <input
+                      type="search"
+                      data-place-keyword
+                      placeholder="장소명을 입력하세요."
+                      aria-label="일정 장소 검색"
+              />
+
+              <button type="submit" class="primary-button">
+                검색
+              </button>
+            </form>
+
+            <div class="place-search-results" data-place-results>
+              <p class="schedule-empty">
+                검색 결과가 여기에 표시됩니다.
+              </p>
+            </div>
           </section>
-          <section class="white-panel detail-panel" data-place-insight hidden>
-            <div class="panel-title-row"><div><h2 data-insight-title>장소 정보</h2><p>날씨와 주변 주차장을 확인하세요.</p></div></div>
-            <div class="weather-box" data-weather-result><p>일정 장소를 선택하면 날씨를 확인할 수 있습니다.</p></div>
-            <div class="parking-box"><div class="parking-heading"><strong>주변 주차장</strong><button type="button" class="text-button" data-find-parking>검색</button></div><div data-parking-results><p>주차장 검색을 눌러주세요.</p></div></div>
+
+          <section
+                  class="white-panel detail-panel"
+                  data-place-insight
+          >
+            <div class="panel-title-row">
+              <div>
+                <h2 data-insight-title>장소 정보</h2>
+                <p>날씨와 주변 주차장을 확인하세요.</p>
+              </div>
+            </div>
+
+            <div class="weather-box" data-weather-result>
+              <p>
+                일정 장소의 날씨 정보를 확인할 수 있습니다.
+              </p>
+            </div>
+
+            <div class="parking-box">
+              <div class="parking-heading">
+                <strong>주변 주차장</strong>
+
+                <button
+                        type="button"
+                        class="text-button"
+                        data-find-parking
+                >
+                  검색
+                </button>
+              </div>
+
+              <div data-parking-results>
+                <p>주변 주차장 정보를 확인할 수 있습니다.</p>
+              </div>
+            </div>
           </section>
-          <section class="white-panel memo-card"><h2>여행 정보</h2><p data-schedule-period>기간을 불러오는 중입니다.</p><p data-schedule-destination>목적지를 불러오는 중입니다.</p><p>검색한 장소를 선택한 DAY에 바로 추가할 수 있습니다.</p></section>
+
         </aside>
       </div>
     </section>
-      </main>
-      <div th:replace="~{fragments/modals :: modalRoots}"><div id="directory-root"></div><div id="modal-root"></div><div id="toast-root" aria-live="polite"></div></div>
-      <div th:replace="~{fragments/footer :: footer}"></div>
-    </div>
-    <div th:replace="~{fragments/scripts :: appScripts}"></div>
-    <script th:if="${kakaoJavascriptKey != null and !kakaoJavascriptKey.isBlank()}"
-            th:src="|https://dapi.kakao.com/v2/maps/sdk.js?appkey=${kakaoJavascriptKey}&amp;libraries=services&amp;autoload=false|"></script>
-    <script th:src="@{/js/pages/trips/schedule.js}" src="../../static/js/pages/trips/schedule.js"></script>
-  </body>
+  </main>
+
+  <div th:replace="~{fragments/modals :: modalRoots}">
+    <div id="directory-root"></div>
+    <div id="modal-root"></div>
+    <div id="toast-root" aria-live="polite"></div>
+  </div>
+
+  <div class="map-modal" data-map-modal hidden aria-hidden="true">
+    <div class="map-modal-backdrop" data-map-modal-close></div>
+    <section class="map-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="mapModalTitle">
+      <div class="map-modal-header">
+        <h2 id="mapModalTitle">여행 지도</h2>
+        <button
+          type="button"
+          class="map-modal-close"
+          data-map-modal-close
+          aria-label="지도 크게 보기 닫기"
+        >×</button>
+      </div>
+      <div class="map-modal-map" data-schedule-map-expanded>
+        <div class="map-placeholder">카카오 지도 키를 설정하면 지도가 표시됩니다.</div>
+      </div>
+    </section>
+  </div>
+
+  <div th:replace="~{fragments/footer :: footer}"></div>
+</div>
+
+<div th:replace="~{fragments/scripts :: appScripts}"></div>
+
+<script
+        th:if="${kakaoJavascriptKey != null and !kakaoJavascriptKey.isBlank()}"
+        th:src="|https://dapi.kakao.com/v2/maps/sdk.js?appkey=${kakaoJavascriptKey}&amp;libraries=services&amp;autoload=false|"
+></script>
+
+<script
+        th:src="@{/js/pages/trips/schedule.js}"
+        src="../../static/js/pages/trips/schedule.js"
+></script>
+</body>
 </html>

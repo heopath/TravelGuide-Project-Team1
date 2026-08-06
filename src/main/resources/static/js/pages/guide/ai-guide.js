@@ -4,9 +4,31 @@ document.addEventListener("DOMContentLoaded", () => {
   const input = document.querySelector("#chat-question");
   const messages = document.querySelector("[data-chat-messages]");
   const errorBox = document.querySelector("[data-chat-error]");
+  const errorTitle = document.querySelector("[data-chat-error-title]");
+  const errorMessage = document.querySelector("[data-chat-error-message]");
+  const retryButton = document.querySelector("[data-retry]");
   const mode = document.querySelector("#demo-mode");
+  const mockEnabled = document.body.dataset.aiMockEnabled === "true";
+  const rawTripId = new URLSearchParams(window.location.search).get("tripId");
+  const tripId = rawTripId && /^[1-9]\d*$/.test(rawTripId) ? Number(rawTripId) : null;
   const submitButton = document.querySelector("[data-ai-submit]");
   let lastQuestion = "근처 저녁 맛집을 추천해줘";
+  let csrfToken;
+
+  const showError = (title, message, retryable = true) => {
+    errorTitle.textContent = title;
+    errorMessage.textContent = message;
+    retryButton.hidden = !retryable;
+    errorBox.hidden = false;
+  };
+
+  const disableQuestionInput = () => {
+    input.disabled = true;
+    submitButton.disabled = true;
+    document.querySelectorAll("[data-chat-question]").forEach((button) => {
+      button.disabled = true;
+    });
+  };
 
   const create = (tag, text, className) => {
     const element = document.createElement(tag);
@@ -82,13 +104,30 @@ document.addEventListener("DOMContentLoaded", () => {
   };
 
   const requestAiGuide = async (question) => {
+    if (!csrfToken) {
+      const csrfResponse = await fetch("/api/v1/csrf", {
+        headers: { Accept: "application/json" },
+        credentials: "same-origin"
+      });
+      const csrfPayload = await csrfResponse.json().catch(() => null);
+      if (!csrfResponse.ok || !csrfPayload?.headerName || !csrfPayload?.token) {
+        throw new Error("CSRF_TOKEN_REQUEST_FAILED");
+      }
+      csrfToken = csrfPayload;
+    }
+
     const headers = { "Content-Type": "application/json", Accept: "application/json" };
-    if (mode.value === "failure") headers["X-AI-Mock-Mode"] = "server-error";
+    headers[csrfToken.headerName] = csrfToken.token;
+    if (mockEnabled && mode?.value === "failure") headers["X-AI-Mock-Mode"] = "server-error";
 
     const response = await fetch("/api/v1/ai-guides/generate", {
       method: "POST",
       headers,
-      body: JSON.stringify({ question })
+      body: JSON.stringify({
+        question,
+        tripId
+      }),
+      credentials: "same-origin"
     });
     const payload = await response.json().catch(() => null);
     if (!response.ok || !payload?.success) throw new Error(payload?.message || "AI_GUIDE_REQUEST_FAILED");
@@ -104,7 +143,7 @@ document.addEventListener("DOMContentLoaded", () => {
     submitButton.disabled = true;
     requestAiGuide(question)
       .then(renderResponse)
-      .catch(() => { errorBox.hidden = false; })
+      .catch(() => showError("추천을 불러오지 못했어요", "잠시 후 다시 시도하거나 질문을 조금 바꿔보세요."))
       .finally(() => {
         loading.remove();
         form.classList.remove("is-disabled");
@@ -130,5 +169,13 @@ document.addEventListener("DOMContentLoaded", () => {
     input.value = button.dataset.chatQuestion;
     input.focus();
   }));
-  document.querySelector("[data-retry]").addEventListener("click", () => submit(lastQuestion));
+  retryButton.addEventListener("click", () => submit(lastQuestion));
+
+  if (!tripId) {
+    const message = rawTripId
+      ? "올바른 여행 정보를 찾을 수 없어요. 여행 일정에서 다시 AI 가이드를 열어주세요."
+      : "여행 일정에서 여행을 선택한 뒤 AI 가이드를 이용해 주세요.";
+    showError("여행을 먼저 선택해 주세요", message, false);
+    disableQuestionInput();
+  }
 });
