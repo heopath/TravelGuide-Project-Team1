@@ -1,11 +1,13 @@
 document.addEventListener("DOMContentLoaded", function () {
   const params = new URLSearchParams(window.location.search);
-  const destination = (params.get("destination") || "").trim();
-  const startDate = params.get("startDate") || params.get("departureDate") || "";
-  const endDate = params.get("endDate") || startDate;
-  const travelers = Math.min(20, Math.max(1, Number(params.get("travelers")) || 1));
-  const form = document.querySelector("[data-plan-form]");
-  const empty = document.querySelector("[data-plan-empty]");
+  let draft = {};
+  try { draft = JSON.parse(sessionStorage.getItem("tripDraft") || "{}"); } catch (error) { draft = {}; }
+  const basic = draft.basic || {};
+  const style = draft.style || {};
+  const destination = String(basic.destinationLabel || basic.destination || params.get("destination") || "").trim();
+  const startDate = basic.startDate || params.get("startDate") || params.get("departureDate") || "";
+  const endDate = basic.endDate || params.get("endDate") || startDate;
+  const travelers = Math.min(20, Math.max(1, Number(basic.travelerCount || params.get("travelers")) || 1));
   const loading = document.querySelector("[data-plan-loading]");
   const result = document.querySelector("[data-plan-result]");
   const error = document.querySelector("[data-plan-error]");
@@ -26,13 +28,12 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   function showPlanState(state) {
-    setPanelVisible(empty, state === "empty");
     setPanelVisible(loading, state === "loading");
     setPanelVisible(error, state === "error");
     setPanelVisible(result, state === "result");
   }
 
-  showPlanState("empty");
+  showPlanState("loading");
 
   function formatDate(value) {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return "날짜 미입력";
@@ -236,19 +237,21 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   async function generatePlan() {
-    const submitButton = form.querySelector("button");
+    const companionLabels = { ALONE: "혼자", FRIEND: "친구", COUPLE: "커플", FAMILY: "가족", PARENTS: "부모님", CHILDREN: "아이와 함께" };
     const request = {
       destination: destination,
       startDate: startDate,
       endDate: endDate,
       travelers: travelers,
-      companion: form.elements.companion.value,
-      theme: form.elements.theme.value,
-      pace: form.elements.pace.value,
-      budget: form.elements.budget.value,
+      companion: companionLabels[basic.companion] || basic.companion || "선호 없음",
+      purpose: style.purpose || "관광",
+      pace: style.pace || "균형있는",
+      transport_preference: style.transportPreference || "선호 없음",
+      food_preference: style.foodPreference || "선호 없음",
+      accommodation_style: style.accommodationStyle || "선호 없음",
+      budget_amount: Number(basic.totalBudget || 0),
     };
     showPlanState("loading");
-    submitButton.disabled = true;
     try {
       const response = await fetch("/api/v1/ai-trip-plans/generate", {
         method: "POST",
@@ -262,15 +265,14 @@ document.addEventListener("DOMContentLoaded", function () {
       window.requestAnimationFrame(function () { selectPlanDay(activeDayIndex); });
     } catch (requestError) {
       showPlanState("error");
-    } finally {
-      submitButton.disabled = false;
-    }
+    } finally {}
   }
 
-  form.addEventListener("submit", function (event) {
-    event.preventDefault();
-    generatePlan();
-  });
-
   document.querySelector("[data-plan-retry]").addEventListener("click", generatePlan);
+  if (!destination || !startDate || !endDate || !style.purpose) {
+    showPlanState("error");
+    document.querySelector("[data-plan-error] p").textContent = "기본정보와 여행 스타일을 모두 입력한 뒤 다시 시도해 주세요.";
+  } else {
+    generatePlan();
+  }
 });

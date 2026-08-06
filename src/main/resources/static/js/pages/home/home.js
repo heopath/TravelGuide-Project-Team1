@@ -61,8 +61,19 @@ document.addEventListener("DOMContentLoaded", function () {
       }
 
       tripSearchError.hidden = true;
-      const query = new URLSearchParams({ destination: destination, startDate: selectedStartDate, endDate: selectedEndDate, travelers: String(travelers) });
-      const nextUrl = "/ai-trip-plan?" + query.toString();
+      let draft = {};
+      try { draft = JSON.parse(sessionStorage.getItem("tripDraft") || "{}"); } catch (error) { draft = {}; }
+      draft.basic = {
+        ...(draft.basic || {}),
+        destination: destination,
+        destinationLabel: destination,
+        startDate: selectedStartDate,
+        endDate: selectedEndDate,
+        travelerCount: travelers,
+      };
+      delete draft.plan;
+      sessionStorage.setItem("tripDraft", JSON.stringify(draft));
+      const nextUrl = "/trips/new/plan";
       if (window.AllMyTripsLoading) {
         window.AllMyTripsLoading.show();
         window.setTimeout(function () { window.location.href = nextUrl; }, 350);

@@ -20,8 +20,8 @@
         <ol class="plan-wizard" aria-label="여행 계획 단계">
           <li class="active"><span>1</span><b>계획 방식</b><i></i></li>
           <li><span>2</span><b>기본 정보</b><i></i></li>
-          <li><span>3</span><b>여행 스타일</b><i></i></li>
-          <li><span>4</span><b>여행 일정</b></li>
+          <li data-ai-step><span>3</span><b>여행 스타일</b><i></i></li>
+          <li data-final-step><span>3</span><b>여행 일정</b></li>
         </ol>
 
         <section class="plan-heading" aria-labelledby="planTitle">
@@ -43,7 +43,7 @@
             <span class="plan-card-arrow" aria-hidden="true">→</span>
           </button>
 
-          <button class="plan-card" type="button" data-plan-mode="ai" aria-pressed="false">
+          <button class="plan-card" type="button" data-plan-mode="ai" data-route="/trips/new/basic" aria-pressed="false">
             <span class="plan-card-check" aria-hidden="true">✓</span>
             <span class="plan-card-content">
               <span class="plan-card-icon plan-card-icon-ai" aria-hidden="true">✧</span>
