@@ -16,9 +16,7 @@ import org.example.all_my_trip_project.domain.trip.dao.TripDayDAO;
 import org.example.all_my_trip_project.domain.trip.dto.ItineraryItemDTO;
 import org.example.all_my_trip_project.domain.trip.dto.TripDTO;
 import org.example.all_my_trip_project.domain.trip.dto.TripDayDTO;
-import org.example.all_my_trip_project.domain.user.dao.UserDAO;
-import org.example.all_my_trip_project.domain.user.dto.UserDTO;
-import org.example.all_my_trip_project.domain.user.type.UserStatus;
+import org.example.all_my_trip_project.domain.user.service.ActiveMemberGuard;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -29,7 +27,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
-import java.util.Optional;
 import java.util.concurrent.atomic.AtomicLong;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -44,16 +41,13 @@ class AiTripPlanPersistenceServiceTest {
     @Mock TripDayDAO tripDayDAO;
     @Mock ItineraryItemDAO itineraryItemDAO;
     @Mock PlaceDAO placeDAO;
-    @Mock UserDAO userDAO;
+    @Mock ActiveMemberGuard activeMemberGuard;
 
     private AiTripPlanPersistenceService service;
 
     @BeforeEach
     void setUp() {
-        service = new AiTripPlanPersistenceService(tripDAO, tripDayDAO, itineraryItemDAO, placeDAO, userDAO);
-        when(userDAO.findById(42L)).thenReturn(Optional.of(
-                UserDTO.builder().userId(42L).status(UserStatus.ACTIVE.name()).build()
-        ));
+        service = new AiTripPlanPersistenceService(tripDAO, tripDayDAO, itineraryItemDAO, placeDAO, activeMemberGuard);
         doAnswer(invocation -> {
             ((TripDTO) invocation.getArgument(0)).setTripId(100L);
             return 1;

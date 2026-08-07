@@ -27,7 +27,7 @@ import java.util.stream.Collectors;
 @Profile("!ui")
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
-public class MemberService {
+public class MemberService implements ActiveMemberGuard {
 
     private final UserRepository userRepository;
     private final UserPreferenceRepository userPreferenceRepository;
@@ -35,6 +35,11 @@ public class MemberService {
     public UserPreferenceResponse getPreferences(Long userId) {
         validateMember(userId);
         return loadPreferences(userId);
+    }
+
+    @Override
+    public void requireActiveMember(Long userId) {
+        validateMember(userId);
     }
 
     @Transactional

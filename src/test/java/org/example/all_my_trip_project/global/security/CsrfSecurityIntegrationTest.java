@@ -3,10 +3,8 @@ package org.example.all_my_trip_project.global.security;
 import org.example.all_my_trip_project.domain.auth.service.AuthService;
 import org.example.all_my_trip_project.domain.favorite.controller.FavoriteController;
 import org.example.all_my_trip_project.domain.favorite.service.FavoriteService;
-import org.example.all_my_trip_project.domain.trip.controller.ItineraryItemController;
 import org.example.all_my_trip_project.domain.trip.controller.TripController;
 import org.example.all_my_trip_project.domain.trip.dto.TripCreateResult;
-import org.example.all_my_trip_project.domain.trip.service.ItineraryItemService;
 import org.example.all_my_trip_project.domain.trip.service.TripService;
 import org.example.all_my_trip_project.domain.user.controller.MemberController;
 import org.example.all_my_trip_project.domain.user.dto.MemberResponse;
@@ -39,7 +37,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @WebMvcTest(controllers = {
         CsrfController.class, TripController.class, FavoriteController.class,
-        ItineraryItemController.class, MemberController.class
+        MemberController.class
 })
 @Import({ApiSecurityConfig.class, SecurityConfig.class})
 @ActiveProfiles("test")
@@ -48,7 +46,6 @@ class CsrfSecurityIntegrationTest {
     @Autowired MockMvc mockMvc;
     @MockitoBean TripService tripService;
     @MockitoBean FavoriteService favoriteService;
-    @MockitoBean ItineraryItemService itineraryItemService;
     @MockitoBean MemberService memberService;
     @MockitoBean AuthService authService;
 
@@ -103,7 +100,7 @@ class CsrfSecurityIntegrationTest {
 
     @Test
     void itineraryCreationRequiresCsrfHeader() throws Exception {
-        when(itineraryItemService.create(eq(42L), any())).thenReturn(99L);
+        when(tripService.createItem(eq(42L), eq(20L), any())).thenReturn(99L);
         mockMvc.perform(post("/api/v1/trip-days/20/items").with(authentication(authenticated))
                         .contentType("application/json").content("{}"))
                 .andExpect(status().isForbidden());

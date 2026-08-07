@@ -5,8 +5,6 @@ import org.example.all_my_trip_project.domain.ai.dto.AiGuideRequest;
 import org.example.all_my_trip_project.domain.trip.dto.ItineraryItemDTO;
 import org.example.all_my_trip_project.domain.trip.dto.TripDTO;
 import org.example.all_my_trip_project.domain.trip.dto.TripDayDTO;
-import org.example.all_my_trip_project.domain.trip.service.ItineraryItemService;
-import org.example.all_my_trip_project.domain.trip.service.TripDayService;
 import org.example.all_my_trip_project.domain.trip.service.TripService;
 import org.example.all_my_trip_project.domain.user.dto.UserPreferenceResponse;
 import org.example.all_my_trip_project.domain.user.service.MemberService;
@@ -25,16 +23,12 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class AiGuideContextServiceTest {
-    private final ObjectProvider<TripService> tripServiceProvider = mock(ObjectProvider.class);
-    private final ObjectProvider<TripDayService> tripDayServiceProvider = mock(ObjectProvider.class);
-    private final ObjectProvider<ItineraryItemService> itineraryItemServiceProvider = mock(ObjectProvider.class);
     private final ObjectProvider<MemberService> memberServiceProvider = mock(ObjectProvider.class);
+    private final ObjectProvider<TripService> tripServiceProvider = mock(ObjectProvider.class);
     private final TripService tripService = mock(TripService.class);
-    private final TripDayService tripDayService = mock(TripDayService.class);
-    private final ItineraryItemService itineraryItemService = mock(ItineraryItemService.class);
     private final MemberService memberService = mock(MemberService.class);
     private final AiGuideContextService service = new AiGuideContextService(
-            tripServiceProvider, tripDayServiceProvider, itineraryItemServiceProvider, memberServiceProvider
+            tripServiceProvider, memberServiceProvider
     );
 
     @Test
@@ -47,15 +41,13 @@ class AiGuideContextServiceTest {
         ItineraryItemDTO item = ItineraryItemDTO.builder().tripDayId(101L).title("Gwangalli dinner")
                 .startTime(LocalTime.of(18, 0)).itemType("FOOD").memo("Seafood restaurant").build();
         when(tripServiceProvider.getIfAvailable()).thenReturn(tripService);
-        when(tripDayServiceProvider.getIfAvailable()).thenReturn(tripDayService);
-        when(itineraryItemServiceProvider.getIfAvailable()).thenReturn(itineraryItemService);
         when(memberServiceProvider.getIfAvailable()).thenReturn(memberService);
         when(memberService.getPreferences(1L)).thenReturn(new UserPreferenceResponse(List.of(
                 new UserPreferenceResponse.PreferenceItem((short) 1, "FOOD", "Food travel", (short) 5, "USER")
         )));
         when(tripService.get(1L, 12L)).thenReturn(trip);
-        when(tripDayService.getByTrip(1L, 12L)).thenReturn(List.of(day));
-        when(itineraryItemService.getByTripDay(1L, 101L)).thenReturn(List.of(item));
+        when(tripService.getDays(1L, 12L)).thenReturn(List.of(day));
+        when(tripService.getItems(1L, 101L)).thenReturn(List.of(item));
 
         AiGuideContext context = service.load(1L, new AiGuideRequest("Recommend dinner", 12L));
 
@@ -65,18 +57,13 @@ class AiGuideContextServiceTest {
                 .containsExactly("Gwangalli dinner");
         assertThat(context.preferences()).extracting(AiGuideContext.Preference::name).containsExactly("Food travel");
         verify(tripService).get(1L, 12L);
-        verify(tripDayService).getByTrip(1L, 12L);
-        verify(itineraryItemService).getByTripDay(1L, 101L);
-        verify(itineraryItemService, never()).create(org.mockito.ArgumentMatchers.anyLong(), org.mockito.ArgumentMatchers.any());
-        verify(itineraryItemService, never()).update(org.mockito.ArgumentMatchers.anyLong(), org.mockito.ArgumentMatchers.any());
-        verify(itineraryItemService, never()).delete(org.mockito.ArgumentMatchers.anyLong(), org.mockito.ArgumentMatchers.anyLong(), org.mockito.ArgumentMatchers.anyLong());
+        verify(tripService).getDays(1L, 12L);
+        verify(tripService).getItems(1L, 101L);
     }
 
     @Test
     void propagatesTripNotFoundWithoutLoadingDaysOrItems() {
         when(tripServiceProvider.getIfAvailable()).thenReturn(tripService);
-        when(tripDayServiceProvider.getIfAvailable()).thenReturn(tripDayService);
-        when(itineraryItemServiceProvider.getIfAvailable()).thenReturn(itineraryItemService);
         when(memberServiceProvider.getIfAvailable()).thenReturn(memberService);
         when(memberService.getPreferences(1L)).thenReturn(new UserPreferenceResponse(List.of()));
         when(tripService.get(1L, 99L)).thenThrow(new IllegalArgumentException("Trip not found"));
@@ -84,7 +71,6 @@ class AiGuideContextServiceTest {
         assertThatThrownBy(() -> service.load(1L, new AiGuideRequest("Recommend dinner", 99L)))
                 .isInstanceOf(IllegalArgumentException.class);
 
-        verify(tripDayService, never()).getByTrip(1L, 99L);
-        verify(itineraryItemService, never()).getByTripDay(org.mockito.ArgumentMatchers.anyLong(), org.mockito.ArgumentMatchers.anyLong());
+        verify(tripService, never()).getDays(1L, 99L);
     }
 }

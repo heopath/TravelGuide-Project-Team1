@@ -1,27 +1,21 @@
 package org.example.all_my_trip_project.domain.trip.service;
 
 import lombok.RequiredArgsConstructor;
-import org.example.all_my_trip_project.domain.user.dao.UserDAO;
-import org.example.all_my_trip_project.domain.user.dto.UserDTO;
-import org.example.all_my_trip_project.domain.user.type.UserStatus;
+import org.example.all_my_trip_project.domain.user.service.ActiveMemberGuard;
 import org.example.all_my_trip_project.domain.trip.dao.TripDAO;
 import org.example.all_my_trip_project.domain.trip.dao.TripDayDAO;
 import org.example.all_my_trip_project.domain.trip.dto.TripCreateRequest;
 import org.example.all_my_trip_project.domain.trip.dto.TripCreateResult;
 import org.example.all_my_trip_project.domain.trip.dto.TripDTO;
 import org.example.all_my_trip_project.domain.trip.dto.TripDayDTO;
-import org.example.all_my_trip_project.domain.trip.service.support.TripCreateValidator;
-import org.example.all_my_trip_project.domain.trip.service.support.TripCreationFactory;
 import org.example.all_my_trip_project.global.exception.BusinessException;
 import org.example.all_my_trip_project.global.exception.ErrorCode;
 import org.springframework.stereotype.Service;
 import org.springframework.context.annotation.Profile;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.temporal.ChronoUnit;
-import java.util.ArrayList;
+import java.time.LocalDate;
 import java.util.List;
-import java.util.Objects;
 
 @Service
 @Profile("!ui")
@@ -30,13 +24,17 @@ import java.util.Objects;
 public class TripService {
     private final TripDAO tripDAO;
     private final TripDayDAO tripDayDAO;
-    private final UserDAO userDAO;
+    private final ActiveMemberGuard activeMemberGuard;
+    private final TripOwnershipGuard guard;
+    private final TripDayService tripDayService;
+    private final ItineraryItemService itineraryItemService;
     private final TripCreateValidator tripCreateValidator;
     private final TripCreationFactory tripCreationFactory;
 
     @Transactional
     public TripCreateResult create(Long userId, TripCreateRequest request) {
-        requireActiveUser(userId);
+        validateUserId(userId);
+        activeMemberGuard.requireActiveMember(userId);
         int dayCount = tripCreateValidator.validate(request);
         TripDTO trip = tripCreationFactory.createTrip(userId, request);
 
@@ -55,7 +53,7 @@ public class TripService {
     }
 
     public TripDTO get(Long userId, Long tripId) {
-        return requireOwnedTrip(userId, tripId);
+        return guard.requireOwnedTrip(userId, tripId);
     }
 
     public List<TripDTO> getByUser(Long userId) {
@@ -64,34 +62,60 @@ public class TripService {
     }
 
     @Transactional
+    public Long createDay(Long userId, TripDayDTO tripDay) {
+        return tripDayService.create(userId, tripDay);
+    }
+
+    public List<TripDayDTO> getDays(Long userId, Long tripId) {
+        return tripDayService.getByTrip(userId, tripId);
+    }
+
+    @Transactional
+    public void updateDay(Long userId, TripDayDTO tripDay) {
+        tripDayService.update(userId, tripDay);
+    }
+
+    @Transactional
+    public void deleteDay(Long userId, Long tripId, Long tripDayId) {
+        tripDayService.delete(userId, tripId, tripDayId);
+    }
+
+    @Transactional
+    public Long createItem(Long userId, Long tripDayId, org.example.all_my_trip_project.domain.trip.dto.ItineraryItemDTO item) {
+        return itineraryItemService.create(userId, item);
+    }
+
+    public List<org.example.all_my_trip_project.domain.trip.dto.ItineraryItemDTO> getItems(Long userId, Long tripDayId) {
+        return itineraryItemService.getByTripDay(userId, tripDayId);
+    }
+
+    @Transactional
+    public void updateItem(Long userId, org.example.all_my_trip_project.domain.trip.dto.ItineraryItemDTO item) {
+        itineraryItemService.update(userId, item);
+    }
+
+    @Transactional
+    public void deleteItem(Long userId, Long tripDayId, Long itemId) {
+        itineraryItemService.delete(userId, tripDayId, itemId);
+    }
+
+    @Transactional
     public void update(Long userId, TripDTO trip) {
-        TripDTO savedTrip = requireOwnedTrip(userId, trip.getTripId());
+        TripDTO savedTrip = guard.requireOwnedTrip(userId, trip.getTripId());
         validateDates(trip);
+        tripDayService.ensureNoPeriodConflict(savedTrip, trip);
         if (tripDAO.update(trip) == 0) {
             throw new IllegalArgumentException("수정할 여행을 찾을 수 없습니다. tripId=" + trip.getTripId());
         }
-        if (!Objects.equals(savedTrip.getStartDate(), trip.getStartDate())
-                || !Objects.equals(savedTrip.getEndDate(), trip.getEndDate())) {
-            synchronizeDays(trip);
-        }
+        tripDayService.reconcilePeriod(savedTrip, trip);
     }
 
     @Transactional
     public void delete(Long userId, Long tripId) {
-        requireOwnedTrip(userId, tripId);
+        guard.requireOwnedTrip(userId, tripId);
         if (tripDAO.softDelete(tripId) == 0) {
             throw new IllegalArgumentException("삭제할 여행을 찾을 수 없습니다. tripId=" + tripId);
         }
-    }
-
-    private TripDTO requireOwnedTrip(Long userId, Long tripId) {
-        validateUserId(userId);
-        TripDTO trip = tripDAO.findById(tripId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.TRIP_NOT_FOUND));
-        if (!Objects.equals(trip.getUserId(), userId)) {
-            throw new BusinessException(ErrorCode.TRIP_NOT_FOUND);
-        }
-        return trip;
     }
 
     private void validateUserId(Long userId) {
@@ -100,51 +124,16 @@ public class TripService {
         }
     }
 
-    private void requireActiveUser(Long userId) {
-        validateUserId(userId);
-        UserDTO user = userDAO.findById(userId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.UNAUTHORIZED));
-        if (UserStatus.SUSPENDED.matches(user.getStatus())) {
-            throw new BusinessException(ErrorCode.ACCOUNT_SUSPENDED);
-        }
-        if (!UserStatus.ACTIVE.matches(user.getStatus())) {
-            throw new BusinessException(ErrorCode.ACCOUNT_WITHDRAWN);
-        }
-    }
-
     private void validateDates(TripDTO trip) {
-        if (trip.getStartDate() == null || trip.getEndDate() == null) {
+        LocalDate startDate = trip.getStartDate();
+        LocalDate endDate = trip.getEndDate();
+
+        if (startDate == null || endDate == null) {
             throw new IllegalArgumentException("여행 시작일과 종료일은 필수입니다.");
         }
-        if (trip.getStartDate() != null && trip.getEndDate() != null
-                && trip.getEndDate().isBefore(trip.getStartDate())) {
+        if (endDate.isBefore(startDate)) {
             throw new IllegalArgumentException("여행 종료일은 시작일보다 빠를 수 없습니다.");
         }
     }
 
-    private void synchronizeDays(TripDTO trip) {
-        List<TripDayDTO> existingDays = new ArrayList<>(tripDayDAO.findByTripId(trip.getTripId()));
-        tripDayDAO.moveOutOfDateRange(trip.getTripId());
-
-        int desiredCount = (int) ChronoUnit.DAYS.between(trip.getStartDate(), trip.getEndDate()) + 1;
-        for (int index = 0; index < desiredCount; index++) {
-            int dayNumber = index + 1;
-            if (index < existingDays.size()) {
-                TripDayDTO day = existingDays.get(index);
-                day.setDayNumber(dayNumber);
-                day.setTripDate(trip.getStartDate().plusDays(index));
-                tripDayDAO.update(day);
-            } else {
-                tripDayDAO.insert(TripDayDTO.builder()
-                        .tripId(trip.getTripId())
-                        .dayNumber(dayNumber)
-                        .tripDate(trip.getStartDate().plusDays(index))
-                        .title("DAY " + dayNumber)
-                        .build());
-            }
-        }
-        for (int index = desiredCount; index < existingDays.size(); index++) {
-            tripDayDAO.delete(existingDays.get(index).getTripDayId());
-        }
-    }
 }
