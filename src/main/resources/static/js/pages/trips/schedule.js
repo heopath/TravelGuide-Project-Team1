@@ -18,6 +18,12 @@ document.addEventListener("DOMContentLoaded", function () {
   let lastSearchResults = [];
   let activeTrip = null;
   let savingTrip = false;
+  let scheduleDays = [];
+  let allScheduleVisible = false;
+  const placeCategoryNames = new Map();
+  const scheduleTimeStorageKey = "tripScheduleTimeOverrides";
+  let activeTimeEditor = null;
+  let activeTimeItem = null;
 
   const tripList = document.querySelector("[data-trip-list]");
   const title = document.querySelector("[data-schedule-title]");
@@ -27,17 +33,19 @@ document.addEventListener("DOMContentLoaded", function () {
   const destination = document.querySelector("[data-schedule-destination]");
   const mapContainer = document.querySelector("[data-schedule-map]");
   const mapExpandButton = document.querySelector(".map-expand-button");
+  const mapRouteToggle = document.querySelector("[data-toggle-route-map]");
   const mapModal = document.querySelector("[data-map-modal]");
   const expandedMapContainer = document.querySelector("[data-schedule-map-expanded]");
   const mapStatus = document.querySelector("[data-map-status]");
   const searchForm = document.querySelector("[data-place-search-form]");
   const keywordInput = document.querySelector("[data-place-keyword]");
   const searchResults = document.querySelector("[data-place-results]");
-  const insight = document.querySelector("[data-place-insight]");
   const insightTitle = document.querySelector("[data-insight-title]");
   const weatherResult = document.querySelector("[data-weather-result]");
   const parkingResults = document.querySelector("[data-parking-results]");
+  const infoModal = document.querySelector("[data-place-insight]");
   const routeToggle = document.querySelector("[data-toggle-route]");
+  const backButton = document.querySelector("[data-schedule-back]");
   const aiEmptyCta = document.querySelector("[data-schedule-ai-empty-cta]");
 
   function toggleAiEmptyCta(visible) {
@@ -62,6 +70,199 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   function formatTime(value) { return value ? value.slice(0, 5) : ""; }
+
+  function getScheduleTimeKey(item) {
+    return String(item.itineraryItemId || item.place?.externalPlaceId || item.title || "");
+  }
+
+  function readScheduleTimeOverrides() {
+    try {
+      return JSON.parse(sessionStorage.getItem(scheduleTimeStorageKey) || "{}");
+    } catch (error) {
+      return {};
+    }
+  }
+
+  function getItemStartTime(item) {
+    const override = readScheduleTimeOverrides()[getScheduleTimeKey(item)];
+    return override?.startTime || item.startTime || "";
+  }
+
+  function getItemDuration(item) {
+    const override = readScheduleTimeOverrides()[getScheduleTimeKey(item)];
+    return formatDuration(override?.durationMinutes);
+  }
+
+  function saveScheduleTime(item, startTime, durationMinutes) {
+    const overrides = readScheduleTimeOverrides();
+    overrides[getScheduleTimeKey(item)] = {startTime, durationMinutes};
+    sessionStorage.setItem(scheduleTimeStorageKey, JSON.stringify(overrides));
+  }
+
+  function createSelectOptions(select, start, end, formatter) {
+    for (let value = start; value <= end; value += 1) {
+      const option = document.createElement("option");
+      option.value = String(value).padStart(2, "0");
+      option.textContent = formatter ? formatter(value) : option.value;
+      select.appendChild(option);
+    }
+  }
+
+  function closeTimeEditor() {
+    if (activeTimeEditor) {
+      activeTimeEditor.remove();
+    }
+
+    if (activeTimeItem) {
+      activeTimeItem.classList.remove("time-editor-open");
+    }
+
+    activeTimeEditor = null;
+    activeTimeItem = null;
+  }
+
+  function formatDuration(minutes) {
+    const value = Number(minutes);
+
+    if (!Number.isFinite(value) || value <= 0) {
+      return "";
+    }
+
+    if (value < 60) {
+      return "체류 " + value + "분";
+    }
+
+    const hour = Math.floor(value / 60);
+    const minute = value % 60;
+
+    if (minute === 0) {
+      return "체류 " + hour + "시간";
+    }
+
+    return "체류 " + hour + "시간 " + minute + "분";
+  }
+
+  function openTimeEditor(item, timeButton) {
+    const clickedControl = timeButton.closest(".schedule-time-control");
+
+    if (activeTimeEditor && activeTimeEditor.parentElement === clickedControl) {
+      closeTimeEditor();
+      return;
+    }
+
+    closeTimeEditor();
+
+    const currentTime = getItemStartTime(item) || "09:00";
+    const override = readScheduleTimeOverrides()[getScheduleTimeKey(item)] || {};
+    const [currentHour, currentMinute] = currentTime.split(":");
+    const editor = document.createElement("div");
+
+    editor.className = "schedule-time-editor";
+    editor.setAttribute("role", "dialog");
+    editor.setAttribute("aria-label", "방문 시간 설정");
+    editor.innerHTML = `
+      <div class="schedule-time-editor-header">
+        <strong>방문 시간 설정</strong>
+        <button type="button" class="schedule-time-close" aria-label="시간 설정 닫기">×</button>
+      </div>
+      <div class="schedule-time-picker">
+        <div class="schedule-time-spinner" data-time-spinner="hour">
+          <button type="button" class="schedule-time-adjust" data-time-action="hour-up" aria-label="시간 증가">⌃</button>
+          <input type="text" class="schedule-time-input" data-time-hour inputmode="numeric" maxlength="2" value="${currentHour}" aria-label="시" />
+          <button type="button" class="schedule-time-adjust" data-time-action="hour-down" aria-label="시간 감소">⌄</button>
+        </div>
+        <span class="schedule-time-colon" aria-hidden="true">:</span>
+        <div class="schedule-time-spinner" data-time-spinner="minute">
+          <button type="button" class="schedule-time-adjust" data-time-action="minute-up" aria-label="분 증가">⌃</button>
+          <input type="text" class="schedule-time-input" data-time-minute inputmode="numeric" maxlength="2" value="${currentMinute}" aria-label="분" />
+          <button type="button" class="schedule-time-adjust" data-time-action="minute-down" aria-label="분 감소">⌄</button>
+        </div>
+        <span class="schedule-time-format">24시간</span>
+      </div>
+      <div class="schedule-time-options">
+        <button type="button" class="schedule-time-quick" data-time-action="plus-thirty">+30분</button>
+        <select class="schedule-duration-select" data-duration aria-label="체류 시간">
+          <option value="30">체류시간 30분</option>
+          <option value="60">체류시간 1시간</option>
+          <option value="90">체류시간 1시간 30분</option>
+          <option value="120">체류시간 2시간</option>
+          <option value="150">체류시간 2시간 30분</option>
+          <option value="180">체류시간 3시간</option>
+        </select>
+      </div>
+      <div class="schedule-time-actions">
+        <button type="button" class="schedule-time-cancel">취소</button>
+        <button type="button" class="schedule-time-save">저장</button>
+      </div>
+    `;
+
+    const hourInput = editor.querySelector("[data-time-hour]");
+    const minuteInput = editor.querySelector("[data-time-minute]");
+    const durationSelect = editor.querySelector("[data-duration]");
+    durationSelect.value = String(override.durationMinutes || 120);
+
+    function padTime(value) { return String(value).padStart(2, "0"); }
+    function normalizeHour() {
+      let value = Number(hourInput.value);
+      if (!Number.isFinite(value)) value = 0;
+      hourInput.value = padTime(Math.max(0, Math.min(23, value)));
+    }
+    function normalizeMinute() {
+      let value = Number(minuteInput.value);
+      if (!Number.isFinite(value)) value = 0;
+      minuteInput.value = padTime(Math.max(0, Math.min(59, value)));
+    }
+    function changeHour(amount) {
+      hourInput.value = padTime((Number(hourInput.value || 0) + amount + 24) % 24);
+    }
+    function changeMinute(amount) {
+      const oneDay = 24 * 60;
+      let total = Number(hourInput.value || 0) * 60 + Number(minuteInput.value || 0) + amount;
+      total = (total + oneDay) % oneDay;
+      hourInput.value = padTime(Math.floor(total / 60));
+      minuteInput.value = padTime(total % 60);
+    }
+
+    editor.addEventListener("click", function (event) {
+      event.stopPropagation();
+      const actionButton = event.target.closest("[data-time-action]");
+      if (!actionButton) return;
+      switch (actionButton.dataset.timeAction) {
+        case "hour-up": changeHour(1); break;
+        case "hour-down": changeHour(-1); break;
+        case "minute-up": changeMinute(5); break;
+        case "minute-down": changeMinute(-5); break;
+        case "plus-thirty": changeMinute(30); break;
+        default: break;
+      }
+    });
+    hourInput.addEventListener("input", function () { hourInput.value = hourInput.value.replace(/\D/g, "").slice(0, 2); });
+    minuteInput.addEventListener("input", function () { minuteInput.value = minuteInput.value.replace(/\D/g, "").slice(0, 2); });
+    hourInput.addEventListener("blur", normalizeHour);
+    minuteInput.addEventListener("blur", normalizeMinute);
+    editor.querySelector(".schedule-time-close").addEventListener("click", closeTimeEditor);
+    editor.querySelector(".schedule-time-cancel").addEventListener("click", closeTimeEditor);
+    editor.querySelector(".schedule-time-save").addEventListener("click", function () {
+      normalizeHour();
+      normalizeMinute();
+      const startTime = hourInput.value + ":" + minuteInput.value;
+      const durationMinutes = Number(durationSelect.value);
+      saveScheduleTime(item, startTime, durationMinutes);
+      timeButton.innerHTML = `<span aria-hidden="true">◷</span><span>${startTime}</span>`;
+      const durationTag = timeButton.closest(".schedule-item")?.querySelector(".schedule-item-duration");
+      if (durationTag) durationTag.textContent = formatDuration(durationMinutes);
+      closeTimeEditor();
+      toast("방문 시간이 저장되었습니다.");
+    });
+
+    clickedControl.appendChild(editor);
+    activeTimeEditor = editor;
+    activeTimeItem = timeButton.closest(".schedule-item");
+    if (activeTimeItem) activeTimeItem.classList.add("time-editor-open");
+    requestAnimationFrame(function () {
+      if (editor.getBoundingClientRect().right > window.innerWidth - 12) editor.classList.add("align-right");
+    });
+  }
 
   async function api(url, options) {
     const response = await fetch(url, {
@@ -235,10 +436,83 @@ document.addEventListener("DOMContentLoaded", function () {
     }));
   }
 
+  function createScheduleItem(item, index, day) {
+    const row = document.createElement("article");
+    row.className = "schedule-item";
+    const order = document.createElement("span");
+    const copy = document.createElement("div");
+    const name = document.createElement("strong");
+    const meta = document.createElement("small");
+    const actions = document.createElement("div");
+    const infoButton = document.createElement("button");
+    const deleteButton = document.createElement("button");
+    const timeButton = document.createElement("button");
+    const categoryTag = document.createElement("span");
+    const durationTag = document.createElement("span");
+    const weatherTag = document.createElement("span");
+    const address = document.createElement("small");
+    const titleLine = document.createElement("div");
+    const timeControl = document.createElement("div");
+    order.textContent = index + 1;
+    name.textContent = item.title || "일정";
+    const startTime = getItemStartTime(item);
+    meta.textContent = [item.memo].filter(Boolean).join(" · ");
+    timeButton.type = "button";
+    timeButton.className = "schedule-item-time";
+    timeButton.textContent = startTime ? "◷ " + formatTime(startTime) : "시간 설정";
+    timeButton.addEventListener("click", function () { openTimeEditor(item, timeButton); });
+    timeControl.className = "schedule-time-control";
+    timeControl.appendChild(timeButton);
+    infoButton.type = "button";
+    infoButton.textContent = "P 주차";
+    infoButton.disabled = !item.place;
+    infoButton.className = "schedule-item-info";
+    infoButton.addEventListener("click", function () { selectItem(item, true); });
+    deleteButton.type = "button";
+    deleteButton.textContent = "삭제";
+    deleteButton.className = "schedule-item-delete";
+    deleteButton.addEventListener("click", function () { deleteItem(item, day); });
+    categoryTag.className = "schedule-item-tag";
+    categoryTag.textContent = getPlaceCategoryLabel(item.place);
+    durationTag.className = "schedule-item-duration";
+    durationTag.textContent = getItemDuration(item);
+    weatherTag.className = "schedule-item-weather";
+    weatherTag.textContent = item.place ? "날씨 확인 중" : "날씨 정보 없음";
+    address.className = "schedule-item-location";
+    address.textContent = item.place?.address || "";
+    titleLine.className = "schedule-item-title-line";
+    titleLine.append(name);
+    if (address.textContent) titleLine.append(address);
+    actions.className = "schedule-item-actions";
+    actions.appendChild(deleteButton);
+    const tags = document.createElement("div");
+    tags.className = "schedule-item-tags";
+    tags.append(categoryTag);
+    if (durationTag.textContent) tags.append(durationTag);
+    tags.append(weatherTag, infoButton);
+    copy.append(titleLine, tags);
+    if (meta.textContent) copy.append(meta);
+    row.append(order, timeControl, copy, actions);
+    if (item.place) loadScheduleWeather(item, day?.tripDate, weatherTag);
+    return row;
+  }
+
+  function getPlaceCategoryLabel(place) {
+    if (!place) return "관광지";
+    return place.categoryName || place.category_name || placeCategoryNames.get(String(place.externalPlaceId)) || "관광지";
+  }
+
   function renderItems(items) {
-    activeItems = items;
+    const orderedItems = items.slice().sort(function (left, right) {
+      return (left.sortOrder || 0) - (right.sortOrder || 0);
+    });
+    activeItems = orderedItems;
+    allScheduleVisible = false;
+    dayTabs.hidden = false;
+    routeToggle.textContent = "전체 보기";
+    timeline.classList.remove("all-days-view");
     timeline.replaceChildren();
-    if (!items.length) {
+    if (!orderedItems.length) {
       toggleAiEmptyCta(true);
       showEmpty(timeline, "아직 추가한 장소가 없습니다. 오른쪽에서 장소를 검색해보세요.");
       refreshMap();
@@ -246,31 +520,50 @@ document.addEventListener("DOMContentLoaded", function () {
       return;
     }
     toggleAiEmptyCta(false);
-    items.forEach(function (item, index) {
-      const row = document.createElement("article");
-      row.className = "schedule-item";
-      const order = document.createElement("span");
-      const copy = document.createElement("div");
-      const name = document.createElement("strong");
-      const meta = document.createElement("small");
-      const actions = document.createElement("div");
-      const infoButton = document.createElement("button");
-      order.textContent = item.sortOrder || index + 1;
-      name.textContent = item.title || "일정";
-      meta.textContent = [formatTime(item.startTime) || "시간 미정", item.place?.address, item.memo].filter(Boolean).join(" · ");
-      infoButton.type = "button";
-      infoButton.textContent = "날씨·주차";
-      infoButton.disabled = !item.place;
-      infoButton.addEventListener("click", function () { selectItem(item); });
-      actions.className = "schedule-item-actions";
-      actions.appendChild(infoButton);
-      copy.append(name, meta);
-      row.append(order, copy, actions);
-      timeline.appendChild(row);
+    orderedItems.forEach(function (item, index) {
+      timeline.appendChild(createScheduleItem(item, index, activeDay));
     });
     refreshMap();
-    if (items[0]?.place) selectItem(items[0]);
+    if (orderedItems[0]?.place) selectItem(orderedItems[0], false);
     if (lastSearchResults.length) renderSearchResults(lastSearchResults);
+  }
+
+  async function renderAllDays(days) {
+    toggleAiEmptyCta(false);
+    allScheduleVisible = true;
+    dayTabs.hidden = true;
+    routeToggle.textContent = "개별 일정 보기";
+    timeline.classList.add("all-days-view");
+    showEmpty(timeline, "전체 일정을 불러오는 중입니다.");
+    try {
+      const groups = await Promise.all(days.map(async function (day) {
+        const items = day.tripDayId
+          ? await hydrateItems(await api("/api/v1/trip-days/" + day.tripDayId + "/items"))
+          : (readDraft().scheduleItems?.[draftDayKey(day)] || []);
+        return {day, items};
+      }));
+      timeline.replaceChildren();
+      activeItems = groups.reduce(function (all, group) { return all.concat(group.items); }, []);
+      let globalOrder = 0;
+      groups.forEach(function (group) {
+        const section = document.createElement("section");
+        const heading = document.createElement("h3");
+        const list = document.createElement("div");
+        section.className = "schedule-day-group";
+        heading.textContent = "DAY " + group.day.dayNumber + (group.day.tripDate ? " · " + formatDate(group.day.tripDate) : "");
+        list.className = "schedule-day-items";
+        group.items.forEach(function (item) {
+          list.appendChild(createScheduleItem(item, globalOrder, group.day));
+          globalOrder += 1;
+        });
+        section.append(heading, list);
+        timeline.appendChild(section);
+      });
+      if (!activeItems.length) showEmpty(timeline, "아직 추가한 장소가 없습니다.");
+      refreshMap();
+    } catch (error) {
+      showEmpty(timeline, error.message);
+    }
   }
 
   async function selectDay(day, selectedButton) {
@@ -285,6 +578,10 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   function renderDays(days) {
+    scheduleDays = days;
+    allScheduleVisible = false;
+    dayTabs.hidden = false;
+    routeToggle.textContent = "전체 보기";
     dayTabs.replaceChildren();
     if (!days.length) { showEmpty(timeline, "여행 날짜가 아직 만들어지지 않았습니다."); return; }
     days.forEach(function (day, index) {
@@ -356,6 +653,7 @@ document.addEventListener("DOMContentLoaded", function () {
         externalProvider: "KAKAO",
         externalPlaceId: kakaoPlace.id,
         name: kakaoPlace.place_name,
+        categoryName: kakaoPlace.category_name || "관광지",
         address: kakaoPlace.road_address_name || kakaoPlace.address_name,
         latitude: Number(kakaoPlace.y),
         longitude: Number(kakaoPlace.x),
@@ -382,6 +680,9 @@ document.addEventListener("DOMContentLoaded", function () {
       const date = start ? new Date(start.getTime() + index * 86400000).toISOString().slice(0,10) : "";
       return {tripDayId:null,dayNumber:index+1,tripDate:date};
     });
+    scheduleDays = days;
+    allScheduleVisible = false;
+    routeToggle.textContent = "전체 보기";
     dayTabs.replaceChildren();
     days.forEach(function (day, index) {
       const button = document.createElement("button");
@@ -405,7 +706,6 @@ document.addEventListener("DOMContentLoaded", function () {
       if (!trips.length) { renderTripList([]); showEmpty(timeline, "여행 계획을 먼저 만들어주세요."); return; }
       if (!activeTripId || !trips.some(function (trip) { return trip.tripId === activeTripId; })) {
         activeTripId = trips[0].tripId;
-        document.body.dataset.tripId = String(activeTripId);
         window.history.replaceState(null, "", "/trips/" + activeTripId + "/schedule");
       }
       const result = await Promise.all([api("/api/v1/trips/" + activeTripId), api("/api/v1/trips/" + activeTripId + "/days")]);
@@ -500,6 +800,9 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   async function findOrCreatePlace(kakaoPlace) {
+    if (kakaoPlace.category_name) {
+      placeCategoryNames.set(String(kakaoPlace.id), kakaoPlace.category_name);
+    }
     const placePayload = {
       externalProvider:"KAKAO", externalPlaceId:kakaoPlace.id, category:mapKakaoCategory(kakaoPlace),
       name:kakaoPlace.place_name, countryCode:"KR", region:kakaoPlace.address_name?.split(" ")[0] || "",
@@ -519,9 +822,12 @@ document.addEventListener("DOMContentLoaded", function () {
 
   async function addPlaceToDay(kakaoPlace) {
     const place = await findOrCreatePlace(kakaoPlace);
+    const nextSortOrder = activeItems.reduce(function (max, item) {
+      return Math.max(max, Number(item.sortOrder) || 0);
+    }, 0) + 1;
     await api("/api/v1/trip-days/" + activeDay.tripDayId + "/items", {
       method:"POST", headers:{"Content-Type":"application/json"},
-      body:JSON.stringify({placeId:place.placeId,itemType:"PLACE",title:place.name,sortOrder:activeItems.length+1,currencyCode:"KRW",source:"MANUAL"}),
+      body:JSON.stringify({placeId:place.placeId,itemType:"PLACE",title:place.name,sortOrder:nextSortOrder,currencyCode:"KRW",source:"MANUAL"}),
     });
     const selectedButton = Array.from(dayTabs.querySelectorAll("button")).find(function (button) { return button.classList.contains("selected"); });
     await selectDay(activeDay, selectedButton);
@@ -529,10 +835,12 @@ document.addEventListener("DOMContentLoaded", function () {
 
   window.AllMyTripsSchedule = {
     addAiRecommendation: async function (recommendation) {
-      if (!activeDay) {
+      if (!activeDay || !activeDay.tripDayId) {
         throw new Error("추가할 DAY를 먼저 선택해주세요.");
       }
-
+      const nextSortOrder = activeItems.reduce(function (max, item) {
+        return Math.max(max, Number(item.sortOrder) || 0);
+      }, 0) + 1;
       await api("/api/v1/trip-days/" + activeDay.tripDayId + "/items", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -540,13 +848,12 @@ document.addEventListener("DOMContentLoaded", function () {
           itemType: "NOTE",
           title: recommendation.name,
           startTime: recommendation.time || null,
-          sortOrder: activeItems.length + 1,
+          sortOrder: nextSortOrder,
           memo: recommendation.reason || null,
           currencyCode: "KRW",
           source: "AI"
         })
       });
-
       const selectedButton = Array.from(dayTabs.querySelectorAll("button"))
         .find(function (button) { return button.classList.contains("selected"); });
       await selectDay(activeDay, selectedButton);
@@ -595,21 +902,80 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   }
 
-  function selectItem(item) {
+  async function deleteItem(item, itemDay) {
+    const targetDay = itemDay || activeDay;
+    if (!targetDay) return;
+    try {
+      if (targetDay.tripDayId && item.itineraryItemId) {
+        await api("/api/v1/trip-days/" + targetDay.tripDayId + "/items/" + item.itineraryItemId, { method: "DELETE" });
+      } else {
+        const draft = readDraft();
+        const key = draftDayKey(targetDay);
+        draft.scheduleItems = draft.scheduleItems || {};
+        draft.scheduleItems[key] = (draft.scheduleItems[key] || []).filter(function (candidate) {
+          return String(candidate.itineraryItemId) !== String(item.itineraryItemId);
+        });
+        sessionStorage.setItem("tripDraft", JSON.stringify(draft));
+      }
+      toast(item.title + "을(를) 일정에서 삭제했습니다.");
+      if (allScheduleVisible) {
+        await renderAllDays(scheduleDays);
+      } else if (targetDay.tripDayId) {
+        const selectedButton = Array.from(dayTabs.querySelectorAll("button")).find(function (button) { return button.classList.contains("selected"); });
+        await selectDay(targetDay, selectedButton);
+      } else {
+        renderDraftDay(targetDay);
+      }
+    } catch (error) {
+      toast(error.message || "일정 삭제에 실패했습니다.");
+    }
+  }
+
+  function openInfoModal() {
+    if (!infoModal) return;
+    infoModal.hidden = false;
+    infoModal.setAttribute("aria-hidden", "false");
+    document.body.classList.add("schedule-info-modal-open");
+  }
+
+  function closeInfoModal() {
+    if (!infoModal) return;
+    infoModal.hidden = true;
+    infoModal.setAttribute("aria-hidden", "true");
+    document.body.classList.remove("schedule-info-modal-open");
+  }
+
+  function selectItem(item, shouldOpen) {
     if (!item.place) return;
     selectedContext = item;
-    insight.hidden = false;
     insightTitle.textContent = item.title;
     parkingResults.replaceChildren(Object.assign(document.createElement("p"), {textContent:"주차장 검색을 눌러주세요."}));
     loadWeather(item);
     if (map) { map.setCenter(new window.kakao.maps.LatLng(Number(item.place.latitude), Number(item.place.longitude))); map.setLevel(4); }
+    if (shouldOpen) openInfoModal();
+  }
+
+  async function fetchWeather(item, tripDate) {
+    const date = tripDate || activeDay?.tripDate || activeTrip?.startDate;
+    if (!item?.place || !date) return null;
+    const params = new URLSearchParams({latitude:item.place.latitude,longitude:item.place.longitude,date,time:formatTime(getItemStartTime(item))||"12:00"});
+    return api("/api/v1/weather?" + params);
+  }
+
+  async function loadScheduleWeather(item, tripDate, weatherTag) {
+    try {
+      const weather = await fetchWeather(item, tripDate);
+      if (weatherTag && weather) weatherTag.textContent = weather.icon + " " + weather.temperature + "℃";
+    } catch (error) {
+      if (weatherTag) weatherTag.textContent = "날씨 정보 없음";
+    }
   }
 
   async function loadWeather(item) {
     weatherResult.replaceChildren(Object.assign(document.createElement("p"), {textContent:"날씨를 불러오는 중입니다."}));
     try {
-      const params = new URLSearchParams({latitude:item.place.latitude,longitude:item.place.longitude,date:activeDay.tripDate,time:formatTime(item.startTime)||"12:00"});
-      const weather = await api("/api/v1/weather?" + params);
+      const weather = await fetchWeather(item);
+      if (!weather) throw new Error("날씨 정보를 확인할 수 없습니다.");
       weatherResult.replaceChildren();
       const main = document.createElement("div"); main.className = "weather-main";
       const icon = document.createElement("span"); icon.className = "weather-icon"; icon.textContent = weather.icon;
@@ -659,6 +1025,7 @@ document.addEventListener("DOMContentLoaded", function () {
           yAnchor: 1,
         }));
         row.addEventListener("click", function () {
+          closeInfoModal();
           map.setCenter(position);
           map.setLevel(3);
         });
@@ -711,12 +1078,35 @@ document.addEventListener("DOMContentLoaded", function () {
   document.querySelectorAll("[data-map-modal-close]").forEach(function (button) {
     button.addEventListener("click", closeMapModal);
   });
+  if (backButton) backButton.addEventListener("click", function () {
+    window.history.back();
+  });
+  document.querySelectorAll("[data-schedule-info-close]").forEach(function (button) {
+    button.addEventListener("click", closeInfoModal);
+  });
   document.addEventListener("keydown", function (event) {
     if (event.key === "Escape" && mapModal && !mapModal.hidden) closeMapModal();
+    if (event.key === "Escape" && infoModal && !infoModal.hidden) closeInfoModal();
   });
   routeToggle.addEventListener("click", function () {
+    if (allScheduleVisible) {
+      allScheduleVisible = false;
+      timeline.classList.remove("all-days-view");
+      dayTabs.hidden = false;
+      routeToggle.textContent = "전체 보기";
+      if (activeDay?.tripDayId) {
+        const selectedButton = Array.from(dayTabs.querySelectorAll("button")).find(function (button) { return button.classList.contains("selected"); });
+        selectDay(activeDay, selectedButton);
+      } else if (activeDay) {
+        renderDraftDay(activeDay);
+      }
+      return;
+    }
+    renderAllDays(scheduleDays);
+  });
+  if (mapRouteToggle) mapRouteToggle.addEventListener("click", function () {
     routeVisible = !routeVisible;
-    routeToggle.textContent = routeVisible ? "경로선 ON" : "경로선 OFF";
+    mapRouteToggle.textContent = routeVisible ? "경로선 ON" : "경로선 OFF";
     refreshMap();
   });
   document.querySelectorAll("[data-schedule-guide]").forEach(function (button) {

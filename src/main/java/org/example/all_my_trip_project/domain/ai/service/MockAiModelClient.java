@@ -4,7 +4,6 @@ import org.example.all_my_trip_project.domain.ai.dto.AiGuideDayResponse;
 import org.example.all_my_trip_project.domain.ai.dto.AiGuideItemResponse;
 import org.example.all_my_trip_project.domain.ai.dto.AiGuideRequest;
 import org.example.all_my_trip_project.domain.ai.dto.AiGuideResponse;
-import org.example.all_my_trip_project.domain.rag.dto.RagPlaceResult;
 import org.example.all_my_trip_project.domain.ai.dto.AiConversationTurn;
 import org.example.all_my_trip_project.domain.ai.dto.AiGuideContext;
 import org.springframework.stereotype.Component;
@@ -18,7 +17,7 @@ public class MockAiModelClient implements AiModelClient {
 
     @Override
     public AiGuideResponse generate(AiGuideRequest request, List<AiConversationTurn> conversationHistory,
-                                    AiGuideContext context, List<RagPlaceResult> ragPlaces) {
+                                    AiGuideContext context) {
         return new AiGuideResponse(
                 "광안리에서 저녁을 먹고 해변 야경까지 즐길 수 있도록 DAY 1 일정을 추천해요.",
                 List.of(new AiGuideDayResponse(

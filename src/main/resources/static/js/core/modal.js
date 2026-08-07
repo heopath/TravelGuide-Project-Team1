@@ -26,7 +26,7 @@ const ALL_MY_TRIPS_SCREENS = [
   ],
   [
     "/guide",
-    "여행 가이드",
+    "추천 장소",
     "guide"
   ],
   [

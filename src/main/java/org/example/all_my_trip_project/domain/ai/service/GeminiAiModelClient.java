@@ -11,9 +11,7 @@ import org.example.all_my_trip_project.domain.ai.dto.AiConversationTurn;
 import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
-import org.example.all_my_trip_project.domain.rag.dto.RagPlaceResult;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Pattern;
 
@@ -38,31 +36,20 @@ public class GeminiAiModelClient implements AiModelClient {
 
     @Override
     public AiGuideResponse generate(AiGuideRequest request, List<AiConversationTurn> conversationHistory,
-                                    AiGuideContext context, List<RagPlaceResult> ragPlaces) {
+                                    AiGuideContext context) {
         try {
             String response = requestModel(createPrompt(request.question(), conversationHistory)
                     + "\n\nConversation ordering rule: When the user refers to the first, second, third, or another ordinal candidate from a previous answer, count the candidates exactly from top to bottom in that previous answer. Do not choose a different candidate. If the previous answer does not contain an unambiguous ordered list, ask the user to clarify instead of guessing."
                     + "\n\nTravel context (use only provided facts; do not invent missing facts):\n"
-                    + formatContext(context)
-                    + "\n\nRetrieved public place facts (use only if relevant; do not invent missing facts):\n"
-                    + formatRagPlaces(ragPlaces));
+                    + formatContext(context));
             GeminiGuideContent content = objectMapper.readValue(extractJson(response), GeminiGuideContent.class);
             validate(content);
-
-            List<String> sources = new ArrayList<>(List.of("Gemini AI", "질문: " + request.question()));
-            if (ragPlaces != null) {
-                ragPlaces.stream()
-                        .map(RagPlaceResult::name)
-                        .filter(name -> name != null && !name.isBlank())
-                        .distinct()
-                        .forEach(name -> sources.add("RAG 장소: " + name));
-            }
 
             return new AiGuideResponse(
                     content.answer(),
                     content.days(),
                     DEFAULT_EXTERNAL_LINKS,
-                    sources
+                    List.of("Gemini AI", "질문: " + request.question())
             );
         } catch (JsonProcessingException exception) {
             throw new AiModelException("Gemini response is not valid JSON", exception);
@@ -148,20 +135,6 @@ public class GeminiAiModelClient implements AiModelClient {
                 + ", transport=" + trip.transportPreference()
                 + ", existing days=" + days
                 + ", user preferences=" + preferences;
-    }
-
-    private String formatRagPlaces(List<RagPlaceResult> ragPlaces) {
-        if (ragPlaces == null || ragPlaces.isEmpty()) {
-            return "No relevant place was retrieved.";
-        }
-        return ragPlaces.stream()
-                .map(place -> "placeId=" + place.placeId()
-                        + ", name=" + place.name()
-                        + ", category=" + place.category()
-                        + ", region=" + place.region()
-                        + ", address=" + place.address()
-                        + ", facts=" + place.description())
-                .collect(java.util.stream.Collectors.joining("\n"));
     }
 
     private String extractJson(String response) {

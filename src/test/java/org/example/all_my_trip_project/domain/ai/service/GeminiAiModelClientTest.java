@@ -4,7 +4,6 @@ import org.example.all_my_trip_project.domain.ai.dto.AiConversationTurn;
 import org.example.all_my_trip_project.domain.ai.dto.AiGuideContext;
 import org.example.all_my_trip_project.domain.ai.dto.AiGuideRequest;
 import org.example.all_my_trip_project.domain.ai.dto.AiGuideResponse;
-import org.example.all_my_trip_project.domain.rag.dto.RagPlaceResult;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -29,7 +28,7 @@ class GeminiAiModelClientTest {
     void generateMapsGeminiJsonToCurrentGuideDto() {
         when(chatModel.call(org.mockito.ArgumentMatchers.anyString())).thenReturn(validGuideJson());
 
-        AiGuideResponse response = client.generate(request(), List.of(), emptyContext(), List.of());
+        AiGuideResponse response = client.generate(request(), List.of(), emptyContext());
 
         assertThat(response.answer()).isEqualTo("A suggested itinerary");
         assertThat(response.days()).hasSize(1);
@@ -49,24 +48,21 @@ class GeminiAiModelClientTest {
                 List.of(new AiGuideContext.Preference("FOOD", "Food travel", (short) 5))
         );
 
-        AiGuideResponse response = client.generate(request(), List.of(new AiConversationTurn("Recommend a cafe", "Try a cafe nearby")), context,
-                List.of(new RagPlaceResult(7L, "Beach Cafe", "CAFE", "Busan", "Beach road", "Ocean view cafe")));
+        client.generate(request(), List.of(new AiConversationTurn("Recommend a cafe", "Try a cafe nearby")), context);
 
         ArgumentCaptor<String> prompt = ArgumentCaptor.forClass(String.class);
         verify(chatModel).call(prompt.capture());
         assertThat(prompt.getValue()).contains(
                 "Recommend a cafe", "Busan", "Food travel", "Near Gwangalli", "Gwangalli dinner",
-                "count the candidates exactly from top to bottom", "Do not choose a different candidate",
-                "Beach Cafe", "Ocean view cafe"
+                "count the candidates exactly from top to bottom", "Do not choose a different candidate"
         );
-        assertThat(response.sources()).contains("RAG 장소: Beach Cafe");
     }
 
     @Test
     void generateRejectsInvalidGeminiJson() {
         when(chatModel.call(org.mockito.ArgumentMatchers.anyString())).thenReturn("not-json");
 
-        assertThatThrownBy(() -> client.generate(request(), List.of(), emptyContext(), List.of()))
+        assertThatThrownBy(() -> client.generate(request(), List.of(), emptyContext()))
                 .isInstanceOf(AiModelException.class)
                 .hasMessage("Gemini response is not valid JSON");
     }
@@ -76,7 +72,7 @@ class GeminiAiModelClientTest {
     void generateRejectsMalformedGeminiGuideResponse(String malformedResponse) {
         when(chatModel.call(org.mockito.ArgumentMatchers.anyString())).thenReturn(malformedResponse);
 
-        assertThatThrownBy(() -> client.generate(request(), List.of(), emptyContext(), List.of()))
+        assertThatThrownBy(() -> client.generate(request(), List.of(), emptyContext()))
                 .isInstanceOf(AiModelException.class)
                 .hasMessageContaining("Gemini response");
     }

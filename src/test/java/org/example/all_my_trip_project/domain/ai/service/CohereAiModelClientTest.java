@@ -31,7 +31,7 @@ class CohereAiModelClientTest {
                 """);
 
         AiGuideResponse response = client.generate(new AiGuideRequest("부산 하루 일정 추천", null),
-                List.of(), new AiGuideContext(null, List.of()), List.of());
+                List.of(), new AiGuideContext(null, List.of()));
 
         assertThat(response.answer()).isEqualTo("추천 일정");
         assertThat(response.days().getFirst().items().getFirst().name()).isEqualTo("해운대");
@@ -43,7 +43,7 @@ class CohereAiModelClientTest {
         stubResponse(429, "{\"message\":\"rate limit\"}");
 
         assertThatThrownBy(() -> client.generate(new AiGuideRequest("부산 하루 일정 추천", null),
-                List.of(), new AiGuideContext(null, List.of()), List.of()))
+                List.of(), new AiGuideContext(null, List.of())))
                 .isInstanceOf(AiModelException.class)
                 .hasMessage("Cohere request failed. status=429");
     }
@@ -58,7 +58,7 @@ class CohereAiModelClientTest {
                 """);
 
         AiGuideResponse response = client.generate(new AiGuideRequest("부산 여행", null),
-                List.of(), new AiGuideContext(null, List.of()), List.of());
+                List.of(), new AiGuideContext(null, List.of()));
 
         assertThat(response.answer()).isEqualTo("추천 일정");
     }

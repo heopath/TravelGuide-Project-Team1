@@ -9,7 +9,6 @@ import org.example.all_my_trip_project.domain.ai.dto.AiGuideDayResponse;
 import org.example.all_my_trip_project.domain.ai.dto.AiGuideItemResponse;
 import org.example.all_my_trip_project.domain.ai.dto.AiGuideRequest;
 import org.example.all_my_trip_project.domain.ai.dto.AiGuideResponse;
-import org.example.all_my_trip_project.domain.rag.dto.RagPlaceResult;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Profile;
@@ -67,22 +66,15 @@ public class CohereAiModelClient implements AiModelClient {
 
     @Override
     public AiGuideResponse generate(AiGuideRequest request, List<AiConversationTurn> conversationHistory,
-                                    AiGuideContext context, List<RagPlaceResult> ragPlaces) {
+                                    AiGuideContext context) {
         try {
             CohereGuideContent content = objectMapper.readValue(
-                    extractJson(requestModel(createPrompt(request, conversationHistory, context, ragPlaces))),
+                    extractJson(requestModel(createPrompt(request, conversationHistory, context))),
                     CohereGuideContent.class
             );
             validate(content);
 
             List<String> sources = new ArrayList<>(List.of("Cohere AI", "질문: " + request.question()));
-            if (ragPlaces != null) {
-                ragPlaces.stream()
-                        .map(RagPlaceResult::name)
-                        .filter(name -> name != null && !name.isBlank())
-                        .distinct()
-                        .forEach(name -> sources.add("RAG 장소: " + name));
-            }
             return new AiGuideResponse(content.answer(), content.days(), DEFAULT_EXTERNAL_LINKS, sources);
         } catch (JsonProcessingException exception) {
             throw new AiModelException("Cohere response is not valid JSON", exception);
@@ -177,7 +169,7 @@ public class CohereAiModelClient implements AiModelClient {
     }
 
     private String createPrompt(AiGuideRequest request, List<AiConversationTurn> history,
-                                AiGuideContext context, List<RagPlaceResult> ragPlaces) {
+                                AiGuideContext context) {
         return """
                 Create a Korean travel itinerary that answers the user question.
                 Return only one JSON object matching the requested schema. Do not use Markdown.
@@ -189,11 +181,8 @@ public class CohereAiModelClient implements AiModelClient {
                 Travel context (use only provided facts):
                 %s
 
-                Retrieved public place facts (use only if relevant):
-                %s
-
                 User question: %s
-                """.formatted(formatHistory(history), formatContext(context), formatRagPlaces(ragPlaces), request.question());
+                """.formatted(formatHistory(history), formatContext(context), request.question());
     }
 
     private String formatHistory(List<AiConversationTurn> history) {
@@ -207,13 +196,6 @@ public class CohereAiModelClient implements AiModelClient {
         AiGuideContext.Trip trip = context.trip();
         return "destination=" + trip.destinationName() + ", dates=" + trip.startDate() + " to " + trip.endDate()
                 + ", purpose=" + trip.purpose() + ", existing days=" + trip.days();
-    }
-
-    private String formatRagPlaces(List<RagPlaceResult> ragPlaces) {
-        if (ragPlaces == null || ragPlaces.isEmpty()) return "None";
-        return ragPlaces.stream().map(place -> "name=" + place.name() + ", category=" + place.category()
-                        + ", address=" + place.address() + ", facts=" + place.description())
-                .collect(java.util.stream.Collectors.joining("\n"));
     }
 
     private String extractJson(String response) {

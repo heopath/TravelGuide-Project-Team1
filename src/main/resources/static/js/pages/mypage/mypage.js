@@ -99,7 +99,7 @@ document.addEventListener("DOMContentLoaded", function () {
       favoriteList.replaceChildren();
 
       if (favorites.length === 0) {
-        showState("아직 찜한 여행지가 없습니다. 여행 가이드에서 관심 장소를 추가해보세요.", false);
+        showState("아직 찜한 여행지가 없습니다. 추천 장소에서 관심 장소를 추가해보세요.", false);
         return;
       }
 
