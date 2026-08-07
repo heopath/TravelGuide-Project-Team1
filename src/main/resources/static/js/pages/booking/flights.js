@@ -51,7 +51,7 @@
   let sortKey = "rec";
   let pendingOfferId = null;
   let tripId = null;
-  let search = { origin: "ICN", destination: "CJU", departureDate: null, returnDate: null, adults: 2 };
+  let search = { origin: "GMP", destination: "CJU", departureDate: null, returnDate: null, adults: 2 };
 
   /* ────────── 파생값 ────────── */
   const offerOf = (leg, id) => offers[leg].find((o) => o.offerId === id) || null;
@@ -60,9 +60,12 @@
   const status = (leg) =>
     state.bookingRef[leg] ? "CONFIRMED" : state.userReportedBooked[leg] ? "USER_REPORTED" : "NONE";
 
+  /* 운임을 모르는 항공편은 0원이 아니라 '값이 없는 것'이다. 총액 계산에서 빠진다. */
+  const hasPrice = (offer) => !!offer && offer.totalPrice !== null && offer.totalPrice !== undefined;
+
   const legPrice = (leg) => {
     const offer = state.picked[leg] ? offerOf(leg, state.picked[leg]) : recommended(leg);
-    return offer ? Number(offer.totalPrice) : 0;
+    return hasPrice(offer) ? Number(offer.totalPrice) : 0;
   };
 
   const airDone = () => state.userReportedBooked[OUTBOUND] && state.userReportedBooked[INBOUND];
@@ -82,7 +85,12 @@
     },
     price: {
       why: "<b>최저가순</b> = {SOURCE} 기준",
-      sort: (list) => list.slice().sort((a, b) => a.totalPrice - b.totalPrice)
+      sort: (list) => list.slice().sort((a, b) => {
+        // 운임을 모르는 편은 싸지도 비싸지도 않다. 비교 대상에서 빼고 뒤로 보낸다.
+        if (hasPrice(a) !== hasPrice(b)) return hasPrice(a) ? -1 : 1;
+        if (!hasPrice(a)) return 0;
+        return a.totalPrice - b.totalPrice;
+      })
     },
     dep: {
       why: "<b>출발 시간순</b> = 이른 출발 먼저",
@@ -210,8 +218,12 @@
           </div>
         </div>
         <div class="fp">
-          <div class="tot">${Number(offer.totalPrice).toLocaleString("ko-KR")}<small>원</small></div>
-          <div class="per">성인 ${search.adults}명 · 1인 ${won(offer.pricePerAdult)} · ${esc(offer.priceSourceLabel)}</div>
+          <div class="tot${hasPrice(offer) ? "" : " none"}">${hasPrice(offer)
+            ? Number(offer.totalPrice).toLocaleString("ko-KR") + "<small>원</small>"
+            : esc(offer.priceSourceLabel)}</div>
+          <div class="per">${hasPrice(offer)
+            ? `성인 ${search.adults}명 · 1인 ${won(offer.pricePerAdult)} · ${esc(offer.priceSourceLabel)}`
+            : "예약 사이트에서 확인해 주세요"}</div>
           <button type="button" class="pick${done}" data-pick="${esc(offer.offerId)}">${label}</button>
         </div>
       </div>`;
@@ -234,7 +246,7 @@
 
     const rows = [
       { ic: "✈", icc: air[2], nm: "왕복 항공", ds: air[0], dsc: air[1],
-        pv: hasOffers() ? won(airTotal()) : "—", sub: airIsEstimate() ? "예상" : `성인 ${search.adults}명 총액`, dim: false },
+        pv: hasOffers() ? (airTotal() > 0 ? won(airTotal()) : "미정") : "—", sub: airIsEstimate() ? "예상" : `성인 ${search.adults}명 총액`, dim: false },
       { ic: "▤", icc: "n", nm: "숙소", ds: "대기 · 임시 추정치", dsc: "",
         pv: won(PLACEHOLDER_HOTEL), sub: "예상", dim: true },
       { ic: "◈", icc: "n", nm: "티켓·액티비티", ds: "대기 · 임시 추정치", dsc: "",
@@ -255,7 +267,8 @@
       const offer = state.picked[leg] ? offerOf(leg, state.picked[leg]) : null;
 
       if (st !== "NONE" && offer) {
-        el.textContent = `✓ ${offer.carrierName} ${offer.flightNumber} · ${won(offer.totalPrice)}`
+        el.textContent = `✓ ${offer.carrierName} ${offer.flightNumber} · `
+          + (hasPrice(offer) ? won(offer.totalPrice) : offer.priceSourceLabel)
           + (st === "CONFIRMED" ? " · 확정" : " · 직접 표시");
         el.className = "lp sel";
       } else if (leg === INBOUND && !state.userReportedBooked[OUTBOUND]) {
@@ -319,7 +332,7 @@
         : st === "USER_REPORTED" ? "예약함 (직접 표시)" : "선택만 함";
       return `<div class="mn">
         <div class="mn-h">${name} <span class="mn-s">${stLabel}</span></div>
-        <p class="mn-f">${esc(offer.carrierName)} ${esc(offer.flightNumber)} · ${won(offer.totalPrice)}</p>
+        <p class="mn-f">${esc(offer.carrierName)} ${esc(offer.flightNumber)} · ${hasPrice(offer) ? won(offer.totalPrice) : esc(offer.priceSourceLabel)}</p>
         <div class="mn-a">
           <button type="button" class="mn-b" data-mine-report="${leg}"
             ${st === "NONE" ? "" : "disabled"}>예약함으로 표시</button>
@@ -348,7 +361,7 @@
     text("m1site", offer.carrierName);
     text("m1nm", `${offer.carrierName} ${offer.flightNumber}`);
     text("m1tm", `${offer.departureTime} → ${offer.arrivalTime}`);
-    text("m1pr", won(offer.totalPrice));
+    text("m1pr", hasPrice(offer) ? won(offer.totalPrice) : offer.priceSourceLabel);
     text("m1px", `성인 ${search.adults}명 총액`);
     text("m1lg", offer.carrierCode);
     show("ov1");
@@ -387,7 +400,7 @@
           flightNumber: offer.flightNumber,
           departureAt: offer.departureAt,
           arrivalAt: offer.arrivalAt,
-          totalPrice: offer.totalPrice,
+          totalPrice: hasPrice(offer) ? offer.totalPrice : null,
           currency: offer.currency,
           priceSource: offer.priceSource,
           deeplinkUrl: offer.deeplinkUrl
@@ -402,7 +415,7 @@
 
     text("m2nm", `${offer.carrierName} ${offer.flightNumber}`);
     text("m2tm", `${offer.departureTime} → ${offer.arrivalTime}`);
-    text("m2pr", won(offer.totalPrice));
+    text("m2pr", hasPrice(offer) ? won(offer.totalPrice) : offer.priceSourceLabel);
     text("m2px", `성인 ${search.adults}명 총액`);
     text("m2lg", offer.carrierCode);
 
@@ -458,7 +471,7 @@
     sync();
 
     text("m3nm", `${offer.carrierName} ${offer.flightNumber}`);
-    text("m3pr", won(offer.totalPrice));
+    text("m3pr", hasPrice(offer) ? won(offer.totalPrice) : offer.priceSourceLabel);
     text("m3px", `성인 ${search.adults}명 총액`);
     text("m3st", "예약함 · 직접 표시");
     text("m3lg", offer.carrierCode);
@@ -570,7 +583,7 @@
 
     search.departureDate = params.get("date") || iso(depart);
     search.returnDate = params.get("returnDate") || iso(back);
-    search.origin = (params.get("origin") || "ICN").toUpperCase();
+    search.origin = (params.get("origin") || "GMP").toUpperCase();
     search.destination = (params.get("destination") || "CJU").toUpperCase();
     search.adults = Number(params.get("adults")) || 2;
 

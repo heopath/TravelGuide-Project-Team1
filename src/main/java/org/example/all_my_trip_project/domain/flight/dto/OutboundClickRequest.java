@@ -24,7 +24,8 @@ public record OutboundClickRequest(
         @NotBlank String flightNumber,
         @NotNull OffsetDateTime departureAt,
         @NotNull OffsetDateTime arrivalAt,
-        @NotNull @PositiveOrZero BigDecimal totalPrice,
+        /** 운임 미제공(priceSource=UNAVAILABLE) 항공편은 비어 있을 수 있다. */
+        @PositiveOrZero BigDecimal totalPrice,
         String currency,
         /** PUBLISHED / MARKET / MOCK. 어떤 가격을 보고 나갔는지 함께 박제한다. */
         @NotNull PriceSource priceSource,

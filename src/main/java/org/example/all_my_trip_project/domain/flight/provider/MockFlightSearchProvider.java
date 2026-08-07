@@ -45,12 +45,12 @@ public class MockFlightSearchProvider implements FlightSearchProvider {
     ) {}
 
     private static final Map<String, List<MockFlight>> ROUTES = Map.of(
-            "ICN-CJU", List.of(
+            "GMP-CJU", List.of(
                     new MockFlight("KE", "대한항공", "KE121", LocalTime.of(8, 10), LocalTime.of(9, 20), 89_000L),
                     new MockFlight("7C", "제주항공", "7C101", LocalTime.of(10, 30), LocalTime.of(11, 40), 76_000L),
                     new MockFlight("LJ", "진에어", "LJ301", LocalTime.of(14, 0), LocalTime.of(15, 10), 82_000L)
             ),
-            "CJU-ICN", List.of(
+            "CJU-GMP", List.of(
                     new MockFlight("KE", "대한항공", "KE1284", LocalTime.of(18, 40), LocalTime.of(19, 55), 94_000L),
                     new MockFlight("7C", "제주항공", "7C122", LocalTime.of(20, 15), LocalTime.of(21, 30), 71_000L),
                     new MockFlight("TW", "티웨이항공", "TW716", LocalTime.of(15, 20), LocalTime.of(16, 35), 68_000L)

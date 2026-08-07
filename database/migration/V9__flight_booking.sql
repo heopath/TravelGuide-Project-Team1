@@ -22,7 +22,8 @@ CREATE TABLE flight_bookings (
     flight_number         VARCHAR(10) NOT NULL,
     departure_at          TIMESTAMPTZ NOT NULL,
     arrival_at            TIMESTAMPTZ NOT NULL,
-    quoted_total_price    NUMERIC(12,2) NOT NULL CHECK (quoted_total_price >= 0),
+    -- TAGO가 운임을 모르는 편에 0을 준다. 그런 편은 값 없이 출처만 UNAVAILABLE로 남긴다.
+    quoted_total_price    NUMERIC(12,2) CHECK (quoted_total_price >= 0),
     quoted_currency       CHAR(3) NOT NULL DEFAULT 'KRW',
     -- 이때 본 값이 공시운임이었는지 실판매가였는지 못 밝히면 CS 대응이 불가능해진다.
     quoted_price_source   VARCHAR(16) NOT NULL,
@@ -43,7 +44,9 @@ CREATE TABLE flight_bookings (
     CONSTRAINT ck_flight_bookings_leg CHECK (leg IN (0, 1)),
     CONSTRAINT ck_flight_bookings_arrival CHECK (arrival_at >= departure_at),
     CONSTRAINT ck_flight_bookings_price_source
-        CHECK (quoted_price_source IN ('PUBLISHED', 'MARKET', 'MOCK'))
+        CHECK (quoted_price_source IN ('PUBLISHED', 'MARKET', 'UNAVAILABLE', 'MOCK')),
+    CONSTRAINT ck_flight_bookings_price_presence
+        CHECK (quoted_total_price IS NOT NULL OR quoted_price_source = 'UNAVAILABLE')
 );
 CREATE INDEX idx_flight_bookings_user ON flight_bookings(user_id, trip_id);
 CREATE TRIGGER trg_flight_bookings_updated_at BEFORE UPDATE ON flight_bookings
@@ -76,11 +79,6 @@ CREATE INDEX idx_flight_outbound_clicks_trip_leg
 CREATE INDEX idx_flight_outbound_clicks_pending
     ON flight_outbound_clicks(user_id, outcome);
 
--- IATA ↔ TAGO 공항 코드 매핑.
--- TAGO는 IATA가 아닌 자체 코드(NAARKPC 형식)를 쓴다.
--- getAirportList 결과를 여기에 고정해두고, 매 요청마다 조회하지 않는다.
-CREATE TABLE airport_code_map (
-    iata_code CHAR(3) PRIMARY KEY,
-    tago_code VARCHAR(16) NOT NULL UNIQUE,
-    name_ko   VARCHAR(40) NOT NULL
-);
+-- IATA ↔ TAGO 공항 코드 매핑은 테이블 대신 DomesticAirport enum으로 고정했다.
+-- 국내 공항이 15개뿐이고 바뀌지 않아서, 테이블로 두면 provider가 조회 계층에 의존하게 되고
+-- 단위 테스트에 DB가 필요해진다. 원본은 GetArprtList 응답이다.

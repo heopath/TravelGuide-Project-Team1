@@ -322,3 +322,6 @@
   margin: 4px 2px 0; font-size: 11.5px; color: var(--muted); line-height: 1.5;
 }
 .page-flights .srcnote[hidden] { display: none; }
+
+/* 운임 미제공 — 0원이 아니라 값이 없는 것이므로 금액처럼 보이지 않게 한다. */
+.page-flights .fp .tot.none { font-size: 14px; font-weight: 700; color: var(--muted); letter-spacing: 0; }

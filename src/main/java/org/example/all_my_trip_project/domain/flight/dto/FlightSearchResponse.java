@@ -60,6 +60,7 @@ public record FlightSearchResponse(
         return switch (sources.iterator().next()) {
             case PUBLISHED -> "공시운임 기준입니다. 항공사 특가에 따라 실제 판매가는 더 낮을 수 있어요.";
             case MARKET -> "최근 판매가 기준입니다. 실시간 재고가 아니므로 현재 가격과 다를 수 있어요.";
+            case UNAVAILABLE -> "이 노선은 운임 정보가 제공되지 않아 예약 사이트에서 확인해야 해요.";
             case MOCK -> "개발용 샘플 데이터입니다.";
         };
     }

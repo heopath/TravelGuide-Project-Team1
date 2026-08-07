@@ -41,7 +41,18 @@ public record FlightOffer(
         if (priceSource == null) {
             throw new IllegalArgumentException("priceSource는 비울 수 없습니다. offerId=" + offerId);
         }
+        // 가격이 비어 있어도 되는 경우는 "운임 미제공"뿐이다.
+        // 그 외에 null이 들어오면 출처만 있고 값이 없는 유령 가격이 만들어진다.
+        if (totalPrice == null && priceSource.hasPrice()) {
+            throw new IllegalArgumentException(
+                    "가격 없는 offer는 priceSource=UNAVAILABLE이어야 합니다. offerId=" + offerId);
+        }
         badges = badges == null ? List.of() : List.copyOf(badges);
+    }
+
+    /** 가격 비교·정렬에 참여할 수 있는지. */
+    public boolean hasPrice() {
+        return totalPrice != null && priceSource.hasPrice();
     }
 
     /** 딥링크는 offer가 만들어진 뒤에 조합하므로 나중에 채워 넣는다. */

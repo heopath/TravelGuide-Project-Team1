@@ -101,7 +101,7 @@ public class CompositeFlightSearchProvider {
 
         for (FlightOffer offer : offers) {
             FlightOffer quote = quoteByKey.get(offer.matchKey());
-            if (quote == null) {
+            if (quote == null || !quote.hasPrice()) {
                 result.add(offer);
                 continue;
             }

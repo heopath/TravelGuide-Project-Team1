@@ -50,7 +50,7 @@ const OFFERS = {
 function offer(offerId, carrierCode, carrierName, flightNumber, dep, arr, perAdult, ribbons, badges) {
   return {
     offerId, provider: "mock", carrierCode, carrierName, flightNumber,
-    origin: "ICN", destination: "CJU",
+    origin: "GMP", destination: "CJU",
     departureAt: "2026-08-15T" + dep + ":00", arrivalAt: "2026-08-15T" + arr + ":00",
     departureTime: dep, arrivalTime: arr, durationLabel: "1시간 10분",
     pricePerAdult: perAdult, totalPrice: perAdult * 2, currency: "KRW",
@@ -82,7 +82,7 @@ async function boot() {
     }
     if (url.startsWith("/api/v1/flights/search")) {
       // 오는 편은 출발지와 도착지가 뒤집혀 조회된다.
-      const inbound = url.includes("destination=ICN");
+      const inbound = url.includes("destination=GMP");
       return json({ success: true, data: { offers: inbound ? OFFERS.inbound : OFFERS.outbound, meta: META } });
     }
     return json({ success: true, data: null });
