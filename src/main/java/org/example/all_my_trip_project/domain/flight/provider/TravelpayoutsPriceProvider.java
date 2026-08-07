@@ -195,7 +195,42 @@ public class TravelpayoutsPriceProvider implements FlightSearchProvider {
         if (!matcher.find()) {
             return null;
         }
-        String value = matcher.group(1).trim();
+        String value = unescape(matcher.group(1).trim());
         return value.isEmpty() || "null".equals(value) ? null : value;
+    }
+
+    /**
+     * JSON 문자열 이스케이프를 되돌린다.
+     *
+     * <p>정규식으로 잘라내면 파서가 해줬을 이스케이프 해제가 빠진다.
+     * Travelpayouts는 {@code link}의 {@code &}를 {@code \\u0026}으로 주는데,
+     * 그대로 두면 딥링크에 리터럴 {@code \\u0026}이 박혀 열리지 않는 URL이 된다.
+     */
+    private String unescape(String value) {
+        if (value.indexOf('\\') < 0) {
+            return value;
+        }
+        StringBuilder out = new StringBuilder(value.length());
+        for (int i = 0; i < value.length(); i++) {
+            char c = value.charAt(i);
+            if (c != '\\' || i + 1 >= value.length()) {
+                out.append(c);
+                continue;
+            }
+            char next = value.charAt(++i);
+            switch (next) {
+                case 'u' -> {
+                    if (i + 4 < value.length()) {
+                        out.append((char) Integer.parseInt(value.substring(i + 1, i + 5), 16));
+                        i += 4;
+                    }
+                }
+                case 'n' -> out.append('\n');
+                case 't' -> out.append('\t');
+                case 'r' -> out.append('\r');
+                default -> out.append(next);   // \" \\ \/ 등은 다음 문자를 그대로 쓴다
+            }
+        }
+        return out.toString();
     }
 }

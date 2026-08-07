@@ -5,6 +5,7 @@ import org.example.all_my_trip_project.domain.flight.dto.FlightOffer;
 import org.example.all_my_trip_project.domain.flight.dto.FlightSearchQuery;
 import org.example.all_my_trip_project.domain.flight.service.DeeplinkBuilder;
 import org.example.all_my_trip_project.domain.flight.type.DomesticAirport;
+import org.example.all_my_trip_project.domain.flight.type.DomesticCarrier;
 import org.example.all_my_trip_project.domain.flight.type.PriceSource;
 import org.example.all_my_trip_project.domain.flight.type.ProviderRole;
 import org.springframework.context.annotation.Profile;
@@ -47,8 +48,13 @@ public class TagoFlightSearchProvider implements FlightSearchProvider {
 
     private static final String NORMAL_RESULT_CODE = "00";
 
-    /** 편명 앞 2자가 캐리어 코드다. "OZ8901" → "OZ" */
-    private static final Pattern CARRIER_CODE = Pattern.compile("^([A-Z0-9]{2})");
+    /**
+     * 편명을 알파벳·숫자 접두어와 편수로 가른다. "OZ8901" → OZ / 8901, "KAL1007" → KAL / 1007.
+     *
+     * <p>앞 2자를 고정으로 자르면 안 된다. TAGO는 대한항공만 ICAO(KAL)로 주는데
+     * 그러면 KA(캐세이드래곤)가 되어 딥링크도 가격 매칭도 어긋난다.
+     */
+    private static final Pattern FLIGHT_NUMBER = Pattern.compile("^([A-Z0-9]*?[A-Z])(\\d+)$");
 
     private final TagoProperties properties;
     private final DeeplinkBuilder deeplinkBuilder;
@@ -134,14 +140,20 @@ public class TagoFlightSearchProvider implements FlightSearchProvider {
 
     private Optional<FlightOffer> toOffer(String item, FlightSearchQuery query,
                                           DomesticAirport origin, DomesticAirport destination) {
-        String flightNumber = jsonString(item, "vihicleId");
-        String carrierName = jsonString(item, "airlineNm");
+        String rawFlightNumber = jsonString(item, "vihicleId");
         String departureRaw = jsonString(item, "depPlandTime");
         String arrivalRaw = jsonString(item, "arrPlandTime");
 
-        if (flightNumber == null || departureRaw == null || arrivalRaw == null) {
+        if (rawFlightNumber == null || departureRaw == null || arrivalRaw == null) {
             return Optional.empty();
         }
+
+        String carrierCode = carrierCode(rawFlightNumber);
+        String flightNumber = normalizeFlightNumber(rawFlightNumber, carrierCode);
+        // 항공사명을 안 주는 편이 있다. 빈 문자열보다 코드라도 보여주는 편이 낫다.
+        String carrierName = Optional.ofNullable(jsonString(item, "airlineNm"))
+                .or(() -> DomesticCarrier.of(carrierCode).map(DomesticCarrier::getKoreanName))
+                .orElse(carrierCode);
 
         LocalDateTime departureAt = LocalDateTime.parse(departureRaw, RESPONSE_TIME);
         LocalDateTime arrivalAt = LocalDateTime.parse(arrivalRaw, RESPONSE_TIME);
@@ -155,8 +167,8 @@ public class TagoFlightSearchProvider implements FlightSearchProvider {
         FlightOffer offer = new FlightOffer(
                 offerId(flightNumber, departureAt),
                 NAME,
-                carrierCode(flightNumber),
-                carrierName == null ? "" : carrierName,
+                carrierCode,
+                carrierName,
                 flightNumber,
                 origin.getIataCode(),
                 destination.getIataCode(),
@@ -173,14 +185,31 @@ public class TagoFlightSearchProvider implements FlightSearchProvider {
         return Optional.of(offer.withDeeplinkUrl(deeplinkBuilder.build(offer, query)));
     }
 
-    /** "tago:OZ8901-20260810" */
+    /**
+     * "tago:OZ8901-202609010630"
+     *
+     * <p>출발 시각까지 넣는 이유는 같은 편명이 하루에 두 번 뜨는 경우가 실제로 있어서다
+     * (OZ8963 15:05과 15:10). 날짜까지만 쓰면 offerId가 겹쳐 화면에서 선택이 엉뚱한 카드에 붙는다.
+     */
     private String offerId(String flightNumber, LocalDateTime departureAt) {
-        return NAME + ":" + flightNumber + "-" + departureAt.toLocalDate().format(REQUEST_DATE);
+        return NAME + ":" + flightNumber + "-" + departureAt.format(RESPONSE_TIME);
     }
 
-    private String carrierCode(String flightNumber) {
-        Matcher matcher = CARRIER_CODE.matcher(flightNumber);
-        return matcher.find() ? matcher.group(1) : "";
+    /** 편명의 알파벳 접두어를 떼어 IATA로 정규화한다. "KAL1007" → "KE" */
+    private String carrierCode(String rawFlightNumber) {
+        Matcher matcher = FLIGHT_NUMBER.matcher(rawFlightNumber);
+        return matcher.matches() ? DomesticCarrier.toIata(matcher.group(1)) : rawFlightNumber;
+    }
+
+    /**
+     * 편명도 IATA 기준으로 맞춘다. "KAL1007" → "KE1007"
+     *
+     * <p>사용자가 항공사 사이트에서 보게 될 편명과 같아지고,
+     * Travelpayouts도 IATA로 주므로 가격 매칭 키가 맞는다.
+     */
+    private String normalizeFlightNumber(String rawFlightNumber, String carrierCode) {
+        Matcher matcher = FLIGHT_NUMBER.matcher(rawFlightNumber);
+        return matcher.matches() ? carrierCode + matcher.group(2) : rawFlightNumber;
     }
 
     /**

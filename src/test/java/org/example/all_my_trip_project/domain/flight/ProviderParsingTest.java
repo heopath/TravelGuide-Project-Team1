@@ -79,19 +79,65 @@ class ProviderParsingTest {
                 .search(query("GMP", "CJU", LocalDate.of(2026, 9, 1)));
 
         assertThat(offers).isNotEmpty();
-        FlightOffer first = offers.get(0);
-        assertThat(first.flightNumber()).isEqualTo("OZ8901");
-        assertThat(first.carrierCode()).isEqualTo("OZ");
-        assertThat(first.carrierName()).isEqualTo("아시아나항공");
-        assertThat(first.origin()).isEqualTo("GMP");
-        assertThat(first.destination()).isEqualTo("CJU");
-        assertThat(first.departureAt()).isEqualTo(LocalDateTime.of(2026, 9, 1, 6, 30));
-        assertThat(first.arrivalAt()).isEqualTo(LocalDateTime.of(2026, 9, 1, 7, 45));
-        assertThat(first.pricePerAdult()).isEqualByComparingTo(BigDecimal.valueOf(61_900));
+        FlightOffer oz = byFlightNumber(offers, "OZ8901");
+        assertThat(oz.carrierCode()).isEqualTo("OZ");
+        assertThat(oz.carrierName()).isEqualTo("아시아나항공");
+        assertThat(oz.origin()).isEqualTo("GMP");
+        assertThat(oz.destination()).isEqualTo("CJU");
+        assertThat(oz.departureAt()).isEqualTo(LocalDateTime.of(2026, 9, 1, 6, 30));
+        assertThat(oz.arrivalAt()).isEqualTo(LocalDateTime.of(2026, 9, 1, 7, 45));
+        assertThat(oz.pricePerAdult()).isEqualByComparingTo(BigDecimal.valueOf(61_900));
         // 성인 2명 총액
-        assertThat(first.totalPrice()).isEqualByComparingTo(BigDecimal.valueOf(123_800));
-        assertThat(first.priceSource()).isEqualTo(PriceSource.PUBLISHED);
-        assertThat(first.offerId()).isEqualTo("tago:OZ8901-20260901");
+        assertThat(oz.totalPrice()).isEqualByComparingTo(BigDecimal.valueOf(123_800));
+        assertThat(oz.priceSource()).isEqualTo(PriceSource.PUBLISHED);
+        assertThat(oz.offerId()).isEqualTo("tago:OZ8901-202609010630");
+    }
+
+    @Test
+    @DisplayName("ICAO 편명을 IATA로 정규화한다")
+    void normalisesIcaoFlightNumbers() throws IOException {
+        List<FlightOffer> offers = searchGmpToCju();
+
+        // TAGO는 대한항공만 ICAO(KAL1007)로 준다. 앞 2자를 자르면 KA(캐세이드래곤)가 된다.
+        assertThat(offers).noneMatch(o -> o.carrierCode().equals("KA"));
+        assertThat(offers).noneMatch(o -> o.flightNumber().startsWith("KAL"));
+
+        FlightOffer korean = byFlightNumber(offers, "KE1007");
+        assertThat(korean.carrierCode()).isEqualTo("KE");
+        assertThat(korean.carrierName()).isEqualTo("대한항공");
+        // 정규화된 코드라야 딥링크 템플릿(KE)에 걸린다.
+        assertThat(korean.deeplinkUrl()).isEqualTo("https://carrier.test/book");
+    }
+
+    @Test
+    @DisplayName("같은 편명이 하루에 두 번 떠도 offerId가 겹치지 않는다")
+    void keepsOfferIdUniqueForRepeatedFlightNumbers() throws IOException {
+        List<FlightOffer> offers = searchGmpToCju();
+
+        // 실데이터에 OZ8963이 15:05과 15:10 두 번 있다. 겹치면 선택이 엉뚱한 카드에 붙는다.
+        assertThat(offers.stream().filter(o -> o.flightNumber().equals("OZ8963")))
+                .hasSizeGreaterThan(1);
+        assertThat(offers).extracting(FlightOffer::offerId).doesNotHaveDuplicates();
+    }
+
+    @Test
+    @DisplayName("항공사명을 주지 않는 편도 빈 이름으로 두지 않는다")
+    void fallsBackWhenAirlineNameMissing() throws IOException {
+        // PTA6501은 airlineNm이 없고 TAGO 항공사 목록에도 없어 한글명을 알 방법이 없다.
+        assertThat(searchGmpToCju())
+                .allSatisfy(offer -> assertThat(offer.carrierName()).isNotBlank());
+    }
+
+    private List<FlightOffer> searchGmpToCju() throws IOException {
+        TagoFixture f = tago();
+        f.server().expect(requestTo(org.hamcrest.Matchers.containsString("depAirportId=NAARKSS")))
+                .andRespond(withSuccess(fixture("tago-gmp-cju.json"), MediaType.APPLICATION_JSON));
+        return f.provider().search(query("GMP", "CJU", LocalDate.of(2026, 9, 1)));
+    }
+
+    private FlightOffer byFlightNumber(List<FlightOffer> offers, String flightNumber) {
+        return offers.stream().filter(o -> o.flightNumber().equals(flightNumber))
+                .findFirst().orElseThrow(() -> new AssertionError(flightNumber + " 없음"));
     }
 
     @Test
@@ -195,7 +241,10 @@ class ProviderParsingTest {
         assertThat(quote.matchKey()).isEqualTo("RSRS907@2026-09-01");
         assertThat(quote.deeplinkUrl())
                 .startsWith("https://www.aviasales.com/search/")
-                .contains("marker=761521");
+                .contains("marker=761521")
+                // 응답의 &가 \\u0026으로 오는데, 안 풀면 열리지 않는 URL이 된다.
+                .doesNotContain("\\u0026")
+                .contains("&search_date=");
     }
 
     @Test

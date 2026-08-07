@@ -34,34 +34,51 @@ public record FlightSearchResponse(
                 .map(FlightOfferResponse::from)
                 .toList();
 
-        Set<PriceSource> sources = result.offers().stream()
+        /*
+         * 출처 요약은 값이 있는 운임만 놓고 센다.
+         * 운임 미제공은 "다른 출처"가 아니라 "가격이 없음"이라,
+         * 여기에 섞으면 전부 공시운임인 목록에도 "출처가 다릅니다"가 뜬다.
+         */
+        Set<PriceSource> pricedSources = result.offers().stream()
+                .filter(FlightOffer::hasPrice)
                 .map(FlightOffer::priceSource)
                 .collect(java.util.stream.Collectors.toUnmodifiableSet());
 
-        String source = sources.size() == 1 ? sources.iterator().next().name() : MIXED;
+        long unpricedCount = result.offers().stream().filter(offer -> !offer.hasPrice()).count();
+
+        String source = pricedSources.isEmpty() ? PriceSource.UNAVAILABLE.name()
+                : pricedSources.size() == 1 ? pricedSources.iterator().next().name()
+                : MIXED;
 
         return new FlightSearchResponse(offers, new Meta(
                 result.scheduleProvider(),
                 result.priceProvider(),
                 result.matchedPriceCount(),
                 result.totalCount(),
-                sources.isEmpty() ? null : source,
-                notice(sources, source)
+                offers.isEmpty() ? null : source,
+                notice(offers.isEmpty(), pricedSources, source, unpricedCount)
         ));
     }
 
-    private static String notice(Set<PriceSource> sources, String source) {
-        if (sources.isEmpty()) {
+    private static String notice(boolean empty, Set<PriceSource> pricedSources,
+                                 String source, long unpricedCount) {
+        if (empty) {
             return null;
         }
-        if (MIXED.equals(source)) {
-            return "가격 출처가 항공편마다 다릅니다.";
+        String base = pricedSources.isEmpty()
+                ? "이 노선은 운임 정보가 제공되지 않아 예약 사이트에서 확인해야 해요."
+                : MIXED.equals(source)
+                ? "가격 출처가 항공편마다 다릅니다."
+                : switch (pricedSources.iterator().next()) {
+                    case PUBLISHED -> "공시운임 기준입니다. 항공사 특가에 따라 실제 판매가는 더 낮을 수 있어요.";
+                    case MARKET -> "최근 판매가 기준입니다. 실시간 재고가 아니므로 현재 가격과 다를 수 있어요.";
+                    case UNAVAILABLE -> "이 노선은 운임 정보가 제공되지 않아 예약 사이트에서 확인해야 해요.";
+                    case MOCK -> "개발용 샘플 데이터입니다.";
+                };
+
+        if (pricedSources.isEmpty() || unpricedCount == 0) {
+            return base;
         }
-        return switch (sources.iterator().next()) {
-            case PUBLISHED -> "공시운임 기준입니다. 항공사 특가에 따라 실제 판매가는 더 낮을 수 있어요.";
-            case MARKET -> "최근 판매가 기준입니다. 실시간 재고가 아니므로 현재 가격과 다를 수 있어요.";
-            case UNAVAILABLE -> "이 노선은 운임 정보가 제공되지 않아 예약 사이트에서 확인해야 해요.";
-            case MOCK -> "개발용 샘플 데이터입니다.";
-        };
+        return base + " 운임이 제공되지 않는 항공편 " + unpricedCount + "편은 예약 사이트에서 확인해 주세요.";
     }
 }
