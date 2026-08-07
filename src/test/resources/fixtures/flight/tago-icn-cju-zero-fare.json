@@ -1,0 +1,1 @@
+{"response":{"header":{"resultCode":"00","resultMsg":"NORMAL SERVICE."},"body":{"items":{"item":[{"airlineNm":"제주항공","arrAirportNm":"제주","arrPlandTime":202608101925,"depAirportNm":"인천","depPlandTime":202608101805,"economyCharge":0,"prestigeCharge":0,"vihicleId":"7C167"}]},"numOfRows":5,"pageNo":1,"totalCount":1}}}
