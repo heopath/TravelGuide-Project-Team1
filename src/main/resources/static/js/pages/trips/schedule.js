@@ -38,6 +38,11 @@ document.addEventListener("DOMContentLoaded", function () {
   const weatherResult = document.querySelector("[data-weather-result]");
   const parkingResults = document.querySelector("[data-parking-results]");
   const routeToggle = document.querySelector("[data-toggle-route]");
+  const aiEmptyCta = document.querySelector("[data-schedule-ai-empty-cta]");
+
+  function toggleAiEmptyCta(visible) {
+    if (aiEmptyCta) aiEmptyCta.hidden = !visible;
+  }
 
   function showEmpty(container, message) {
     container.replaceChildren();
@@ -234,11 +239,13 @@ document.addEventListener("DOMContentLoaded", function () {
     activeItems = items;
     timeline.replaceChildren();
     if (!items.length) {
+      toggleAiEmptyCta(true);
       showEmpty(timeline, "아직 추가한 장소가 없습니다. 오른쪽에서 장소를 검색해보세요.");
       refreshMap();
       if (lastSearchResults.length) renderSearchResults(lastSearchResults);
       return;
     }
+    toggleAiEmptyCta(false);
     items.forEach(function (item, index) {
       const row = document.createElement("article");
       row.className = "schedule-item";
@@ -398,6 +405,7 @@ document.addEventListener("DOMContentLoaded", function () {
       if (!trips.length) { renderTripList([]); showEmpty(timeline, "여행 계획을 먼저 만들어주세요."); return; }
       if (!activeTripId || !trips.some(function (trip) { return trip.tripId === activeTripId; })) {
         activeTripId = trips[0].tripId;
+        document.body.dataset.tripId = String(activeTripId);
         window.history.replaceState(null, "", "/trips/" + activeTripId + "/schedule");
       }
       const result = await Promise.all([api("/api/v1/trips/" + activeTripId), api("/api/v1/trips/" + activeTripId + "/days")]);
@@ -518,6 +526,32 @@ document.addEventListener("DOMContentLoaded", function () {
     const selectedButton = Array.from(dayTabs.querySelectorAll("button")).find(function (button) { return button.classList.contains("selected"); });
     await selectDay(activeDay, selectedButton);
   }
+
+  window.AllMyTripsSchedule = {
+    addAiRecommendation: async function (recommendation) {
+      if (!activeDay) {
+        throw new Error("추가할 DAY를 먼저 선택해주세요.");
+      }
+
+      await api("/api/v1/trip-days/" + activeDay.tripDayId + "/items", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          itemType: "NOTE",
+          title: recommendation.name,
+          startTime: recommendation.time || null,
+          sortOrder: activeItems.length + 1,
+          memo: recommendation.reason || null,
+          currencyCode: "KRW",
+          source: "AI"
+        })
+      });
+
+      const selectedButton = Array.from(dayTabs.querySelectorAll("button"))
+        .find(function (button) { return button.classList.contains("selected"); });
+      await selectDay(activeDay, selectedButton);
+    }
+  };
 
   function featuredKakaoPlace(element) {
     return {
