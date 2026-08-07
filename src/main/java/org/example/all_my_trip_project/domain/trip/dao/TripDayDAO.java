@@ -6,6 +6,7 @@ import org.example.all_my_trip_project.domain.trip.mapper.TripDayMapper;
 import org.springframework.stereotype.Repository;
 import org.springframework.context.annotation.Profile;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
@@ -19,7 +20,7 @@ public class TripDayDAO {
     public int insertAll(List<TripDayDTO> tripDays) { return tripDayMapper.insertAll(tripDays); }
     public Optional<TripDayDTO> findById(Long tripDayId) { return tripDayMapper.findById(tripDayId); }
     public List<TripDayDTO> findByTripId(Long tripId) { return tripDayMapper.findByTripId(tripId); }
-    public int moveOutOfDateRange(Long tripId) { return tripDayMapper.moveOutOfDateRange(tripId); }
     public int update(TripDayDTO tripDay) { return tripDayMapper.update(tripDay); }
     public int delete(Long tripDayId) { return tripDayMapper.delete(tripDayId); }
+    public boolean existsOutsidePeriodWithItineraryItems(Long tripId, LocalDate startDate, LocalDate endDate) { return tripDayMapper.existsOutsidePeriodWithItineraryItems(tripId, startDate, endDate); }
 }

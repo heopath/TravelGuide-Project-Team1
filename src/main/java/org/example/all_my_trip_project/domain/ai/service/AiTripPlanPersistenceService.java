@@ -17,9 +17,7 @@ import org.example.all_my_trip_project.domain.trip.dao.TripDayDAO;
 import org.example.all_my_trip_project.domain.trip.dto.ItineraryItemDTO;
 import org.example.all_my_trip_project.domain.trip.dto.TripDTO;
 import org.example.all_my_trip_project.domain.trip.dto.TripDayDTO;
-import org.example.all_my_trip_project.domain.user.dao.UserDAO;
-import org.example.all_my_trip_project.domain.user.dto.UserDTO;
-import org.example.all_my_trip_project.domain.user.type.UserStatus;
+import org.example.all_my_trip_project.domain.user.service.ActiveMemberGuard;
 import org.example.all_my_trip_project.global.exception.BusinessException;
 import org.example.all_my_trip_project.global.exception.ErrorCode;
 import org.springframework.context.annotation.Profile;
@@ -44,11 +42,12 @@ public class AiTripPlanPersistenceService {
     private final TripDayDAO tripDayDAO;
     private final ItineraryItemDAO itineraryItemDAO;
     private final PlaceDAO placeDAO;
-    private final UserDAO userDAO;
+    private final ActiveMemberGuard activeMemberGuard;
 
     @Transactional
     public AiTripPlanSaveResult save(Long userId, AiTripPlanSaveRequest saveRequest) {
-        requireActiveUser(userId);
+        requireValidUserId(userId);
+        activeMemberGuard.requireActiveMember(userId);
         AiTripPlanRequest conditions = saveRequest.conditions();
         AiTripPlanResponse plan = saveRequest.plan();
         int expectedDays = validate(conditions, plan);
@@ -184,12 +183,10 @@ public class AiTripPlanPersistenceService {
         return days;
     }
 
-    private void requireActiveUser(Long userId) {
-        if (userId == null || userId < 1) throw new BusinessException(ErrorCode.UNAUTHORIZED);
-        UserDTO user = userDAO.findById(userId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.UNAUTHORIZED));
-        if (UserStatus.SUSPENDED.matches(user.getStatus())) throw new BusinessException(ErrorCode.ACCOUNT_SUSPENDED);
-        if (!UserStatus.ACTIVE.matches(user.getStatus())) throw new BusinessException(ErrorCode.ACCOUNT_WITHDRAWN);
+    private void requireValidUserId(Long userId) {
+        if (userId == null || userId < 1) {
+            throw new BusinessException(ErrorCode.UNAUTHORIZED);
+        }
     }
 
     private String companionType(String companion) {

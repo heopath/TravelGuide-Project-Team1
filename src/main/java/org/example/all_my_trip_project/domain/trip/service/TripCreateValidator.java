@@ -1,16 +1,18 @@
-package org.example.all_my_trip_project.domain.trip.service.support;
+package org.example.all_my_trip_project.domain.trip.service;
 
 import org.example.all_my_trip_project.domain.trip.dto.TripCreateRequest;
 import org.example.all_my_trip_project.domain.trip.policy.TripPolicy;
 import org.example.all_my_trip_project.domain.trip.type.CompanionType;
 import org.example.all_my_trip_project.global.exception.BusinessException;
 import org.example.all_my_trip_project.global.exception.ErrorCode;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
 import java.time.temporal.ChronoUnit;
 
 @Component
-public class TripCreateValidator {
+@Profile("!ui")
+final class TripCreateValidator {
 
     public int validate(TripCreateRequest request) {
         if (request == null

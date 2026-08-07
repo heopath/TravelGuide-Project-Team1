@@ -6,9 +6,11 @@ import org.example.all_my_trip_project.domain.trip.dao.TripDayDAO;
 import org.example.all_my_trip_project.domain.trip.dto.ItineraryItemDTO;
 import org.example.all_my_trip_project.domain.trip.dto.TripDTO;
 import org.example.all_my_trip_project.domain.trip.dto.TripDayDTO;
+import org.example.all_my_trip_project.global.exception.BusinessException;
+import org.example.all_my_trip_project.global.exception.ErrorCode;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -20,6 +22,10 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+/**
+ * 소유권 검사는 공유 {@link TripOwnershipGuard}가 담당하므로 생성자로 명시적으로 조립한다.
+ * {@code @InjectMocks}는 생성자 시그니처가 바뀌어도 컴파일 오류 없이 null을 주입해 조용히 깨지므로 쓰지 않는다.
+ */
 @ExtendWith(MockitoExtension.class)
 class ItineraryItemServiceTest {
 
@@ -30,37 +36,81 @@ class ItineraryItemServiceTest {
     @Mock
     private TripDAO tripDAO;
 
-    @InjectMocks
     private ItineraryItemService itineraryItemService;
 
+    @BeforeEach
+    void setUp() {
+        TripOwnershipGuard ownershipGuard = new TripOwnershipGuard(tripDAO, tripDayDAO, itemDAO);
+        itineraryItemService = new ItineraryItemService(itemDAO, ownershipGuard, new ItineraryItemValidator());
+    }
+
     @Test
-    void createAddsItemToOwnedTripDay() {
+    void createAddsItemToOwnedTripDayAtNextSortOrder() {
         TripDayDTO day = TripDayDTO.builder().tripDayId(20L).tripId(10L).build();
         TripDTO trip = TripDTO.builder().tripId(10L).userId(42L).build();
         ItineraryItemDTO item = ItineraryItemDTO.builder()
                 .itineraryItemId(30L)
                 .tripDayId(20L)
                 .placeId(100L)
+                .title("해운대 산책")
                 .build();
         when(tripDayDAO.findById(20L)).thenReturn(Optional.of(day));
         when(tripDAO.findById(10L)).thenReturn(Optional.of(trip));
+        when(itemDAO.countByTripDayId(20L)).thenReturn(3);
 
         assertThat(itineraryItemService.create(42L, item)).isEqualTo(30L);
 
+        assertThat(item.getSortOrder()).isEqualTo(3);
         verify(itemDAO).insert(item);
+    }
+
+    @Test
+    void createRejectsWhenDayAlreadyHasMaximumItems() {
+        TripDayDTO day = TripDayDTO.builder().tripDayId(20L).tripId(10L).build();
+        TripDTO trip = TripDTO.builder().tripId(10L).userId(42L).build();
+        ItineraryItemDTO item = ItineraryItemDTO.builder().tripDayId(20L).title("해운대 산책").build();
+        when(tripDayDAO.findById(20L)).thenReturn(Optional.of(day));
+        when(tripDAO.findById(10L)).thenReturn(Optional.of(trip));
+        when(itemDAO.countByTripDayId(20L)).thenReturn(100);
+
+        assertThatThrownBy(() -> itineraryItemService.create(42L, item))
+                .isInstanceOf(BusinessException.class)
+                .extracting(exception -> ((BusinessException) exception).getErrorCode())
+                .isEqualTo(ErrorCode.ITINERARY_ITEM_LIMIT_EXCEEDED);
+
+        verify(itemDAO, never()).insert(item);
+    }
+
+    @Test
+    void updateKeepsExistingSortOrderRegardlessOfIncomingValue() {
+        ItineraryItemDTO existing = ItineraryItemDTO.builder()
+                .itineraryItemId(30L).tripDayId(20L).title("기존 제목").sortOrder(4).build();
+        TripDayDTO day = TripDayDTO.builder().tripDayId(20L).tripId(10L).build();
+        TripDTO trip = TripDTO.builder().tripId(10L).userId(42L).build();
+        ItineraryItemDTO update = ItineraryItemDTO.builder()
+                .itineraryItemId(30L).tripDayId(20L).title("변경된 제목").build();
+        when(tripDayDAO.findById(20L)).thenReturn(Optional.of(day));
+        when(tripDAO.findById(10L)).thenReturn(Optional.of(trip));
+        when(itemDAO.findById(30L)).thenReturn(Optional.of(existing));
+        when(itemDAO.update(update)).thenReturn(1);
+
+        itineraryItemService.update(42L, update);
+
+        assertThat(update.getSortOrder()).isEqualTo(4);
     }
 
     @Test
     void createRejectsAnotherUsersTripDay() {
         TripDayDTO day = TripDayDTO.builder().tripDayId(20L).tripId(10L).build();
         TripDTO trip = TripDTO.builder().tripId(10L).userId(99L).build();
-        ItineraryItemDTO item = ItineraryItemDTO.builder().tripDayId(20L).build();
+        ItineraryItemDTO item = ItineraryItemDTO.builder().tripDayId(20L).title("해운대 산책").build();
         when(tripDayDAO.findById(20L)).thenReturn(Optional.of(day));
         when(tripDAO.findById(10L)).thenReturn(Optional.of(trip));
 
         assertThatThrownBy(() -> itineraryItemService.create(42L, item))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("여행 일자를 찾을 수 없습니다.");
+                .isInstanceOf(BusinessException.class)
+                .extracting(exception -> ((BusinessException) exception).getErrorCode())
+                .isEqualTo(ErrorCode.TRIP_NOT_FOUND);
 
         verify(itemDAO, never()).insert(item);
     }
