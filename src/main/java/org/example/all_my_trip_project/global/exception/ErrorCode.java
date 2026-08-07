@@ -19,6 +19,16 @@ public enum ErrorCode {
             "이메일 또는 비밀번호가 올바르지 않습니다."
     ),
 
+    PASSWORD_MISMATCH(
+            HttpStatus.BAD_REQUEST,
+            "현재 비밀번호가 일치하지 않습니다."
+    ),
+
+    NEW_PASSWORD_SAME_AS_CURRENT(
+            HttpStatus.BAD_REQUEST,
+            "새 비밀번호는 현재 비밀번호와 다르게 설정해주세요."
+    ),
+
     UNAUTHORIZED(
             HttpStatus.UNAUTHORIZED,
             "로그인이 필요합니다."
@@ -69,6 +79,11 @@ public enum ErrorCode {
             "여행 기간은 시작일과 종료일을 포함해 1일 이상 30일 이하여야 합니다."
     ),
 
+    TRIP_PERIOD_CONFLICT(
+            HttpStatus.CONFLICT,
+            "변경 범위 밖 일차에 일정이 있어 여행 기간을 변경할 수 없습니다."
+    ),
+
     INVALID_COMPANION_COUNT(
             HttpStatus.BAD_REQUEST,
             "동행 인원은 1명 이상 20명 이하여야 하며 혼자 여행은 1명이어야 합니다."
@@ -82,6 +97,11 @@ public enum ErrorCode {
     TRIP_CREATE_FAILED(
             HttpStatus.INTERNAL_SERVER_ERROR,
             "여행을 생성하지 못했습니다."
+    ),
+
+    ITINERARY_ITEM_LIMIT_EXCEEDED(
+            HttpStatus.BAD_REQUEST,
+            "일차당 일정은 최대 100개까지 등록할 수 있습니다."
     ),
 
     INVALID_FLIGHT_LEG(

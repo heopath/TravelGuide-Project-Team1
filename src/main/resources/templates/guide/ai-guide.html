@@ -20,7 +20,7 @@
             <div>
               <span class="section-eyebrow">AI TRAVEL GUIDE</span>
               <h1>여행에 대해 무엇이든 물어보세요</h1>
-              <p>입력한 질문을 바탕으로 Gemini가 여행 일정 초안을 제안해 드립니다.</p>
+              <p>입력한 질문을 바탕으로 AI가 여행 일정 초안을 제안해 드립니다.</p>
             </div>
             <div class="demo-status" th:if="${aiMockEnabled}">
               <label for="demo-mode">API 테스트 상태</label>
@@ -35,7 +35,7 @@
             <aside class="white-panel ai-context">
               <div class="context-badge">✦</div>
               <h2>질문 기반 추천</h2>
-              <p class="context-subtitle">현재 단계에서는 질문만 Gemini에 전달됩니다.</p>
+              <p class="context-subtitle">여행 정보와 질문을 바탕으로 맞춤 일정을 생성합니다.</p>
               <div class="context-facts">
                 <span><b>여행 정보</b>후속 연동 예정</span>
                 <span><b>사용자 선호</b>후속 연동 예정</span>
@@ -48,9 +48,9 @@
             </aside>
 
             <section class="white-panel chat-panel" id="chat-panel" aria-live="polite">
-              <div class="chat-intro"><span>AI</span><p>여행 조건을 질문으로 알려주시면 Gemini 일정 생성을 시작할게요.</p></div>
+              <div class="chat-intro"><span>AI</span><p>여행 조건을 질문으로 알려주시면 AI 일정 생성을 시작할게요.</p></div>
               <div class="chat-messages" data-chat-messages>
-                <div class="ai-message"><p>안녕하세요! 여행 조건을 질문으로 알려주시면 Gemini가 일정 초안을 만들어 드립니다.</p><small>질문 기반 Gemini 추천</small></div>
+                <div class="ai-message"><p>안녕하세요! 여행 조건을 질문으로 알려주시면 AI가 일정 초안을 만들어 드립니다.</p><small>여행 정보 기반 AI 추천</small></div>
               </div>
               <div class="chat-error" data-chat-error hidden>
                 <strong data-chat-error-title>추천을 불러오지 못했어요</strong>

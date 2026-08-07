@@ -64,13 +64,18 @@
           </li>
         </ol>
 
-        <button
-                type="button"
-                class="primary-button schedule-save-button"
-                data-schedule-save
-        >
-          ▣&nbsp; 여행 저장하기
-        </button>
+        <div class="schedule-heading-actions">
+          <button type="button" class="schedule-back-button" data-schedule-back>
+            ← 뒤로가기
+          </button>
+          <button
+                  type="button"
+                  class="primary-button schedule-save-button"
+                  data-schedule-save
+          >
+            ▣&nbsp; 여행 저장하기
+          </button>
+        </div>
       </section>
 
       <div class="schedule-layout schedule-planner-layout">
@@ -86,112 +91,6 @@
 
           </section>
 
-          <section class="white-panel featured-places">
-            <h3>
-              <span class="featured-heart">♥</span>
-              이 지역의 찜한 여행지
-            </h3>
-
-            <div class="featured-place-list">
-              <article
-                class="featured-place"
-                data-featured-place
-                data-place-id="favorite-gyeongbokgung"
-                data-place-name="경복궁"
-                data-place-address="서울 종로구 사직로 161"
-                data-place-latitude="37.579617"
-                data-place-longitude="126.977041"
-              >
-                <span class="place-thumb palace-thumb"></span>
-                <strong>경복궁</strong>
-                <em>★ 4.7</em>
-                <button type="button" class="featured-place-add" aria-label="경복궁 일정에 추가">
-                  <span class="featured-place-add-icon">＋</span>
-                  <span class="featured-place-add-label">일정에 추가하기</span>
-                </button>
-              </article>
-
-              <article
-                class="featured-place"
-                data-featured-place
-                data-place-id="favorite-seoul-tower"
-                data-place-name="서울타워"
-                data-place-address="서울 용산구 남산공원길 105"
-                data-place-latitude="37.551169"
-                data-place-longitude="126.988227"
-              >
-                <span class="place-thumb tower-thumb"></span>
-                <strong>서울타워</strong>
-                <em>★ 4.6</em>
-                <button type="button" class="featured-place-add" aria-label="서울타워 일정에 추가">
-                  <span class="featured-place-add-icon">＋</span>
-                  <span class="featured-place-add-label">일정에 추가하기</span>
-                </button>
-              </article>
-
-              <article
-                class="featured-place"
-                data-featured-place
-                data-place-id="favorite-lotte-world"
-                data-place-name="롯데월드"
-                data-place-address="서울 송파구 올림픽로 240"
-                data-place-latitude="37.511120"
-                data-place-longitude="127.098167"
-              >
-                <span class="place-thumb mall-thumb"></span>
-                <strong>롯데월드</strong>
-                <em>★ 4.5</em>
-                <button type="button" class="featured-place-add" aria-label="롯데월드 일정에 추가">
-                  <span class="featured-place-add-icon">＋</span>
-                  <span class="featured-place-add-label">일정에 추가하기</span>
-                </button>
-              </article>
-
-              <article
-                class="featured-place"
-                data-featured-place
-                data-place-id="favorite-bukchon"
-                data-place-name="북촌한옥마을"
-                data-place-address="서울 종로구 계동길 37"
-                data-place-latitude="37.582604"
-                data-place-longitude="126.983012"
-              >
-                <span class="place-thumb village-thumb"></span>
-                <strong>북촌한옥마을</strong>
-                <em>★ 4.5</em>
-                <button type="button" class="featured-place-add" aria-label="북촌한옥마을 일정에 추가">
-                  <span class="featured-place-add-icon">＋</span>
-                  <span class="featured-place-add-label">일정에 추가하기</span>
-                </button>
-              </article>
-
-              <article
-                class="featured-place"
-                data-featured-place
-                data-place-id="favorite-hangang"
-                data-place-name="한강공원"
-                data-place-address="서울 영등포구 여의동로 330"
-                data-place-latitude="37.528372"
-                data-place-longitude="126.932602"
-              >
-                <span class="place-thumb river-thumb"></span>
-                <strong>한강공원</strong>
-                <em>★ 4.4</em>
-                <button type="button" class="featured-place-add" aria-label="한강공원 일정에 추가">
-                  <span class="featured-place-add-icon">＋</span>
-                  <span class="featured-place-add-label">일정에 추가하기</span>
-                </button>
-              </article>
-            </div>
-
-            <button
-                    type="button"
-                    class="more-places"
-                    data-schedule-guide
-            >
-              더보기&nbsp; ›
-            </button>
-          </section>
         </aside>
 
         <section class="schedule-center">
@@ -203,9 +102,14 @@
               </div>
 
               <span class="map-status" data-map-status hidden>지도 준비 중</span>
-              <button type="button" class="map-expand-button">
-                ♧&nbsp; 지도 크게 보기
-              </button>
+              <div class="map-panel-actions">
+                <button type="button" class="outline-button map-route-toggle" data-toggle-route-map>
+                  경로선 ON
+                </button>
+                <button type="button" class="map-expand-button">
+                  ♧&nbsp; 지도 크게 보기
+                </button>
+              </div>
             </div>
 
             <div class="schedule-map" data-schedule-map>
@@ -237,6 +141,11 @@
               <p class="schedule-empty">
                 일정을 불러오는 중입니다.
               </p>
+            </div>
+            <div class="schedule-ai-empty-cta" data-schedule-ai-empty-cta hidden>
+              <strong>일정이 아직 비어 있어요</strong>
+              <span>AI에게 현재 여행에 맞는 장소와 코스를 추천받아보세요.</span>
+              <button type="button" data-schedule-ai-open>✦ AI 일정 추천 받기</button>
             </div>
           </section>
         </section>
@@ -274,18 +183,61 @@
             </div>
           </section>
 
+          <section class="white-panel featured-places">
+            <h3>
+              <span class="featured-heart">♥</span>
+              이 지역의 찜한 여행지
+            </h3>
+
+            <div class="featured-place-list">
+              <article class="featured-place" data-featured-place data-place-id="favorite-gyeongbokgung" data-place-name="경복궁" data-place-address="서울 종로구 사직로 161" data-place-latitude="37.579617" data-place-longitude="126.977041">
+                <span class="place-thumb palace-thumb"></span>
+                <strong>경복궁</strong>
+                <em>★ 4.7</em>
+                <button type="button" class="featured-place-add" aria-label="경복궁 일정에 추가"><span class="featured-place-add-icon">＋</span><span class="featured-place-add-label">일정에 추가하기</span></button>
+              </article>
+              <article class="featured-place" data-featured-place data-place-id="favorite-seoul-tower" data-place-name="서울타워" data-place-address="서울 용산구 남산공원길 105" data-place-latitude="37.551169" data-place-longitude="126.988227">
+                <span class="place-thumb tower-thumb"></span>
+                <strong>서울타워</strong>
+                <em>★ 4.6</em>
+                <button type="button" class="featured-place-add" aria-label="서울타워 일정에 추가"><span class="featured-place-add-icon">＋</span><span class="featured-place-add-label">일정에 추가하기</span></button>
+              </article>
+              <article class="featured-place" data-featured-place data-place-id="favorite-lotte-world" data-place-name="롯데월드" data-place-address="서울 송파구 올림픽로 240" data-place-latitude="37.511120" data-place-longitude="127.098167">
+                <span class="place-thumb mall-thumb"></span>
+                <strong>롯데월드</strong>
+                <em>★ 4.5</em>
+                <button type="button" class="featured-place-add" aria-label="롯데월드 일정에 추가"><span class="featured-place-add-icon">＋</span><span class="featured-place-add-label">일정에 추가하기</span></button>
+              </article>
+              <article class="featured-place" data-featured-place data-place-id="favorite-bukchon" data-place-name="북촌한옥마을" data-place-address="서울 종로구 계동길 37" data-place-latitude="37.582604" data-place-longitude="126.983012">
+                <span class="place-thumb village-thumb"></span>
+                <strong>북촌한옥마을</strong>
+                <em>★ 4.5</em>
+                <button type="button" class="featured-place-add" aria-label="북촌한옥마을 일정에 추가"><span class="featured-place-add-icon">＋</span><span class="featured-place-add-label">일정에 추가하기</span></button>
+              </article>
+              <article class="featured-place" data-featured-place data-place-id="favorite-hangang" data-place-name="한강공원" data-place-address="서울 영등포구 여의동로 330" data-place-latitude="37.528372" data-place-longitude="126.932602">
+                <span class="place-thumb river-thumb"></span>
+                <strong>한강공원</strong>
+                <em>★ 4.4</em>
+                <button type="button" class="featured-place-add" aria-label="한강공원 일정에 추가"><span class="featured-place-add-icon">＋</span><span class="featured-place-add-label">일정에 추가하기</span></button>
+              </article>
+            </div>
+
+            <button type="button" class="more-places" data-schedule-guide>
+              더보기&nbsp; ›
+            </button>
+          </section>
+
           <section
                   class="white-panel detail-panel"
-                  data-place-insight
           >
             <div class="panel-title-row">
               <div>
-                <h2 data-insight-title>장소 정보</h2>
+                <h2>장소 정보</h2>
                 <p>날씨와 주변 주차장을 확인하세요.</p>
               </div>
             </div>
 
-            <div class="weather-box" data-weather-result>
+            <div class="weather-box">
               <p>
                 일정 장소의 날씨 정보를 확인할 수 있습니다.
               </p>
@@ -298,13 +250,12 @@
                 <button
                         type="button"
                         class="text-button"
-                        data-find-parking
                 >
                   검색
                 </button>
               </div>
 
-              <div data-parking-results>
+              <div>
                 <p>주변 주차장 정보를 확인할 수 있습니다.</p>
               </div>
             </div>
@@ -339,6 +290,70 @@
     </section>
   </div>
 
+  <div class="schedule-info-modal" data-place-insight hidden aria-hidden="true">
+    <div class="schedule-info-modal-backdrop" data-schedule-info-close></div>
+    <section class="schedule-info-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="scheduleInfoTitle">
+      <div class="schedule-info-modal-header">
+        <h2 id="scheduleInfoTitle" data-insight-title>장소 정보</h2>
+        <button type="button" class="schedule-info-modal-close" data-schedule-info-close aria-label="장소 정보 닫기">×</button>
+      </div>
+      <p class="schedule-info-modal-description">선택한 장소의 날씨와 주변 주차장을 확인하세요.</p>
+      <div class="weather-box" data-weather-result>
+        <p>일정 장소의 날씨 정보를 확인할 수 있습니다.</p>
+      </div>
+      <div class="parking-box">
+        <div class="parking-heading">
+          <strong>주변 주차장</strong>
+          <button type="button" class="text-button" data-find-parking>검색</button>
+        </div>
+        <div data-parking-results>
+          <p>주변 주차장 정보를 확인할 수 있습니다.</p>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <div class="schedule-ai-nudge" data-schedule-ai-nudge hidden>
+    <span>✨ AI가 현재 일정에 맞춰 추천해드려요</span>
+    <i aria-hidden="true"></i>
+  </div>
+
+  <button type="button" class="schedule-ai-fab" data-schedule-ai-open aria-label="AI 일정 가이드 열기" aria-haspopup="dialog" aria-controls="scheduleAiGuideModal">
+    <span class="schedule-ai-fab-mark" aria-hidden="true">✈</span>
+    <span class="schedule-ai-fab-label">AI 일정 가이드</span>
+  </button>
+
+  <div class="schedule-ai-modal" id="scheduleAiGuideModal" data-schedule-ai-modal hidden aria-hidden="true">
+    <section class="schedule-ai-dialog" role="dialog" aria-labelledby="scheduleAiGuideTitle">
+      <header class="schedule-ai-header">
+        <div>
+          <span>AI TRAVEL GUIDE</span>
+          <h2 id="scheduleAiGuideTitle">AI 일정 가이드</h2>
+          <p>현재 여행의 일정과 장소를 바탕으로 추천합니다.</p>
+        </div>
+        <button type="button" class="schedule-ai-close" data-schedule-ai-close aria-label="AI 일정 가이드 닫기">×</button>
+      </header>
+      <div class="schedule-ai-suggestions" data-schedule-ai-suggestions>
+        <button type="button" data-schedule-ai-question="현재 DAY 일정에 맞는 식당을 추천해줘">현재 DAY 맛집 추천</button>
+        <button type="button" data-schedule-ai-question="현재 일정 다음에 가기 좋은 장소를 추천해줘">다음 장소 추천</button>
+        <button type="button" data-schedule-ai-question="비 오는 날 갈 수 있는 곳을 추천해줘">비 오는 날 코스</button>
+      </div>
+      <div class="schedule-ai-messages" data-schedule-ai-messages aria-live="polite">
+        <div class="schedule-ai-message schedule-ai-assistant"><p>현재 여행 정보를 읽었어요. 일정이나 장소에 대해 편하게 물어보세요.</p></div>
+      </div>
+      <div class="schedule-ai-error" data-schedule-ai-error hidden>
+        <strong>추천을 불러오지 못했어요.</strong>
+        <p data-schedule-ai-error-message>잠시 후 다시 시도해주세요.</p>
+        <button type="button" data-schedule-ai-retry>다시 시도</button>
+      </div>
+      <form class="schedule-ai-form" data-schedule-ai-form data-no-global-loading>
+        <label class="sr-only" for="schedule-ai-question">AI에게 일정 질문하기</label>
+        <input id="schedule-ai-question" name="question" maxlength="200" autocomplete="off" placeholder="예: DAY 1 저녁 식당을 추천해줘" required />
+        <button type="submit" aria-label="질문 보내기">↑</button>
+      </form>
+    </section>
+  </div>
+
   <div th:replace="~{fragments/footer :: footer}"></div>
 </div>
 
@@ -352,6 +367,10 @@
 <script
         th:src="@{/js/pages/trips/schedule.js}"
         src="../../static/js/pages/trips/schedule.js"
+></script>
+<script
+        th:src="@{/js/pages/trips/schedule-ai-guide.js}"
+        src="../../static/js/pages/trips/schedule-ai-guide.js"
 ></script>
 </body>
 </html>
