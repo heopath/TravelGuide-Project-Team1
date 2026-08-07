@@ -46,6 +46,11 @@ document.addEventListener("DOMContentLoaded", function () {
   const infoModal = document.querySelector("[data-place-insight]");
   const routeToggle = document.querySelector("[data-toggle-route]");
   const backButton = document.querySelector("[data-schedule-back]");
+  const aiEmptyCta = document.querySelector("[data-schedule-ai-empty-cta]");
+
+  function toggleAiEmptyCta(visible) {
+    if (aiEmptyCta) aiEmptyCta.hidden = !visible;
+  }
 
   function showEmpty(container, message) {
     container.replaceChildren();
@@ -508,11 +513,13 @@ document.addEventListener("DOMContentLoaded", function () {
     timeline.classList.remove("all-days-view");
     timeline.replaceChildren();
     if (!orderedItems.length) {
+      toggleAiEmptyCta(true);
       showEmpty(timeline, "아직 추가한 장소가 없습니다. 오른쪽에서 장소를 검색해보세요.");
       refreshMap();
       if (lastSearchResults.length) renderSearchResults(lastSearchResults);
       return;
     }
+    toggleAiEmptyCta(false);
     orderedItems.forEach(function (item, index) {
       timeline.appendChild(createScheduleItem(item, index, activeDay));
     });
@@ -522,6 +529,7 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   async function renderAllDays(days) {
+    toggleAiEmptyCta(false);
     allScheduleVisible = true;
     dayTabs.hidden = true;
     routeToggle.textContent = "개별 일정 보기";
@@ -824,6 +832,43 @@ document.addEventListener("DOMContentLoaded", function () {
     const selectedButton = Array.from(dayTabs.querySelectorAll("button")).find(function (button) { return button.classList.contains("selected"); });
     await selectDay(activeDay, selectedButton);
   }
+
+  window.AllMyTripsSchedule = {
+    addAiRecommendation: async function (recommendation, recommendedDayNumber) {
+      if (!activeDay || !activeDay.tripDayId) {
+        throw new Error("추가할 DAY를 먼저 선택해주세요.");
+      }
+      const requestedDay = Number(recommendedDayNumber);
+      const targetDay = Number.isInteger(requestedDay)
+        ? scheduleDays.find(function (day) { return day.dayNumber === requestedDay; })
+        : activeDay;
+      if (!targetDay?.tripDayId) {
+        throw new Error("\uCD94\uCC9C \uC77C\uCC28\uAC00 \uD604\uC7AC \uC5EC\uD589\uC5D0 \uC5C6\uC5B4 \uC77C\uC815\uC5D0 \uCD94\uAC00\uD560 \uC218 \uC5C6\uC2B5\uB2C8\uB2E4.");
+      }
+      const targetItems = targetDay.tripDayId === activeDay.tripDayId
+        ? activeItems
+        : await hydrateItems(await api("/api/v1/trip-days/" + targetDay.tripDayId + "/items"));
+      const nextSortOrder = targetItems.reduce(function (max, item) {
+        return Math.max(max, Number(item.sortOrder) || 0);
+      }, 0) + 1;
+      await api("/api/v1/trip-days/" + targetDay.tripDayId + "/items", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          itemType: "NOTE",
+          title: recommendation.name,
+          startTime: recommendation.time || null,
+          sortOrder: nextSortOrder,
+          memo: recommendation.reason || null,
+          currencyCode: "KRW",
+          source: "AI"
+        })
+      });
+      const selectedButton = Array.from(dayTabs.querySelectorAll("button"))
+        .find(function (button) { return button.textContent === "DAY " + targetDay.dayNumber; });
+      await selectDay(targetDay, selectedButton);
+    }
+  };
 
   function featuredKakaoPlace(element) {
     return {

@@ -142,6 +142,11 @@
                 일정을 불러오는 중입니다.
               </p>
             </div>
+            <div class="schedule-ai-empty-cta" data-schedule-ai-empty-cta hidden>
+              <strong>일정이 아직 비어 있어요</strong>
+              <span>AI에게 현재 여행에 맞는 장소와 코스를 추천받아보세요.</span>
+              <button type="button" data-schedule-ai-open>✦ AI 일정 추천 받기</button>
+            </div>
           </section>
         </section>
 
@@ -308,6 +313,47 @@
     </section>
   </div>
 
+  <div class="schedule-ai-nudge" data-schedule-ai-nudge hidden>
+    <span>✨ AI가 현재 일정에 맞춰 추천해드려요</span>
+    <i aria-hidden="true"></i>
+  </div>
+
+  <button type="button" class="schedule-ai-fab" data-schedule-ai-open aria-label="AI 일정 가이드 열기" aria-haspopup="dialog" aria-controls="scheduleAiGuideModal">
+    <span class="schedule-ai-fab-mark" aria-hidden="true">✈</span>
+    <span class="schedule-ai-fab-label">AI 일정 가이드</span>
+  </button>
+
+  <div class="schedule-ai-modal" id="scheduleAiGuideModal" data-schedule-ai-modal hidden aria-hidden="true">
+    <section class="schedule-ai-dialog" role="dialog" aria-labelledby="scheduleAiGuideTitle">
+      <header class="schedule-ai-header">
+        <div>
+          <span>AI TRAVEL GUIDE</span>
+          <h2 id="scheduleAiGuideTitle">AI 일정 가이드</h2>
+          <p>현재 여행의 일정과 장소를 바탕으로 추천합니다.</p>
+        </div>
+        <button type="button" class="schedule-ai-close" data-schedule-ai-close aria-label="AI 일정 가이드 닫기">×</button>
+      </header>
+      <div class="schedule-ai-suggestions" data-schedule-ai-suggestions>
+        <button type="button" data-schedule-ai-question="현재 DAY 일정에 맞는 식당을 추천해줘">현재 DAY 맛집 추천</button>
+        <button type="button" data-schedule-ai-question="현재 일정 다음에 가기 좋은 장소를 추천해줘">다음 장소 추천</button>
+        <button type="button" data-schedule-ai-question="비 오는 날 갈 수 있는 곳을 추천해줘">비 오는 날 코스</button>
+      </div>
+      <div class="schedule-ai-messages" data-schedule-ai-messages aria-live="polite">
+        <div class="schedule-ai-message schedule-ai-assistant"><p>현재 여행 정보를 읽었어요. 일정이나 장소에 대해 편하게 물어보세요.</p></div>
+      </div>
+      <div class="schedule-ai-error" data-schedule-ai-error hidden>
+        <strong>추천을 불러오지 못했어요.</strong>
+        <p data-schedule-ai-error-message>잠시 후 다시 시도해주세요.</p>
+        <button type="button" data-schedule-ai-retry>다시 시도</button>
+      </div>
+      <form class="schedule-ai-form" data-schedule-ai-form data-no-global-loading>
+        <label class="sr-only" for="schedule-ai-question">AI에게 일정 질문하기</label>
+        <input id="schedule-ai-question" name="question" maxlength="200" autocomplete="off" placeholder="예: DAY 1 저녁 식당을 추천해줘" required />
+        <button type="submit" aria-label="질문 보내기">↑</button>
+      </form>
+    </section>
+  </div>
+
   <div th:replace="~{fragments/footer :: footer}"></div>
 </div>
 
@@ -321,6 +367,10 @@
 <script
         th:src="@{/js/pages/trips/schedule.js}"
         src="../../static/js/pages/trips/schedule.js"
+></script>
+<script
+        th:src="@{/js/pages/trips/schedule-ai-guide.js}"
+        src="../../static/js/pages/trips/schedule-ai-guide.js"
 ></script>
 </body>
 </html>
