@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.example.all_my_trip_project.domain.flight.mapper.FlightBookingMapper">
+
+    <sql id="columns">
+        flight_booking_id, trip_id, user_id, leg, offer_id, provider,
+        carrier_code, carrier_name, flight_number, departure_at, arrival_at,
+        quoted_total_price, quoted_currency, quoted_price_source, quoted_at,
+        user_reported_booked, user_reported_at,
+        booking_ref, booking_ref_added_at, created_at, updated_at
+    </sql>
+
+    <!--
+      구간을 다시 고르면 운임 스냅샷만 새로 박제하고, 자가 신고와 예약번호는 초기화한다.
+      다른 항공편을 골라놓고 이전 편의 예약 표시가 남아 있으면 그 자체가 거짓 데이터다.
+    -->
+    <insert id="upsertSelection" useGeneratedKeys="true"
+            keyProperty="flightBookingId" keyColumn="flight_booking_id">
+        INSERT INTO flight_bookings (
+            trip_id, user_id, leg, offer_id, provider,
+            carrier_code, carrier_name, flight_number, departure_at, arrival_at,
+            quoted_total_price, quoted_currency, quoted_price_source, quoted_at
+        ) VALUES (
+            #{tripId}, #{userId}, #{leg}, #{offerId}, #{provider},
+            #{carrierCode}, #{carrierName}, #{flightNumber}, #{departureAt}, #{arrivalAt},
+            #{quotedTotalPrice}, COALESCE(#{quotedCurrency}, 'KRW'), #{quotedPriceSource},
+            CURRENT_TIMESTAMP
+        )
+        ON CONFLICT (trip_id, leg) DO UPDATE SET
+            user_id              = EXCLUDED.user_id,
+            offer_id             = EXCLUDED.offer_id,
+            provider             = EXCLUDED.provider,
+            carrier_code         = EXCLUDED.carrier_code,
+            carrier_name         = EXCLUDED.carrier_name,
+            flight_number        = EXCLUDED.flight_number,
+            departure_at         = EXCLUDED.departure_at,
+            arrival_at           = EXCLUDED.arrival_at,
+            quoted_total_price   = EXCLUDED.quoted_total_price,
+            quoted_currency      = EXCLUDED.quoted_currency,
+            quoted_price_source  = EXCLUDED.quoted_price_source,
+            quoted_at            = CURRENT_TIMESTAMP,
+            user_reported_booked = FALSE,
+            user_reported_at     = NULL,
+            booking_ref          = NULL,
+            booking_ref_added_at = NULL
+    </insert>
+
+    <select id="findByTripAndLeg"
+            resultType="org.example.all_my_trip_project.domain.flight.dto.FlightBookingDTO">
+        SELECT <include refid="columns"/>
+        FROM flight_bookings
+        WHERE trip_id = #{tripId} AND leg = #{leg}
+    </select>
+
+    <select id="findByTrip"
+            resultType="org.example.all_my_trip_project.domain.flight.dto.FlightBookingDTO">
+        SELECT <include refid="columns"/>
+        FROM flight_bookings
+        WHERE trip_id = #{tripId}
+        ORDER BY leg
+    </select>
+
+    <update id="updateUserReported">
+        UPDATE flight_bookings
+        SET user_reported_booked = #{userReportedBooked},
+            user_reported_at = CASE WHEN #{userReportedBooked} THEN CURRENT_TIMESTAMP ELSE NULL END
+        WHERE trip_id = #{tripId} AND leg = #{leg}
+    </update>
+
+    <!--
+      빈 문자열은 NULL로 눕힌다. 그래야 status() 파생이 CONFIRMED로 잘못 올라가지 않는다.
+    -->
+    <update id="updateBookingRef">
+        UPDATE flight_bookings
+        SET booking_ref = NULLIF(TRIM(#{bookingRef}), ''),
+            booking_ref_added_at = CASE
+                WHEN NULLIF(TRIM(#{bookingRef}), '') IS NULL THEN NULL
+                ELSE CURRENT_TIMESTAMP
+            END
+        WHERE trip_id = #{tripId} AND leg = #{leg}
+    </update>
+
+    <delete id="delete">
+        DELETE FROM flight_bookings
+        WHERE trip_id = #{tripId} AND leg = #{leg}
+    </delete>
+</mapper>

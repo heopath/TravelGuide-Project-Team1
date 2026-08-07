@@ -3,8 +3,8 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="All My Trips 항공편 검색" />
-    <title>항공편 검색 — All My Trips</title>
+    <meta name="description" content="All My Trips 항공편 비교" />
+    <title>여행 예약 · 항공 — All My Trips</title>
     <link rel="icon" th:href="@{/images/icons/app-icon.png}" href="../../static/images/icons/app-icon.png" />
     <link rel="stylesheet" th:href="@{/css/common/reset.css}" href="../../static/css/common/reset.css" />
     <link rel="stylesheet" th:href="@{/css/common/layout.css}" href="../../static/css/common/layout.css" />
@@ -14,21 +14,250 @@
   <body class="page-flights" data-route="/booking/flights">
     <div class="app">
       <div th:replace="~{fragments/header :: header('booking')}"></div>
+
       <main id="page-content">
         <section class="page-shell">
-    <section class="page-heading">
-      <div>
-        <h1><span>04 </span>항공편 검색</h1>
-        <p>가격과 시간을 비교해 가장 좋은 항공편을 선택하세요.</p>
-        <i>✦</i>
-      </div>
-      
-    </section>
-  <div class="search-strip"><button>인천 ICN</button><button>제주 CJU</button><button>08.14 · 왕복</button><button class="primary-button">검색</button></div><div class="flight-list"><article><span class="airline-mark">1</span><strong>대한항공</strong><b>09:10</b><i>직항 · 1시간 10분</i><b>10:20</b><em>89,000원</em><button type="button" class="primary-button" data-modal="payment">선택</button></article><article><span class="airline-mark">2</span><strong>아시아나</strong><b>11:30</b><i>직항 · 1시간 10분</i><b>12:40</b><em>94,500원</em><button type="button" class="primary-button" data-modal="payment">선택</button></article><article><span class="airline-mark">3</span><strong>제주항공</strong><b>14:05</b><i>직항 · 1시간 10분</i><b>15:15</b><em>72,000원</em><button class="primary-button" data-route="/booking/queue">선택</button></article></div></section>
+          <section class="page-heading">
+            <div>
+              <h1><span>04 </span>여행 예약</h1>
+              <p>일정에 필요한 항공·숙박·티켓을 비교하고 관리하세요.</p>
+              <i>✦</i>
+            </div>
+          </section>
+
+          <!-- 조건 요약. 검색 폼은 여기 있는 내용을 반복하므로 기본으로 접어둔다. -->
+          <div class="cond">
+            <span class="cd"><span class="i">▦</span><span id="cond-trip">여행을 선택하세요</span></span>
+            <span class="sep">·</span>
+            <span class="cd"><span class="i">◉</span><span id="cond-date">날짜 미정</span></span>
+            <span class="sep">·</span>
+            <span class="cd"><span class="i">◍</span><span id="cond-pax">성인 2명</span></span>
+            <span class="sep">·</span>
+            <span class="cd"><span class="i">✈</span><span id="cond-route">인천 → 제주</span></span>
+            <button type="button" class="chg" id="chg" aria-expanded="false" aria-controls="formwrap">
+              조건 변경 <span class="ca" aria-hidden="true">▾</span>
+            </button>
+          </div>
+
+          <div class="formwrap" id="formwrap">
+            <form class="form" id="searchForm">
+              <label class="f">
+                <span class="fl">출발지</span>
+                <input class="fv" id="f-origin" name="origin" value="ICN" maxlength="3" autocomplete="off" />
+              </label>
+              <label class="f">
+                <span class="fl">도착지</span>
+                <input class="fv" id="f-destination" name="destination" value="CJU" maxlength="3" autocomplete="off" />
+              </label>
+              <label class="f">
+                <span class="fl">가는 날</span>
+                <input class="fv" id="f-depart" name="departureDate" type="date" />
+              </label>
+              <label class="f">
+                <span class="fl">오는 날</span>
+                <input class="fv" id="f-return" name="returnDate" type="date" />
+              </label>
+              <label class="f">
+                <span class="fl">인원</span>
+                <input class="fv" id="f-adults" name="adults" type="number" min="1" max="9" value="2" />
+              </label>
+              <button type="submit" class="go">항공편 비교</button>
+            </form>
+          </div>
+
+          <div class="tabs" role="tablist">
+            <button type="button" class="tab on" role="tab" aria-selected="true" data-tab="flight">✈ 항공</button>
+            <button type="button" class="tab" role="tab" aria-selected="false" data-tab="hotel">▤ 숙소</button>
+            <button type="button" class="tab" role="tab" aria-selected="false" data-tab="ticket">◈ 티켓·액티비티</button>
+            <button type="button" class="tab" role="tab" aria-selected="false" data-tab="mine">
+              ▣ 내 예약 <span class="k cnt" id="tabCount">0</span>
+            </button>
+          </div>
+
+          <div class="cols">
+            <div>
+              <div class="panel" id="panel-flight">
+                <!-- 첫 방문 1회. 닫으면 localStorage에 기록해 다시 띄우지 않는다. -->
+                <div class="extbar" id="extbar" hidden>
+                  <span class="ei" aria-hidden="true">↗</span>
+                  <div>
+                    <b>항공권 결제는 항공사·여행사 페이지에서 진행됩니다.</b>
+                    돌아오시면 예약 여부를 여쭤보고 일정에 반영해 드려요.
+                  </div>
+                  <button type="button" class="x" id="extx" title="다시 보지 않기" aria-label="안내 닫기">✕</button>
+                </div>
+
+                <!-- 복귀 감지를 놓친 이탈 건을 다시 물어보는 자리. -->
+                <div class="recall" id="recall" hidden>
+                  <span class="ei" aria-hidden="true">?</span>
+                  <div id="recallText">이 항공편, 예약하셨나요?</div>
+                  <button type="button" class="rc-yes" id="recallYes">네, 예약했어요</button>
+                  <button type="button" class="rc-no" id="recallNo">아니요</button>
+                </div>
+
+                <div class="legs">
+                  <button type="button" class="leg on" data-leg="0">
+                    <span class="lt" id="lt0">① 가는 편</span>
+                    <span class="lv" id="lv0">인천 (ICN) → 제주 (CJU)</span>
+                    <span class="lp" id="lp0">항공편을 선택하세요</span>
+                  </button>
+                  <button type="button" class="leg" data-leg="1">
+                    <span class="lt" id="lt1">② 오는 편</span>
+                    <span class="lv" id="lv1">제주 (CJU) → 인천 (ICN)</span>
+                    <span class="lp" id="lp1">가는 편 선택 후 진행</span>
+                  </button>
+                </div>
+
+                <!-- 소요 시간은 국내선 전 노선이 사실상 같아 정렬 항목에서 뺐다. -->
+                <div class="sort">
+                  <button type="button" class="sc on" data-sort="rec">추천순</button>
+                  <button type="button" class="sc" data-sort="price">최저가순</button>
+                  <button type="button" class="sc" data-sort="dep">출발 시간순</button>
+                  <span class="why" id="why"><b>추천순</b> = 가격 60% + 일정 적합도 40%</span>
+                </div>
+
+                <div id="list" aria-live="polite"></div>
+                <!-- 출처 없는 가격은 띄우지 않는다. 목록 하단에 기준을 한 줄로 밝힌다. -->
+                <p class="srcnote" id="srcnote" hidden></p>
+              </div>
+
+              <div class="panel" id="panel-hotel" hidden>
+                <p class="empty">숙소 비교는 아직 준비 중이에요.</p>
+              </div>
+              <div class="panel" id="panel-ticket" hidden>
+                <p class="empty">티켓·액티비티 비교는 아직 준비 중이에요.</p>
+              </div>
+              <div class="panel" id="panel-mine" hidden>
+                <p class="mine-help">
+                  외부 사이트의 결제 결과는 저희가 확인할 수 없어요.
+                  놓친 예약이 있다면 여기서 직접 표시하거나 예약번호를 입력하실 수 있어요.
+                </p>
+                <div id="mineList"></div>
+              </div>
+            </div>
+
+            <aside class="side">
+              <div class="sc2">
+                <div class="sh">예약 현황<span class="r"><span id="dn">0</span> / 3</span></div>
+                <div class="track"><i id="fill"></i></div>
+                <div id="rows"></div>
+                <div class="cost">
+                  <div class="lb">예상 총액<small id="costNote">항공은 추천가 기준</small></div>
+                  <div>
+                    <div class="n" id="cTot">—</div>
+                    <small id="cPer">인원당 금액 계산 중</small>
+                  </div>
+                </div>
+              </div>
+
+              <p class="disc">
+                <b>제휴 고지</b> · 외부 예약 사이트를 통해 예약이 발생하면 All My Trips가 일정 수수료를
+                받을 수 있습니다. 사용자가 지불하는 금액은 동일합니다. 표시 운임은 실시간 변동될 수 있으며
+                최종 금액은 예약 사이트 기준입니다.
+              </p>
+            </aside>
+          </div>
+        </section>
       </main>
-      <div th:replace="~{fragments/modals :: modalRoots}"><div id="directory-root"></div><div id="modal-root"></div><div id="toast-root" aria-live="polite"></div></div>
+
+      <!-- 모달1: 외부 이동 안내 -->
+      <div class="ov" id="ov1" role="dialog" aria-modal="true" aria-labelledby="m1title">
+        <div class="md">
+          <div class="mh">
+            <div class="mi" aria-hidden="true">↗</div>
+            <h3 id="m1title">예약 사이트로 이동합니다</h3>
+            <p class="mp">
+              결제는 <b id="m1site">항공사</b> 페이지에서 진행돼요.<br />
+              완료 후 이 창으로 돌아오시면 일정에 반영해 드립니다.
+            </p>
+          </div>
+          <div class="mb">
+            <div class="r1">
+              <div class="lg2" id="m1lg">--</div>
+              <div>
+                <div class="n1" id="m1nm">-</div>
+                <div class="n2" id="m1tm">-</div>
+              </div>
+              <div class="pz"><b id="m1pr">-</b><div id="m1px">총액</div></div>
+            </div>
+          </div>
+          <div class="ma">
+            <button type="button" class="mbtn p" id="m1go">예약 사이트로 이동 ↗</button>
+            <button type="button" class="mbtn s" id="m1back">다시 볼게요</button>
+          </div>
+          <div class="mnote">새 탭에서 열립니다 · 표시 운임과 최종 결제 금액이 다를 수 있어요</div>
+        </div>
+      </div>
+
+      <!-- 모달2: 복귀 확인 (자가 신고) -->
+      <div class="ov" id="ov2" role="dialog" aria-modal="true" aria-labelledby="m2title">
+        <div class="md">
+          <div class="mh">
+            <div class="mi q" aria-hidden="true">?</div>
+            <h3 id="m2title">예약을 완료하셨나요?</h3>
+            <p class="mp">
+              외부 사이트의 결제 결과는 저희가 확인할 수 없어요.<br />
+              알려주시면 <b>직접 표시한 예약</b>으로 일정에 반영해 드릴게요.
+            </p>
+          </div>
+          <div class="mb">
+            <div class="r1">
+              <div class="lg2" id="m2lg">--</div>
+              <div>
+                <div class="n1" id="m2nm">-</div>
+                <div class="n2" id="m2tm">-</div>
+              </div>
+              <div class="pz"><b id="m2pr">-</b><div id="m2px">총액</div></div>
+            </div>
+          </div>
+          <div class="ma">
+            <button type="button" class="mbtn p" id="m2yes">네, 예약했어요</button>
+            <button type="button" class="mbtn s" id="m2no">아니요, 다시 볼게요</button>
+            <button type="button" class="mbtn t" id="m2later">나중에 확인할게요</button>
+          </div>
+          <div class="mnote">예약번호를 입력하면 <b>확정</b>으로 바뀝니다 · 나중에 입력해도 돼요</div>
+        </div>
+      </div>
+
+      <!-- 모달3: 반영 완료 + 예약번호 입력 -->
+      <div class="ov" id="ov3" role="dialog" aria-modal="true" aria-labelledby="m3title">
+        <div class="md">
+          <div class="mh">
+            <div class="mi d" aria-hidden="true">✓</div>
+            <h3 id="m3title">일정에 반영했어요</h3>
+            <p class="mp" id="m3p">가는 편을 <b>예약함 (직접 표시)</b>으로 기록했어요.</p>
+          </div>
+          <div class="mb">
+            <div class="r1">
+              <div class="lg2" id="m3lg">--</div>
+              <div>
+                <div class="n1" id="m3nm">-</div>
+                <div class="n2" id="m3st">예약함 · 직접 표시</div>
+              </div>
+              <div class="pz"><b id="m3pr">-</b><div id="m3px">총액</div></div>
+            </div>
+          </div>
+          <div class="refbox">
+            <label for="refInput">예약번호 (선택)</label>
+            <input id="refInput" placeholder="예: ABC123" maxlength="12" autocomplete="off" />
+            <div class="hint">입력하시면 <b>확정</b> 상태로 바뀌고, 체크인·변경 안내를 보내드릴 수 있어요.</div>
+          </div>
+          <div class="ma">
+            <button type="button" class="mbtn p" id="m3next">오는 편 선택하기 →</button>
+            <button type="button" class="mbtn t" id="m3later">나중에</button>
+          </div>
+        </div>
+      </div>
+
+      <div th:replace="~{fragments/modals :: modalRoots}">
+        <div id="directory-root"></div>
+        <div id="modal-root"></div>
+        <div id="toast-root" aria-live="polite"></div>
+      </div>
       <div th:replace="~{fragments/footer :: footer}"></div>
     </div>
+
     <div th:replace="~{fragments/scripts :: appScripts}"></div>
+    <script th:src="@{/js/pages/booking/flights.js}" src="../../static/js/pages/booking/flights.js"></script>
   </body>
 </html>
