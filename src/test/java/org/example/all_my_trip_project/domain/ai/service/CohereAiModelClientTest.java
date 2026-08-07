@@ -63,6 +63,19 @@ class CohereAiModelClientTest {
         assertThat(response.answer()).isEqualTo("추천 일정");
     }
 
+    @Test
+    void generateNormalizesZeroBasedDayAndBlankTitle() throws Exception {
+        stubResponse(200, """
+                {"message":{"content":[{"type":"text","text":"{\\"answer\\":\\"추천 일정\\",\\"days\\":[{\\"day\\":0,\\"title\\":\\"\\",\\"items\\":[{\\"time\\":\\"10:00\\",\\"name\\":\\"해운대\\",\\"reason\\":\\"바다 산책\\"}]}]}"}]}}
+                """);
+
+        AiGuideResponse response = client.generate(new AiGuideRequest("부산 여행", null),
+                List.of(), new AiGuideContext(null, List.of()));
+
+        assertThat(response.days().getFirst().day()).isEqualTo(1);
+        assertThat(response.days().getFirst().title()).isEqualTo("DAY 1 추천 일정");
+    }
+
     @SuppressWarnings("unchecked")
     private void stubResponse(int status, String body) throws Exception {
         HttpResponse<String> response = mock(HttpResponse.class);

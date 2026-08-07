@@ -72,6 +72,7 @@ public class CohereAiModelClient implements AiModelClient {
                     extractJson(requestModel(createPrompt(request, conversationHistory, context))),
                     CohereGuideContent.class
             );
+            content = normalize(content);
             validate(content);
 
             List<String> sources = new ArrayList<>(List.of("Cohere AI", "질문: " + request.question()));
@@ -143,18 +144,18 @@ public class CohereAiModelClient implements AiModelClient {
         Map<String, Object> item = Map.of(
                 "type", "object",
                 "properties", Map.of(
-                        "time", Map.of("type", "string"),
-                        "name", Map.of("type", "string"),
-                        "reason", Map.of("type", "string")
+                        "time", Map.of("type", "string", "pattern", "^([01]\\d|2[0-3]):[0-5]\\d$"),
+                        "name", Map.of("type", "string", "minLength", 1),
+                        "reason", Map.of("type", "string", "minLength", 1)
                 ),
                 "required", List.of("time", "name", "reason")
         );
         Map<String, Object> day = Map.of(
                 "type", "object",
                 "properties", Map.of(
-                        "day", Map.of("type", "integer"),
-                        "title", Map.of("type", "string"),
-                        "items", Map.of("type", "array", "items", item)
+                        "day", Map.of("type", "integer", "minimum", 1),
+                        "title", Map.of("type", "string", "minLength", 1),
+                        "items", Map.of("type", "array", "minItems", 1, "items", item)
                 ),
                 "required", List.of("day", "title", "items")
         );
@@ -162,7 +163,7 @@ public class CohereAiModelClient implements AiModelClient {
                 "type", "object",
                 "properties", Map.of(
                         "answer", Map.of("type", "string"),
-                        "days", Map.of("type", "array", "items", day)
+                        "days", Map.of("type", "array", "minItems", 1, "items", day)
                 ),
                 "required", List.of("answer", "days")
         );
@@ -174,6 +175,7 @@ public class CohereAiModelClient implements AiModelClient {
                 Create a Korean travel itinerary that answers the user question.
                 Return only one JSON object matching the requested schema. Do not use Markdown.
                 Every item time must be HH:mm and every day number must start at 1.
+                Do not use day 0. Do not return empty titles or empty items arrays.
 
                 Recent conversation:
                 %s
@@ -210,15 +212,36 @@ public class CohereAiModelClient implements AiModelClient {
         return trimmed.substring(firstLineEnd + 1, closingFence).trim();
     }
 
+    private CohereGuideContent normalize(CohereGuideContent content) {
+        if (content == null || content.days() == null) {
+            return content;
+        }
+        List<AiGuideDayResponse> days = new ArrayList<>();
+        for (int index = 0; index < content.days().size(); index++) {
+            AiGuideDayResponse day = content.days().get(index);
+            if (day == null) {
+                days.add(null);
+                continue;
+            }
+            int dayNumber = day.day() < 1 ? index + 1 : day.day();
+            String title = day.title() == null || day.title().isBlank()
+                    ? "DAY " + dayNumber + " 추천 일정"
+                    : day.title().trim();
+            days.add(new AiGuideDayResponse(dayNumber, title, day.items()));
+        }
+        return new CohereGuideContent(content.answer(), days);
+    }
+
     private void validate(CohereGuideContent content) {
         if (content == null || content.answer() == null || content.answer().isBlank()
                 || content.days() == null || content.days().isEmpty() || content.days().size() > MAX_DAYS) {
             throw new AiModelException("Cohere response is missing guide data");
         }
-        for (AiGuideDayResponse day : content.days()) {
+        for (int index = 0; index < content.days().size(); index++) {
+            AiGuideDayResponse day = content.days().get(index);
             if (day == null || day.day() < 1 || day.title() == null || day.title().isBlank()
                     || day.items() == null || day.items().isEmpty() || day.items().size() > MAX_ITEMS_PER_DAY) {
-                throw new AiModelException("Cohere response has an invalid day");
+                throw new AiModelException("Cohere response has an invalid day at index " + index);
             }
             for (AiGuideItemResponse item : day.items()) {
                 if (item == null || item.time() == null || !TIME_PATTERN.matcher(item.time()).matches()
