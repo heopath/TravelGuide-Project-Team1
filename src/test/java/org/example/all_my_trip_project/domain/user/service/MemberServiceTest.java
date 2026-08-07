@@ -19,6 +19,7 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.anyCollection;
 import static org.mockito.ArgumentMatchers.anyList;
@@ -161,6 +162,56 @@ class MemberServiceTest {
 
         verify(userPreferenceRepository, never())
                 .saveAllAndFlush(anyList());
+    }
+
+    @Test
+    void requireActiveMemberPassesForActiveMember() {
+        when(userRepository.findById(11L)).thenReturn(Optional.of(activeUser()));
+
+        assertThatCode(() -> memberService.requireActiveMember(11L))
+                .doesNotThrowAnyException();
+    }
+
+    @Test
+    void requireActiveMemberRejectsUnknownMember() {
+        when(userRepository.findById(99L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> memberService.requireActiveMember(99L))
+                .isInstanceOf(BusinessException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.UNAUTHORIZED);
+    }
+
+    @Test
+    void requireActiveMemberRejectsSuspendedMember() {
+        when(userRepository.findById(11L)).thenReturn(Optional.of(userWithStatus("SUSPENDED")));
+
+        assertThatThrownBy(() -> memberService.requireActiveMember(11L))
+                .isInstanceOf(BusinessException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.ACCOUNT_SUSPENDED);
+    }
+
+    @Test
+    void requireActiveMemberRejectsWithdrawnMember() {
+        when(userRepository.findById(11L)).thenReturn(Optional.of(userWithStatus("WITHDRAWN")));
+
+        assertThatThrownBy(() -> memberService.requireActiveMember(11L))
+                .isInstanceOf(BusinessException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.ACCOUNT_WITHDRAWN);
+    }
+
+    private UserEntity userWithStatus(String status) {
+        UserEntity user = activeUser();
+        try {
+            java.lang.reflect.Field field = UserEntity.class.getDeclaredField("status");
+            field.setAccessible(true);
+            field.set(user, status);
+        } catch (ReflectiveOperationException e) {
+            throw new IllegalStateException(e);
+        }
+        return user;
     }
 
     @Test

@@ -67,7 +67,7 @@ const ALL_MY_TRIPS_TEMPLATE_ROUTES = {
   "/ai-guide": "guide/ai-guide",
   "/trips/busan/optimize": "trips/optimize",
   "/guide/themes": "guide/themes",
-  "/booking": "booking/booking",
+  "/booking": "booking/flights",
   "/booking/tickets/blueline": "booking/ticket",
   "/booking/hotels": "booking/hotels",
   "/booking/flights": "booking/flights",

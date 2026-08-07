@@ -1,126 +1,905 @@
 <!doctype html>
 <html lang="ko" xmlns:th="http://www.thymeleaf.org">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="All My Trips 마이 페이지" />
-    <title>마이 페이지 — All My Trips</title>
-    <link rel="icon" th:href="@{/images/icons/app-icon.png}" href="../../static/images/icons/app-icon.png" />
-    <link rel="stylesheet" th:href="@{/css/common/reset.css}" href="../../static/css/common/reset.css" />
-    <link rel="stylesheet" th:href="@{/css/common/layout.css}" href="../../static/css/common/layout.css" />
-    <link rel="stylesheet" th:href="@{/css/common/components.css}" href="../../static/css/common/components.css" />
-    <link rel="stylesheet" th:href="@{/css/pages/mypage/mypage.css}" href="../../static/css/pages/mypage/mypage.css" />
-  </head>
-  <body class="page-mypage" data-route="/mypage">
-    <div class="app">
-      <div th:replace="~{fragments/header :: header('mypage')}"></div>
-      <main id="page-content">
-        <section class="page-shell">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="All My Trips 마이 페이지" />
 
-    <section class="page-heading">
-      <div>
-        <h1>마이 페이지</h1>
-        <p>나의 여행 정보와 활동을 한눈에 관리하세요.</p>
-        <i>✦</i>
-      </div>
-    </section>
+  <title>마이 페이지 — All My Trips</title>
+
+  <link
+          rel="icon"
+          th:href="@{/images/icons/app-icon.png}"
+          href="../../static/images/icons/app-icon.png"
+  />
+
+  <link
+          rel="stylesheet"
+          th:href="@{/css/common/reset.css}"
+          href="../../static/css/common/reset.css"
+  />
+
+  <link
+          rel="stylesheet"
+          th:href="@{/css/common/layout.css}"
+          href="../../static/css/common/layout.css"
+  />
+
+  <link
+          rel="stylesheet"
+          th:href="@{/css/common/components.css}"
+          href="../../static/css/common/components.css"
+  />
+
+  <link
+          rel="stylesheet"
+          th:href="@{/css/pages/mypage/mypage.css}"
+          href="../../static/css/pages/mypage/mypage.css"
+  />
+</head>
+
+<body class="page-mypage">
+<div class="app">
+
+  <div th:replace="~{fragments/header :: header('mypage')}"></div>
+
+  <main id="page-content">
+    <section class="page-shell">
 
       <div class="mypage-layout">
-        <aside class="white-panel mypage-sidebar" aria-busy="true" data-profile-card>
+
+        <!-- =================================================
+             LEFT SIDEBAR
+             ================================================= -->
+        <aside
+                class="white-panel mypage-sidebar"
+                aria-busy="true"
+                data-profile-card
+        >
           <div class="mypage-identity">
-            <div class="profile-avatar" data-profile-avatar>…</div>
-            <div class="mypage-identity-copy">
-              <strong><span data-profile-nickname>회원정보를 불러오는 중</span> 님</strong>
-              <span data-profile-email>잠시만 기다려 주세요.</span>
+
+            <div
+                    class="profile-avatar"
+                    data-profile-avatar
+                    aria-hidden="true"
+            >
+              …
             </div>
+
+            <div class="mypage-identity-copy">
+              <strong>
+                <span data-profile-nickname>
+                  회원정보를 불러오는 중
+                </span>
+                님
+              </strong>
+
+              <span data-profile-email>
+                잠시만 기다려 주세요.
+              </span>
+            </div>
+
           </div>
 
-          <form class="profile-edit-form" data-profile-form hidden>
-            <label for="mypage-nickname">닉네임</label>
-            <div class="profile-edit-row">
-              <input id="mypage-nickname" name="nickname" type="text" minlength="2" maxlength="20" required />
-              <button class="primary-button" type="submit">저장</button>
-              <button class="outline-button" type="button" data-profile-cancel>취소</button>
-            </div>
-            <p class="profile-form-error" data-profile-error role="alert"></p>
-          </form>
+          <nav
+                  class="mypage-nav"
+                  aria-label="마이 페이지 주요 메뉴"
+          >
 
-          <nav class="mypage-nav" aria-label="마이 페이지 메뉴">
-            <button type="button" class="is-current" aria-current="page"><span aria-hidden="true">⌂</span>대시보드</button>
-            <button type="button" data-route="/trips/schedule"><span aria-hidden="true">▤</span>내 여행</button>
-            <button type="button" disabled><span aria-hidden="true">▦</span>예약 내역<em>준비 중</em></button>
-            <button type="button" data-route="/guide"><span aria-hidden="true">♡</span>찜한 여행지</button>
-            <button type="button" disabled><span aria-hidden="true">☆</span>리뷰 &amp; 후기<em>준비 중</em></button>
+            <button
+                    type="button"
+                    class="is-current"
+                    aria-current="page"
+                    data-open-dashboard
+            >
+              <span aria-hidden="true">⌂</span>
+              <span>마이 페이지</span>
+            </button>
+
+            <button
+                    type="button"
+                    data-open-trips
+            >
+              <span aria-hidden="true">▤</span>
+              <span>내 여행</span>
+            </button>
+
+            <button
+                    type="button"
+                    disabled
+            >
+              <span aria-hidden="true">▦</span>
+              <span>예약 내역</span>
+              <em>준비 중</em>
+            </button>
+
+            <button
+                    type="button"
+                    data-open-favorites
+            >
+              <span aria-hidden="true">♡</span>
+              <span>찜한 여행지</span>
+            </button>
+
+            <button
+                    type="button"
+                    disabled
+            >
+              <span aria-hidden="true">☆</span>
+              <span>리뷰 &amp; 후기</span>
+              <em>준비 중</em>
+            </button>
+
           </nav>
 
           <div class="mypage-nav secondary">
-            <button type="button" disabled><span aria-hidden="true">◇</span>알림<em>준비 중</em></button>
-            <button type="button" data-profile-edit><span aria-hidden="true">⚙</span>계정 설정</button>
-            <button type="button" disabled><span aria-hidden="true">◎</span>고객센터<em>준비 중</em></button>
-          </div>
 
-          <button type="button" class="outline-button wide mypage-logout" data-auth-logout>
-            <span aria-hidden="true">↪</span> 로그아웃
-          </button>
+            <button
+                    type="button"
+                    disabled
+            >
+              <span aria-hidden="true">◇</span>
+              <span>알림</span>
+              <em>준비 중</em>
+            </button>
+
+            <button
+                    type="button"
+                    data-open-settings
+            >
+              <span aria-hidden="true">⚙</span>
+              <span>계정 설정</span>
+            </button>
+
+            <button
+                    type="button"
+                    disabled
+            >
+              <span aria-hidden="true">◎</span>
+              <span>고객센터</span>
+              <em>준비 중</em>
+            </button>
+
+          </div>
         </aside>
 
-        <div class="mypage-panels">
+        <!-- =================================================
+             RIGHT CONTENT
+             ================================================= -->
+        <div class="mypage-content">
 
-          <section class="white-panel mypage-panel" aria-labelledby="mypage-trips-title">
-            <div class="mypage-panel-head">
-              <h2 id="mypage-trips-title">최근 여행 일정</h2>
-              <span class="mypage-count"><strong data-trip-count>—</strong></span>
+          <!-- =================================================
+               DASHBOARD
+               ================================================= -->
+          <div
+                  class="mypage-panels"
+                  data-dashboard-view
+          >
+
+            <!-- 최근 여행 -->
+            <section
+                    class="white-panel mypage-panel mypage-trip-panel"
+            >
+              <div class="mypage-panel-head">
+
+                <div class="mypage-panel-title">
+                  <span
+                          class="mypage-panel-icon"
+                          aria-hidden="true"
+                  >
+                    ▣
+                  </span>
+
+                  <h2>최근 여행 일정</h2>
+                </div>
+
+                <span class="mypage-count">
+                  <strong data-trip-count>—</strong>
+                </span>
+
+              </div>
+
+              <div
+                      class="trip-summary-list"
+                      data-trip-list
+                      aria-live="polite"
+              >
+                <p class="mypage-state">
+                  여행 일정을 불러오는 중입니다.
+                </p>
+              </div>
+
+              <button
+                      type="button"
+                      class="outline-button wide mypage-panel-foot"
+                      data-open-trips
+                      data-trip-more
+                      hidden
+              >
+                내 여행 전체 보기 →
+              </button>
+
+            </section>
+
+            <!-- 최근 예약 -->
+            <section
+                    class="white-panel mypage-panel mypage-empty-panel"
+            >
+              <div class="mypage-panel-head">
+                <div class="mypage-panel-title">
+                  <span
+                          class="mypage-panel-icon"
+                          aria-hidden="true"
+                  >
+                    ▤
+                  </span>
+
+                  <h2>최근 예약 내역</h2>
+                </div>
+              </div>
+
+              <div class="mypage-empty-content">
+                <div
+                        class="mypage-empty-icon"
+                        aria-hidden="true"
+                >
+                  ▱
+                </div>
+
+                <strong>
+                  아직 예약 내역이 없어요
+                </strong>
+
+                <p>
+                  관광 티켓 예약 기능이 준비되면<br />
+                  이곳에 표시됩니다.
+                </p>
+              </div>
+            </section>
+
+            <!-- 최근 본 여행지 -->
+            <section
+                    class="white-panel mypage-panel mypage-empty-panel"
+            >
+              <div class="mypage-panel-head">
+                <div class="mypage-panel-title">
+                  <span
+                          class="mypage-panel-icon"
+                          aria-hidden="true"
+                  >
+                    ◇
+                  </span>
+
+                  <h2>최근 본 여행지</h2>
+                </div>
+              </div>
+
+              <div class="mypage-empty-content">
+                <div
+                        class="mypage-empty-icon"
+                        aria-hidden="true"
+                >
+                  ⌖
+                </div>
+
+                <strong>
+                  최근에 조회한 여행지가 없어요
+                </strong>
+
+                <p>
+                  여행지 상세 화면을 조회하면<br />
+                  이곳에 표시됩니다.
+                </p>
+              </div>
+            </section>
+
+            <!-- 찜한 여행지 -->
+            <section
+                    class="white-panel mypage-panel mypage-favorite-panel"
+            >
+              <div class="mypage-panel-head">
+
+                <div class="mypage-panel-title">
+                  <span
+                          class="mypage-panel-icon"
+                          aria-hidden="true"
+                  >
+                    ♡
+                  </span>
+
+                  <h2>찜한 여행지</h2>
+                </div>
+
+                <button
+                        type="button"
+                        class="mypage-text-button"
+                        data-open-favorites
+                        data-favorite-more
+                        hidden
+                >
+                  전체 보기 →
+                </button>
+
+              </div>
+
+              <div
+                      class="favorite-place-list-preview"
+                      data-favorite-list
+                      aria-live="polite"
+              >
+                <p class="favorite-place-state">
+                  찜한 여행지를 불러오는 중입니다.
+                </p>
+              </div>
+
+              <span
+                      class="visually-hidden"
+                      data-favorite-count
+              >
+                —
+              </span>
+            </section>
+
+          </div>
+
+          <!-- =================================================
+               내 여행 전체보기
+               ================================================= -->
+          <section
+                  class="white-panel mypage-trips-view"
+                  data-trips-view
+                  hidden
+          >
+            <div class="mypage-view-head">
+
+              <div class="mypage-view-title">
+
+                <button
+                        type="button"
+                        class="mypage-back-button"
+                        data-close-trips
+                >
+                  ← 이전 화면
+                </button>
+
+                <div>
+                  <h2>내 여행</h2>
+
+                  <p>
+                    내가 만든 여행 일정을 한눈에 확인하세요.
+                  </p>
+                </div>
+
+              </div>
+
+              <strong
+                      class="mypage-total-badge"
+                      data-trip-total-count
+              >
+                —
+              </strong>
+
             </div>
-            <div class="trip-summary-list" data-trip-list aria-live="polite">
-              <p class="mypage-state">여행 일정을 불러오는 중입니다.</p>
+
+            <div
+                    class="trip-summary-list-all"
+                    data-trip-all-list
+                    aria-live="polite"
+            >
+              <p class="mypage-state">
+                여행 일정을 불러오는 중입니다.
+              </p>
             </div>
-            <button type="button" class="outline-button wide mypage-panel-foot" data-route="/trips/schedule" data-trip-more hidden>
-              내 여행 전체 보기 →
-            </button>
+
+            <nav
+                    class="mypage-pagination"
+                    data-trip-pagination
+                    aria-label="내 여행 페이지 이동"
+                    hidden
+            ></nav>
           </section>
 
-          <section class="white-panel mypage-panel" aria-labelledby="mypage-reservations-title">
-            <div class="mypage-panel-head">
-              <h2 id="mypage-reservations-title">최근 예약 내역</h2>
+          <!-- =================================================
+               찜한 여행지 전체보기
+               ================================================= -->
+          <section
+                  class="white-panel mypage-favorites-view"
+                  data-favorites-view
+                  hidden
+          >
+            <div class="mypage-view-head">
+
+              <div class="mypage-view-title">
+
+                <button
+                        type="button"
+                        class="mypage-back-button"
+                        data-close-favorites
+                >
+                  ← 이전 화면
+                </button>
+
+                <div>
+                  <h2>♡ 찜한 여행지</h2>
+
+                  <p>
+                    내가 저장한 여행지를 한눈에 확인하세요.
+                  </p>
+                </div>
+
+              </div>
+
+              <strong
+                      class="mypage-total-badge"
+                      data-favorite-total-count
+              >
+                —
+              </strong>
+
             </div>
-            <p class="mypage-state">관광 티켓 예약 기능이 준비되면 이곳에 표시됩니다.</p>
+
+            <div class="favorite-toolbar">
+
+              <label class="favorite-search">
+                <span aria-hidden="true">⌕</span>
+
+                <input
+                        type="search"
+                        placeholder="도시 또는 여행지 이름을 검색하세요"
+                        autocomplete="off"
+                        data-favorite-search
+                />
+
+                <button
+                        type="button"
+                        class="favorite-search-clear"
+                        data-favorite-search-clear
+                        aria-label="검색어 지우기"
+                        hidden
+                >
+                  ×
+                </button>
+              </label>
+
+            </div>
+
+            <div class="favorite-filter-row">
+
+              <div
+                      class="favorite-region-filters"
+                      data-favorite-region-filters
+              ></div>
+
+              <select
+                      class="favorite-region-more"
+                      data-favorite-region-more
+                      aria-label="다른 지역 선택"
+                      hidden
+              >
+                <option value="">
+                  더보기
+                </option>
+              </select>
+
+            </div>
+
+            <div
+                    class="favorite-result-summary"
+                    data-favorite-result-summary
+                    hidden
+            ></div>
+
+            <div
+                    class="favorite-place-list-all"
+                    data-favorite-all-list
+                    aria-live="polite"
+            >
+              <p class="favorite-place-state">
+                찜한 여행지를 불러오는 중입니다.
+              </p>
+            </div>
+
+            <nav
+                    class="mypage-pagination"
+                    data-favorite-pagination
+                    aria-label="찜한 여행지 페이지 이동"
+                    hidden
+            ></nav>
+
           </section>
 
-          <section class="white-panel mypage-panel" aria-labelledby="mypage-recent-title">
-            <div class="mypage-panel-head">
-              <h2 id="mypage-recent-title">최근 본 여행지</h2>
-            </div>
-            <p class="mypage-state">여행지 상세 화면이 준비되면 최근 조회한 여행지가 이곳에 표시됩니다.</p>
-          </section>
+          <!-- =================================================
+               계정 설정
+               ================================================= -->
+          <section
+                  class="white-panel mypage-settings-view"
+                  data-settings-view
+                  hidden
+          >
 
-          <section class="white-panel mypage-panel" aria-labelledby="mypage-activity-title">
-            <div class="mypage-panel-head">
-              <h2 id="mypage-activity-title">활동 내역</h2>
-            </div>
-            <p class="mypage-state">여행 생성·예약·리뷰 활동이 기록되면 이곳에 표시됩니다.</p>
-          </section>
+            <div class="mypage-view-head">
+              <div class="mypage-view-title">
 
-          <section class="white-panel mypage-panel mypage-panel-wide" id="mypage-favorites" aria-labelledby="mypage-favorites-title">
-            <div class="mypage-panel-head">
-              <h2 id="mypage-favorites-title">찜한 여행지</h2>
-              <span class="mypage-count"><strong data-favorite-count>—</strong></span>
+                <button
+                        type="button"
+                        class="mypage-back-button"
+                        data-close-settings
+                >
+                  ← 이전 화면
+                </button>
+
+                <div>
+                  <h2>계정 설정</h2>
+
+                  <p>
+                    계정 정보와 보안 설정을 관리하세요.
+                  </p>
+                </div>
+
+              </div>
             </div>
-            <div class="favorite-place-list" data-favorite-list aria-live="polite">
-              <p class="favorite-place-state">찜한 여행지를 불러오는 중입니다.</p>
+
+            <div class="settings-content">
+
+              <!-- =================================================
+                   기본 정보
+                   ================================================= -->
+              <section class="settings-section">
+
+                <div class="settings-section-head">
+                  <div>
+                    <h3>기본 정보</h3>
+
+                    <p>
+                      가입할 때 등록한 기본 정보를 확인하고 수정할 수 있습니다.
+                    </p>
+                  </div>
+                </div>
+
+                <div class="settings-form">
+
+                  <div class="settings-field">
+
+                    <div class="settings-field-label">
+                      <label for="settings-email">
+                        이메일
+                      </label>
+
+                      <span class="settings-readonly-badge">
+                        변경 불가
+                      </span>
+                    </div>
+
+                    <input
+                            id="settings-email"
+                            type="email"
+                            data-settings-email
+                            readonly
+                    />
+
+                    <p class="settings-help">
+                      이메일은 로그인 계정으로 사용되므로 변경할 수 없습니다.
+                    </p>
+
+                  </div>
+
+                  <form
+                          data-settings-nickname-form
+                          novalidate
+                  >
+                    <div class="settings-field">
+
+                      <label for="settings-nickname">
+                        닉네임
+                      </label>
+
+                      <div class="settings-input-action">
+
+                        <input
+                                id="settings-nickname"
+                                name="nickname"
+                                type="text"
+                                minlength="2"
+                                maxlength="20"
+                                data-settings-nickname
+                                required
+                        />
+
+                        <button
+                                type="submit"
+                                class="primary-button settings-action-button"
+                        >
+                          변경
+                        </button>
+
+                      </div>
+
+                      <p class="settings-help">
+                        여행 화면에서 표시할 닉네임입니다.
+                      </p>
+
+                      <p
+                              class="settings-error"
+                              data-settings-nickname-error
+                              role="alert"
+                      ></p>
+
+                    </div>
+                  </form>
+
+                </div>
+              </section>
+
+              <!-- =================================================
+                   비밀번호 변경
+                   ================================================= -->
+              <section class="settings-section">
+
+                <div class="settings-section-head">
+                  <div>
+                    <h3>비밀번호 변경</h3>
+
+                    <p>
+                      안전한 계정 사용을 위해 비밀번호를 변경할 수 있습니다.
+                    </p>
+                  </div>
+                </div>
+
+                <form
+                        class="settings-password-form"
+                        data-settings-password-form
+                        novalidate
+                >
+                  <div class="settings-password-fields">
+
+                    <!-- 현재 비밀번호 -->
+                    <div
+                            class="settings-field settings-password-field"
+                    >
+                      <label for="current-password">
+                        현재 비밀번호
+                      </label>
+
+                      <input
+                              id="current-password"
+                              name="currentPassword"
+                              type="password"
+                              autocomplete="current-password"
+                              placeholder="현재 비밀번호를 입력하세요"
+                              required
+                      />
+
+                      <p
+                              class="settings-field-error"
+                              data-current-password-error
+                              role="alert"
+                      ></p>
+                    </div>
+
+                    <!-- 새 비밀번호 -->
+                    <div
+                            class="settings-field settings-password-field"
+                    >
+                      <label for="new-password">
+                        새 비밀번호
+                      </label>
+
+                      <input
+                              id="new-password"
+                              name="newPassword"
+                              type="password"
+                              minlength="8"
+                              autocomplete="new-password"
+                              placeholder="8자 이상 입력"
+                              required
+                      />
+
+                      <p
+                              class="settings-field-error"
+                              data-new-password-error
+                              role="alert"
+                      ></p>
+                    </div>
+
+                    <!-- 확인 + 변경 버튼 -->
+                    <div class="settings-password-confirm-row">
+
+                      <div
+                              class="settings-field settings-password-field"
+                      >
+                        <label for="confirm-password">
+                          새 비밀번호 확인
+                        </label>
+
+                        <input
+                                id="confirm-password"
+                                name="confirmPassword"
+                                type="password"
+                                minlength="8"
+                                autocomplete="new-password"
+                                placeholder="새 비밀번호 다시 입력"
+                                required
+                        />
+
+                        <p
+                                class="settings-field-error"
+                                data-confirm-password-error
+                                role="alert"
+                        ></p>
+                      </div>
+
+                      <button
+                              type="submit"
+                              class="primary-button settings-password-button"
+                              disabled
+                      >
+                        비밀번호 변경
+                      </button>
+
+                    </div>
+
+                  </div>
+                </form>
+
+              </section>
+
+              <!-- =================================================
+                   계정 관리
+                   ================================================= -->
+              <section class="settings-section">
+
+                <div class="settings-section-head">
+                  <div>
+                    <h3>계정 관리</h3>
+
+                    <p>
+                      로그아웃하거나 All My Trips 계정을 탈퇴할 수 있습니다.
+                    </p>
+                  </div>
+                </div>
+
+                <div class="settings-account-item">
+
+                  <div>
+                    <strong>
+                      로그아웃
+                    </strong>
+
+                    <p>
+                      현재 기기에서 로그아웃합니다.
+                    </p>
+                  </div>
+
+                  <button
+                          type="button"
+                          class="outline-button settings-account-button"
+                          data-auth-logout
+                  >
+                    로그아웃
+                  </button>
+
+                </div>
+
+                <!-- 회원 탈퇴 -->
+                <div
+                        class="settings-account-item settings-danger-item"
+                >
+                  <div>
+                    <strong>
+                      회원 탈퇴
+                    </strong>
+
+                    <p>
+                      탈퇴 후 계정은 다시 사용할 수 없습니다.
+                    </p>
+                  </div>
+
+                  <button
+                          type="button"
+                          class="settings-delete-button"
+                          data-delete-account-open
+                  >
+                    회원 탈퇴
+                  </button>
+                </div>
+
+                <!-- 회원 탈퇴 확인 -->
+                <div
+                        class="settings-delete-confirm"
+                        data-delete-account-confirm
+                        hidden
+                >
+                  <div class="settings-delete-warning">
+
+                    <strong>
+                      회원 탈퇴 전 확인해주세요.
+                    </strong>
+
+                    <p>
+                      탈퇴 후 계정은 복구할 수 없습니다.<br />
+                      본인 확인을 위해 현재 비밀번호를 입력해주세요.
+                    </p>
+
+                  </div>
+
+                  <form
+                          class="settings-delete-form"
+                          data-delete-account-form
+                          novalidate
+                  >
+
+                    <div class="settings-field">
+
+                      <label for="delete-password">
+                        현재 비밀번호
+                      </label>
+
+                      <input
+                              id="delete-password"
+                              name="password"
+                              type="password"
+                              autocomplete="current-password"
+                              placeholder="현재 비밀번호를 입력하세요"
+                              required
+                      />
+
+                      <p
+                              class="settings-field-error"
+                              data-delete-account-error
+                              role="alert"
+                      ></p>
+
+                    </div>
+
+                    <div class="settings-delete-actions">
+
+                      <button
+                              type="button"
+                              class="outline-button"
+                              data-delete-account-cancel
+                      >
+                        취소
+                      </button>
+
+                      <button
+                              type="submit"
+                              class="settings-delete-button"
+                      >
+                        회원 탈퇴
+                      </button>
+
+                    </div>
+
+                  </form>
+                </div>
+
+              </section>
+
             </div>
-            <button type="button" class="outline-button wide mypage-panel-foot" data-route="/guide">
-              여행지 더 찾아보기 →
-            </button>
           </section>
 
         </div>
       </div>
     </section>
-      </main>
-      <div th:replace="~{fragments/modals :: modalRoots}"><div id="directory-root"></div><div id="modal-root"></div><div id="toast-root" aria-live="polite"></div></div>
-      <div th:replace="~{fragments/footer :: footer}"></div>
-    </div>
-    <div th:replace="~{fragments/scripts :: appScripts}"></div>
-    <script th:src="@{/js/pages/mypage/mypage.js}" src="../../static/js/pages/mypage/mypage.js"></script>
-  </body>
+  </main>
+
+  <div th:replace="~{fragments/modals :: modalRoots}">
+    <div id="directory-root"></div>
+    <div id="modal-root"></div>
+    <div id="toast-root" aria-live="polite"></div>
+  </div>
+
+  <div th:replace="~{fragments/footer :: footer}"></div>
+
+</div>
+
+<div th:replace="~{fragments/scripts :: appScripts}"></div>
+
+<script
+        type="module"
+        th:src="@{/js/pages/mypage/mypage.js}"
+        src="../../static/js/pages/mypage/mypage.js"
+></script>
+
+</body>
 </html>

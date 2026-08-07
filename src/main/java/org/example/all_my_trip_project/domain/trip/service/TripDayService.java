@@ -2,11 +2,11 @@ package org.example.all_my_trip_project.domain.trip.service;
 
 import lombok.RequiredArgsConstructor;
 import org.example.all_my_trip_project.domain.trip.dao.TripDayDAO;
-import org.example.all_my_trip_project.domain.trip.dao.TripDAO;
 import org.example.all_my_trip_project.domain.trip.dto.TripDayDTO;
 import org.example.all_my_trip_project.domain.trip.dto.TripDTO;
-import org.springframework.stereotype.Service;
+import org.example.all_my_trip_project.domain.trip.policy.TripPolicy;
 import org.springframework.context.annotation.Profile;
+import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
@@ -14,34 +14,36 @@ import java.util.Objects;
 
 @Service
 @Profile("!ui")
-@RequiredArgsConstructor
 @Transactional(readOnly = true)
-public class TripDayService {
-    private static final int MAX_TRIP_DAYS = 30;
+@RequiredArgsConstructor
+class TripDayService {
     private final TripDayDAO tripDayDAO;
-    private final TripDAO tripDAO;
+    private final TripOwnershipGuard ownershipGuard;
+    private final TripDayValidator tripDayValidator;
+    private final TripPeriodChangeValidator periodChangeValidator;
+    private final TripDayReconciler tripDayReconciler;
 
     @Transactional
     public Long create(Long userId, TripDayDTO tripDay) {
-        TripDTO trip = requireOwnedTrip(userId, tripDay.getTripId());
+        TripDTO trip = ownershipGuard.requireOwnedTrip(userId, tripDay.getTripId());
         List<TripDayDTO> existingDays = tripDayDAO.findByTripId(tripDay.getTripId());
-        if (existingDays.size() >= MAX_TRIP_DAYS) {
+        if (existingDays.size() >= TripPolicy.MAX_TRIP_DAYS) {
             throw new IllegalArgumentException("여행 일자는 최대 30개까지 등록할 수 있습니다.");
         }
-        validateDay(trip, tripDay, existingDays, null);
+        tripDayValidator.validate(trip, tripDay, existingDays, null);
         tripDayDAO.insert(tripDay);
         return tripDay.getTripDayId();
     }
 
     public List<TripDayDTO> getByTrip(Long userId, Long tripId) {
-        requireOwnedTrip(userId, tripId);
+        ownershipGuard.requireOwnedTrip(userId, tripId);
         return tripDayDAO.findByTripId(tripId);
     }
 
     @Transactional
     public void update(Long userId, TripDayDTO tripDay) {
-        TripDTO trip = requireOwnedDay(userId, tripDay.getTripId(), tripDay.getTripDayId());
-        validateDay(trip, tripDay, tripDayDAO.findByTripId(tripDay.getTripId()), tripDay.getTripDayId());
+        TripDTO trip = ownershipGuard.requireOwnedDay(userId, tripDay.getTripId(), tripDay.getTripDayId());
+        tripDayValidator.validate(trip, tripDay, tripDayDAO.findByTripId(tripDay.getTripId()), tripDay.getTripDayId());
         if (tripDayDAO.update(tripDay) == 0) {
             throw new IllegalArgumentException("수정할 여행 일자를 찾을 수 없습니다.");
         }
@@ -49,52 +51,28 @@ public class TripDayService {
 
     @Transactional
     public void delete(Long userId, Long tripId, Long tripDayId) {
-        requireOwnedDay(userId, tripId, tripDayId);
+        ownershipGuard.requireOwnedDay(userId, tripId, tripDayId);
         if (tripDayDAO.delete(tripDayId) == 0) {
             throw new IllegalArgumentException("삭제할 여행 일자를 찾을 수 없습니다.");
         }
     }
 
-    private TripDTO requireOwnedTrip(Long userId, Long tripId) {
-        TripDTO trip = tripDAO.findById(tripId)
-                .orElseThrow(() -> new IllegalArgumentException("여행을 찾을 수 없습니다."));
-        if (!Objects.equals(trip.getUserId(), userId)) {
-            throw new IllegalArgumentException("여행을 찾을 수 없습니다.");
-        }
-        return trip;
+    /**
+     * 기간 변경 범위 밖 일차에 일정이 남아 있으면 거절한다. {@link TripService#update}가 여행 기본정보를
+     * 저장하기 전에 호출해 충돌을 커밋 이전에 확정한다.
+     */
+    void ensureNoPeriodConflict(TripDTO savedTrip, TripDTO requestedTrip) {
+        periodChangeValidator.validate(savedTrip, requestedTrip);
     }
 
-    private TripDTO requireOwnedDay(Long userId, Long tripId, Long tripDayId) {
-        TripDTO trip = requireOwnedTrip(userId, tripId);
-        TripDayDTO savedDay = tripDayDAO.findById(tripDayId)
-                .orElseThrow(() -> new IllegalArgumentException("여행 일자를 찾을 수 없습니다."));
-        if (!Objects.equals(savedDay.getTripId(), tripId)) {
-            throw new IllegalArgumentException("여행 일자를 찾을 수 없습니다.");
-        }
-        return trip;
-    }
-
-    private void validateDay(TripDTO trip, TripDayDTO candidate,
-                             List<TripDayDTO> existingDays, Long excludedDayId) {
-        if (candidate.getDayNumber() == null || candidate.getTripDate() == null) {
-            throw new IllegalArgumentException("dayNumber와 tripDate는 필수입니다.");
-        }
-        long tripLength = java.time.temporal.ChronoUnit.DAYS
-                .between(trip.getStartDate(), trip.getEndDate()) + 1;
-        if (candidate.getDayNumber() < 1 || candidate.getDayNumber() > tripLength
-                || candidate.getDayNumber() > MAX_TRIP_DAYS) {
-            throw new IllegalArgumentException("dayNumber는 여행 기간 안의 일차여야 합니다.");
-        }
-        if (candidate.getTripDate().isBefore(trip.getStartDate())
-                || candidate.getTripDate().isAfter(trip.getEndDate())) {
-            throw new IllegalArgumentException("tripDate는 여행 시작일과 종료일 사이여야 합니다.");
-        }
-        boolean duplicated = existingDays.stream()
-                .filter(day -> !Objects.equals(day.getTripDayId(), excludedDayId))
-                .anyMatch(day -> Objects.equals(day.getDayNumber(), candidate.getDayNumber())
-                        || Objects.equals(day.getTripDate(), candidate.getTripDate()));
-        if (duplicated) {
-            throw new IllegalArgumentException("dayNumber와 tripDate는 여행 안에서 중복될 수 없습니다.");
+    /**
+     * 기간이 실제로 바뀐 경우에만 일차를 재조정한다. {@link TripService#update}가 여행 기본정보를
+     * 저장한 뒤 같은 트랜잭션에서 호출한다.
+     */
+    void reconcilePeriod(TripDTO savedTrip, TripDTO requestedTrip) {
+        if (!Objects.equals(savedTrip.getStartDate(), requestedTrip.getStartDate())
+                || !Objects.equals(savedTrip.getEndDate(), requestedTrip.getEndDate())) {
+            tripDayReconciler.reconcile(savedTrip, requestedTrip);
         }
     }
 }

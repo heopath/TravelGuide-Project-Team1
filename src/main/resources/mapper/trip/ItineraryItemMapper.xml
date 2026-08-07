@@ -19,6 +19,9 @@
         WHERE trip_day_id = #{tripDayId}
         ORDER BY sort_order
     </select>
+    <select id="countByTripDayId" resultType="int">
+        SELECT COUNT(*) FROM itinerary_items WHERE trip_day_id = #{tripDayId}
+    </select>
     <update id="update">
         UPDATE itinerary_items
         SET place_id = #{placeId}, item_type = #{itemType}, title = #{title},

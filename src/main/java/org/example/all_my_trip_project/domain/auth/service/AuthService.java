@@ -93,7 +93,7 @@ public class AuthService {
 
     private void validateEmailDuplicate(String email) {
         if (userRepository
-                .existsByEmailIgnoreCaseAndDeletedAtIsNull(email)) {
+                .existsByEmailIgnoreCase(email)) {
             throw new BusinessException(
                     ErrorCode.EMAIL_DUPLICATED
             );
@@ -102,7 +102,7 @@ public class AuthService {
 
     private void validateNicknameDuplicate(String nickname) {
         if (userRepository
-                .existsByNicknameAndDeletedAtIsNull(nickname)) {
+                .existsByNickname(nickname)) {
             throw new BusinessException(
                     ErrorCode.NICKNAME_DUPLICATED
             );

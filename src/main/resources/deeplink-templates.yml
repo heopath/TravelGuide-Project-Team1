@@ -1,0 +1,19 @@
+# 캐리어별 외부 예약 페이지 URL 패턴.
+# 항공사가 예약 페이지 주소를 바꾸면 이 파일만 고친다. 코드 수정은 필요 없다.
+#
+# 치환자: {origin} {destination} {date} {adults} {carrierCode} {flightNumber}
+#
+# 어필리에이트 승인 전이므로 트래킹 파라미터는 붙이지 않는다.
+# 승인 후 FLIGHT_AFFILIATE_ID 환경변수만 주입하면 자동으로 붙는다.
+flight:
+  deeplink:
+    affiliate-id: ${FLIGHT_AFFILIATE_ID:}
+    affiliate-param: ${FLIGHT_AFFILIATE_PARAM:aid}
+    fallback-template: "https://www.google.com/travel/flights?q=Flights%20from%20{origin}%20to%20{destination}%20on%20{date}"
+    templates:
+      KE: "https://www.koreanair.com/booking/search?tripType=OW&segments={origin}-{destination}-{date}&adult={adults}"
+      OZ: "https://flyasiana.com/C/KR/KO/booking/international-reservation?depCity={origin}&arrCity={destination}&depDate={date}&adtCount={adults}"
+      7C: "https://www.jejuair.net/ko/booking/searchFlight.do?depAirport={origin}&arrAirport={destination}&depDate={date}&adtCount={adults}"
+      LJ: "https://www.jinair.com/booking/index?depCity={origin}&arrCity={destination}&depDate={date}&adult={adults}"
+      TW: "https://www.twayair.com/app/booking/searchItinerary?depAirport={origin}&arrAirport={destination}&depDate={date}&adult={adults}"
+      BX: "https://www.airbusan.com/content/individual/?tripType=OW&depCity={origin}&arrCity={destination}&depDate={date}&adult={adults}"

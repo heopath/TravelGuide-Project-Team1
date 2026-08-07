@@ -18,30 +18,59 @@
         <section class="page-shell guide-shell">
           <section class="guide-hero">
             <div class="guide-hero-copy">
-              <span class="guide-eyebrow">PLACE DISCOVERY</span>
-              <h1>어디로 떠나볼까요?</h1>
-              <p>지역이나 장소를 검색하고, 마음에 드는 곳은 찜해 두세요.</p>
-            </div>
-
-            <form class="guide-search" data-place-search data-no-global-loading>
-              <span class="guide-search-icon" aria-hidden="true"></span>
-              <input id="guide-keyword" name="keyword" type="search"
-                     aria-label="장소 검색" placeholder="지역 또는 장소 이름을 입력하세요" autocomplete="off" />
-              <button type="submit">장소 검색</button>
-            </form>
-
-            <div class="guide-filter-area">
-              <span class="guide-filter-label">카테고리</span>
-              <div class="filter-row" role="group" aria-label="장소 카테고리">
-                <button type="button" class="selected" data-category="">전체</button>
-                <button type="button" data-category="ATTRACTION">관광지</button>
-                <button type="button" data-category="RESTAURANT">맛집</button>
-                <button type="button" data-category="CAFE">카페</button>
-                <button type="button" data-category="ACCOMMODATION">숙소</button>
-                <button type="button" data-category="ACTIVITY">체험</button>
-                <button type="button" data-category="FESTIVAL">축제</button>
-                <button type="button" data-category="TRANSPORT">교통</button>
+              <span class="guide-eyebrow">SAVE YOUR FAVORITES</span>
+              <h1>마음에 드는 곳, 여행이 되다</h1>
+              <p>지역과 장소를 둘러보며 가고 싶은 곳을 찜해 보세요.<br />모아둔 장소는 여행 일정을 만들 때 바로 꺼내 쓸 수 있어요.</p>
+              <div class="guide-hero-steps" aria-label="추천 장소 이용 순서">
+                <span>장소 발견</span><i aria-hidden="true"></i>
+                <span>찜하기</span><i aria-hidden="true"></i>
+                <span>일정에 담기</span>
               </div>
+            </div>
+            <div class="guide-hero-visual" aria-hidden="true">
+              <div class="hero-place-card hero-place-card-cafe"><span>CAFE</span></div>
+              <div class="hero-place-card hero-place-card-main">
+                <span class="hero-place-label">PLACE COLLECTION</span>
+                <div class="hero-place-copy">
+                  <strong>마음에 든 장소를 한곳에</strong>
+                  <small>찜하고, 여행 일정에 담아보세요</small>
+                </div>
+              </div>
+              <div class="hero-place-card hero-place-card-stay"><span>STAY</span></div>
+            </div>
+          </section>
+
+          <section class="category-explorer" aria-labelledby="category-title">
+            <div class="section-heading-row">
+              <div>
+                <span class="results-eyebrow">BROWSE BY CATEGORY</span>
+                <h2 id="category-title">카테고리로 찾아보기</h2>
+                <p>관심 있는 여행 카테고리를 선택해 보세요.</p>
+              </div>
+              <button type="button" class="show-all-button selected" data-show-all>전체 장소 보기</button>
+            </div>
+            <div class="category-card-grid" role="group" aria-label="장소 카테고리">
+              <button type="button" class="category-card category-card-attraction" data-category="ATTRACTION" aria-pressed="false">
+                <strong>관광지</strong><small>명소와 볼거리</small>
+              </button>
+              <button type="button" class="category-card category-card-restaurant" data-category="RESTAURANT" aria-pressed="false">
+                <strong>맛집</strong><small>지역의 특별한 한 끼</small>
+              </button>
+              <button type="button" class="category-card category-card-cafe" data-category="CAFE" aria-pressed="false">
+                <strong>카페</strong><small>감성적인 휴식 공간</small>
+              </button>
+              <button type="button" class="category-card category-card-accommodation" data-category="ACCOMMODATION" aria-pressed="false">
+                <strong>숙소</strong><small>머물고 싶은 공간</small>
+              </button>
+              <button type="button" class="category-card category-card-activity" data-category="ACTIVITY" aria-pressed="false">
+                <strong>체험</strong><small>직접 즐기는 여행</small>
+              </button>
+              <button type="button" class="category-card category-card-festival" data-category="FESTIVAL" aria-pressed="false">
+                <strong>축제</strong><small>계절과 지역의 즐거움</small>
+              </button>
+              <button type="button" class="category-card category-card-transport" data-category="TRANSPORT" aria-pressed="false">
+                <strong>교통</strong><small>편리한 이동 정보</small>
+              </button>
             </div>
           </section>
 
@@ -49,10 +78,18 @@
             <div class="place-results-heading">
               <div>
                 <span class="results-eyebrow">EXPLORE PLACES</span>
-                <h2 data-result-title>추천 장소</h2>
-                <p>지금 둘러보기 좋은 장소를 모았어요.</p>
+                <h2 data-result-title>전체 추천 장소</h2>
+                <p data-result-description>다양한 카테고리의 장소를 둘러보세요.</p>
               </div>
-              <span class="result-count" data-result-count aria-live="polite"></span>
+              <div class="place-result-tools">
+                <form class="guide-search guide-search-compact" data-place-search data-no-global-loading>
+                  <span class="guide-search-icon" aria-hidden="true"></span>
+                  <input id="guide-keyword" name="keyword" type="search"
+                         aria-label="장소 검색" placeholder="지역 또는 장소 검색" autocomplete="off" />
+                  <button type="submit">검색</button>
+                </form>
+                <span class="result-count" data-result-count aria-live="polite"></span>
+              </div>
             </div>
             <div class="place-state" data-place-state aria-live="polite">장소를 불러오는 중입니다.</div>
             <div class="place-grid" data-place-results hidden></div>

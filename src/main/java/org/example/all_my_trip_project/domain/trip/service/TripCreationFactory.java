@@ -1,4 +1,4 @@
-package org.example.all_my_trip_project.domain.trip.service.support;
+package org.example.all_my_trip_project.domain.trip.service;
 
 import org.example.all_my_trip_project.domain.trip.dto.TripCreateRequest;
 import org.example.all_my_trip_project.domain.trip.dto.TripDTO;
@@ -6,14 +6,15 @@ import org.example.all_my_trip_project.domain.trip.dto.TripDayDTO;
 import org.example.all_my_trip_project.domain.trip.policy.TripPolicy;
 import org.example.all_my_trip_project.domain.trip.type.TripSource;
 import org.example.all_my_trip_project.domain.trip.type.TripStatus;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
 import java.util.List;
 
 @Component
-public class TripCreationFactory {
-
+@Profile("!ui")
+final class TripCreationFactory {
     public TripDTO createTrip(Long userId, TripCreateRequest request) {
         String title = request.title() == null || request.title().isBlank()
                 ? request.destinationName().trim() + TripPolicy.DEFAULT_TITLE_SUFFIX

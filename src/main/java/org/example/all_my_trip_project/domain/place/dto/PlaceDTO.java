@@ -30,6 +30,7 @@ public class PlaceDTO implements Serializable {
     private String description;
     private String phone;
     private String websiteUrl;
+    private String primaryImageUrl;
     private BigDecimal averageRating;
     private Boolean active;
     private Boolean favorite;

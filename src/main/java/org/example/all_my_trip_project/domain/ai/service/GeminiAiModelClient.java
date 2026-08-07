@@ -16,7 +16,7 @@ import java.util.List;
 import java.util.regex.Pattern;
 
 @Component
-@Profile("ai")
+@Profile("gemini-legacy")
 public class GeminiAiModelClient implements AiModelClient {
 
     private static final int MAX_DAYS = 30;

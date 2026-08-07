@@ -6,8 +6,6 @@ import org.example.all_my_trip_project.domain.ai.dto.AiGuideRequest;
 import org.example.all_my_trip_project.domain.trip.dto.TripDTO;
 import org.example.all_my_trip_project.domain.trip.dto.TripDayDTO;
 import org.example.all_my_trip_project.domain.trip.dto.ItineraryItemDTO;
-import org.example.all_my_trip_project.domain.trip.service.ItineraryItemService;
-import org.example.all_my_trip_project.domain.trip.service.TripDayService;
 import org.example.all_my_trip_project.domain.trip.service.TripService;
 import org.example.all_my_trip_project.domain.user.dto.UserPreferenceResponse;
 import org.example.all_my_trip_project.domain.user.service.MemberService;
@@ -20,8 +18,6 @@ import java.util.List;
 @RequiredArgsConstructor
 public class AiGuideContextService {
     private final ObjectProvider<TripService> tripServiceProvider;
-    private final ObjectProvider<TripDayService> tripDayServiceProvider;
-    private final ObjectProvider<ItineraryItemService> itineraryItemServiceProvider;
     private final ObjectProvider<MemberService> memberServiceProvider;
 
     public AiGuideContext load(Long userId, AiGuideRequest request) {
@@ -29,16 +25,12 @@ public class AiGuideContextService {
         if (request.tripId() == null) return new AiGuideContext(null, preferences);
 
         TripService tripService = tripServiceProvider.getIfAvailable();
-        TripDayService tripDayService = tripDayServiceProvider.getIfAvailable();
-        ItineraryItemService itineraryItemService = itineraryItemServiceProvider.getIfAvailable();
-        if (tripService == null || tripDayService == null || itineraryItemService == null) {
-            return new AiGuideContext(null, preferences);
-        }
+        if (tripService == null) return new AiGuideContext(null, preferences);
 
-        // Existing services enforce that this trip belongs to the signed-in user.
+        // TripService is the only public entry point for the trip aggregate.
         TripDTO trip = tripService.get(userId, request.tripId());
-        List<TripDayDTO> days = tripDayService.getByTrip(userId, request.tripId());
-        return new AiGuideContext(toTrip(userId, trip, days, itineraryItemService), preferences);
+        List<TripDayDTO> days = tripService.getDays(userId, request.tripId());
+        return new AiGuideContext(toTrip(userId, trip, days, tripService), preferences);
     }
 
     private List<AiGuideContext.Preference> loadPreferences(Long userId) {
@@ -48,13 +40,13 @@ public class AiGuideContextService {
     }
 
     private AiGuideContext.Trip toTrip(Long userId, TripDTO trip, List<TripDayDTO> days,
-                                       ItineraryItemService itineraryItemService) {
+                                       TripService tripService) {
         return new AiGuideContext.Trip(trip.getTripId(), trip.getTitle(), trip.getDestinationName(),
                 trip.getStartDate(), trip.getEndDate(), trip.getCompanionType(), trip.getCompanionCount(),
                 trip.getPurpose(), trip.getBudgetAmount(), trip.getCurrencyCode(), trip.getTransportPreference(),
                 trip.getFoodPreference(), trip.getPace(), trip.getAccommodationStyle(),
                 days.stream().map(day -> new AiGuideContext.Day(day.getDayNumber(), day.getTripDate(),
-                        day.getTitle(), day.getMemo(), itineraryItemService.getByTripDay(userId, day.getTripDayId())
+                        day.getTitle(), day.getMemo(), tripService.getItems(userId, day.getTripDayId())
                         .stream().map(this::toItem).toList())).toList());
     }
 

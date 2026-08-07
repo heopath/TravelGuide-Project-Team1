@@ -11,7 +11,7 @@ import org.springframework.context.annotation.Profile;
 import org.springframework.util.Assert;
 
 @Configuration
-@Profile("ai")
+@Profile("gemini-legacy")
 public class GeminiHttpClientConfig {
 
     @Bean(destroyMethod = "close")
