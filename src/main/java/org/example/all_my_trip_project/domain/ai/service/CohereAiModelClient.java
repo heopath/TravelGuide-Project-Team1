@@ -144,18 +144,18 @@ public class CohereAiModelClient implements AiModelClient {
         Map<String, Object> item = Map.of(
                 "type", "object",
                 "properties", Map.of(
-                        "time", Map.of("type", "string", "pattern", "^([01]\\d|2[0-3]):[0-5]\\d$"),
-                        "name", Map.of("type", "string", "minLength", 1),
-                        "reason", Map.of("type", "string", "minLength", 1)
+                        "time", Map.of("type", "string"),
+                        "name", Map.of("type", "string"),
+                        "reason", Map.of("type", "string")
                 ),
                 "required", List.of("time", "name", "reason")
         );
         Map<String, Object> day = Map.of(
                 "type", "object",
                 "properties", Map.of(
-                        "day", Map.of("type", "integer", "minimum", 1),
-                        "title", Map.of("type", "string", "minLength", 1),
-                        "items", Map.of("type", "array", "minItems", 1, "items", item)
+                        "day", Map.of("type", "integer"),
+                        "title", Map.of("type", "string"),
+                        "items", Map.of("type", "array", "items", item)
                 ),
                 "required", List.of("day", "title", "items")
         );
@@ -163,7 +163,7 @@ public class CohereAiModelClient implements AiModelClient {
                 "type", "object",
                 "properties", Map.of(
                         "answer", Map.of("type", "string"),
-                        "days", Map.of("type", "array", "minItems", 1, "items", day)
+                        "days", Map.of("type", "array", "items", day)
                 ),
                 "required", List.of("answer", "days")
         );
