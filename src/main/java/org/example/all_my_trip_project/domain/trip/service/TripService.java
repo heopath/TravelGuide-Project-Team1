@@ -82,6 +82,9 @@ public class TripService {
 
     @Transactional
     public Long createItem(Long userId, Long tripDayId, org.example.all_my_trip_project.domain.trip.dto.ItineraryItemDTO item) {
+        // 경로의 tripDayId가 항상 우선한다. 호출자가 item.tripDayId를 미리 맞춰 보냈더라도 여기서 덮어써서
+        // 두 값이 어긋날 여지를 없앤다.
+        item.setTripDayId(tripDayId);
         return itineraryItemService.create(userId, item);
     }
 

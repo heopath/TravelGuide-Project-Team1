@@ -81,7 +81,6 @@ public class TripController {
             @AuthenticationPrincipal AuthenticatedUser principal,
             @PathVariable Long tripDayId,
             @RequestBody ItineraryItemDTO item) {
-        item.setTripDayId(tripDayId);
         Long id = tripService.createItem(requireUserId(principal), tripDayId, item);
         return ResponseEntity.created(URI.create("/api/v1/trip-days/" + tripDayId + "/items/" + id))
                 .body(ApiResponse.success("일정 항목이 추가되었습니다.", item));

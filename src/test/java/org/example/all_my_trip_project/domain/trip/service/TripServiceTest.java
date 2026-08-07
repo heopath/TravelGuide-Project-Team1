@@ -277,4 +277,20 @@ class TripServiceTest {
         order.verify(tripDAO).update(update);
         order.verify(tripDayService).reconcilePeriod(saved, update);
     }
+
+    @Test
+    void createItemForcesPathTripDayIdOntoItemRegardlessOfRequestBody() {
+        org.example.all_my_trip_project.domain.trip.dto.ItineraryItemDTO item =
+                org.example.all_my_trip_project.domain.trip.dto.ItineraryItemDTO.builder()
+                        .tripDayId(999L) // 요청 본문에 다른 tripDayId가 실려 와도 경로값이 이겨야 한다.
+                        .title("해운대 산책")
+                        .build();
+        when(itineraryItemService.create(42L, item)).thenReturn(30L);
+
+        Long id = tripService.createItem(42L, 20L, item);
+
+        assertThat(id).isEqualTo(30L);
+        assertThat(item.getTripDayId()).isEqualTo(20L);
+        verify(itineraryItemService).create(42L, item);
+    }
 }
