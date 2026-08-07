@@ -102,6 +102,16 @@ public enum ErrorCode {
     ITINERARY_ITEM_LIMIT_EXCEEDED(
             HttpStatus.BAD_REQUEST,
             "일차당 일정은 최대 100개까지 등록할 수 있습니다."
+    ),
+
+    INVALID_FLIGHT_LEG(
+            HttpStatus.BAD_REQUEST,
+            "항공 구간은 가는 편(0) 또는 오는 편(1)만 지정할 수 있습니다."
+    ),
+
+    FLIGHT_BOOKING_NOT_FOUND(
+            HttpStatus.NOT_FOUND,
+            "선택한 항공편을 찾을 수 없습니다."
     );
 
     private final HttpStatus status;

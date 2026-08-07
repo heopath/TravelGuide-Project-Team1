@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.example.all_my_trip_project.domain.flight.mapper.OutboundClickMapper">
+
+    <sql id="columns">
+        flight_outbound_click_id, user_id, trip_id, leg, offer_id, provider,
+        deeplink_url, clicked_at, returned_at, outcome
+    </sql>
+
+    <insert id="insert" useGeneratedKeys="true"
+            keyProperty="flightOutboundClickId" keyColumn="flight_outbound_click_id">
+        INSERT INTO flight_outbound_clicks (
+            user_id, trip_id, leg, offer_id, provider, deeplink_url, clicked_at
+        ) VALUES (
+            #{userId}, #{tripId}, #{leg}, #{offerId}, #{provider}, #{deeplinkUrl}, CURRENT_TIMESTAMP
+        )
+    </insert>
+
+    <update id="updateOutcome">
+        UPDATE flight_outbound_clicks
+        SET outcome = #{outcome},
+            returned_at = CURRENT_TIMESTAMP
+        WHERE flight_outbound_click_id = #{flightOutboundClickId}
+    </update>
+
+    <select id="findUnresolvedByTrip"
+            resultType="org.example.all_my_trip_project.domain.flight.dto.OutboundClickDTO">
+        SELECT <include refid="columns"/>
+        FROM flight_outbound_clicks
+        WHERE trip_id = #{tripId} AND outcome IS NULL
+        ORDER BY clicked_at DESC
+    </select>
+</mapper>
