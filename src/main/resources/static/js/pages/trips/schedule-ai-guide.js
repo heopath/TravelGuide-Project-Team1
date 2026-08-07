@@ -81,7 +81,7 @@ document.addEventListener("DOMContentLoaded", function () {
             addButton.disabled = true;
             addButton.textContent = "추가 중";
             try {
-              await window.AllMyTripsSchedule.addAiRecommendation(item);
+              await window.AllMyTripsSchedule.addAiRecommendation(item, day.day);
               addButton.textContent = "추가됨";
             } catch (error) {
               addButton.disabled = false;
