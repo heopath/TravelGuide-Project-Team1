@@ -19,6 +19,16 @@ public enum ErrorCode {
             "이메일 또는 비밀번호가 올바르지 않습니다."
     ),
 
+    PASSWORD_MISMATCH(
+            HttpStatus.BAD_REQUEST,
+            "현재 비밀번호가 일치하지 않습니다."
+    ),
+
+    NEW_PASSWORD_SAME_AS_CURRENT(
+            HttpStatus.BAD_REQUEST,
+            "새 비밀번호는 현재 비밀번호와 다르게 설정해주세요."
+    ),
+
     UNAUTHORIZED(
             HttpStatus.UNAUTHORIZED,
             "로그인이 필요합니다."

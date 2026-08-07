@@ -1,6 +1,13 @@
 package org.example.all_my_trip_project.domain.user.entity;
 
-import jakarta.persistence.*;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.PrePersist;
+import jakarta.persistence.PreUpdate;
+import jakarta.persistence.Table;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -64,7 +71,11 @@ public class UserEntity {
             String passwordHash,
             String nickname
     ) {
-        return new UserEntity(email, passwordHash, nickname);
+        return new UserEntity(
+                email,
+                passwordHash,
+                nickname
+        );
     }
 
     public void recordLogin() {
@@ -75,9 +86,19 @@ public class UserEntity {
         this.nickname = nickname.trim();
     }
 
+    public void changePassword(String passwordHash) {
+        this.passwordHash = passwordHash;
+    }
+
+    public void withdraw() {
+        this.status = "WITHDRAWN";
+        this.deletedAt = OffsetDateTime.now(ZoneOffset.UTC);
+    }
+
     @PrePersist
     private void onCreate() {
-        OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
+        OffsetDateTime now =
+                OffsetDateTime.now(ZoneOffset.UTC);
 
         if (createdAt == null) {
             createdAt = now;

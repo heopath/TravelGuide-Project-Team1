@@ -1,18 +1,21 @@
 package org.example.all_my_trip_project.domain.user.service;
 
 import lombok.RequiredArgsConstructor;
+import org.example.all_my_trip_project.domain.user.dto.MemberDeleteRequest;
+import org.example.all_my_trip_project.domain.user.dto.MemberPasswordChangeRequest;
 import org.example.all_my_trip_project.domain.user.dto.MemberResponse;
 import org.example.all_my_trip_project.domain.user.dto.UpdateMemberProfileRequest;
 import org.example.all_my_trip_project.domain.user.dto.UpdatePreferencesRequest;
 import org.example.all_my_trip_project.domain.user.dto.UserPreferenceResponse;
-import org.example.all_my_trip_project.domain.user.entity.UserPreferenceEntity;
 import org.example.all_my_trip_project.domain.user.entity.UserEntity;
+import org.example.all_my_trip_project.domain.user.entity.UserPreferenceEntity;
 import org.example.all_my_trip_project.domain.user.repository.UserPreferenceRepository;
 import org.example.all_my_trip_project.domain.user.repository.UserPreferenceView;
 import org.example.all_my_trip_project.domain.user.repository.UserRepository;
 import org.example.all_my_trip_project.global.exception.BusinessException;
 import org.example.all_my_trip_project.global.exception.ErrorCode;
 import org.springframework.context.annotation.Profile;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -31,6 +34,7 @@ public class MemberService implements ActiveMemberGuard {
 
     private final UserRepository userRepository;
     private final UserPreferenceRepository userPreferenceRepository;
+    private final PasswordEncoder passwordEncoder;
 
     public UserPreferenceResponse getPreferences(Long userId) {
         validateMember(userId);
@@ -48,9 +52,13 @@ public class MemberService implements ActiveMemberGuard {
             UpdateMemberProfileRequest request
     ) {
         UserEntity user = validateMember(userId);
+
         String nickname = request.nickname().trim();
+
         if (nickname.length() < 2 || nickname.length() > 20) {
-            throw new IllegalArgumentException("닉네임은 2자 이상 20자 이하여야 합니다.");
+            throw new IllegalArgumentException(
+                    "닉네임은 2자 이상 20자 이하여야 합니다."
+            );
         }
 
         if (userRepository
@@ -58,7 +66,9 @@ public class MemberService implements ActiveMemberGuard {
                         nickname,
                         userId
                 )) {
-            throw new BusinessException(ErrorCode.NICKNAME_DUPLICATED);
+            throw new BusinessException(
+                    ErrorCode.NICKNAME_DUPLICATED
+            );
         }
 
         user.updateNickname(nickname);
@@ -70,6 +80,50 @@ public class MemberService implements ActiveMemberGuard {
                 user.getRole(),
                 user.getStatus()
         );
+    }
+
+    @Transactional
+    public void changePassword(
+            Long userId,
+            MemberPasswordChangeRequest request
+    ) {
+        UserEntity user = validateMember(userId);
+
+        validateCurrentPassword(
+                user,
+                request.currentPassword()
+        );
+
+        if (passwordEncoder.matches(
+                request.newPassword(),
+                user.getPasswordHash()
+        )) {
+            throw new BusinessException(
+                    ErrorCode.NEW_PASSWORD_SAME_AS_CURRENT
+            );
+        }
+
+        String passwordHash =
+                passwordEncoder.encode(
+                        request.newPassword()
+                );
+
+        user.changePassword(passwordHash);
+    }
+
+    @Transactional
+    public void withdraw(
+            Long userId,
+            MemberDeleteRequest request
+    ) {
+        UserEntity user = validateMember(userId);
+
+        validateCurrentPassword(
+                user,
+                request.password()
+        );
+
+        user.withdraw();
     }
 
     @Transactional
@@ -91,63 +145,100 @@ public class MemberService implements ActiveMemberGuard {
                                 Function.identity()
                         ));
 
-        Set<Short> requestedStyleIds = request.preferences().stream()
-                .map(UpdatePreferencesRequest.PreferenceItem::travelStyleId)
-                .collect(Collectors.toSet());
+        Set<Short> requestedStyleIds =
+                request.preferences()
+                        .stream()
+                        .map(
+                                UpdatePreferencesRequest
+                                        .PreferenceItem
+                                        ::travelStyleId
+                        )
+                        .collect(Collectors.toSet());
 
         List<UserPreferenceEntity> removedExplicitPreferences =
                 existingPreferences.stream()
                         .filter(UserPreferenceEntity::isExplicit)
-                        .filter(preference -> !requestedStyleIds.contains(
-                                preference.getTravelStyleId()
-                        ))
+                        .filter(preference ->
+                                !requestedStyleIds.contains(
+                                        preference.getTravelStyleId()
+                                ))
                         .toList();
 
-        userPreferenceRepository.deleteAll(removedExplicitPreferences);
+        userPreferenceRepository.deleteAll(
+                removedExplicitPreferences
+        );
 
-        List<UserPreferenceEntity> savedPreferences = request.preferences()
-                .stream()
-                .map(item -> {
-                    UserPreferenceEntity preference = existingByStyle.get(
-                            item.travelStyleId()
-                    );
+        List<UserPreferenceEntity> savedPreferences =
+                request.preferences()
+                        .stream()
+                        .map(item -> {
+                            UserPreferenceEntity preference =
+                                    existingByStyle.get(
+                                            item.travelStyleId()
+                                    );
 
-                    if (preference == null) {
-                        return UserPreferenceEntity.explicit(
-                                userId,
-                                item.travelStyleId(),
-                                item.preferenceScore()
-                        );
-                    }
+                            if (preference == null) {
+                                return UserPreferenceEntity.explicit(
+                                        userId,
+                                        item.travelStyleId(),
+                                        item.preferenceScore()
+                                );
+                            }
 
-                    preference.replaceWithExplicitScore(
-                            item.preferenceScore()
-                    );
-                    return preference;
-                })
-                .toList();
+                            preference.replaceWithExplicitScore(
+                                    item.preferenceScore()
+                            );
 
-        userPreferenceRepository.saveAllAndFlush(savedPreferences);
+                            return preference;
+                        })
+                        .toList();
+
+        userPreferenceRepository.saveAllAndFlush(
+                savedPreferences
+        );
+
         return loadPreferences(userId);
+    }
+
+    private void validateCurrentPassword(
+            UserEntity user,
+            String currentPassword
+    ) {
+        if (!passwordEncoder.matches(
+                currentPassword,
+                user.getPasswordHash()
+        )) {
+            throw new BusinessException(
+                    ErrorCode.PASSWORD_MISMATCH
+            );
+        }
     }
 
     private UserEntity validateMember(Long userId) {
         if (userId == null) {
-            throw new BusinessException(ErrorCode.UNAUTHORIZED);
+            throw new BusinessException(
+                    ErrorCode.UNAUTHORIZED
+            );
         }
 
-        UserEntity user = userRepository.findById(userId)
-                .orElseThrow(() -> new BusinessException(
-                        ErrorCode.UNAUTHORIZED
-                ));
+        UserEntity user =
+                userRepository.findById(userId)
+                        .orElseThrow(() ->
+                                new BusinessException(
+                                        ErrorCode.UNAUTHORIZED
+                                ));
 
         if ("SUSPENDED".equals(user.getStatus())) {
-            throw new BusinessException(ErrorCode.ACCOUNT_SUSPENDED);
+            throw new BusinessException(
+                    ErrorCode.ACCOUNT_SUSPENDED
+            );
         }
 
         if ("WITHDRAWN".equals(user.getStatus())
                 || user.getDeletedAt() != null) {
-            throw new BusinessException(ErrorCode.ACCOUNT_WITHDRAWN);
+            throw new BusinessException(
+                    ErrorCode.ACCOUNT_WITHDRAWN
+            );
         }
 
         return user;
@@ -156,11 +247,20 @@ public class MemberService implements ActiveMemberGuard {
     private void validateNoDuplicateStyles(
             List<UpdatePreferencesRequest.PreferenceItem> preferences
     ) {
-        Set<Short> uniqueStyleIds = new HashSet<>();
+        Set<Short> uniqueStyleIds =
+                new HashSet<>();
 
-        boolean duplicated = preferences.stream()
-                .map(UpdatePreferencesRequest.PreferenceItem::travelStyleId)
-                .anyMatch(styleId -> !uniqueStyleIds.add(styleId));
+        boolean duplicated =
+                preferences.stream()
+                        .map(
+                                UpdatePreferencesRequest
+                                        .PreferenceItem
+                                        ::travelStyleId
+                        )
+                        .anyMatch(
+                                styleId ->
+                                        !uniqueStyleIds.add(styleId)
+                        );
 
         if (duplicated) {
             throw new BusinessException(
@@ -176,26 +276,38 @@ public class MemberService implements ActiveMemberGuard {
             return;
         }
 
-        Set<Short> requestedStyleIds = preferences.stream()
-                .map(UpdatePreferencesRequest.PreferenceItem::travelStyleId)
-                .collect(Collectors.toSet());
+        Set<Short> requestedStyleIds =
+                preferences.stream()
+                        .map(
+                                UpdatePreferencesRequest
+                                        .PreferenceItem
+                                        ::travelStyleId
+                        )
+                        .collect(Collectors.toSet());
 
-        Set<Short> activeStyleIds = new HashSet<>(
-                userPreferenceRepository.findActiveTravelStyleIds(
-                        requestedStyleIds
-                )
-        );
+        Set<Short> activeStyleIds =
+                new HashSet<>(
+                        userPreferenceRepository
+                                .findActiveTravelStyleIds(
+                                        requestedStyleIds
+                                )
+                );
 
-        if (!activeStyleIds.containsAll(requestedStyleIds)) {
+        if (!activeStyleIds.containsAll(
+                requestedStyleIds
+        )) {
             throw new BusinessException(
                     ErrorCode.TRAVEL_STYLE_NOT_FOUND
             );
         }
     }
 
-    private UserPreferenceResponse loadPreferences(Long userId) {
+    private UserPreferenceResponse loadPreferences(
+            Long userId
+    ) {
         List<UserPreferenceResponse.PreferenceItem> preferences =
-                userPreferenceRepository.findViewsByUserId(userId)
+                userPreferenceRepository
+                        .findViewsByUserId(userId)
                         .stream()
                         .map(this::toResponse)
                         .toList();

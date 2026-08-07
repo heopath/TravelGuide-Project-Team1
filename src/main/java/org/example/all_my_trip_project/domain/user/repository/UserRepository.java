@@ -7,9 +7,9 @@ import java.util.Optional;
 
 public interface UserRepository extends JpaRepository<UserEntity, Long> {
 
-    boolean existsByEmailIgnoreCaseAndDeletedAtIsNull(String email);
+    boolean existsByEmailIgnoreCase(String email);
 
-    boolean existsByNicknameAndDeletedAtIsNull(String nickname);
+    boolean existsByNickname(String nickname);
 
     boolean existsByNicknameAndUserIdNotAndDeletedAtIsNull(
             String nickname,

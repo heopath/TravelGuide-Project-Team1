@@ -16,20 +16,28 @@ import static org.mockito.Mockito.verify;
 @ExtendWith(MockitoExtension.class)
 class AuthServiceTest {
 
-    @Mock UserRepository userRepository;
-    @Mock PasswordEncoder passwordEncoder;
-    @InjectMocks AuthService authService;
+    @Mock
+    UserRepository userRepository;
+
+    @Mock
+    PasswordEncoder passwordEncoder;
+
+    @InjectMocks
+    AuthService authService;
 
     @Test
     void signupValidatesNicknameAfterTrimming() {
         SignupRequest request = new SignupRequest(
-                "member@example.com", "password123", " a ");
+                "member@example.com",
+                "password123",
+                " a "
+        );
 
         assertThatThrownBy(() -> authService.signup(request))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("닉네임은 2자 이상 20자 이하여야 합니다.");
 
-        verify(userRepository, never()).existsByNicknameAndDeletedAtIsNull("a");
+        verify(userRepository, never()).existsByNickname("a");
         verify(passwordEncoder, never()).encode("password123");
     }
 }
