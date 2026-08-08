@@ -18,7 +18,7 @@
 
   /* 일정 충돌 배지와 추천 스코어의 기준.
      가는 편은 1일차 첫 활동 시작 시각, 오는 편은 마지막날 마지막 활동 종료 시각을 본다.
-     일정 연동 전에는 비어 있고, 그러면 페널티가 0이라 가격만으로 순위가 갈린다. */
+     loadItinerary()가 여행 일정에서 채운다. 비어 있으면 페널티가 0이라 가격만으로 순위가 갈린다. */
   const itinerary = { firstPlanStartAt: null, lastPlanEndAt: null };
 
   const EXT_NOTICE_KEY = "allmytrips.flightExtNoticeSeen";
@@ -606,6 +606,56 @@
     } catch (e) { /* 여행 정보를 못 읽어도 기본 조건으로 비교는 할 수 있다 */ }
   }
 
+  /* 일정 항목의 시각은 LocalTime이라 "09:00" 또는 "09:00:30"으로 온다.
+     초를 채워 길이를 맞춰야 문자열 정렬로 최소·최대를 고를 수 있다. */
+  function normalizeTime(value) {
+    const m = /^(\d{2}):(\d{2})(?::(\d{2}))?/.exec(String(value ?? ""));
+    return m ? `${m[1]}:${m[2]}:${m[3] || "00"}` : null;
+  }
+
+  /* sortOrder는 사용자가 정한 표시 순서일 뿐 시간순이 아니다. 값을 직접 비교한다. */
+  function edgeTime(items, field, index) {
+    const times = (items || []).map((item) => normalizeTime(item?.[field])).filter(Boolean).sort();
+    return times.length ? times.at(index) : null;
+  }
+
+  /* 일정 항목은 날짜 없이 시각만 갖는다. 그 날의 tripDate와 합쳐야 기준 시각이 된다. */
+  const planAt = (date, time) => (date && time ? `${date}T${time}` : null);
+
+  async function itemsOf(tripDayId) {
+    const payload = await request("GET", `/api/v1/trip-days/${tripDayId}/items`);
+    return payload?.data || [];
+  }
+
+  /* 추천순 스코어의 일정 적합도 40%와 일정 충돌 배지가 이 값에서 나온다.
+     서버는 두 파라미터를 이미 받고 있고, 여기서 채우지 않으면 모든 후보의
+     일정 점수가 1.0으로 평평해져 `추천순`이 `최저가순`과 같아진다.
+
+     1일차나 마지막날에 활동이 하나도 없으면 비워 둔다. 기준으로 삼을 활동이
+     없다는 뜻이라, 임의의 시각을 만들어 넣으면 없는 충돌을 있다고 하게 된다. */
+  async function loadItinerary() {
+    if (!canPersist()) return;
+    try {
+      const payload = await request("GET", `/api/v1/trips/${tripId}/days`);
+      const days = (payload?.data || [])
+        .filter((day) => day?.tripDate && day.tripDayId != null)
+        .sort((a, b) => String(a.tripDate).localeCompare(String(b.tripDate))
+          || (a.dayNumber ?? 0) - (b.dayNumber ?? 0));
+      if (!days.length) return;
+
+      const first = days[0];
+      const last = days[days.length - 1];
+      const firstItems = await itemsOf(first.tripDayId);
+      // 당일치기면 같은 날이다. 한 번 읽은 것을 다시 읽지 않는다.
+      const lastItems = last.tripDayId === first.tripDayId ? firstItems : await itemsOf(last.tripDayId);
+
+      itinerary.firstPlanStartAt = planAt(first.tripDate, edgeTime(firstItems, "startTime", 0));
+      itinerary.lastPlanEndAt = planAt(last.tripDate, edgeTime(lastItems, "endTime", -1));
+    } catch (e) {
+      /* 일정을 못 읽어도 가격 비교는 그대로 된다. 일정 점수와 충돌 배지만 빠진다. */
+    }
+  }
+
   function bind() {
     $("chg").addEventListener("click", () => {
       const open = $("formwrap").classList.toggle("open");
@@ -693,7 +743,8 @@
     try { seen = localStorage.getItem(EXT_NOTICE_KEY) === "1"; } catch (e) { /* 비공개 모드 */ }
     $("extbar").hidden = seen;
 
-    await loadTripSummary();
+    // 검색 전에 끝나야 한다. 기준 시각 없이 조회하면 일정 점수가 평평한 결과가 나온다.
+    await Promise.all([loadTripSummary(), loadItinerary()]);
     renderConditionBar();
     await runSearch();
     await restore();
