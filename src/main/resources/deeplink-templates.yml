@@ -1,19 +1,30 @@
-# 캐리어별 외부 예약 페이지 URL 패턴.
-# 항공사가 예약 페이지 주소를 바꾸면 이 파일만 고친다. 코드 수정은 필요 없다.
+# 외부 예약 페이지 URL 패턴.
 #
 # 치환자: {origin} {destination} {date} {adults} {carrierCode} {flightNumber}
 #
 # 어필리에이트 승인 전이므로 트래킹 파라미터는 붙이지 않는다.
 # 승인 후 FLIGHT_AFFILIATE_ID 환경변수만 주입하면 자동으로 붙는다.
+#
+# 캐리어별 templates를 비워 둔 이유(#132):
+# KE·OZ·7C·LJ·TW·BX 여섯 곳의 예약 페이지를 GMP→CJU로 실제로 열어 확인한 결과,
+# 쿼리로 넘긴 노선·날짜를 읽는 곳이 하나도 없었다.
+#   - OZ, 7C : 에러 페이지로 리다이렉트된다(OZ는 /error/error.html)
+#   - KE, TW, BX : 예약 페이지는 열리지만 출발지·도착지·날짜가 전부 빈 값이다.
+#                  BX는 자사 기본값(부산→김포, 당일)이 대신 들어간다.
+#   - LJ : 봇 차단으로 확인하지 못했다.
+# 즉 "항공사로 바로 이동"은 이름만 그랬을 뿐 실제로는 빈 검색 폼이었고,
+# 사용자는 어차피 노선과 날짜를 다시 입력해야 했다.
+#
+# 반대로 fallback은 노선·날짜가 그대로 채워진 채 열린다.
+# 검색 문구에 "One-way"를 넣으면 편도로 인식해 복귀 날짜 칸이 사라진다.
+#
+# 항공사가 딥링크를 실제로 지원하는 것이 확인되면 그 캐리어만 templates에 다시 넣는다.
+# TemplateDeeplinkBuilder가 templates에 없는 캐리어를 fallback으로 보내므로 코드 수정은 필요 없다.
+#
+# Travelpayouts 매칭에 성공한 편은 응답의 aviasales 링크를 그대로 쓰므로 이 파일과 무관하다.
 flight:
   deeplink:
     affiliate-id: ${FLIGHT_AFFILIATE_ID:}
     affiliate-param: ${FLIGHT_AFFILIATE_PARAM:aid}
-    fallback-template: "https://www.google.com/travel/flights?q=Flights%20from%20{origin}%20to%20{destination}%20on%20{date}"
-    templates:
-      KE: "https://www.koreanair.com/booking/search?tripType=OW&segments={origin}-{destination}-{date}&adult={adults}"
-      OZ: "https://flyasiana.com/C/KR/KO/booking/international-reservation?depCity={origin}&arrCity={destination}&depDate={date}&adtCount={adults}"
-      7C: "https://www.jejuair.net/ko/booking/searchFlight.do?depAirport={origin}&arrAirport={destination}&depDate={date}&adtCount={adults}"
-      LJ: "https://www.jinair.com/booking/index?depCity={origin}&arrCity={destination}&depDate={date}&adult={adults}"
-      TW: "https://www.twayair.com/app/booking/searchItinerary?depAirport={origin}&arrAirport={destination}&depDate={date}&adult={adults}"
-      BX: "https://www.airbusan.com/content/individual/?tripType=OW&depCity={origin}&arrCity={destination}&depDate={date}&adult={adults}"
+    fallback-template: "https://www.google.com/travel/flights?q=One-way%20flights%20from%20{origin}%20to%20{destination}%20on%20{date}"
+    templates: {}
