@@ -614,10 +614,16 @@
   }
 
   /* sortOrder는 사용자가 정한 표시 순서일 뿐 시간순이 아니다. 값을 직접 비교한다. */
-  function edgeTime(items, field, index) {
-    const times = (items || []).map((item) => normalizeTime(item?.[field])).filter(Boolean).sort();
-    return times.length ? times.at(index) : null;
+  function sortedTimes(items, field) {
+    return (items || []).map((item) => normalizeTime(item?.[field])).filter(Boolean).sort();
   }
+
+  const earliestTime = (items, field) => sortedTimes(items, field)[0] || null;
+
+  const latestTime = (items, field) => {
+    const times = sortedTimes(items, field);
+    return times.length ? times[times.length - 1] : null;
+  };
 
   /* 일정 항목은 날짜 없이 시각만 갖는다. 그 날의 tripDate와 합쳐야 기준 시각이 된다. */
   const planAt = (date, time) => (date && time ? `${date}T${time}` : null);
@@ -649,8 +655,8 @@
       // 당일치기면 같은 날이다. 한 번 읽은 것을 다시 읽지 않는다.
       const lastItems = last.tripDayId === first.tripDayId ? firstItems : await itemsOf(last.tripDayId);
 
-      itinerary.firstPlanStartAt = planAt(first.tripDate, edgeTime(firstItems, "startTime", 0));
-      itinerary.lastPlanEndAt = planAt(last.tripDate, edgeTime(lastItems, "endTime", -1));
+      itinerary.firstPlanStartAt = planAt(first.tripDate, earliestTime(firstItems, "startTime"));
+      itinerary.lastPlanEndAt = planAt(last.tripDate, latestTime(lastItems, "endTime"));
     } catch (e) {
       /* 일정을 못 읽어도 가격 비교는 그대로 된다. 일정 점수와 충돌 배지만 빠진다. */
     }
