@@ -56,11 +56,12 @@ public class TourApiAccommodationSearchProvider implements AccommodationSearchPr
     private final Map<String, Optional<String>> sigunguCodeCache = new ConcurrentHashMap<>();
 
     public TourApiAccommodationSearchProvider(TourApiProperties properties,
-                                              RestClient.Builder restClientBuilder,
-                                              ObjectMapper objectMapper) {
+                                              RestClient.Builder restClientBuilder) {
         this.properties = properties;
         this.restClient = restClientBuilder.build();
-        this.objectMapper = objectMapper;
+        // Spring Boot 4는 Jackson 3를 자동 구성하므로 Jackson 2 ObjectMapper Bean을 요구하지 않는다.
+        // 이 프로젝트의 기존 외부 API 클라이언트와 같은 방식으로 응답 파서만 내부에서 사용한다.
+        this.objectMapper = new ObjectMapper();
     }
 
     @Override

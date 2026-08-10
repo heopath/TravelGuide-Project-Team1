@@ -1,6 +1,5 @@
 package org.example.all_my_trip_project.domain.accommodation;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.example.all_my_trip_project.domain.accommodation.dto.AccommodationOffer;
 import org.example.all_my_trip_project.domain.accommodation.dto.AccommodationSearchQuery;
 import org.example.all_my_trip_project.domain.accommodation.dto.AccommodationSearchResult;
@@ -44,8 +43,7 @@ class AccommodationProviderTest {
         TourApiProperties properties = new TourApiProperties();
         properties.setBaseUrl(TOUR_API_BASE);
         properties.setServiceKey("test%2Fkey%3D%3D");
-        return new TourFixture(new TourApiAccommodationSearchProvider(
-                properties, builder, new ObjectMapper()), server);
+        return new TourFixture(new TourApiAccommodationSearchProvider(properties, builder), server);
     }
 
     @Test
@@ -95,7 +93,7 @@ class AccommodationProviderTest {
     @DisplayName("서비스키가 없으면 TourAPI provider가 비활성화된다")
     void disablesTourApiWithoutKey() {
         TourApiAccommodationSearchProvider provider = new TourApiAccommodationSearchProvider(
-                new TourApiProperties(), RestClient.builder(), new ObjectMapper());
+                new TourApiProperties(), RestClient.builder());
 
         assertThat(provider.supports(query("부산"))).isFalse();
     }

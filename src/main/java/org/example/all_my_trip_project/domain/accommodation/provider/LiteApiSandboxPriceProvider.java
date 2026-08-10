@@ -59,11 +59,10 @@ public class LiteApiSandboxPriceProvider implements AccommodationPriceProvider {
 
     public LiteApiSandboxPriceProvider(LiteApiSandboxProperties properties,
                                        RestClient.Builder restClientBuilder,
-                                       ObjectMapper objectMapper,
                                        Environment environment) {
         this.properties = properties;
         this.restClient = restClientBuilder.build();
-        this.objectMapper = objectMapper;
+        this.objectMapper = new ObjectMapper();
         this.environment = environment;
     }
 
