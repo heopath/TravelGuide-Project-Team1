@@ -40,7 +40,6 @@ public class TravelRecordService implements TravelRecordAccessGuard {
 
     @Transactional
     public TravelRecordResponse create(Long userId, CreateTravelRecordRequest request) {
-        validateUserId(userId);
         activeMemberGuard.requireActiveMember(userId);
         TravelRecordEntity record = creator.create(userId, request);
         return responseMapper.toResponse(record, List.of());
@@ -86,6 +85,12 @@ public class TravelRecordService implements TravelRecordAccessGuard {
         return reader.getAccessView(viewerUserId, travelRecordId);
     }
 
+    /**
+     * {@link ActiveMemberGuard#requireActiveMember}가 이미 null·존재하지 않는 userId를 전부
+     * {@code UNAUTHORIZED}로 거르므로, 그 계약을 호출하는 {@link #create}에서는 이 검사를 따로 하지 않는다.
+     * {@link #getMyRecords}는 활성 회원 여부까지는 요구하지 않는 단순 조회라 위임할 대상이 없어
+     * 이 최소 검사만 직접 한다(trip 도메인의 {@code TripService#getByUser}와 같은 판단).
+     */
     private void validateUserId(Long userId) {
         if (userId == null || userId < 1) {
             throw new BusinessException(ErrorCode.UNAUTHORIZED);
