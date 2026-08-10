@@ -30,7 +30,10 @@ import static org.mockito.Mockito.when;
 /**
  * {@code TravelRecordService}는 트랜잭션 경계와 협력 객체 호출 순서만 조율한다. 각 협력 클래스의
  * 실제 비즈니스 로직은 해당 클래스의 단위 테스트가 검증하므로, 이 테스트는 "누구를 어떤 순서로
- * 부르는가"와 userId 검증 가드만 확인한다.
+ * 부르는가"만 확인한다. userId 자체의 유효성(미인증) 검사는 위임할 소유권 확인 대상이 있는
+ * update/replaceImages/delete에서는 {@link TravelRecordReader#findOwned}로, 위임 대상이 없는
+ * create/getMyRecords에서만 이 클래스가 직접 한다 — trip 도메인의 {@code TripOwnershipGuard}·
+ * {@code TripService}와 같은 분담이며, {@code TravelRecordReaderTest}가 전자를 검증한다.
  */
 @ExtendWith(MockitoExtension.class)
 class TravelRecordServiceTest {
@@ -134,16 +137,6 @@ class TravelRecordServiceTest {
         InOrder order = inOrder(reader, remover);
         order.verify(reader).findOwned(42L, 1L);
         order.verify(remover).remove(owned);
-    }
-
-    @Test
-    void deleteRejectsUnauthenticatedUser() {
-        assertThatThrownBy(() -> travelRecordService.delete(null, 1L))
-                .isInstanceOf(BusinessException.class)
-                .extracting("errorCode")
-                .isEqualTo(ErrorCode.UNAUTHORIZED);
-
-        verify(reader, never()).findOwned(any(), any());
     }
 
     @Test

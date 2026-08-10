@@ -57,7 +57,6 @@ public class TravelRecordService implements TravelRecordAccessGuard {
 
     @Transactional
     public TravelRecordResponse update(Long userId, Long travelRecordId, UpdateTravelRecordRequest request) {
-        validateUserId(userId);
         TravelRecordEntity record = reader.findOwned(userId, travelRecordId);
         modifier.update(record, request);
         return responseMapper.toResponse(record, reader.findImages(travelRecordId));
@@ -69,7 +68,6 @@ public class TravelRecordService implements TravelRecordAccessGuard {
             Long travelRecordId,
             ReplaceRecordImagesRequest request
     ) {
-        validateUserId(userId);
         TravelRecordEntity record = reader.findOwned(userId, travelRecordId);
         validator.validateImages(request);
         imageReplacer.replace(travelRecordId, request);
@@ -79,7 +77,6 @@ public class TravelRecordService implements TravelRecordAccessGuard {
 
     @Transactional
     public void delete(Long userId, Long travelRecordId) {
-        validateUserId(userId);
         TravelRecordEntity record = reader.findOwned(userId, travelRecordId);
         remover.remove(record);
     }

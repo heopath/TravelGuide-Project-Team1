@@ -37,7 +37,15 @@ class TravelRecordReader {
         return record;
     }
 
+    /**
+     * 쓰기 작업 전용 소유권 확인이다. {@code TripOwnershipGuard.requireOwnedTrip()}과 같은 순서로
+     * userId 자체의 유효성(미인증)을 먼저 확인한 뒤 존재·소유 여부를 확인한다. 조회수 전용인
+     * {@link #findAccessible}은 비로그인 열람(PUBLIC)을 허용해야 하므로 이 검사를 하지 않는다.
+     */
     TravelRecordEntity findOwned(Long userId, Long travelRecordId) {
+        if (userId == null || userId < 1) {
+            throw new BusinessException(ErrorCode.UNAUTHORIZED);
+        }
         TravelRecordEntity record = travelRecordRepository.findByTravelRecordIdAndDeletedAtIsNull(travelRecordId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.RECORD_NOT_FOUND));
         if (!record.isOwnedBy(userId)) {

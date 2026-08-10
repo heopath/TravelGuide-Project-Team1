@@ -18,6 +18,7 @@ import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 /**
@@ -99,6 +100,20 @@ class TravelRecordReaderTest {
                 .isInstanceOf(BusinessException.class)
                 .extracting("errorCode")
                 .isEqualTo(ErrorCode.RECORD_NOT_FOUND);
+    }
+
+    @Test
+    void findOwnedRejectsUnauthenticatedOrInvalidUserIdBeforeLookingUpTheRecord() {
+        assertThatThrownBy(() -> reader.findOwned(null, 1L))
+                .isInstanceOf(BusinessException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.UNAUTHORIZED);
+        assertThatThrownBy(() -> reader.findOwned(0L, 1L))
+                .isInstanceOf(BusinessException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.UNAUTHORIZED);
+
+        verifyNoInteractions(travelRecordRepository);
     }
 
     @Test
