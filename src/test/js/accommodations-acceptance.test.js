@@ -118,8 +118,9 @@ async function run() {
   T("이름순 정렬이 동작한다", d.querySelector(".hotel-card h3").textContent === "가나다 리조트");
 
   d.querySelector('[data-hotel-pick="tour:1"]').click();
-  T("숙소 선택 버튼이 `선택 완료`로 바뀐다",
-    d.querySelector('[data-hotel-pick="tour:1"]').textContent.includes("선택 완료"));
+  T("선택한 숙소 버튼이 `선택 취소`로 바뀐다",
+    d.querySelector('[data-hotel-pick="tour:1"]').textContent.includes("선택 취소")
+      && d.querySelector('[data-hotel-pick="tour:1"]').getAttribute("aria-pressed") === "true");
   T("오른쪽 예약 현황에 선택한 숙소가 표시된다",
     $("rows").textContent.includes("선택 완료 · 가나다 리조트") && $("rows").textContent.includes("요금 미정"));
   T("숙소 선택 완료가 진행 현황에 반영된다", $("dn").textContent === "1" && $("fill").style.width === "33%");
@@ -127,6 +128,17 @@ async function run() {
     $("cTot").textContent === "256,000원" && $("costNote").textContent.includes("숙소 요금 제외"));
   T("선택은 브라우저 상태에만 있고 DB 저장 API를 호출하지 않는다",
     !urls.some((url) => /\/trips\/\d+\/.*accommodation/.test(url)));
+
+  d.querySelector('[data-hotel-pick="tour:1"]').click();
+  T("선택한 숙소 버튼을 다시 누르면 선택이 해제된다",
+    w.__accommodationBooking.state.selectedId === null
+      && !d.querySelector('[data-hotel-offer="tour:1"]').classList.contains("selected")
+      && d.querySelector('[data-hotel-pick="tour:1"]').textContent.includes("이 숙소 선택")
+      && d.querySelector('[data-hotel-pick="tour:1"]').getAttribute("aria-pressed") === "false");
+  T("숙소 선택 해제가 예약 현황과 진행률에 반영된다",
+    $("rows").textContent.includes("선택 전") && $("dn").textContent === "0" && $("fill").style.width === "0%");
+  T("숙소 선택 해제 후 예상 총액에서 숙소 금액이 빠진다",
+    $("cTot").textContent === "256,000원" && $("costNote").textContent.includes("숙소 요금 제외"));
 
   sandboxMode = true;
   $("hotelSearchForm").dispatchEvent(new w.Event("submit", { bubbles: true, cancelable: true }));
@@ -147,6 +159,12 @@ async function run() {
     $("cTot").textContent === "831,240원"
       && $("costNote").textContent.includes("숙소 Sandbox 실습가")
       && $("rows").textContent.includes("575,240원"));
+
+  d.querySelector('[data-hotel-pick="tour:2"]').click();
+  T("가격이 있는 숙소도 선택 취소하면 예상 총액에서 제거된다",
+    $("cTot").textContent === "256,000원"
+      && $("rows").textContent.includes("선택 전")
+      && $("dn").textContent === "0");
 
   console.log(`\n${passed} passed, ${failed} failed`);
   process.exit(failed === 0 ? 0 : 1);

@@ -122,8 +122,9 @@
       </div>
       <div class="hotel-choice">
         ${price(offer)}
-        <button type="button" class="hotel-pick${selected ? " done" : ""}" data-hotel-pick="${esc(offer.offerId)}">
-          ${selected ? "✓ 선택 완료" : "이 숙소 선택"}
+        <button type="button" class="hotel-pick${selected ? " done" : ""}" data-hotel-pick="${esc(offer.offerId)}"
+                aria-pressed="${selected}">
+          ${selected ? "선택 취소" : "이 숙소 선택"}
         </button>
       </div>
     </article>`;
@@ -229,10 +230,12 @@
   function select(offerId) {
     const offer = state.offers.find((item) => item.offerId === offerId);
     if (!offer) return;
-    state.selectedId = offerId;
+
+    const deselected = state.selectedId === offerId;
+    state.selectedId = deselected ? null : offerId;
     render();
     window.dispatchEvent(new CustomEvent("allmytrips:accommodation-selected", {
-      detail: { offer: { ...offer } }
+      detail: { offer: deselected ? null : { ...offer } }
     }));
   }
 

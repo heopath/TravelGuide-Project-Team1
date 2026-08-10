@@ -303,7 +303,10 @@
   color: var(--white); font-size: 12.5px; font-weight: 700;
 }
 .page-flights .hotel-pick:hover { background: var(--primary); }
-.page-flights .hotel-pick.done { background: var(--ok-soft); color: var(--ok); }
+.page-flights .hotel-pick.done {
+  border: 1px solid #fecaca; background: #fff1f2; color: #b42318;
+}
+.page-flights .hotel-pick.done:hover { background: #fee2e2; }
 
 /* ── 우측: 패널 1개 ── */
 .page-flights .side { position: sticky; top: 92px; display: grid; gap: 10px; }
