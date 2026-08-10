@@ -112,6 +112,46 @@ public enum ErrorCode {
     FLIGHT_BOOKING_NOT_FOUND(
             HttpStatus.NOT_FOUND,
             "선택한 항공편을 찾을 수 없습니다."
+    ),
+
+    FORBIDDEN(
+            HttpStatus.FORBIDDEN,
+            "권한이 없습니다."
+    ),
+
+    INVALID_RECORD_REQUEST(
+            HttpStatus.BAD_REQUEST,
+            "여행 기록 요청값이 올바르지 않습니다."
+    ),
+
+    TRIP_NOT_COMPLETED(
+            HttpStatus.BAD_REQUEST,
+            "완료된 여행만 기록을 작성할 수 있습니다."
+    ),
+
+    RECORD_ALREADY_EXISTS(
+            HttpStatus.CONFLICT,
+            "이미 이 여행에 대한 기록이 존재합니다."
+    ),
+
+    RECORD_NOT_FOUND(
+            HttpStatus.NOT_FOUND,
+            "여행 기록을 찾을 수 없습니다."
+    ),
+
+    REPORT_ALREADY_PENDING(
+            HttpStatus.CONFLICT,
+            "이미 처리 대기 중인 신고가 있습니다."
+    ),
+
+    REPORT_NOT_FOUND(
+            HttpStatus.NOT_FOUND,
+            "신고 내역을 찾을 수 없습니다."
+    ),
+
+    INVALID_REPORT_STATUS_TRANSITION(
+            HttpStatus.BAD_REQUEST,
+            "처리할 수 없는 신고 상태입니다."
     );
 
     private final HttpStatus status;
