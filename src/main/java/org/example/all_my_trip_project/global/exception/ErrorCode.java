@@ -152,6 +152,16 @@ public enum ErrorCode {
     INVALID_REPORT_STATUS_TRANSITION(
             HttpStatus.BAD_REQUEST,
             "처리할 수 없는 신고 상태입니다."
+    ),
+
+    INVALID_ACCOMMODATION_PERIOD(
+            HttpStatus.BAD_REQUEST,
+            "체크아웃 날짜는 체크인 다음 날부터 최대 30박까지 지정할 수 있습니다."
+    ),
+
+    INVALID_ACCOMMODATION_DESTINATION(
+            HttpStatus.BAD_REQUEST,
+            "숙소를 검색할 지역을 입력해 주세요."
     );
 
     private final HttpStatus status;
