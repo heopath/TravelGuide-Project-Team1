@@ -35,7 +35,6 @@ public class TravelRecordReportService {
 
     @Transactional
     public TravelRecordReportResponse report(Long reporterUserId, Long travelRecordId, ReportRecordRequest request) {
-        validateUserId(reporterUserId);
         activeMemberGuard.requireActiveMember(reporterUserId);
         TravelRecordReportEntity report = creator.create(reporterUserId, travelRecordId, request);
         return toResponse(report);
@@ -78,6 +77,12 @@ public class TravelRecordReportService {
         );
     }
 
+    /**
+     * {@link ActiveMemberGuard#requireActiveMember}가 이미 null·존재하지 않는 userId를 전부
+     * {@code UNAUTHORIZED}로 거르므로, 그 계약을 호출하는 {@link #report}에서는 이 검사를 따로 하지 않는다.
+     * {@link #getReports}·{@link #process}는 활성 회원 여부가 아니라 ADMIN 권한이 관건이고(권한 검사
+     * 자체는 컨트롤러가 한다) 위임할 소유권 가드도 없어 이 최소 검사만 직접 한다.
+     */
     private void validateUserId(Long userId) {
         if (userId == null || userId < 1) {
             throw new BusinessException(ErrorCode.UNAUTHORIZED);

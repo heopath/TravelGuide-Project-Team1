@@ -18,6 +18,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -57,7 +58,12 @@ class TravelRecordReportServiceTest {
     }
 
     @Test
-    void reportRejectsUnauthenticatedReporter() {
+    void reportPropagatesActiveMemberGuardRejectionWithoutCallingCreator() {
+        // ActiveMemberGuard 구현체(MemberService#validateMember)가 이미 null·미존재 userId를
+        // 전부 UNAUTHORIZED로 거르므로, report()는 그 검사를 따로 하지 않고 위임만 한다.
+        doThrow(new BusinessException(ErrorCode.UNAUTHORIZED))
+                .when(activeMemberGuard).requireActiveMember(null);
+
         assertThatThrownBy(() -> reportService.report(null, 1L, request()))
                 .isInstanceOf(BusinessException.class)
                 .extracting("errorCode")
