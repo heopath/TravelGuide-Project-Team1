@@ -1,8 +1,8 @@
 package org.example.all_my_trip_project.domain.rag.service;
 
 import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
 import org.springframework.ai.document.Document;
 import org.springframework.ai.embedding.Embedding;
 import org.springframework.ai.embedding.EmbeddingModel;
@@ -21,6 +21,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * Docker PostgreSQL의 V10 스키마를 실제로 사용하는 통합 테스트다.
  * 외부 API 비용을 발생시키지 않도록 고정 임베딩 모델을 사용한다.
  */
+@EnabledIfEnvironmentVariable(named = "RAG_LOCAL_INTEGRATION_TEST", matches = "true")
 class PgVectorStoreLocalIntegrationTest {
 
     private static final String BUSAN_ID = "11111111-1111-1111-1111-111111111111";
@@ -39,9 +40,6 @@ class PgVectorStoreLocalIntegrationTest {
 
     @Test
     void storesAndSearches1536DimensionVectorsInLocalPgvector() {
-        Assumptions.assumeTrue("true".equalsIgnoreCase(System.getenv("RAG_LOCAL_INTEGRATION_TEST")),
-                "Set RAG_LOCAL_INTEGRATION_TEST=true to run against local Docker PostgreSQL");
-
         PgVectorStore store = PgVectorStore.builder(jdbcTemplate, new KeywordEmbeddingModel())
                 .dimensions(1536)
                 .initializeSchema(false)
