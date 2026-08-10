@@ -124,11 +124,11 @@
               <div class="panel" id="panel-hotel" hidden>
                 <div class="hotel-head">
                   <div>
-                    <span class="hotel-kicker">한국관광공사 TourAPI</span>
+                    <span class="hotel-kicker" id="hotelListingSource">숙소 정보 출처 확인 중</span>
                     <h2>여행지 숙소 찾기</h2>
                     <p>숙소 정보부터 비교하고 선택해 두세요. 실시간 요금은 다음 단계에서 연결합니다.</p>
                   </div>
-                  <span class="hotel-price-ready" id="hotelPriceMode">TourAPI 정보 · 가격 조회 전</span>
+                  <span class="hotel-price-ready" id="hotelPriceMode">가격 정보 확인 중</span>
                 </div>
 
                 <form class="hotel-form" id="hotelSearchForm">
@@ -158,6 +158,7 @@
                 <div class="hotel-toolbar">
                   <div class="hotel-sort" aria-label="숙소 정렬">
                     <button type="button" class="hotel-sort-button on" data-hotel-sort="recommended">추천순</button>
+                    <button type="button" class="hotel-sort-button" data-hotel-sort="price">최저가순</button>
                     <button type="button" class="hotel-sort-button" data-hotel-sort="name">이름순</button>
                     <button type="button" class="hotel-sort-button" data-hotel-sort="type">숙소 유형순</button>
                   </div>
