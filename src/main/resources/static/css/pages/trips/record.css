@@ -3,6 +3,129 @@ body.page-record #page-content {
   min-height: calc(100vh - 78px);
 }
 
+/* .record-layout(display:grid)·.notice(display:flex) 등 자체 display를 지정하는
+   공용 클래스는 hidden 속성의 기본 display:none보다 우선 적용되므로 명시적으로 되돌린다. */
+body.page-record [hidden] {
+  display: none !important;
+}
+
+body.page-record .record-status {
+  margin: 40px 0;
+  color: var(--muted);
+  text-align: center;
+}
+
+body.page-record .field-error {
+  min-height: 20px;
+  margin: 6px 0 0;
+  color: #d93025;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+body.page-record .record-image-empty {
+  grid-column: 1 / -1;
+  display: grid;
+  place-items: center;
+  min-height: 120px;
+  border: 1px dashed #b9c4d8;
+  border-radius: 14px;
+  background: var(--surface);
+  color: var(--muted);
+  font-size: 13px;
+}
+
+body.page-record .record-image-tile {
+  position: relative;
+  background-size: cover;
+  background-position: center;
+  background-color: var(--surface);
+}
+
+body.page-record .record-image-tile.featured {
+  grid-row: span 2;
+}
+
+body.page-record .record-image-remove {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 26px;
+  height: 26px;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(20, 24, 34, 0.65);
+  color: #fff;
+  font-size: 15px;
+  line-height: 1;
+}
+
+body.page-record .record-image-cover-button {
+  position: absolute;
+  left: 8px;
+  bottom: 8px;
+  padding: 5px 10px;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(20, 24, 34, 0.65);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 750;
+}
+
+body.page-record .record-image-form {
+  margin-top: 18px;
+  padding-top: 18px;
+  border-top: 1px solid var(--border);
+}
+
+body.page-record .record-image-cover {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 14px;
+  color: var(--navy);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+body.page-record .record-image-cover input {
+  width: auto;
+}
+
+body.page-record .record-rating {
+  display: flex;
+  gap: 6px;
+  margin: 20px 0;
+  font-size: 24px;
+}
+
+body.page-record .record-rating button {
+  border: 0;
+  background: transparent;
+  color: #d8dee8;
+  cursor: pointer;
+}
+
+body.page-record .record-rating button.active {
+  color: #ffbb35;
+}
+
+body.page-record .record-delete {
+  margin-top: 18px;
+}
+
+body.page-record .record-delete-confirm {
+  margin-top: 12px;
+}
+
+body.page-record .record-delete-actions {
+  margin-top: 14px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
 @media (max-width: 760px) {
   body.page-record #page-content {
     min-height: calc(100vh - 64px);

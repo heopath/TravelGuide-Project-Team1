@@ -335,15 +335,15 @@ Cookie: JSESSIONID=세션값
 
 아래 항목은 이 문서를 쓰면서 발견했지만 기존 기획 문서([backend-service-role-plan.md](../backend-service-role-plan.md), [trip-service-structure.md](../trip-service-structure.md))에 명시적인 답이 없어 확정하지 않았다. `trips/record.js` 연동 전에 GitHub 이슈에서 논의해 확정한다.
 
-1. **이미지 업로드 경로 미정**: `PUT .../images`는 완성된 `imageUrl`만 받는다. 프론트가 파일을 어디로 업로드해서 URL을 받는지(별도 업로드 API? 외부 스토리지 직접 업로드?) 정해진 바가 없다.
-2. **목록 페이지네이션 없음**: `GET /me`가 전체 목록을 한 번에 반환한다. 장소·즐겨찾기 API처럼 `page`/`size`가 필요한지 마이페이지 화면 요구사항에 따라 결정이 필요하다.
-3. **공개 기록 피드(다른 사용자의 `PUBLIC` 기록 열람) 없음**: 현재는 단건 조회(`GET /{id}`)와 "내 기록" 목록만 있고, 다른 사용자의 공개 기록을 둘러보는 목록 API는 없다. `trips/record` 화면이 이런 소셜 피드를 요구하는지 확인이 필요하다.
+1. ~~**이미지 업로드 경로 미정**~~ — 결정됨(이슈 #144). 별도 업로드 API를 지금 만들지 않고, `trips/record.js`가 이미지 URL을 직접 입력받아 `PUT .../images`에 그대로 넘기는 방식으로 연동했다. 실제 업로드(스토리지) API는 이 이슈 범위 밖이라 후속 이슈로 분리한다.
+2. ~~**목록 페이지네이션 없음**~~ — 결정됨(이슈 #144). `trips/record.js`는 여행 1건당 기록 1건만 다루는 단일 레코드 편집 화면이라 목록 자체가 없다. "내 기록 목록" 같은 실제 목록 화면(마이페이지 등)이 생길 때 페이지네이션 필요 여부를 다시 결정한다.
+3. ~~**공개 기록 피드 없음**~~ — 결정됨(이슈 #144). `trips/record.html`은 본인 소유 완료 여행 1건의 기록만 다루는 화면(`TripService.get()`이 타인 소유는 404)이라 이번 연동 범위에 포함하지 않는다.
 
 ## 12. 완료 기준
 
 - [x] 요청·응답 DTO 필드 확정
 - [x] 오류 코드와 HTTP 상태 확정
 - [x] 백엔드 컴파일·단위 배선 확인
-- [ ] 페이지 담당자(남현호) 검수 — 11절 미확정 항목 확정
-- [ ] `trips/record.html` / `static/js/pages/trips/record.js` 실제 연동
-- [ ] 통합·단위 테스트 작성
+- [x] 페이지 담당자(남현호) 검수 — 11절 미확정 항목 확정(이슈 #144 댓글 참고)
+- [x] `trips/record.html` / `static/js/pages/trips/record.js` 실제 연동
+- [ ] 통합·단위 테스트 작성 — 백엔드 서비스 단위 테스트만 있음(`TravelRecordServiceTest` 등). `TravelRecordController` 통합 테스트와 `record.js` 프론트 테스트는 아직 없다.
