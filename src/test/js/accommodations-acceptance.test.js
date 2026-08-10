@@ -43,6 +43,12 @@ const sandboxHotel = () => ({
   freeCancellation: true, breakfastIncluded: true
 });
 
+const mockHotel = () => ({
+  ...hotel("mock:1", "개발용 샘플 호텔", "호텔"),
+  provider: "mock", nightlyPrice: 42000, totalPrice: 84000,
+  priceSource: "MOCK", priceSourceLabel: "샘플"
+});
+
 function json(body) {
   return { ok: true, status: 200, json: async () => body };
 }
@@ -62,6 +68,7 @@ function until(predicate, timeoutMs = 4000) {
 async function run() {
   const urls = [];
   let sandboxMode = false;
+  let mockMode = false;
   const dom = new JSDOM(fs.readFileSync(HTML, "utf8"), {
     url: "http://localhost/booking/flights?tab=hotel&destination=CJU&date=2026-08-17&returnDate=2026-08-19&adults=2",
     runScripts: "outside-only"
@@ -80,13 +87,15 @@ async function run() {
     }
     if (url.startsWith("/api/v1/accommodations/search")) {
       return json({ success: true, data: {
-        offers: [sandboxMode ? sandboxHotel() : hotel("tour:2", "제주 바다 호텔", "호텔"),
-          hotel("tour:1", "가나다 리조트", "콘도미니엄")],
+        offers: mockMode ? [mockHotel()]
+          : sandboxMode ? [hotel("tour:1", "가나다 리조트", "콘도미니엄"), sandboxHotel()]
+            : [hotel("tour:2", "제주 바다 호텔", "호텔"), hotel("tour:1", "가나다 리조트", "콘도미니엄")],
         meta: {
-          listingProvider: "tourapi", priceProvider: sandboxMode ? "liteapi-sandbox" : null,
-          matchedPriceCount: sandboxMode ? 1 : 0, totalCount: 2,
-          nights: 2, priceSource: sandboxMode ? "SANDBOX" : "UNAVAILABLE",
-          priceSourceNotice: sandboxMode
+          listingProvider: mockMode ? "mock" : "tourapi",
+          priceProvider: sandboxMode && !mockMode ? "liteapi-sandbox" : null,
+          matchedPriceCount: sandboxMode && !mockMode ? 1 : 0, totalCount: mockMode ? 1 : 2,
+          nights: 2, priceSource: mockMode ? "MOCK" : sandboxMode ? "SANDBOX" : "UNAVAILABLE",
+          priceSourceNotice: mockMode ? "개발용 샘플 데이터입니다." : sandboxMode
             ? "LiteAPI Sandbox 실습용 요금입니다. 실제 예약 가능 여부나 결제 금액이 아닙니다."
             : "이 지역은 요금 정보가 제공되지 않아 예약 사이트에서 확인해야 해요."
         }
@@ -113,6 +122,9 @@ async function run() {
   T("받아온 숙소 카드가 모두 표시된다", d.querySelectorAll(".hotel-card").length === 2);
   T("TourAPI에 없는 가격을 0원으로 표시하지 않는다",
     [...d.querySelectorAll(".hotel-card")].every((card) => card.textContent.includes("요금 미제공") && !card.textContent.includes("0원")));
+  T("TourAPI 목록과 가격 미제공 상태를 실제 출처대로 표시한다",
+    $("hotelListingSource").textContent.includes("한국관광공사 TourAPI")
+      && $("hotelPriceMode").textContent.includes("TourAPI 정보 · 가격 미제공"));
 
   d.querySelector('[data-hotel-sort="name"]').click();
   T("이름순 정렬이 동작한다", d.querySelector(".hotel-card h3").textContent === "가나다 리조트");
@@ -140,6 +152,16 @@ async function run() {
   T("숙소 선택 해제 후 예상 총액에서 숙소 금액이 빠진다",
     $("cTot").textContent === "256,000원" && $("costNote").textContent.includes("숙소 요금 제외"));
 
+  mockMode = true;
+  $("hotelSearchForm").dispatchEvent(new w.Event("submit", { bubbles: true, cancelable: true }));
+  await until(() => w.__accommodationBooking.state.meta?.listingProvider === "mock"
+    && !w.__accommodationBooking.state.loading);
+  T("Mock 폴백이면 상단 목록 출처와 가격 출처를 Mock으로 표시한다",
+    $("hotelListingSource").textContent.includes("개발용 Mock 데이터")
+      && $("hotelPriceMode").textContent.includes("Mock 개발용 샘플 가격")
+      && $("hotelSourceNote").textContent.includes("개발용 샘플 데이터"));
+
+  mockMode = false;
   sandboxMode = true;
   $("hotelSearchForm").dispatchEvent(new w.Event("submit", { bubbles: true, cancelable: true }));
   await until(() => w.__accommodationBooking.state.meta?.priceProvider === "liteapi-sandbox"
@@ -153,6 +175,10 @@ async function run() {
   T("무료 취소와 조식 포함 조건을 표시한다",
     d.querySelector('[data-hotel-offer="tour:2"]').textContent.includes("무료 취소 가능")
       && d.querySelector('[data-hotel-offer="tour:2"]').textContent.includes("조식 포함"));
+
+  d.querySelector('[data-hotel-sort="price"]').click();
+  T("최저가순은 가격이 있는 숙소를 가격 없는 숙소보다 먼저 표시한다",
+    d.querySelector(".hotel-card").dataset.hotelOffer === "tour:2");
 
   d.querySelector('[data-hotel-pick="tour:2"]').click();
   T("선택한 Sandbox KRW 요금은 예상 총액에 실습가로 반영한다",

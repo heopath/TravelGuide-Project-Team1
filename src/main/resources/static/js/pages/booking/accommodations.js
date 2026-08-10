@@ -61,6 +61,15 @@
 
   function sortedOffers() {
     const list = state.offers.slice();
+    if (state.sort === "price") {
+      return list.sort((a, b) => {
+        if (hasPrice(a) !== hasPrice(b)) return hasPrice(a) ? -1 : 1;
+        if (hasPrice(a) && Number(a.totalPrice) !== Number(b.totalPrice)) {
+          return Number(a.totalPrice) - Number(b.totalPrice);
+        }
+        return String(a.name).localeCompare(String(b.name), "ko");
+      });
+    }
     if (state.sort === "name") {
       return list.sort((a, b) => String(a.name).localeCompare(String(b.name), "ko"));
     }
@@ -151,10 +160,22 @@
     const note = state.meta?.priceSourceNotice || "";
     $("hotelSourceNote").textContent = note;
     $("hotelSourceNote").hidden = !note || state.loading;
-    $("hotelPriceMode").textContent = state.meta?.priceProvider === "liteapi-sandbox"
-      ? `LiteAPI Sandbox · 실습 요금 ${state.meta.matchedPriceCount}곳`
-      : "TourAPI 정보 · 가격 미제공";
-    $("hotelPriceMode").classList.toggle("sandbox", state.meta?.priceProvider === "liteapi-sandbox");
+    const listingProvider = state.meta?.listingProvider;
+    const sandboxPrice = state.meta?.priceProvider === "liteapi-sandbox";
+    const mockListing = listingProvider === "mock";
+
+    $("hotelListingSource").textContent = state.loading
+      ? "숙소 정보 조회 중"
+      : mockListing ? "개발용 Mock 데이터"
+        : listingProvider === "tourapi" ? "한국관광공사 TourAPI" : "숙소 정보 출처 확인 중";
+    $("hotelListingSource").classList.toggle("mock", mockListing);
+
+    $("hotelPriceMode").textContent = state.loading
+      ? "가격 정보 조회 중"
+      : sandboxPrice ? `LiteAPI Sandbox · 실습 요금 ${state.meta.matchedPriceCount}곳`
+        : mockListing ? "Mock 개발용 샘플 가격" : "TourAPI 정보 · 가격 미제공";
+    $("hotelPriceMode").classList.toggle("sandbox", sandboxPrice);
+    $("hotelPriceMode").classList.toggle("mock", mockListing);
   }
 
   function showError(message) {
@@ -200,6 +221,7 @@
 
     state.loading = true;
     state.searched = true;
+    state.meta = null;
     render();
     $("hotelSearchButton").disabled = true;
 
