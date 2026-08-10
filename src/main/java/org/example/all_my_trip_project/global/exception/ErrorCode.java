@@ -112,6 +112,16 @@ public enum ErrorCode {
     FLIGHT_BOOKING_NOT_FOUND(
             HttpStatus.NOT_FOUND,
             "선택한 항공편을 찾을 수 없습니다."
+    ),
+
+    INVALID_ACCOMMODATION_PERIOD(
+            HttpStatus.BAD_REQUEST,
+            "체크아웃 날짜는 체크인 다음 날부터 최대 30박까지 지정할 수 있습니다."
+    ),
+
+    INVALID_ACCOMMODATION_DESTINATION(
+            HttpStatus.BAD_REQUEST,
+            "숙소를 검색할 지역을 입력해 주세요."
     );
 
     private final HttpStatus status;
