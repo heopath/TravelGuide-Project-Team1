@@ -191,6 +191,136 @@ body.page-admin #page-content {
 .page-admin .admin-perf span { color: var(--muted); font-size: 12px; font-weight: 700; }
 .page-admin .admin-perf strong { color: var(--navy); font-size: 18px; }
 
+/* ── 상담 채팅 ──
+   왼쪽 방 목록 + 오른쪽 대화. 방이 여러 개라 목록과 대화를 동시에 봐야 한다. */
+.page-admin .admin-chat {
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  min-height: 460px;
+  padding: 0;
+  overflow: hidden;
+}
+
+.page-admin .admin-chat-rooms {
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid var(--border);
+  background: #fbfcfe;
+}
+.page-admin .admin-chat-search { padding: 14px; border-bottom: 1px solid var(--border); }
+.page-admin .admin-chat-search input {
+  width: 100%;
+  height: 38px;
+  padding: 0 12px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: #fff;
+  font-size: 12.5px;
+}
+.page-admin .admin-chat-search input:disabled { background: #f2f4f9; color: #a5aec1; }
+
+.page-admin .admin-chat-room-list { flex: 1; overflow-y: auto; }
+/* 방이 없을 때는 목록이 자리를 차지하지 않게 두고, 안내 문구를 가운데에 세운다. */
+.page-admin .admin-chat-room-list:empty { flex: 0; }
+.page-admin .admin-chat-rooms .admin-empty {
+  flex: 1;
+  display: grid;
+  place-items: center;
+  padding: 20px 16px;
+  line-height: 1.5;
+}
+.page-admin .admin-chat-room {
+  width: 100%;
+  padding: 13px 14px;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 4px 8px;
+  border: 0;
+  border-bottom: 1px solid #eef1f7;
+  background: transparent;
+  text-align: left;
+}
+.page-admin .admin-chat-room.on { background: var(--primary-soft, #eef0ff); }
+.page-admin .admin-chat-room strong { color: var(--navy); font-size: 13px; }
+.page-admin .admin-chat-room small {
+  grid-column: 1 / -1;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 11.5px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.page-admin .admin-chat-unread {
+  min-width: 19px;
+  height: 19px;
+  padding: 0 5px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  background: #e5484d;
+  color: #fff;
+  font-size: 10.5px;
+  font-weight: 800;
+}
+
+.page-admin .admin-chat-thread { display: flex; flex-direction: column; }
+.page-admin .admin-chat-thread-head {
+  padding: 15px 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-bottom: 1px solid var(--border);
+}
+.page-admin .admin-chat-thread-head strong { display: block; color: var(--navy); font-size: 14px; }
+.page-admin .admin-chat-thread-head small { display: block; margin-top: 3px; color: var(--muted); font-size: 11.5px; }
+.page-admin .admin-chat-takeover {
+  padding: 8px 14px;
+  border: 1px solid var(--primary);
+  border-radius: 9px;
+  background: #fff;
+  color: var(--primary);
+  font-size: 12px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+.page-admin .admin-chat-takeover:disabled { border-color: var(--border); color: #a5aec1; }
+
+.page-admin .admin-chat-messages { flex: 1; padding: 18px; display: grid; gap: 10px; align-content: start; overflow-y: auto; }
+.page-admin .admin-chat-messages:empty { padding: 0; }
+
+.page-admin .admin-chat-composer {
+  padding: 12px 14px;
+  display: grid;
+  grid-template-columns: 1fr 88px;
+  gap: 8px;
+  border-top: 1px solid var(--border);
+}
+.page-admin .admin-chat-composer input {
+  height: 42px;
+  padding: 0 13px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font-size: 13px;
+}
+.page-admin .admin-chat-composer input:disabled { background: #f2f4f9; color: #a5aec1; }
+.page-admin .admin-chat-composer .primary-button { min-height: 42px; }
+
+.page-admin .sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+@media (max-width: 1080px) {
+  .page-admin .admin-chat { grid-template-columns: 1fr; }
+  .page-admin .admin-chat-rooms { border-right: 0; border-bottom: 1px solid var(--border); }
+  .page-admin .admin-chat-room-list { max-height: 220px; }
+}
+
 @media (max-width: 1080px) {
   .page-admin .admin-columns { grid-template-columns: 1fr; }
   .page-admin .admin-metric-row { grid-template-columns: repeat(2, 1fr); }

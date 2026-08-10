@@ -32,7 +32,9 @@
   const state = {
     reportStatus: "",
     reports: [],
-    loading: false
+    loading: false,
+    /* 상담 채팅은 화면만 있고 연동 전이다. 선택한 필터만 기억한다. */
+    chatFilter: ""
   };
 
   const date = (value) => {
@@ -129,7 +131,12 @@
     if (!response.ok || !payload?.success) {
       state.reports = [];
       renderReports();
-      $("reportEmpty").textContent = payload?.message || "신고 목록을 불러오지 못했어요.";
+      /*
+       * message를 그대로 쓰지 않는다. 우리 ApiResponse가 아닌 응답(404 기본 오류 등)에는
+       * "No static resource ..." 같은 내부 문구가 들어 있어 사용자에게 보일 말이 아니다.
+       */
+      const ours = payload && typeof payload.success === "boolean" && payload.message;
+      $("reportEmpty").textContent = ours || "신고 목록을 불러오지 못했어요.";
       return;
     }
 
@@ -150,6 +157,19 @@
 
     /* 저장 API가 없어 입력과 버튼을 막아뒀지만, 엔터 제출까지는 막지 못한다. */
     $("themeForm").addEventListener("submit", (event) => event.preventDefault());
+    $("chatComposer").addEventListener("submit", (event) => event.preventDefault());
+
+    /*
+     * 상담 상태 필터는 눌린 것만 표시하고 조회는 하지 않는다.
+     * WebSocket과 방 목록 API가 붙으면 여기서 room 조회를 건다.
+     */
+    document.querySelectorAll("[data-chat-filter]").forEach((button) => {
+      button.addEventListener("click", () => {
+        document.querySelectorAll("[data-chat-filter]").forEach((item) => item.classList.remove("on"));
+        button.classList.add("on");
+        state.chatFilter = button.dataset.chatFilter;
+      });
+    });
   }
 
   function init() {

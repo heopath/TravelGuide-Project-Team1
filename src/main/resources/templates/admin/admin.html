@@ -171,11 +171,75 @@
               </div>
             </section>
           </div>
+
+          <!--
+            상담 채팅. 피그마에 없는 화면이라 구조만 먼저 잡는다.
+            사용자 한 명당 방 하나이고, 그 방을 봇이 받다가 관리자가 넘겨받는 모델이다.
+            그래서 방 목록에 "누가 응대 중인지"가 상태로 들어간다.
+
+            WebSocket 연동 전이라 목록과 대화는 비어 있고 입력창도 막아둔다.
+            가짜 대화를 넣어두면 붙였을 때 무엇이 진짜인지 구분이 안 된다.
+          -->
+          <section class="admin-section" aria-labelledby="chatTitle">
+            <div class="admin-section-head">
+              <h2 id="chatTitle">상담 채팅</h2>
+              <span class="admin-tag" data-admin-state="chat">연동 전</span>
+              <div class="admin-filter" role="group" aria-label="상담 상태 필터">
+                <button type="button" class="admin-chip on" data-chat-filter="">전체</button>
+                <button type="button" class="admin-chip" data-chat-filter="BOT">봇 응대 중</button>
+                <button type="button" class="admin-chip" data-chat-filter="WAITING">대기</button>
+                <button type="button" class="admin-chip" data-chat-filter="ASSIGNED">내 담당</button>
+                <button type="button" class="admin-chip" data-chat-filter="CLOSED">종료</button>
+              </div>
+            </div>
+
+            <div class="white-panel admin-chat">
+              <div class="admin-chat-rooms">
+                <label class="admin-chat-search">
+                  <span class="sr-only">상담 검색</span>
+                  <input id="chatSearch" type="search" placeholder="닉네임·문의 내용 검색" disabled />
+                </label>
+                <div id="chatRoomList" class="admin-chat-room-list"></div>
+                <p class="admin-empty" id="chatRoomEmpty" role="status">
+                  상담 채팅 연동 후 문의 중인 사용자가 여기에 쌓여요.
+                </p>
+              </div>
+
+              <div class="admin-chat-thread">
+                <div class="admin-chat-thread-head">
+                  <div>
+                    <strong id="chatPeerName">대화를 선택해 주세요</strong>
+                    <small id="chatPeerMeta">왼쪽 목록에서 상담을 고르면 대화가 열려요.</small>
+                  </div>
+                  <button type="button" class="admin-chat-takeover" id="chatTakeover" disabled>
+                    내가 응대하기
+                  </button>
+                </div>
+
+                <div id="chatMessages" class="admin-chat-messages"></div>
+                <p class="admin-empty" id="chatMessageEmpty" role="status">
+                  아직 연동되지 않았어요. WebSocket이 붙으면 실시간으로 대화가 표시돼요.
+                </p>
+
+                <form class="admin-chat-composer" id="chatComposer">
+                  <label class="sr-only" for="chatInput">답장 입력</label>
+                  <input id="chatInput" autocomplete="off" placeholder="연동 후 답장할 수 있어요" disabled />
+                  <button type="submit" class="primary-button" id="chatSend" disabled>보내기</button>
+                </form>
+              </div>
+            </div>
+            <p class="admin-hint">
+              봇이 먼저 받고 관리자가 넘겨받는 구조예요. 넘겨받는 시점과 관리자가 없을 때의 동작은
+              연동 전에 정해야 해요.
+            </p>
+          </section>
         </section>
       </main>
       <div th:replace="~{fragments/modals :: modalRoots}"><div id="directory-root"></div><div id="modal-root"></div><div id="toast-root" aria-live="polite"></div></div>
       <div th:replace="~{fragments/footer :: footer}"></div>
     </div>
     <div th:replace="~{fragments/scripts :: appScripts}"></div>
+    <!-- 공통 스크립트 프래그먼트는 페이지 JS를 포함하지 않는다. 다른 페이지와 같이 직접 건다. -->
+    <script th:src="@{/js/pages/admin/admin.js}" src="../../static/js/pages/admin/admin.js"></script>
   </body>
 </html>

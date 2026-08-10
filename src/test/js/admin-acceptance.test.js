@@ -79,11 +79,18 @@ async function run() {
       !markup.includes("1,284") && !markup.includes("328명") && !markup.includes("0.18%"));
     T("이전 하드코딩 상품명이 남아 있지 않다",
       !markup.includes("성산일출봉") && !markup.includes("에버랜드") && !markup.includes("빛의 벙커"));
+
+    /*
+     * 공통 스크립트 프래그먼트는 페이지 JS를 포함하지 않는다. 페이지가 직접 걸어야 하는데
+     * 이 태그가 빠져 있어서 기존 admin.js는 한 번도 실행되지 않는 죽은 코드였다.
+     * 아래 테스트들은 JS를 직접 eval하므로 이 누락을 잡지 못한다. 마크업에서 확인한다.
+     */
+    T("페이지 스크립트를 실제로 불러온다", markup.includes("/js/pages/admin/admin.js"));
   }
 
   /* ── 화면 구성: 피그마 No 21-21의 블록이 모두 있다 ── */
   {
-    const { d } = await boot(() => ok([]));
+    const { w, d } = await boot(() => ok([]));
     const headings = [...d.querySelectorAll(".admin-section-head h2")].map((el) => el.textContent);
 
     T("운영 지표 블록이 있다", headings.includes("운영 지표"));
@@ -100,6 +107,27 @@ async function run() {
     T("저장 API가 없는 테마 폼은 제출을 막아둔다",
       d.getElementById("themeSubmit").disabled
         && [...d.querySelectorAll("#themeForm input")].every((input) => input.disabled));
+
+    /* ── 상담 채팅: 방 목록 + 대화. 연동 전이라 비어 있고 입력이 막혀 있어야 한다 ── */
+    T("상담 채팅 블록이 있다", headings.includes("상담 채팅"));
+    T("방 목록과 대화창이 함께 있다",
+      Boolean(d.getElementById("chatRoomList")) && Boolean(d.getElementById("chatMessages")));
+    T("봇→관리자 전환 버튼 자리가 있다", Boolean(d.getElementById("chatTakeover")));
+    T("상담 상태 필터가 봇·대기·내 담당·종료를 구분한다",
+      ["BOT", "WAITING", "ASSIGNED", "CLOSED"]
+        .every((value) => d.querySelector(`[data-chat-filter="${value}"]`)));
+    T("연동 전에는 가짜 대화를 넣지 않는다",
+      d.getElementById("chatRoomList").children.length === 0
+        && d.getElementById("chatMessages").children.length === 0);
+    T("연동 전에는 답장 입력을 막아둔다",
+      d.getElementById("chatInput").disabled
+        && d.getElementById("chatSend").disabled
+        && d.getElementById("chatTakeover").disabled);
+
+    d.querySelector('[data-chat-filter="WAITING"]').click();
+    T("상담 필터는 선택만 바뀌고 조회는 하지 않는다",
+      w.__adminDashboard.state.chatFilter === "WAITING"
+        && d.querySelectorAll('[data-chat-filter].on').length === 1);
   }
 
   /* ── 신고 목록: 유일하게 실제로 붙어 있는 API ── */
@@ -119,9 +147,10 @@ async function run() {
     d.querySelector('[data-report-status="PENDING"]').click();
     await until(() => calls.some((url) => url.includes("status=PENDING")));
     T("상태 필터가 쿼리로 전달된다", calls.some((url) => url.includes("status=PENDING")));
+    /* 상담 채팅에도 필터가 있으므로 신고 쪽 그룹으로 좁혀서 본다. */
     T("선택한 필터만 활성 표시된다",
-      d.querySelectorAll(".admin-chip.on").length === 1
-        && d.querySelector(".admin-chip.on").dataset.reportStatus === "PENDING");
+      d.querySelectorAll("[data-report-status].on").length === 1
+        && d.querySelector("[data-report-status].on").dataset.reportStatus === "PENDING");
     T("api 상태에 선택한 필터가 남는다", api.state.reportStatus === "PENDING");
   }
 
@@ -143,6 +172,19 @@ async function run() {
     T("비로그인은 오류로 구분해 표시한다",
       d.getElementById("adminAuthNotice").classList.contains("error")
         && d.getElementById("adminAuthNotice").textContent.includes("로그인"));
+  }
+
+  /* ── 우리 응답 규격이 아닌 오류는 서버 내부 문구를 그대로 보여주지 않는다 ── */
+  {
+    const { d } = await boot(() => ({
+      ok: false, status: 404,
+      json: async () => ({ timestamp: "...", status: 404, error: "Not Found",
+        message: "No static resource api/v1/travel-record-reports." })
+    }));
+
+    T("서버 내부 오류 문구를 화면에 그대로 노출하지 않는다",
+      !d.getElementById("reportEmpty").textContent.includes("No static resource")
+        && d.getElementById("reportEmpty").textContent.includes("불러오지 못했어요"));
   }
 
   /* ── 신고가 하나도 없을 때 ── */
