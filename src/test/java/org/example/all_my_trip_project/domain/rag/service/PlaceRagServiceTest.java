@@ -7,10 +7,12 @@ import org.springframework.ai.document.Document;
 import org.springframework.ai.vectorstore.VectorStore;
 
 import java.util.List;
+import java.util.stream.IntStream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -35,6 +37,25 @@ class PlaceRagServiceTest {
         Document document = captor.getValue().getFirst();
         assertThat(document.getId()).matches("[0-9a-f-]{36}");
         assertThat(document.getText()).contains("광안리 해수욕장", "부산");
+    }
+
+    @Test
+    void indexesMoreThanNinetySixPlacesInSeparateCohereBatches() {
+        List<PlaceDTO> places = IntStream.rangeClosed(1, 97)
+                .mapToObj(index -> PlaceDTO.builder()
+                        .placeId((long) index)
+                        .name("Place " + index)
+                        .region("Busan")
+                        .category("CAFE")
+                        .build())
+                .toList();
+        when(placeDAO.findAll()).thenReturn(places);
+
+        assertThat(service.reindexAllPlaces()).isEqualTo(97);
+
+        org.mockito.ArgumentCaptor<List<Document>> captor = org.mockito.ArgumentCaptor.forClass(List.class);
+        verify(vectorStore, times(2)).add(captor.capture());
+        assertThat(captor.getAllValues()).extracting(List::size).containsExactly(96, 1);
     }
 
     @Test

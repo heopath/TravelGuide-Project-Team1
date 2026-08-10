@@ -23,6 +23,8 @@ import java.util.UUID;
 public class PlaceRagService {
 
     private static final int TOP_K = 3;
+    /** Cohere Embed v2 accepts at most 96 texts in one request. */
+    private static final int EMBEDDING_BATCH_SIZE = 96;
     private final PlaceDAO placeDAO;
     private final VectorStore vectorStore;
 
@@ -34,7 +36,10 @@ public class PlaceRagService {
         if (documents.isEmpty()) {
             return 0;
         }
-        vectorStore.add(documents);
+        for (int start = 0; start < documents.size(); start += EMBEDDING_BATCH_SIZE) {
+            int end = Math.min(start + EMBEDDING_BATCH_SIZE, documents.size());
+            vectorStore.add(documents.subList(start, end));
+        }
         return documents.size();
     }
 
