@@ -1,0 +1,62 @@
+package org.example.all_my_trip_project.domain.rag.service;
+
+import org.example.all_my_trip_project.domain.place.dao.PlaceDAO;
+import org.example.all_my_trip_project.domain.place.dto.PlaceDTO;
+import org.junit.jupiter.api.Test;
+import org.springframework.ai.document.Document;
+import org.springframework.ai.vectorstore.VectorStore;
+
+import java.util.List;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+class PlaceRagServiceTest {
+
+    private final PlaceDAO placeDAO = mock(PlaceDAO.class);
+    private final VectorStore vectorStore = mock(VectorStore.class);
+    private final PlaceRagService service = new PlaceRagService(placeDAO, vectorStore);
+
+    @Test
+    void indexesPlacesWithUuidDocumentIds() {
+        PlaceDTO place = PlaceDTO.builder()
+                .placeId(12L).name("광안리 해수욕장").region("부산").category("ATTRACTION")
+                .address("부산 수영구").description("해변 산책 장소").build();
+        when(placeDAO.findAll()).thenReturn(List.of(place));
+
+        int indexed = service.reindexAllPlaces();
+
+        assertThat(indexed).isEqualTo(1);
+        org.mockito.ArgumentCaptor<List<Document>> captor = org.mockito.ArgumentCaptor.forClass(List.class);
+        verify(vectorStore).add(captor.capture());
+        Document document = captor.getValue().getFirst();
+        assertThat(document.getId()).matches("[0-9a-f-]{36}");
+        assertThat(document.getText()).contains("광안리 해수욕장", "부산");
+    }
+
+    @Test
+    void returnsEmptyResultsWhenVectorSearchFails() {
+        when(vectorStore.similaritySearch(any(org.springframework.ai.vectorstore.SearchRequest.class)))
+                .thenThrow(new IllegalStateException("vector store unavailable"));
+
+        assertThat(service.search("부산 해변 추천")).isEmpty();
+    }
+
+    @Test
+    void convertsSearchDocumentsToPromptSafeResults() {
+        Document document = Document.builder().id("11111111-1111-1111-1111-111111111111")
+                .text("장소명: 광안리 해수욕장").metadata("source", "place:12").build();
+        when(vectorStore.similaritySearch(any(org.springframework.ai.vectorstore.SearchRequest.class)))
+                .thenReturn(List.of(document));
+
+        var results = service.search("부산 해변 추천");
+
+        assertThat(results).singleElement().satisfies(result -> {
+            assertThat(result.source()).isEqualTo("place:12");
+            assertThat(result.content()).contains("광안리");
+        });
+    }
+}

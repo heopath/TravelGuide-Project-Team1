@@ -9,6 +9,7 @@ import org.example.all_my_trip_project.domain.ai.dto.AiGuideDayResponse;
 import org.example.all_my_trip_project.domain.ai.dto.AiGuideItemResponse;
 import org.example.all_my_trip_project.domain.ai.dto.AiGuideRequest;
 import org.example.all_my_trip_project.domain.ai.dto.AiGuideResponse;
+import org.example.all_my_trip_project.domain.rag.dto.RagSearchResult;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Profile;
@@ -67,9 +68,15 @@ public class CohereAiModelClient implements AiModelClient {
     @Override
     public AiGuideResponse generate(AiGuideRequest request, List<AiConversationTurn> conversationHistory,
                                     AiGuideContext context) {
+        return generate(request, conversationHistory, context, List.of());
+    }
+
+    @Override
+    public AiGuideResponse generate(AiGuideRequest request, List<AiConversationTurn> conversationHistory,
+                                    AiGuideContext context, List<RagSearchResult> ragResults) {
         try {
             CohereGuideContent content = objectMapper.readValue(
-                    extractJson(requestModel(createPrompt(request, conversationHistory, context))),
+                    extractJson(requestModel(createPrompt(request, conversationHistory, context, ragResults))),
                     CohereGuideContent.class
             );
             content = normalize(content);
@@ -170,7 +177,7 @@ public class CohereAiModelClient implements AiModelClient {
     }
 
     private String createPrompt(AiGuideRequest request, List<AiConversationTurn> history,
-                                AiGuideContext context) {
+                                AiGuideContext context, List<RagSearchResult> ragResults) {
         return """
                 Create a Korean travel itinerary that answers the user question.
                 Return only one JSON object matching the requested schema. Do not use Markdown.
@@ -183,8 +190,11 @@ public class CohereAiModelClient implements AiModelClient {
                 Travel context (use only provided facts):
                 %s
 
+                Retrieved place knowledge (use only if relevant; do not invent details):
+                %s
+
                 User question: %s
-                """.formatted(formatHistory(history), formatContext(context), request.question());
+                """.formatted(formatHistory(history), formatContext(context), formatRagResults(ragResults), request.question());
     }
 
     private String formatHistory(List<AiConversationTurn> history) {
@@ -198,6 +208,13 @@ public class CohereAiModelClient implements AiModelClient {
         AiGuideContext.Trip trip = context.trip();
         return "destination=" + trip.destinationName() + ", dates=" + trip.startDate() + " to " + trip.endDate()
                 + ", purpose=" + trip.purpose() + ", existing days=" + trip.days();
+    }
+
+    private String formatRagResults(List<RagSearchResult> ragResults) {
+        if (ragResults == null || ragResults.isEmpty()) return "None";
+        return ragResults.stream()
+                .map(result -> "Source: " + result.source() + "\n" + result.content())
+                .collect(java.util.stream.Collectors.joining("\n\n"));
     }
 
     private String extractJson(String response) {
