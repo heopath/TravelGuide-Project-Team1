@@ -118,6 +118,7 @@ public record AccommodationSearchResponse(
                 : switch (pricedSources.iterator().next()) {
                     case RACK -> "숙소가 내건 정가 기준입니다. 실제 판매가는 더 낮을 수 있어요.";
                     case PARTNER -> "제휴사 판매가 기준입니다. 실시간 재고가 아니므로 현재 요금과 다를 수 있어요.";
+                    case SANDBOX -> "LiteAPI Sandbox 실습용 요금입니다. 실제 예약 가능 여부나 결제 금액이 아닙니다.";
                     case UNAVAILABLE -> "이 지역은 요금 정보가 제공되지 않아 예약 사이트에서 확인해야 해요.";
                     case MOCK -> "개발용 샘플 데이터입니다.";
                 };

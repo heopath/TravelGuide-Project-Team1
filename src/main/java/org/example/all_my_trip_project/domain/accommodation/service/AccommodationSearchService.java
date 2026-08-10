@@ -33,7 +33,7 @@ public class AccommodationSearchService {
     @Cacheable(cacheNames = "accommodationSearch", key = "#query.toString()")
     public AccommodationSearchResponse search(AccommodationSearchQuery query) {
         AccommodationSearchResult result = compositeProvider.search(query);
-        rejectMockInProduction(result);
+        rejectPracticePricesInProduction(result);
         return AccommodationSearchResponse.from(result, query.nights());
     }
 
@@ -41,20 +41,20 @@ public class AccommodationSearchService {
      * 프로덕션에서 샘플 데이터가 조용히 나가는 것보다 500이 낫다.
      * 사용자가 가짜 요금을 보고 예약 사이트로 나가면 그 손해는 되돌릴 수 없다.
      *
-     * <p>항공과 같은 판단이다. 다만 숙박은 현재 provider가 Mock뿐이라
-     * 프로덕션에서는 이 화면이 아직 동작하지 않는다. 실 provider가 붙기 전까지는
-     * 그게 맞다. 가짜 숙소를 보여주느니 비어 있는 편이 낫다.
+     * <p>TourAPI의 실제 숙소 정보는 프로덕션에서도 허용한다. 여기서 거부하는 것은
+     * Mock 가격과 LiteAPI Sandbox 실습 가격뿐이다.
      */
-    private void rejectMockInProduction(AccommodationSearchResult result) {
+    private void rejectPracticePricesInProduction(AccommodationSearchResult result) {
         if (!isProduction()) {
             return;
         }
-        boolean hasMock = result.offers().stream()
+        boolean hasUnsafePracticePrice = result.offers().stream()
                 .map(AccommodationOffer::priceSource)
-                .anyMatch(source -> source == AccommodationPriceSource.MOCK);
-        if (hasMock) {
+                .anyMatch(source -> source == AccommodationPriceSource.MOCK
+                        || source == AccommodationPriceSource.SANDBOX);
+        if (hasUnsafePracticePrice) {
             throw new IllegalStateException(
-                    "프로덕션 응답에 MOCK 숙소 요금이 포함되었습니다. 숙소 provider 설정을 확인하세요.");
+                    "프로덕션 응답에 실습용 숙소 요금이 포함되었습니다. 숙소 provider 설정을 확인하세요.");
         }
     }
 

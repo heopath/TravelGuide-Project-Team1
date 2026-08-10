@@ -215,6 +215,7 @@
   flex: none; padding: 6px 10px; border-radius: 999px; background: var(--warn-soft); color: var(--warn);
   font-size: 11px; font-weight: 700;
 }
+.page-flights .hotel-price-ready.sandbox { background: #e9f3ff; color: #1769aa; }
 .page-flights .hotel-form {
   display: grid; grid-template-columns: 1.4fr repeat(2, 1fr) 0.55fr 0.55fr auto;
   gap: 8px; align-items: end; padding: 13px; border: 1px solid var(--line); border-radius: 14px; background: #fafbfe;
@@ -282,12 +283,21 @@
 }
 .page-flights .hotel-facts { display: flex; align-items: center; gap: 8px; margin-top: 12px; color: var(--ink-2); font-size: 11px; }
 .page-flights .hotel-rating { color: #a96d00; font-weight: 700; }
+.page-flights .hotel-cancel, .page-flights .hotel-board {
+  padding: 3px 7px; border-radius: 6px; font-size: 10.5px; font-weight: 700;
+}
+.page-flights .hotel-cancel.free { background: var(--ok-soft); color: var(--ok); }
+.page-flights .hotel-cancel.no { background: #f2f4f9; color: var(--muted); }
+.page-flights .hotel-board { background: #fff4df; color: #9b6500; }
 .page-flights .hotel-amenities { display: flex; gap: 4px; flex-wrap: wrap; }
 .page-flights .hotel-amenities span { padding: 3px 7px; border-radius: 6px; background: #f2f4f9; font-weight: 600; }
 .page-flights .hotel-choice { align-self: center; text-align: right; }
 .page-flights .hotel-price { font-size: 19px; font-weight: 800; letter-spacing: -0.025em; }
 .page-flights .hotel-price.none { color: var(--muted); font-size: 13px; letter-spacing: 0; }
 .page-flights .hotel-price-sub { margin-top: 3px; color: var(--muted); font-size: 10.5px; line-height: 1.4; }
+.page-flights .hotel-practice {
+  margin-top: 5px; color: #1769aa; font-size: 9.5px; font-weight: 700; line-height: 1.35;
+}
 .page-flights .hotel-pick {
   width: 100%; margin-top: 10px; padding: 9px; border: 0; border-radius: 9px; background: var(--navy);
   color: var(--white); font-size: 12.5px; font-weight: 700;

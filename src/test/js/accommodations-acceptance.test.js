@@ -36,6 +36,13 @@ const hotel = (id, name, typeLabel) => ({
   latitude: 33.4, longitude: 126.5, deeplinkUrl: null, ribbons: id === "tour:2" ? ["AI 추천"] : []
 });
 
+const sandboxHotel = () => ({
+  ...hotel("tour:2", "제주 바다 호텔", "호텔"),
+  nightlyPrice: 287620, totalPrice: 575240, currency: "KRW",
+  priceSource: "SANDBOX", priceSourceLabel: "Sandbox 실습 요금",
+  freeCancellation: true, breakfastIncluded: true
+});
+
 function json(body) {
   return { ok: true, status: 200, json: async () => body };
 }
@@ -54,6 +61,7 @@ function until(predicate, timeoutMs = 4000) {
 
 async function run() {
   const urls = [];
+  let sandboxMode = false;
   const dom = new JSDOM(fs.readFileSync(HTML, "utf8"), {
     url: "http://localhost/booking/flights?tab=hotel&destination=CJU&date=2026-08-17&returnDate=2026-08-19&adults=2",
     runScripts: "outside-only"
@@ -72,11 +80,15 @@ async function run() {
     }
     if (url.startsWith("/api/v1/accommodations/search")) {
       return json({ success: true, data: {
-        offers: [hotel("tour:2", "제주 바다 호텔", "호텔"), hotel("tour:1", "가나다 리조트", "콘도미니엄")],
+        offers: [sandboxMode ? sandboxHotel() : hotel("tour:2", "제주 바다 호텔", "호텔"),
+          hotel("tour:1", "가나다 리조트", "콘도미니엄")],
         meta: {
-          listingProvider: "tourapi", priceProvider: null, matchedPriceCount: 0, totalCount: 2,
-          nights: 2, priceSource: "UNAVAILABLE",
-          priceSourceNotice: "이 지역은 요금 정보가 제공되지 않아 예약 사이트에서 확인해야 해요."
+          listingProvider: "tourapi", priceProvider: sandboxMode ? "liteapi-sandbox" : null,
+          matchedPriceCount: sandboxMode ? 1 : 0, totalCount: 2,
+          nights: 2, priceSource: sandboxMode ? "SANDBOX" : "UNAVAILABLE",
+          priceSourceNotice: sandboxMode
+            ? "LiteAPI Sandbox 실습용 요금입니다. 실제 예약 가능 여부나 결제 금액이 아닙니다."
+            : "이 지역은 요금 정보가 제공되지 않아 예약 사이트에서 확인해야 해요."
         }
       } });
     }
@@ -115,6 +127,26 @@ async function run() {
     $("cTot").textContent === "256,000원" && $("costNote").textContent.includes("숙소 요금 제외"));
   T("선택은 브라우저 상태에만 있고 DB 저장 API를 호출하지 않는다",
     !urls.some((url) => /\/trips\/\d+\/.*accommodation/.test(url)));
+
+  sandboxMode = true;
+  $("hotelSearchForm").dispatchEvent(new w.Event("submit", { bubbles: true, cancelable: true }));
+  await until(() => w.__accommodationBooking.state.meta?.priceProvider === "liteapi-sandbox"
+    && !w.__accommodationBooking.state.loading);
+
+  T("Sandbox 총액과 통화를 카드에 표시한다",
+    d.querySelector('[data-hotel-offer="tour:2"]').textContent.includes("KRW 575,240"));
+  T("Sandbox 가격을 실제 결제 금액으로 오해하지 않게 표시한다",
+    d.querySelector('[data-hotel-offer="tour:2"]').textContent.includes("실제 결제 금액 아님")
+      && $("hotelPriceMode").textContent.includes("실습 요금 1곳"));
+  T("무료 취소와 조식 포함 조건을 표시한다",
+    d.querySelector('[data-hotel-offer="tour:2"]').textContent.includes("무료 취소 가능")
+      && d.querySelector('[data-hotel-offer="tour:2"]').textContent.includes("조식 포함"));
+
+  d.querySelector('[data-hotel-pick="tour:2"]').click();
+  T("선택한 Sandbox KRW 요금은 예상 총액에 실습가로 반영한다",
+    $("cTot").textContent === "831,240원"
+      && $("costNote").textContent.includes("숙소 Sandbox 실습가")
+      && $("rows").textContent.includes("575,240원"));
 
   console.log(`\n${passed} passed, ${failed} failed`);
   process.exit(failed === 0 ? 0 : 1);

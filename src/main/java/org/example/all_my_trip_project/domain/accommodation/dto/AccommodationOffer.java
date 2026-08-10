@@ -4,6 +4,7 @@ import org.example.all_my_trip_project.domain.accommodation.type.AccommodationPr
 import org.example.all_my_trip_project.domain.accommodation.type.AccommodationType;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.List;
 
 /**
@@ -60,6 +61,22 @@ public record AccommodationOffer(
         return new AccommodationOffer(offerId, provider, name, type, areaLabel, address,
                 rating, reviewCount, newNightlyPrice, newTotalPrice, currency, newSource,
                 amenities, freeCancellation, breakfastIncluded, imageUrl, latitude, longitude,
+                deeplinkUrl, score);
+    }
+
+    /**
+     * 외부 요금 공급자가 확인한 숙박 전체 요금과 취소·조식 조건을 붙인다.
+     * 통화는 검색 요청과 다르게 반환될 수 있으므로 공급자 응답 값을 사용한다.
+     */
+    public AccommodationOffer withRate(BigDecimal newTotalPrice, String newCurrency,
+                                       AccommodationPriceSource newSource, int nights, int rooms,
+                                       boolean newFreeCancellation, boolean newBreakfastIncluded) {
+        long divisor = Math.max(1L, (long) nights * Math.max(1, rooms));
+        BigDecimal newNightlyPrice = newTotalPrice.divide(
+                BigDecimal.valueOf(divisor), 2, RoundingMode.HALF_UP);
+        return new AccommodationOffer(offerId, provider, name, type, areaLabel, address,
+                rating, reviewCount, newNightlyPrice, newTotalPrice, newCurrency, newSource,
+                amenities, newFreeCancellation, newBreakfastIncluded, imageUrl, latitude, longitude,
                 deeplinkUrl, score);
     }
 }

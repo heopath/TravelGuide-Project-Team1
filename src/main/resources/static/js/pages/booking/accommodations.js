@@ -10,7 +10,13 @@
   const $ = (id) => document.getElementById(id);
   const esc = (value) => String(value ?? "").replace(/[&<>"']/g,
     (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[char]));
-  const won = (value) => Math.round(Number(value) || 0).toLocaleString("ko-KR") + "원";
+  const money = (value, currency) => {
+    const code = String(currency || "KRW").toUpperCase();
+    const digits = code === "KRW" ? 0 : 2;
+    return `${code} ${Number(value || 0).toLocaleString("ko-KR", {
+      minimumFractionDigits: digits, maximumFractionDigits: digits
+    })}`;
+  };
 
   const AIRPORT_AREAS = {
     GMP: "서울", ICN: "인천", CJU: "제주", PUS: "부산", TAE: "대구",
@@ -74,11 +80,25 @@
   function price(offer) {
     if (!hasPrice(offer)) {
       return `<div class="hotel-price none">${esc(offer.priceSourceLabel || "요금 미제공")}</div>
-        <div class="hotel-price-sub">실시간 가격은 다음 단계에서 연결</div>`;
+        <div class="hotel-price-sub">Sandbox Key가 있으면 실습 요금을 조회해요</div>`;
     }
-    const sample = offer.priceSource === "MOCK" ? " · 개발용 샘플" : "";
-    return `<div class="hotel-price">${won(offer.totalPrice)}</div>
-      <div class="hotel-price-sub">${esc(offer.nightsLabel)} 총액${esc(sample)}</div>`;
+    if (offer.priceSource === "SANDBOX") {
+      return `<div class="hotel-price">${money(offer.totalPrice, offer.currency)}</div>
+        <div class="hotel-price-sub">${esc(offer.nightsLabel)} 총액</div>
+        <div class="hotel-practice">LiteAPI Sandbox 실습 요금 · 실제 결제 금액 아님</div>`;
+    }
+    const sample = offer.priceSource === "MOCK" ? "개발용 샘플" : esc(offer.priceSourceLabel || "");
+    return `<div class="hotel-price">${money(offer.totalPrice, offer.currency)}</div>
+      <div class="hotel-price-sub">${esc(offer.nightsLabel)} 총액 · ${sample}</div>`;
+  }
+
+  function rateFacts(offer) {
+    if (!hasPrice(offer) || offer.priceSource === "MOCK") return "";
+    const cancellation = offer.freeCancellation
+      ? '<span class="hotel-cancel free">무료 취소 가능</span>'
+      : '<span class="hotel-cancel no">환불 불가 요금</span>';
+    const breakfast = offer.breakfastIncluded ? '<span class="hotel-board">조식 포함</span>' : "";
+    return cancellation + breakfast;
   }
 
   function card(offer) {
@@ -98,7 +118,7 @@
         <div class="hotel-meta"><span>${esc(offer.typeLabel || "숙소")}</span><span>${esc(offer.areaLabel || "")}</span></div>
         <h3>${esc(offer.name)}</h3>
         <p class="hotel-address">${esc(offer.address || "주소 정보 없음")}</p>
-        <div class="hotel-facts">${rating(offer)}${amenities ? `<span class="hotel-amenities">${amenities}</span>` : ""}</div>
+        <div class="hotel-facts">${rating(offer)}${rateFacts(offer)}${amenities ? `<span class="hotel-amenities">${amenities}</span>` : ""}</div>
       </div>
       <div class="hotel-choice">
         ${price(offer)}
@@ -130,6 +150,10 @@
     const note = state.meta?.priceSourceNotice || "";
     $("hotelSourceNote").textContent = note;
     $("hotelSourceNote").hidden = !note || state.loading;
+    $("hotelPriceMode").textContent = state.meta?.priceProvider === "liteapi-sandbox"
+      ? `LiteAPI Sandbox · 실습 요금 ${state.meta.matchedPriceCount}곳`
+      : "TourAPI 정보 · 가격 미제공";
+    $("hotelPriceMode").classList.toggle("sandbox", state.meta?.priceProvider === "liteapi-sandbox");
   }
 
   function showError(message) {
