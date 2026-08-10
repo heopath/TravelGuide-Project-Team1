@@ -5,6 +5,7 @@ import org.example.all_my_trip_project.domain.accommodation.dto.AccommodationSea
 import org.example.all_my_trip_project.domain.accommodation.type.AccommodationPriceSource;
 import org.example.all_my_trip_project.domain.accommodation.type.AccommodationProviderRole;
 import org.example.all_my_trip_project.domain.accommodation.type.AccommodationType;
+import org.springframework.context.annotation.Profile;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
@@ -23,10 +24,19 @@ import java.util.Map;
  * <p>순서상 가장 뒤에 둔다. 실 provider가 붙으면 그쪽이 먼저 잡히고 이쪽은 폴백으로만 남아야 한다.
  *
  * <p>지역을 못 찾으면 빈 목록이 아니라 기본 세트를 준다. 화면과 플로우를 만드는 단계라
- * "검색했는데 아무것도 안 나옴"이 반복되면 개발이 막힌다. 실 provider가 붙으면
- * {@link #supports}가 좁아지므로 이 동작은 자연히 사라진다.
+ * "검색했는데 아무것도 안 나옴"이 반복되면 개발이 막힌다.
+ *
+ * <p><b>운영에서는 아예 등록하지 않는다.</b> composite는 목록이 비면 다음 LISTING provider로
+ * 넘어가는데, 이 provider가 살아 있으면 TourAPI 장애·검색 결과 없음·키 미설정이 전부
+ * "Mock 목록 반환"으로 바뀐다. 그러면 {@code AccommodationSearchService}의 프로덕션 Mock 차단이
+ * 예외를 던져 <b>"결과 없음"이 500으로 둔갑한다.</b>
+ *
+ * <p>가짜 요금을 내보내느니 실패하는 편이 낫다는 판단은 <b>가격</b>에 대한 것이지,
+ * 검색 결과가 없는 상황까지 오류로 만들자는 뜻은 아니었다. 운영에서 이 provider를 빼면
+ * 결과가 없을 때 빈 목록이 그대로 내려가고 화면이 안내 문구를 띄운다.
  */
 @Component
+@Profile("!prod")
 @Order(Integer.MAX_VALUE)
 public class MockAccommodationSearchProvider implements AccommodationSearchProvider {
 
