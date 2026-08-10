@@ -43,15 +43,6 @@ document.addEventListener("DOMContentLoaded", function () {
     alert(message);
   }
 
-  function getCookie(name) {
-    const target = encodeURIComponent(name) + "=";
-    const cookie = document.cookie
-      .split(";")
-      .map((item) => item.trim())
-      .find((item) => item.startsWith(target));
-    return cookie ? decodeURIComponent(cookie.substring(target.length)) : "";
-  }
-
   async function request(url, options = {}) {
     const method = String(options.method || "GET").toUpperCase();
     const headers = {
@@ -59,10 +50,10 @@ document.addEventListener("DOMContentLoaded", function () {
       ...(options.body ? { "Content-Type": "application/json" } : {}),
       ...(options.headers || {}),
     };
-    if (!["GET", "HEAD", "OPTIONS", "TRACE"].includes(method)) {
-      const csrfToken = getCookie("CSRF-TOKEN");
-      if (csrfToken) headers["X-CSRF-TOKEN"] = csrfToken;
-    }
+
+    // CSRF 헤더는 app.js의 전역 fetch 래퍼(installCsrfAwareFetch)가 붙여준다.
+    // record.html이 appScripts를 먼저 로드하므로 이 request()가 부르는 fetch는
+    // 항상 그 래퍼를 거친다 — 여기서 직접 토큰을 읽어 붙이지 않는다.
 
     const response = await fetch(url, {
       ...options,
@@ -76,6 +67,15 @@ document.addEventListener("DOMContentLoaded", function () {
     if (response.status === 401) {
       const error = new Error(result?.message || "로그인이 필요합니다.");
       error.code = result?.code || "UNAUTHORIZED";
+      throw error;
+    }
+
+    // docs/api/error-responses.md 기준: 미인증(401)과 달리 403은 CSRF 토큰
+    // 실패·만료를 뜻한다. app.js의 CSRF 래퍼가 아직 토큰을 재발급·재시도하지
+    // 않으므로(별도 이슈), 여기서는 원인을 알 수 있는 메시지만 구분해 보여준다.
+    if (response.status === 403) {
+      const error = new Error(result?.message || "요청이 만료되었어요. 새로고침 후 다시 시도해주세요.");
+      error.code = result?.code || "FORBIDDEN";
       throw error;
     }
 
