@@ -38,30 +38,48 @@ public class CompositeAccommodationSearchProvider {
     }
 
     public AccommodationSearchResult search(AccommodationSearchQuery query) {
-        AccommodationSearchProvider listing = listingProviders.stream()
-                .filter(p -> p.supports(query))
-                .findFirst()
-                .orElse(null);
-
-        if (listing == null) {
+        Listing listed = findListing(query);
+        if (listed == null) {
             log.warn("숙소 목록을 만들 provider가 없습니다. destination={}", query.destination());
             return AccommodationSearchResult.empty();
         }
 
-        List<AccommodationOffer> offers = listing.search(query);
-        if (offers.isEmpty()) {
-            return AccommodationSearchResult.empty();
-        }
-
-        Priced priced = applyPrices(offers, query);
+        Priced priced = applyPrices(listed.offers(), query);
         List<AccommodationOffer> scored = scorer.score(priced.offers());
 
         return new AccommodationSearchResult(
                 sortByScore(scored),
-                listing.name(),
+                listed.providerName(),
                 priced.providerName(),
                 priced.matchedCount()
         );
+    }
+
+    private record Listing(List<AccommodationOffer> offers, String providerName) {}
+
+    /**
+     * 실 provider가 장애이거나 결과가 없으면 다음 LISTING provider를 시도한다.
+     * TourAPI 키가 있어도 일시 장애 때문에 숙소 탭 전체가 비어서는 안 된다.
+     */
+    private Listing findListing(AccommodationSearchQuery query) {
+        for (AccommodationSearchProvider provider : listingProviders) {
+            if (!provider.supports(query)) {
+                continue;
+            }
+            try {
+                List<AccommodationOffer> offers = provider.search(query);
+                if (!offers.isEmpty()) {
+                    return new Listing(offers, provider.name());
+                }
+                log.info("숙소 목록 결과가 없어 다음 provider를 시도합니다. provider={} destination={}",
+                        provider.name(), query.destination());
+            } catch (RuntimeException exception) {
+                // 외부 요청 예외 메시지에는 서비스키가 든 URL이 포함될 수 있어 타입만 기록한다.
+                log.warn("숙소 목록 조회 실패로 다음 provider를 시도합니다. provider={} type={}",
+                        provider.name(), exception.getClass().getSimpleName());
+            }
+        }
+        return null;
     }
 
     private record Priced(List<AccommodationOffer> offers, String providerName, int matchedCount) {}

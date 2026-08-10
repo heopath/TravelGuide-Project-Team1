@@ -30,7 +30,9 @@ public class BookingPageController {
 
     @GetMapping("/booking/hotels")
     public String hotels() {
-        return "booking/hotels";
+        // 숙박 검색은 별도 목업 페이지가 아니라 예약 화면의 숙박 탭에서 제공한다.
+        // 기존 주소는 외부 링크와 화면 디렉터리가 깨지지 않도록 리다이렉트로 남긴다.
+        return "redirect:/booking/flights?tab=hotel";
     }
 
     @GetMapping("/booking/flights")
