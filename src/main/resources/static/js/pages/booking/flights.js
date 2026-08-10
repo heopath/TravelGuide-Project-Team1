@@ -74,11 +74,22 @@
   const airIsEstimate = () => !airDone();
   const hasOffers = () => offers[OUTBOUND].length > 0 || offers[INBOUND].length > 0;
   const hotelDone = () => !!hotelSelection;
-  const hotelHasUsablePrice = () => hotelDone()
+  const hotelHasDisplayPrice = () => hotelDone()
     && hotelSelection.totalPrice !== null
     && hotelSelection.totalPrice !== undefined
     && !["MOCK", "UNAVAILABLE"].includes(hotelSelection.priceSource);
-  const hotelTotal = () => hotelHasUsablePrice() ? Number(hotelSelection.totalPrice) : 0;
+  const hotelCanAddToTotal = () => hotelHasDisplayPrice()
+    && String(hotelSelection.currency || "KRW").toUpperCase() === "KRW";
+  const hotelTotal = () => hotelCanAddToTotal() ? Number(hotelSelection.totalPrice) : 0;
+  const hotelPriceLabel = () => {
+    if (!hotelHasDisplayPrice()) return "요금 미정";
+    const currency = String(hotelSelection.currency || "KRW").toUpperCase();
+    return currency === "KRW"
+      ? won(hotelSelection.totalPrice)
+      : `${currency} ${Number(hotelSelection.totalPrice).toLocaleString("ko-KR", {
+        minimumFractionDigits: 2, maximumFractionDigits: 2
+      })}`;
+  };
 
   /* 목록에 출처가 섞이면 카드마다 개별 표시되고, 하단 문구가 그 사실을 알린다. */
   const sourceLabel = () => offers[state.leg][0]?.priceSourceLabel || "공시운임";
@@ -256,8 +267,10 @@
         pv: hasOffers() ? (airTotal() > 0 ? won(airTotal()) : "미정") : "—", sub: airIsEstimate() ? "예상" : `성인 ${search.adults}명 총액`, dim: false },
       { ic: "▤", icc: hotelDone() ? "g" : "n", nm: "숙소",
         ds: hotelDone() ? `선택 완료 · ${hotelSelection.name}` : "선택 전", dsc: hotelDone() ? "o" : "",
-        pv: hotelHasUsablePrice() ? won(hotelTotal()) : hotelDone() ? "요금 미정" : "—",
-        sub: hotelHasUsablePrice() ? hotelSelection.nightsLabel : hotelDone() ? "가격 조회 전" : "숙소에서 선택", dim: !hotelHasUsablePrice() },
+        pv: hotelDone() ? hotelPriceLabel() : "—",
+        sub: hotelHasDisplayPrice()
+          ? `${hotelSelection.nightsLabel}${hotelSelection.priceSource === "SANDBOX" ? " · 실습" : ""}${hotelCanAddToTotal() ? "" : " · 합계 제외"}`
+          : hotelDone() ? "가격 조회 전" : "숙소에서 선택", dim: !hotelHasDisplayPrice() },
       { ic: "◈", icc: "n", nm: "티켓·액티비티", ds: "대기 · 임시 추정치", dsc: "",
         pv: won(PLACEHOLDER_ACTIVITY), sub: "예상", dim: true }
     ];
@@ -300,7 +313,11 @@
       text("cPer", "항공편을 먼저 검색해 주세요");
     }
     const airLabel = airIsEstimate() ? `항공 추천가 · ${sourceLabel()}` : "항공 확정";
-    const hotelLabel = hotelHasUsablePrice() ? "숙소 선택가" : "숙소 요금 제외";
+    const hotelLabel = hotelHasDisplayPrice() && !hotelCanAddToTotal()
+      ? "숙소 통화 달라 합계 제외"
+      : hotelSelection?.priceSource === "SANDBOX"
+        ? "숙소 Sandbox 실습가"
+        : hotelCanAddToTotal() ? "숙소 선택가" : "숙소 요금 제외";
     text("costNote", `${airLabel} · ${hotelLabel} · 티켓 임시 추정`);
 
     const done = (airDone() ? 1 : 0) + (hotelDone() ? 1 : 0);

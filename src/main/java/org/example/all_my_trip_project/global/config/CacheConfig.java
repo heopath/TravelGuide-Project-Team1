@@ -49,19 +49,19 @@ public class CacheConfig implements CachingConfigurer {
     }
 
     /**
-     * 숙소 검색 캐시는 30분으로 둔다.
+     * 숙소 검색 캐시는 5분으로 둔다.
      *
      * <p>항공보다 짧다. 국내선 스케줄은 하루 단위로 거의 안 바뀌지만 숙소 요금과 잔여 객실은
      * 하루 안에도 움직인다. 6시간을 그대로 쓰면 이미 매진된 숙소를 계속 보여주게 된다.
-     * 반대로 기본값(10분)으로 두면 목록을 훑어보는 동안에도 재조회가 일어난다.
+     * Sandbox라도 rates 응답은 특정 날짜의 재고·요금 결과다. 30분을 유지하면
+     * 실시간 조회라는 화면 설명과 차이가 커지므로 짧게 두되, 같은 검색의 연속 호출은 막는다.
      *
-     * <p>지금은 provider가 Mock뿐이라 호출 비용이 없지만, 실 provider가 붙을 때
-     * 캐시 설정을 새로 고민하지 않도록 자리를 잡아 둔다. (#147)
+     * <p>LiteAPI Sandbox는 초당 호출 제한도 있으므로 짧은 캐시가 중복 호출을 줄인다. (#147)
      */
     @Bean
     public RedisCacheManagerBuilderCustomizer accommodationSearchCacheCustomizer() {
         return builder -> builder.withCacheConfiguration("accommodationSearch",
-                withTtl(builder, Duration.ofMinutes(30)));
+                withTtl(builder, Duration.ofMinutes(5)));
     }
 
     /**

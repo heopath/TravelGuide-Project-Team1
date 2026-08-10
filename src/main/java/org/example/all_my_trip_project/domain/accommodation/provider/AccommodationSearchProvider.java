@@ -9,8 +9,8 @@ import java.util.List;
 /**
  * 숙소 데이터 소스.
  *
- * <p>{@link AccommodationProviderRole#LISTING}이 목록을 만들고
- * {@link AccommodationProviderRole#PRICE}가 요금만 덮어쓴다.
+ * <p>이 인터페이스는 숙소 목록을 만든다. 가격 보강은 목록의 이름·좌표가 필요한 별도
+ * {@link AccommodationPriceProvider}가 맡는다.
  *
  * <p>현재 구현은 Mock 하나뿐이다. Travelpayouts 호텔 API는 계정 권한이 없어 못 쓴다(#147).
  * 실 provider가 붙을 때 화면과 서비스를 손대지 않으려고 인터페이스를 먼저 둔다.

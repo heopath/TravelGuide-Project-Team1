@@ -2,20 +2,19 @@ package org.example.all_my_trip_project.domain.accommodation.provider;
 
 import lombok.extern.slf4j.Slf4j;
 import org.example.all_my_trip_project.domain.accommodation.dto.AccommodationOffer;
+import org.example.all_my_trip_project.domain.accommodation.dto.AccommodationPriceResult;
 import org.example.all_my_trip_project.domain.accommodation.dto.AccommodationSearchQuery;
 import org.example.all_my_trip_project.domain.accommodation.dto.AccommodationSearchResult;
 import org.example.all_my_trip_project.domain.accommodation.service.AccommodationRecommendationScorer;
 import org.example.all_my_trip_project.domain.accommodation.type.AccommodationProviderRole;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.util.Comparator;
 import java.util.List;
-import java.util.Map;
-import java.util.function.Function;
-import java.util.stream.Collectors;
 
 /**
- * LISTING provider로 목록을 만들고, PRICE provider로 요금만 덮어쓴다.
+ * LISTING provider로 목록을 만들고, {@link AccommodationPriceProvider}로 요금만 보강한다.
  *
  * <p>요금 보강은 실패해도 된다. 정가로 남을 뿐 목록은 살아 있어야 한다.
  * 사용자에게는 티내지 않고 로그만 남긴다. 항공에서 쓴 방식 그대로다.
@@ -25,16 +24,23 @@ import java.util.stream.Collectors;
 public class CompositeAccommodationSearchProvider {
 
     private final List<AccommodationSearchProvider> listingProviders;
-    private final List<AccommodationSearchProvider> pricingProviders;
+    private final List<AccommodationPriceProvider> pricingProviders;
     private final AccommodationRecommendationScorer scorer;
 
+    @Autowired
     public CompositeAccommodationSearchProvider(List<AccommodationSearchProvider> providers,
+                                                List<AccommodationPriceProvider> pricingProviders,
                                                 AccommodationRecommendationScorer scorer) {
         this.listingProviders = providers.stream()
                 .filter(p -> p.role() == AccommodationProviderRole.LISTING).toList();
-        this.pricingProviders = providers.stream()
-                .filter(p -> p.role() == AccommodationProviderRole.PRICE).toList();
+        this.pricingProviders = pricingProviders;
         this.scorer = scorer;
+    }
+
+    /** provider 단위 테스트가 가격 공급자 없이 목록 폴백만 검증할 때 사용한다. */
+    public CompositeAccommodationSearchProvider(List<AccommodationSearchProvider> providers,
+                                                AccommodationRecommendationScorer scorer) {
+        this(providers, List.of(), scorer);
     }
 
     public AccommodationSearchResult search(AccommodationSearchQuery query) {
@@ -85,42 +91,20 @@ public class CompositeAccommodationSearchProvider {
     private record Priced(List<AccommodationOffer> offers, String providerName, int matchedCount) {}
 
     private Priced applyPrices(List<AccommodationOffer> offers, AccommodationSearchQuery query) {
-        AccommodationSearchProvider pricing = pricingProviders.stream()
-                .filter(p -> p.supports(query))
-                .findFirst()
-                .orElse(null);
-
-        if (pricing == null) {
-            return new Priced(offers, null, 0);
+        for (AccommodationPriceProvider pricing : pricingProviders) {
+            if (!pricing.supports(query, offers)) continue;
+            try {
+                AccommodationPriceResult result = pricing.apply(offers, query);
+                if (result.matchedCount() > 0) {
+                    return new Priced(result.offers(), pricing.name(), result.matchedCount());
+                }
+            } catch (RuntimeException exception) {
+                // 외부 요청 예외 메시지에 API 키가 섞일 수 있어 타입만 기록한다.
+                log.warn("숙소 요금 보강 실패로 다음 provider를 시도합니다. provider={} type={}",
+                        pricing.name(), exception.getClass().getSimpleName());
+            }
         }
-
-        List<AccommodationOffer> quotes;
-        try {
-            quotes = pricing.search(query);
-        } catch (RuntimeException e) {
-            /* 요금 보강 실패로 목록까지 잃지 않는다. 사용자에게는 정가가 보인다. */
-            log.warn("숙소 요금 보강에 실패해 목록만 반환합니다. provider={}", pricing.name(), e);
-            return new Priced(offers, null, 0);
-        }
-
-        Map<String, AccommodationOffer> byId = quotes.stream()
-                .filter(AccommodationOffer::hasPrice)
-                .collect(Collectors.toMap(AccommodationOffer::offerId, Function.identity(),
-                        (first, second) -> first));
-
-        int[] matched = {0};
-        List<AccommodationOffer> merged = offers.stream()
-                .map(offer -> {
-                    AccommodationOffer quote = byId.get(offer.offerId());
-                    if (quote == null) {
-                        return offer;
-                    }
-                    matched[0]++;
-                    return offer.withPrice(quote.nightlyPrice(), quote.totalPrice(), quote.priceSource());
-                })
-                .toList();
-
-        return new Priced(merged, pricing.name(), matched[0]);
+        return new Priced(offers, null, 0);
     }
 
     /**

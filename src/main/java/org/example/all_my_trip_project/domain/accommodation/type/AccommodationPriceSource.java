@@ -18,6 +18,9 @@ public enum AccommodationPriceSource {
     /** 숙소가 내건 정가. 실제 판매가는 더 낮은 경우가 많다. */
     RACK("정가"),
 
+    /** LiteAPI Sandbox가 돌려준 실습용 요금. 실제 예약 가능 가격으로 사용하면 안 된다. */
+    SANDBOX("Sandbox 실습 요금"),
+
     /** 요금 정보를 받지 못했다. 값 없이 출처만 남긴다. */
     UNAVAILABLE("요금 미제공"),
 
