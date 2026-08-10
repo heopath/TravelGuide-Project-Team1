@@ -64,9 +64,15 @@ const HOTEL = 290000;
 const ACTIVITY = 56000;
 const won = (n) => Math.round(n).toLocaleString("ko-KR") + "원";
 
-async function boot() {
+/**
+ * @param options.query 주소 뒤에 붙일 쿼리스트링. `?tripId=`를 붙이면 저장 경로가 켜진다.
+ * @param options.trip  { days, items } 여행 일정 응답. 없으면 일정 API는 빈 응답을 준다.
+ */
+async function boot(options = {}) {
+  const trip = options.trip || null;
+  const urls = [];
   const dom = new JSDOM(fs.readFileSync(HTML, "utf8"), {
-    url: "http://localhost/booking/flights",
+    url: "http://localhost/booking/flights" + (options.query || ""),
     runScripts: "outside-only"
   });
   const w = dom.window;
@@ -77,6 +83,7 @@ async function boot() {
 
   w.open = () => null;
   w.fetch = async (url) => {
+    urls.push(url);
     if (url.startsWith("/api/v1/csrf")) {
       return json({ headerName: "X-CSRF-TOKEN", token: "test-token" });
     }
@@ -84,6 +91,13 @@ async function boot() {
       // 오는 편은 출발지와 도착지가 뒤집혀 조회된다.
       const inbound = url.includes("destination=GMP");
       return json({ success: true, data: { offers: inbound ? OFFERS.inbound : OFFERS.outbound, meta: META } });
+    }
+    if (trip) {
+      if (/^\/api\/v1\/trips\/\d+\/days$/.test(url)) {
+        return json({ success: true, data: trip.days });
+      }
+      const items = /^\/api\/v1\/trip-days\/(\d+)\/items$/.exec(url);
+      if (items) return json({ success: true, data: trip.items[items[1]] || [] });
     }
     return json({ success: true, data: null });
   };
@@ -101,7 +115,7 @@ async function boot() {
   }
   await until(() => d.body.dataset.pageReady === "true");
 
-  return { w, d, staticTotal, api: w.__flightBooking };
+  return { w, d, staticTotal, api: w.__flightBooking, urls };
 }
 
 function json(body) {
@@ -263,6 +277,60 @@ async function run() {
     T("`나중에 확인할게요` → 선택은 유지된다", !!d.querySelector(".fl.sel"));
     T("`나중에 확인할게요` → 예약 표시는 되지 않는다", !$("list").innerHTML.includes("직접 표시"));
     T("`나중에 확인할게요` → 카운트 0", $("tabCount").textContent === "0");
+  }
+
+  /* ────────── 일정 연동 (#133) ────────── */
+  {
+    /* 1일차 활동은 일부러 시간순이 아니게 넣는다. sortOrder가 아니라 값으로 골라야 한다.
+       마지막날에는 종료 시각이 없는 항목을 섞어 그 항목이 최대값을 가리지 않는지 본다. */
+    const trip = {
+      days: [
+        { tripDayId: 41, dayNumber: 1, tripDate: "2026-08-15" },
+        { tripDayId: 42, dayNumber: 2, tripDate: "2026-08-16" },
+        { tripDayId: 43, dayNumber: 3, tripDate: "2026-08-17" }
+      ],
+      items: {
+        41: [
+          { startTime: "13:00:00", endTime: "14:30:00" },
+          { startTime: "09:30:00", endTime: "11:00:00" }
+        ],
+        43: [
+          { startTime: "10:00:00", endTime: "11:00:00" },
+          { startTime: "19:00:00", endTime: "20:45:00" },
+          { startTime: "21:00:00", endTime: null }
+        ]
+      }
+    };
+
+    const { urls } = await boot({ query: "?tripId=7", trip });
+    const searches = urls.filter((u) => u.startsWith("/api/v1/flights/search"));
+    const outbound = searches.find((u) => !u.includes("destination=GMP")) || "";
+    const inbound = searches.find((u) => u.includes("destination=GMP")) || "";
+
+    T("가는 편에 1일차 첫 활동 시작 시각이 실린다",
+      outbound.includes("firstPlanStartAt=2026-08-15T09%3A30%3A00"));
+    T("오는 편에 마지막날 마지막 활동 종료 시각이 실린다",
+      inbound.includes("lastPlanEndAt=2026-08-17T20%3A45%3A00"));
+    T("가는 편에는 마지막 일정 기준을 넘기지 않는다", !outbound.includes("lastPlanEndAt"));
+    T("오는 편에는 첫 일정 기준을 넘기지 않는다", !inbound.includes("firstPlanStartAt"));
+    T("중간 날짜의 일정은 읽지 않는다", !urls.includes("/api/v1/trip-days/42/items"));
+  }
+
+  /* ────────── 일정이 없을 때 ────────── */
+  {
+    // 1일차에 활동이 없으면 기준 삼을 것이 없다. 임의의 시각을 만들면 없는 충돌을 만든다.
+    const trip = { days: [{ tripDayId: 51, dayNumber: 1, tripDate: "2026-08-15" }], items: { 51: [] } };
+    const { urls } = await boot({ query: "?tripId=8", trip });
+    const searches = urls.filter((u) => u.startsWith("/api/v1/flights/search"));
+
+    T("활동이 없으면 기준 시각을 넘기지 않는다",
+      searches.length > 0 && searches.every((u) => !u.includes("PlanStartAt") && !u.includes("PlanEndAt")));
+  }
+
+  {
+    // tripId 없이 들어온 비교 전용 화면. 일정 API를 부르면 안 된다.
+    const { urls } = await boot();
+    T("tripId가 없으면 일정을 조회하지 않는다", !urls.some((u) => u.includes("/days") || u.includes("/items")));
   }
 
   console.log(`\n${passed} passed, ${failed} failed`);

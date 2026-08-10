@@ -37,3 +37,7 @@ out/
 
 ### VS Code ###
 .vscode/
+
+### Node ###
+# 프론트 수용 기준 테스트(src/test/js)만 npm을 쓴다. Gradle 빌드와는 분리되어 있다.
+node_modules/
