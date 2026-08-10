@@ -33,6 +33,9 @@ public record AccommodationOfferResponse(
         List<String> amenities,
         boolean freeCancellation,
         boolean breakfastIncluded,
+        String imageUrl,
+        Double latitude,
+        Double longitude,
         String deeplinkUrl,
         List<String> ribbons
 ) implements Serializable {
@@ -58,6 +61,9 @@ public record AccommodationOfferResponse(
                 offer.amenities(),
                 offer.freeCancellation(),
                 offer.breakfastIncluded(),
+                offer.imageUrl(),
+                offer.latitude(),
+                offer.longitude(),
                 offer.deeplinkUrl(),
                 ribbons
         );

@@ -122,7 +122,53 @@
               </div>
 
               <div class="panel" id="panel-hotel" hidden>
-                <p class="empty">숙소 비교는 아직 준비 중이에요.</p>
+                <div class="hotel-head">
+                  <div>
+                    <span class="hotel-kicker">한국관광공사 TourAPI</span>
+                    <h2>여행지 숙소 찾기</h2>
+                    <p>숙소 정보부터 비교하고 선택해 두세요. 실시간 요금은 다음 단계에서 연결합니다.</p>
+                  </div>
+                  <span class="hotel-price-ready">숙소 정보 제공 · 요금 미제공</span>
+                </div>
+
+                <form class="hotel-form" id="hotelSearchForm">
+                  <label class="hotel-field wide">
+                    <span>여행지</span>
+                    <input id="h-destination" name="destination" placeholder="예: 제주, 부산 해운대" autocomplete="off" required />
+                  </label>
+                  <label class="hotel-field">
+                    <span>체크인</span>
+                    <input id="h-checkin" name="checkIn" type="date" required />
+                  </label>
+                  <label class="hotel-field">
+                    <span>체크아웃</span>
+                    <input id="h-checkout" name="checkOut" type="date" required />
+                  </label>
+                  <label class="hotel-field compact">
+                    <span>성인</span>
+                    <input id="h-adults" name="adults" type="number" min="1" max="9" value="2" required />
+                  </label>
+                  <label class="hotel-field compact">
+                    <span>객실</span>
+                    <input id="h-rooms" name="rooms" type="number" min="1" max="9" value="1" required />
+                  </label>
+                  <button type="submit" class="hotel-go" id="hotelSearchButton">숙소 검색</button>
+                </form>
+
+                <div class="hotel-toolbar">
+                  <div class="hotel-sort" aria-label="숙소 정렬">
+                    <button type="button" class="hotel-sort-button on" data-hotel-sort="recommended">추천순</button>
+                    <button type="button" class="hotel-sort-button" data-hotel-sort="name">이름순</button>
+                    <button type="button" class="hotel-sort-button" data-hotel-sort="type">숙소 유형순</button>
+                  </div>
+                  <span class="hotel-count" id="hotelCount">검색 전</span>
+                </div>
+
+                <div class="hotel-status" id="hotelStatus" role="status" aria-live="polite">
+                  숙소 탭을 열면 여행 일정에 맞춰 자동으로 검색합니다.
+                </div>
+                <div class="hotel-list" id="hotelList"></div>
+                <p class="srcnote" id="hotelSourceNote" hidden></p>
               </div>
               <div class="panel" id="panel-ticket" hidden>
                 <p class="empty">티켓·액티비티 비교는 아직 준비 중이에요.</p>
@@ -259,5 +305,6 @@
 
     <div th:replace="~{fragments/scripts :: appScripts}"></div>
     <script th:src="@{/js/pages/booking/flights.js}" src="../../static/js/pages/booking/flights.js"></script>
+    <script th:src="@{/js/pages/booking/accommodations.js}" src="../../static/js/pages/booking/accommodations.js"></script>
   </body>
 </html>

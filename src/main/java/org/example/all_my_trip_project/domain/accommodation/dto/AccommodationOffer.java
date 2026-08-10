@@ -12,6 +12,9 @@ import java.util.List;
  * @param offerId       provider 접두어를 붙인 식별자. "mock:ocean-stay-0910"
  * @param nightlyPrice  1박 요금. 요금 미제공이면 null
  * @param totalPrice    박 수 × 객실 수를 곱한 총액. 요금 미제공이면 null
+ * @param imageUrl      목록 카드 대표 이미지. 제공되지 않으면 null
+ * @param latitude      숙소 위도. 동선 추천에 사용하며 제공되지 않으면 null
+ * @param longitude     숙소 경도. 동선 추천에 사용하며 제공되지 않으면 null
  * @param score         추천순 정렬 기준. composite가 채운다
  *
  * <p><b>1박 요금과 총액을 둘 다 들고 다닌다.</b> 화면은 카드에 1박 요금을 보여주고
@@ -33,6 +36,9 @@ public record AccommodationOffer(
         List<String> amenities,
         boolean freeCancellation,
         boolean breakfastIncluded,
+        String imageUrl,
+        Double latitude,
+        Double longitude,
         String deeplinkUrl,
         double score
 ) {
@@ -45,13 +51,15 @@ public record AccommodationOffer(
     public AccommodationOffer withScore(double newScore) {
         return new AccommodationOffer(offerId, provider, name, type, areaLabel, address,
                 rating, reviewCount, nightlyPrice, totalPrice, currency, priceSource,
-                amenities, freeCancellation, breakfastIncluded, deeplinkUrl, newScore);
+                amenities, freeCancellation, breakfastIncluded, imageUrl, latitude, longitude,
+                deeplinkUrl, newScore);
     }
 
     public AccommodationOffer withPrice(BigDecimal newNightlyPrice, BigDecimal newTotalPrice,
                                         AccommodationPriceSource newSource) {
         return new AccommodationOffer(offerId, provider, name, type, areaLabel, address,
                 rating, reviewCount, newNightlyPrice, newTotalPrice, currency, newSource,
-                amenities, freeCancellation, breakfastIncluded, deeplinkUrl, score);
+                amenities, freeCancellation, breakfastIncluded, imageUrl, latitude, longitude,
+                deeplinkUrl, score);
     }
 }

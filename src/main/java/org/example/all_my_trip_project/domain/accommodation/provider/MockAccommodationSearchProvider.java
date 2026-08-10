@@ -129,6 +129,9 @@ public class MockAccommodationSearchProvider implements AccommodationSearchProvi
                 stay.freeCancellation(),
                 stay.breakfastIncluded(),
                 null,
+                null,
+                null,
+                null,
                 0.0
         );
     }
