@@ -7,6 +7,7 @@ import org.springframework.ai.document.Document;
 import org.springframework.ai.vectorstore.VectorStore;
 
 import java.util.List;
+import java.util.Map;
 import java.util.stream.IntStream;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -79,5 +80,23 @@ class PlaceRagServiceTest {
             assertThat(result.source()).isEqualTo("place:12");
             assertThat(result.content()).contains("광안리");
         });
+    }
+
+    @Test
+    void excludesLocalSeedDocumentsFromUserFacingSearchResults() {
+        Document localSeed = Document.builder().id("11111111-1111-1111-1111-111111111111")
+                .text("synthetic place")
+                .metadata(Map.of("source", "place:1", "externalProvider", "LOCAL_SEED"))
+                .build();
+        Document verified = Document.builder().id("22222222-2222-2222-2222-222222222222")
+                .text("verified place")
+                .metadata(Map.of("source", "place:2", "externalProvider", "KAKAO"))
+                .build();
+        when(vectorStore.similaritySearch(any(org.springframework.ai.vectorstore.SearchRequest.class)))
+                .thenReturn(List.of(localSeed, verified));
+
+        assertThat(service.search("Seongsu cafe")).containsExactly(
+                new org.example.all_my_trip_project.domain.rag.dto.RagSearchResult("place:2", "verified place")
+        );
     }
 }

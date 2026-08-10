@@ -193,6 +193,12 @@ public class CohereAiModelClient implements AiModelClient {
                 Retrieved place knowledge (use only if relevant; do not invent details):
                 %s
 
+                Grounding rules:
+                - Name a real venue only when that exact venue name appears in Retrieved place knowledge.
+                - If no matching verified place knowledge is available, do not invent a cafe, restaurant, address,
+                  popularity claim, or neighborhood-specific fact. Explain that verified place candidates are unavailable
+                  and give general planning guidance instead.
+
                 User question: %s
                 """.formatted(formatHistory(history), formatContext(context), formatRagResults(ragResults), request.question());
     }

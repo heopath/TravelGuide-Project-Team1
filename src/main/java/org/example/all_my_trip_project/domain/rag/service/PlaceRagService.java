@@ -52,6 +52,7 @@ public class PlaceRagService {
         }
         try {
             return vectorStore.similaritySearch(SearchRequest.builder().query(question).topK(TOP_K).build()).stream()
+                    .filter(document -> !"LOCAL_SEED".equals(document.getMetadata().get("externalProvider")))
                     .map(document -> new RagSearchResult(
                             String.valueOf(document.getMetadata().getOrDefault("source", "place")),
                             document.getText()))
@@ -65,6 +66,7 @@ public class PlaceRagService {
     private Document toDocument(PlaceDTO place) {
         Map<String, Object> metadata = Map.of(
                 "source", "place:" + place.getPlaceId(),
+                "externalProvider", nullToEmpty(place.getExternalProvider()),
                 "placeId", place.getPlaceId(),
                 "name", nullToEmpty(place.getName()),
                 "region", nullToEmpty(place.getRegion()),
