@@ -24,11 +24,24 @@
     KPO: "포항", KUV: "군산", WJU: "원주", YNY: "양양", HIN: "진주"
   };
 
+  const text = (id, value) => { const el = $(id); if (el) el.textContent = value; };
+  const show = (id) => $(id).classList.add("show");
+  const hide = (id) => $(id).classList.remove("show");
+
+  /* 알림 확인·앱 전환에도 visibilitychange가 발생한다. 너무 빨리 돌아오면 이탈이 아니다.
+     오탐을 줄일 뿐 없애지는 못한다. 항공과 같은 값을 쓴다. */
+  const MIN_AWAY_MS = 3000;
+
   const state = {
     offers: [],
     selectedId: null,
     /* 서버에 저장된 행의 id. 선택 해제할 때 이 값으로 지운다. */
     bookingId: null,
+    /* SELECTED / USER_REPORTED / CONFIRMED. 담은 것이 없으면 null이다. */
+    status: null,
+    bookingRef: "",
+    /* 지금 답변을 기다리는 이탈 건. 자가 신고가 이 값으로 결과를 적는다. */
+    clickId: null,
     /* 여행 없이 비교만 하는 경우 null이다. 그때는 저장하지 않고 브라우저 상태로만 둔다. */
     tripId: new URLSearchParams(window.location.search).get("tripId"),
     sort: "recommended",
@@ -161,8 +174,32 @@
                 aria-pressed="${selected}">
           ${selected ? "선택 취소" : "이 숙소 선택"}
         </button>
+        ${selected ? bookAction(offer) : ""}
       </div>
     </article>`;
+  }
+
+  /**
+   * 담아둔 숙소에만 예약 사이트 이동과 상태를 붙인다.
+   *
+   * 고르지 않은 숙소는 보낼 곳을 정할 수 없고, 딥링크가 없는 숙소(provider가 주소를
+   * 만들지 못한 경우)는 버튼을 내지 않는다. 눌러도 아무 일이 없는 버튼이 더 나쁘다.
+   */
+  function bookAction(offer) {
+    const label = statusLabel();
+    const badge = label
+      ? `<span class="hotel-state${state.status === "CONFIRMED" ? " confirmed" : ""}">${esc(label)}</span>`
+      : "";
+    const button = offer.deeplinkUrl
+      ? `<button type="button" class="hotel-book" data-hotel-book="${esc(offer.offerId)}">예약하러 가기 ↗</button>`
+      : "";
+    return button + badge;
+  }
+
+  function statusLabel() {
+    if (state.status === "CONFIRMED") return `확정 · ${state.bookingRef}`;
+    if (state.status === "USER_REPORTED") return "예약함 · 직접 표시";
+    return "";
   }
 
   function render() {
@@ -294,8 +331,14 @@
     const deselected = state.selectedId === offerId;
     const previousId = state.selectedId;
     const previousBookingId = state.bookingId;
+    const previousStatus = state.status;
+    const previousRef = state.bookingRef;
 
     state.selectedId = deselected ? null : offerId;
+    /* 다른 숙소를 고르면 이전 숙소의 예약 표시는 남을 수 없다. 서버 upsert도 같은 판단이다. */
+    state.status = deselected ? null : "SELECTED";
+    state.bookingRef = "";
+    state.clickId = null;
     render();
     window.dispatchEvent(new CustomEvent("allmytrips:accommodation-selected", {
       detail: { offer: deselected ? null : { ...offer } }
@@ -314,6 +357,8 @@
       /* 저장에 실패했는데 화면만 선택된 채로 두면 새로고침 때 사라져 더 혼란스럽다. */
       state.selectedId = previousId;
       state.bookingId = previousBookingId;
+      state.status = previousStatus;
+      state.bookingRef = previousRef;
       render();
       window.dispatchEvent(new CustomEvent("allmytrips:accommodation-selected", {
         detail: { offer: previousId ? { ...state.offers.find((item) => item.offerId === previousId) } : null }
@@ -343,11 +388,180 @@
       adults: Number($("h-adults")?.value) || 2
     });
     const saved = (payload?.stays || []).find((stay) => stay.offerId === offer.offerId);
-    return saved ? saved.accommodationBookingId : null;
+    if (!saved) return null;
+    /* 상태는 서버가 정한다. 같은 기간을 다시 고르면 예약 표시가 초기화되는 것도 서버 규칙이다. */
+    state.status = saved.status;
+    state.bookingRef = saved.bookingRef || "";
+    return saved.accommodationBookingId;
   }
 
   async function removeStay(bookingId) {
     await request("DELETE", `/api/v1/trips/${state.tripId}/accommodations/${bookingId}`);
+  }
+
+  /* ────────── 예약 사이트 이탈과 자가 신고 ────────── */
+
+  const stayUrl = (suffix) =>
+    `/api/v1/trips/${state.tripId}/accommodations/${state.bookingId}${suffix || ""}`;
+
+  const nightsLabelOf = (offer) => offer.nightsLabel || "";
+
+  function fillModal(prefix, offer) {
+    text(prefix + "tp", offer.typeLabel || "숙소");
+    text(prefix + "nm", offer.name);
+    text(prefix + "dt", `${$("h-checkin").value} → ${$("h-checkout").value}`);
+    text(prefix + "pr", hasPrice(offer) ? money(offer.totalPrice, offer.currency)
+      : (offer.priceSourceLabel || "요금 미제공"));
+    text(prefix + "px", `${nightsLabelOf(offer)} 총액`);
+  }
+
+  /** 이동 안내 모달. 여기서 바로 내보내지 않는 이유는 새 탭이 열린다는 것을 먼저 알리기 위해서다. */
+  function openBooking(offerId) {
+    const offer = state.offers.find((item) => item.offerId === offerId);
+    if (!offer || !offer.deeplinkUrl) return;
+    fillModal("h1", offer);
+    show("hv1");
+  }
+
+  /**
+   * 복귀 감지. 정확히 못 한다는 전제로 만든다.
+   * visibilitychange는 알림 확인·앱 전환·화면 잠금에도 발생하고 모바일에서 특히 부정확하다.
+   * 놓쳤을 때의 복구 경로는 다음 방문의 재질문 배너다.
+   */
+  function detectReturn(onReturn) {
+    const leftAt = Date.now();
+    const handler = () => {
+      if (document.visibilityState !== "visible") return;
+      if (Date.now() - leftAt < MIN_AWAY_MS) return;
+      document.removeEventListener("visibilitychange", handler);
+      onReturn();
+    };
+    document.addEventListener("visibilitychange", handler);
+  }
+
+  async function goOut() {
+    hide("hv1");
+    const offer = selectedOffer();
+    if (!offer) return;
+
+    /* 기록에 실패해도 이동은 막지 않는다. 사용자의 목적은 예약이다. */
+    if (canPersist() && state.bookingId) {
+      try {
+        const payload = await request("POST", stayUrl("/outbound-click"),
+          { deeplinkUrl: offer.deeplinkUrl });
+        state.clickId = payload?.clickId ?? null;
+      } catch (error) { /* 이력이 없으면 재질문을 못 할 뿐이다 */ }
+    }
+
+    window.open(offer.deeplinkUrl, "_blank", "noopener,noreferrer");
+
+    fillModal("h2", offer);
+    detectReturn(() => show("hv2"));
+  }
+
+  /** "네, 예약했어요" — 자가 신고. 결제 확인이 아니다. */
+  async function reportBooked() {
+    hide("hv2");
+    const offer = selectedOffer();
+
+    if (canPersist() && state.bookingId) {
+      try {
+        await applyBookings(await request("PATCH", stayUrl("/report"),
+          { userReportedBooked: true, clickId: state.clickId }));
+      } catch (error) { return; }
+    } else {
+      state.status = "USER_REPORTED";
+    }
+    state.clickId = null;
+    render();
+
+    if (offer) fillModal("h3", offer);
+    $("hotelRefInput").value = state.bookingRef || "";
+    show("hv3");
+  }
+
+  /** "나중에 확인할게요" — 담아둔 것은 유지하고 예약 표시만 하지 않는다. */
+  async function reportLater() {
+    hide("hv2");
+    if (canPersist() && state.bookingId) {
+      try {
+        await applyBookings(await request("PATCH", stayUrl("/report"),
+          { userReportedBooked: false, clickId: state.clickId }));
+      } catch (error) { /* 표시하지 않는 것이 기본값이라 실패해도 상태는 같다 */ }
+    }
+    state.clickId = null;
+    render();
+  }
+
+  /** "아니요, 다시 볼게요" — 선택이 완전히 해제된다. 이탈 이력도 함께 사라진다. */
+  async function reportNo() {
+    hide("hv2");
+    if (canPersist() && state.bookingId) {
+      try { await removeStay(state.bookingId); } catch (error) { /* 로컬 상태는 되돌린다 */ }
+    }
+    clearSelection();
+    render();
+    window.dispatchEvent(new CustomEvent("allmytrips:accommodation-selected", { detail: { offer: null } }));
+  }
+
+  /** 예약번호가 들어오면 확정으로 승격한다. 비어 있으면 호출하지 않는다. */
+  async function saveRef() {
+    const value = $("hotelRefInput").value.trim().toUpperCase();
+    if (!value) return;
+    state.bookingRef = value;
+    state.status = "CONFIRMED";
+    if (canPersist() && state.bookingId) {
+      try { await applyBookings(await request("PATCH", stayUrl("/booking-ref"), { bookingRef: value })); }
+      catch (error) { /* 로컬 표시는 유지하고 다음 조회에서 정정된다 */ }
+    }
+    render();
+  }
+
+  async function saveRefAndClose() {
+    await saveRef();
+    hide("hv3");
+  }
+
+  function clearSelection() {
+    state.selectedId = null;
+    state.bookingId = null;
+    state.status = null;
+    state.bookingRef = "";
+    state.clickId = null;
+  }
+
+  /** 서버 응답 하나로 화면 상태를 맞춘다. 화면이 따로 계산하면 두 곳이 갈린다. */
+  function applyBookings(payload) {
+    const stay = (payload?.stays || [])[0];
+    if (!stay) {
+      clearSelection();
+      return payload;
+    }
+    state.bookingId = stay.accommodationBookingId;
+    state.selectedId = stay.offerId;
+    state.status = stay.status;
+    state.bookingRef = stay.bookingRef || "";
+    return payload;
+  }
+
+  /**
+   * 나갔는데 답을 못 받은 건을 다시 물어본다.
+   *
+   * 검색 결과가 바뀌어 카드가 없어도 물어볼 수 있어야 하므로 서버가 내려준 숙소명을 쓴다.
+   */
+  function showRecall(click) {
+    text("hotelRecallText", `${click.name || "이 숙소"}, 예약하셨나요?`);
+    $("hotelRecall").hidden = false;
+    $("hotelRecallYes").onclick = async () => {
+      state.clickId = click.clickId;
+      $("hotelRecall").hidden = true;
+      await reportBooked();
+    };
+    $("hotelRecallNo").onclick = async () => {
+      state.clickId = click.clickId;
+      $("hotelRecall").hidden = true;
+      await reportNo();
+    };
   }
 
   /**
@@ -366,9 +580,12 @@
     const stay = (payload?.stays || [])[0];
     if (!stay) return;
 
-    state.bookingId = stay.accommodationBookingId;
-    state.selectedId = stay.offerId;
+    applyBookings(payload);
     render();
+
+    /* 복귀 감지를 놓친 건은 다음 방문에 다시 물어본다. */
+    const unresolved = (payload?.unresolvedClicks || [])[0];
+    if (unresolved) showRecall(unresolved);
 
     window.dispatchEvent(new CustomEvent("allmytrips:accommodation-selected", {
       detail: {
@@ -416,9 +633,23 @@
     });
 
     $("hotelList").addEventListener("click", (event) => {
-      const button = event.target.closest("[data-hotel-pick]");
-      if (button) select(button.dataset.hotelPick);
+      const pick = event.target.closest("[data-hotel-pick]");
+      if (pick) {
+        select(pick.dataset.hotelPick);
+        return;
+      }
+      const book = event.target.closest("[data-hotel-book]");
+      if (book) openBooking(book.dataset.hotelBook);
     });
+
+    $("h1go").addEventListener("click", goOut);
+    $("h1back").addEventListener("click", () => hide("hv1"));
+    $("h2yes").addEventListener("click", reportBooked);
+    $("h2no").addEventListener("click", reportNo);
+    $("h2later").addEventListener("click", reportLater);
+    $("h3save").addEventListener("click", saveRefAndClose);
+    /* `나중에`로 닫아도 입력값은 저장한다. 적어놓고 닫았는데 사라지면 다시 찾아야 한다. */
+    $("h3later").addEventListener("click", saveRefAndClose);
 
     $("hotelList").addEventListener("error", (event) => {
       if (event.target.tagName !== "IMG") return;
@@ -455,6 +686,7 @@
   document.addEventListener("DOMContentLoaded", init);
 
   window.__accommodationBooking = {
-    state, searchHotels, select, sortedOffers, selectedOffer
+    state, searchHotels, select, sortedOffers, selectedOffer,
+    openBooking, goOut, reportBooked, reportLater, reportNo, saveRefAndClose, restoreSaved
   };
 })();

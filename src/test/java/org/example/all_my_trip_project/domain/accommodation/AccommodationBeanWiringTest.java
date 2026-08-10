@@ -6,7 +6,9 @@ import org.example.all_my_trip_project.domain.accommodation.provider.LiteApiSand
 import org.example.all_my_trip_project.domain.accommodation.provider.MockAccommodationSearchProvider;
 import org.example.all_my_trip_project.domain.accommodation.provider.TourApiAccommodationSearchProvider;
 import org.example.all_my_trip_project.domain.accommodation.provider.TourApiProperties;
+import org.example.all_my_trip_project.domain.accommodation.service.AccommodationDeeplinkProperties;
 import org.example.all_my_trip_project.domain.accommodation.service.AccommodationRecommendationScorer;
+import org.example.all_my_trip_project.domain.accommodation.service.SearchAccommodationDeeplinkBuilder;
 import org.example.all_my_trip_project.domain.flight.config.FlightHttpClientConfig;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -45,6 +47,9 @@ class AccommodationBeanWiringTest {
                 .withBean(TourApiProperties.class)
                 .withBean(LiteApiSandboxProperties.class)
                 .withBean(AccommodationRecommendationScorer.class)
+                /* provider가 offer마다 예약 사이트 주소를 만들 때 쓴다. 없으면 두 provider가 다 못 뜬다. */
+                .withBean(AccommodationDeeplinkProperties.class)
+                .withBean(SearchAccommodationDeeplinkBuilder.class)
                 .withBean(TourApiAccommodationSearchProvider.class)
                 .withBean(LiteApiSandboxPriceProvider.class,
                         () -> new LiteApiSandboxPriceProvider(

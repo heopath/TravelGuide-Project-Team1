@@ -6,6 +6,7 @@ import java.io.Serializable;
 import java.math.BigDecimal;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -24,12 +25,26 @@ public record TripAccommodationsResponse(
         BigDecimal selectedTotal,
         boolean isEstimate,
         boolean done,
-        String priceSource
+        String priceSource,
+        List<UnresolvedOutboundClick> unresolvedClicks
 ) implements Serializable {
 
     public static final String MIXED = "MIXED";
 
     private static final Set<String> EXCLUDED_FROM_TOTAL = Set.of("MOCK", "SANDBOX", "UNAVAILABLE");
+
+    /**
+     * 나갔는데 답을 못 받은 이탈 건.
+     *
+     * <p>화면이 "이 숙소 예약하셨나요?" 배너로 다시 묻는다. 숙소명을 함께 내리는 이유는
+     * 검색 결과가 바뀌어 카드가 없어도 무엇을 묻는지 밝혀야 하기 때문이다.
+     */
+    public record UnresolvedOutboundClick(
+            Long clickId,
+            Long accommodationBookingId,
+            String offerId,
+            String name
+    ) implements Serializable {}
 
     public record Stay(
             Long accommodationBookingId,
@@ -53,6 +68,11 @@ public record TripAccommodationsResponse(
     ) implements Serializable {}
 
     public static TripAccommodationsResponse from(List<AccommodationBookingDTO> bookings) {
+        return from(bookings, List.of());
+    }
+
+    public static TripAccommodationsResponse from(List<AccommodationBookingDTO> bookings,
+                                                  List<AccommodationOutboundClickDTO> unresolved) {
         List<Stay> stays = bookings.stream().map(TripAccommodationsResponse::toStay).toList();
 
         BigDecimal total = stays.stream()
@@ -73,8 +93,25 @@ public record TripAccommodationsResponse(
                 total,
                 !allReported,
                 allReported,
-                sources.isEmpty() ? null : sources.size() == 1 ? sources.iterator().next() : MIXED
+                sources.isEmpty() ? null : sources.size() == 1 ? sources.iterator().next() : MIXED,
+                toUnresolvedClicks(bookings, unresolved)
         );
+    }
+
+    private static List<UnresolvedOutboundClick> toUnresolvedClicks(
+            List<AccommodationBookingDTO> bookings, List<AccommodationOutboundClickDTO> unresolved) {
+
+        Map<Long, String> namesByBookingId = bookings.stream()
+                .collect(Collectors.toMap(AccommodationBookingDTO::getAccommodationBookingId,
+                        AccommodationBookingDTO::getName, (first, second) -> first));
+
+        return unresolved.stream()
+                .map(click -> new UnresolvedOutboundClick(
+                        click.getAccommodationOutboundClickId(),
+                        click.getAccommodationBookingId(),
+                        click.getOfferId(),
+                        namesByBookingId.get(click.getAccommodationBookingId())))
+                .toList();
     }
 
     private static Stay toStay(AccommodationBookingDTO booking) {

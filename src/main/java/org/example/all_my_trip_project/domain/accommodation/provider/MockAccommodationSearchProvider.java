@@ -2,6 +2,7 @@ package org.example.all_my_trip_project.domain.accommodation.provider;
 
 import org.example.all_my_trip_project.domain.accommodation.dto.AccommodationOffer;
 import org.example.all_my_trip_project.domain.accommodation.dto.AccommodationSearchQuery;
+import org.example.all_my_trip_project.domain.accommodation.service.AccommodationDeeplinkBuilder;
 import org.example.all_my_trip_project.domain.accommodation.type.AccommodationPriceSource;
 import org.example.all_my_trip_project.domain.accommodation.type.AccommodationProviderRole;
 import org.example.all_my_trip_project.domain.accommodation.type.AccommodationType;
@@ -90,6 +91,12 @@ public class MockAccommodationSearchProvider implements AccommodationSearchProvi
             "여수", 0.95
     );
 
+    private final AccommodationDeeplinkBuilder deeplinkBuilder;
+
+    public MockAccommodationSearchProvider(AccommodationDeeplinkBuilder deeplinkBuilder) {
+        this.deeplinkBuilder = deeplinkBuilder;
+    }
+
     @Override
     public String name() {
         return NAME;
@@ -122,10 +129,13 @@ public class MockAccommodationSearchProvider implements AccommodationSearchProvi
                 .multiply(BigDecimal.valueOf(nights))
                 .multiply(BigDecimal.valueOf(query.rooms()));
 
+        /* displayName이 이미 지역을 앞에 붙이므로 딥링크에 지역을 또 넣지 않는다. */
+        String name = displayName(stay, query.destination());
+
         return new AccommodationOffer(
                 offerId(stay, query),
                 NAME,
-                displayName(stay, query.destination()),
+                name,
                 stay.type(),
                 stay.areaLabel(),
                 query.destination() + " " + stay.address(),
@@ -141,7 +151,7 @@ public class MockAccommodationSearchProvider implements AccommodationSearchProvi
                 null,
                 null,
                 null,
-                null,
+                deeplinkBuilder.build(name, null),
                 0.0
         );
     }

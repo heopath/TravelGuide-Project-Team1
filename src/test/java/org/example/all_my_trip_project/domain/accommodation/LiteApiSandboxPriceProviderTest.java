@@ -9,8 +9,10 @@ import org.example.all_my_trip_project.domain.accommodation.provider.TourApiAcco
 import org.example.all_my_trip_project.domain.accommodation.provider.TourApiProperties;
 import org.example.all_my_trip_project.domain.accommodation.provider.AccommodationSearchProvider;
 import org.example.all_my_trip_project.domain.accommodation.provider.CompositeAccommodationSearchProvider;
+import org.example.all_my_trip_project.domain.accommodation.service.AccommodationDeeplinkProperties;
 import org.example.all_my_trip_project.domain.accommodation.service.AccommodationRecommendationScorer;
 import org.example.all_my_trip_project.domain.accommodation.service.AccommodationSearchService;
+import org.example.all_my_trip_project.domain.accommodation.service.SearchAccommodationDeeplinkBuilder;
 import org.example.all_my_trip_project.domain.accommodation.type.AccommodationPriceSource;
 import org.example.all_my_trip_project.domain.accommodation.type.AccommodationProviderRole;
 import org.example.all_my_trip_project.domain.accommodation.type.AccommodationType;
@@ -165,6 +167,8 @@ class LiteApiSandboxPriceProviderTest {
                 .withBean(RestClient.Builder.class, RestClient::builder)
                 .withBean(TourApiProperties.class)
                 .withBean(LiteApiSandboxProperties.class)
+                .withBean(AccommodationDeeplinkProperties.class)
+                .withBean(SearchAccommodationDeeplinkBuilder.class)
                 .withBean(TourApiAccommodationSearchProvider.class)
                 .withBean(LiteApiSandboxPriceProvider.class)
                 .run(context -> {
