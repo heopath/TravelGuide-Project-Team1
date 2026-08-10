@@ -43,6 +43,14 @@ public class AccommodationSearchService {
      *
      * <p>TourAPI의 실제 숙소 정보는 프로덕션에서도 허용한다. 여기서 거부하는 것은
      * Mock 가격과 LiteAPI Sandbox 실습 가격뿐이다.
+     *
+     * <p><b>이 검사는 이제 마지막 안전망이다.</b> Mock provider는 {@code @Profile("!prod")}로,
+     * Sandbox provider는 프로덕션에서 호출되지 않도록 각각 막혀 있어 정상 경로에서는
+     * 여기까지 오지 않는다. 예전에는 이 검사가 유일한 방어라, 키 미설정이나 TourAPI 장애로
+     * Mock 폴백이 걸리면 "검색 결과 없음"이 500으로 둔갑했다.
+     *
+     * <p>그래도 지우지 않는 이유는, 앞으로 실습용 provider가 하나 더 붙었을 때
+     * 프로필 설정을 빠뜨리면 여기서 걸리기 때문이다.
      */
     private void rejectPracticePricesInProduction(AccommodationSearchResult result) {
         if (!isProduction()) {
