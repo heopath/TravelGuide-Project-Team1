@@ -1,11 +1,12 @@
 package org.example.all_my_trip_project.domain.accommodation;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.example.all_my_trip_project.domain.accommodation.dto.AccommodationOffer;
 import org.example.all_my_trip_project.domain.accommodation.dto.AccommodationPriceResult;
 import org.example.all_my_trip_project.domain.accommodation.dto.AccommodationSearchQuery;
 import org.example.all_my_trip_project.domain.accommodation.provider.LiteApiSandboxPriceProvider;
 import org.example.all_my_trip_project.domain.accommodation.provider.LiteApiSandboxProperties;
+import org.example.all_my_trip_project.domain.accommodation.provider.TourApiAccommodationSearchProvider;
+import org.example.all_my_trip_project.domain.accommodation.provider.TourApiProperties;
 import org.example.all_my_trip_project.domain.accommodation.provider.AccommodationSearchProvider;
 import org.example.all_my_trip_project.domain.accommodation.provider.CompositeAccommodationSearchProvider;
 import org.example.all_my_trip_project.domain.accommodation.service.AccommodationRecommendationScorer;
@@ -15,6 +16,7 @@ import org.example.all_my_trip_project.domain.accommodation.type.AccommodationPr
 import org.example.all_my_trip_project.domain.accommodation.type.AccommodationType;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.mock.env.MockEnvironment;
@@ -66,7 +68,7 @@ class LiteApiSandboxPriceProviderTest {
         MockEnvironment environment = new MockEnvironment();
         environment.setActiveProfiles("local");
         return new Fixture(new LiteApiSandboxPriceProvider(
-                properties, builder, new ObjectMapper(), environment), server, properties, environment);
+                properties, builder, environment), server, properties, environment);
     }
 
     @Test
@@ -154,6 +156,22 @@ class LiteApiSandboxPriceProviderTest {
         assertThatThrownBy(() -> service.search(query()))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("실습용 숙소 요금");
+    }
+
+    @Test
+    @DisplayName("Spring에 Jackson 2 ObjectMapper Bean이 없어도 숙소 provider가 생성된다")
+    void startsProvidersWithoutObjectMapperBean() {
+        new ApplicationContextRunner()
+                .withBean(RestClient.Builder.class, RestClient::builder)
+                .withBean(TourApiProperties.class)
+                .withBean(LiteApiSandboxProperties.class)
+                .withBean(TourApiAccommodationSearchProvider.class)
+                .withBean(LiteApiSandboxPriceProvider.class)
+                .run(context -> {
+                    assertThat(context).hasNotFailed();
+                    assertThat(context).hasSingleBean(TourApiAccommodationSearchProvider.class);
+                    assertThat(context).hasSingleBean(LiteApiSandboxPriceProvider.class);
+                });
     }
 
     private String sandboxResponse(boolean sandbox) {
