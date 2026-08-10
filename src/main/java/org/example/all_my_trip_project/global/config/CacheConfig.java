@@ -9,7 +9,6 @@ import org.springframework.cache.interceptor.CacheErrorHandler;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
-import org.springframework.data.redis.cache.RedisCacheConfiguration;
 
 import java.time.Duration;
 
@@ -25,18 +24,26 @@ public class CacheConfig implements CachingConfigurer {
      * <p>국내선 스케줄은 하루 단위로 거의 바뀌지 않는데, TAGO는 일일 트래픽 제한이 있다.
      * 기본 TTL(10분)로는 같은 날짜를 반복 조회하는 사용자 몇 명만으로 개발계정 한도를 쓴다.
      *
-     * <p><b>클래스 로더를 반드시 함께 넘긴다.</b> 인자 없는 {@code defaultCacheConfig()}는
-     * 값을 읽을 때 기본 클래스 로더를 쓴다. 개발 중에는 devtools가 애플리케이션 클래스를
-     * RestartClassLoader로 읽으므로, 캐시에서 꺼낸 객체와 메서드 반환 타입의 클래스가
-     * 이름만 같고 서로 달라져 두 번째 조회부터 ClassCastException이 난다(#139).
-     * Spring Boot가 자동 구성하는 캐시는 컨텍스트의 클래스 로더를 넘기기 때문에
-     * TTL을 바꾸려고 직접 만든 이 캐시에서만 문제가 났다.
+     * <p><b>설정을 새로 만들지 말고 {@code builder.cacheDefaults()}에서 TTL만 덮어쓴다.</b>
+     * {@code RedisCacheConfiguration.defaultCacheConfig()}로 새로 만들면 Spring Boot가
+     * {@code spring.cache.redis.*}로 구성해 둔 값을 전부 잃는다. 실제로 잃었던 것은 셋이다.
+     *
+     * <ul>
+     *   <li>클래스 로더 — devtools는 애플리케이션 클래스를 RestartClassLoader로 읽는데
+     *       캐시는 기본 클래스 로더로 읽어, 이름만 같고 서로 다른 클래스가 된다.
+     *       두 번째 조회부터 ClassCastException이 났다(#139).</li>
+     *   <li>키 접두어 {@code all-my-trips:} — 이 캐시만 접두어 없이 저장돼
+     *       Redis를 다른 용도와 함께 쓸 때 우리 키만 골라내지 못한다.</li>
+     *   <li>{@code cache-null-values=false}</li>
+     * </ul>
+     *
+     * <p>숙박·관광티켓처럼 외부 API 캐시를 추가할 때도 이 블록을 복사하게 된다.
+     * 캐시 이름과 TTL만 바꾸고 나머지는 반드시 {@code cacheDefaults()}에서 물려받는다.
      */
     @Bean
     public RedisCacheManagerBuilderCustomizer flightSearchCacheCustomizer() {
         return builder -> builder.withCacheConfiguration("flightSearch",
-                RedisCacheConfiguration.defaultCacheConfig(getClass().getClassLoader())
-                        .entryTtl(Duration.ofHours(6)));
+                builder.cacheDefaults().entryTtl(Duration.ofHours(6)));
     }
 
     @Override
