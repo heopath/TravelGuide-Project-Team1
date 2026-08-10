@@ -27,11 +27,17 @@
   const state = {
     offers: [],
     selectedId: null,
+    /* 서버에 저장된 행의 id. 선택 해제할 때 이 값으로 지운다. */
+    bookingId: null,
+    /* 여행 없이 비교만 하는 경우 null이다. 그때는 저장하지 않고 브라우저 상태로만 둔다. */
+    tripId: new URLSearchParams(window.location.search).get("tripId"),
     sort: "recommended",
     searched: false,
     loading: false,
     meta: null
   };
+
+  const canPersist = () => state.tripId !== null && state.tripId !== "";
 
   const selectedOffer = () => state.offers.find((offer) => offer.offerId === state.selectedId) || null;
   const hasPrice = (offer) => offer?.totalPrice !== null && offer?.totalPrice !== undefined;
@@ -57,6 +63,26 @@
     $("h-checkin").value = $("f-depart")?.value || "";
     $("h-checkout").value = $("f-return")?.value || "";
     $("h-adults").value = $("f-adults")?.value || "2";
+  }
+
+  /**
+   * 여행에 담을 거면 여행 기간이 기준이다.
+   *
+   * 항공 폼의 날짜를 그대로 쓰면 여행과 어긋난 기간을 담으려다 서버 검증에 걸린다.
+   * 실제로 그랬다 — 여행은 9/10~9/14인데 폼은 항공 검색값인 8/17~8/19였다.
+   * tripId가 없으면(비교만 하는 경우) 항공 폼 값을 그대로 둔다.
+   */
+  async function syncDefaultsFromTrip() {
+    if (!canPersist() || state.searched) return;
+
+    try {
+      const trip = await request("GET", `/api/v1/trips/${state.tripId}`);
+      if (trip?.startDate) $("h-checkin").value = trip.startDate;
+      if (trip?.endDate) $("h-checkout").value = trip.endDate;
+      if (trip?.destinationName) $("h-destination").value = trip.destinationName;
+    } catch (error) {
+      /* 여행을 못 읽어도 비교 화면은 살아 있어야 한다. 항공 폼 기본값으로 진행한다. */
+    }
   }
 
   function sortedOffers() {
@@ -234,7 +260,13 @@
       if (!response.ok || !payload?.success) throw new Error("ACCOMMODATION_SEARCH_FAILED");
 
       const nextOffers = payload.data?.offers || [];
-      if (state.selectedId && !nextOffers.some((offer) => offer.offerId === state.selectedId)) {
+      /*
+       * 선택한 숙소가 새 검색 결과에 없으면 카드로 표시할 방법이 없어 선택 표시를 지운다.
+       * 다만 서버에 저장된 것(bookingId 있음)은 지우지 않는다. 다른 날짜를 검색했다고
+       * 담아둔 숙소가 사라지면, DB에는 남아 있는데 화면만 비어 새로고침 때 되살아난다.
+       */
+      const lost = state.selectedId && !nextOffers.some((offer) => offer.offerId === state.selectedId);
+      if (lost && !state.bookingId) {
         state.selectedId = null;
         window.dispatchEvent(new CustomEvent("allmytrips:accommodation-selected", { detail: { offer: null } }));
       }
@@ -249,16 +281,123 @@
     }
   }
 
-  function select(offerId) {
+  /**
+   * 선택을 화면에 먼저 반영하고 서버에 저장한다.
+   *
+   * 서버 응답을 기다렸다가 그리면 클릭이 굼떠 보인다. 저장이 실패하면 되돌리고 안내한다.
+   * tripId가 없으면(여행 없이 비교만 하는 경우) 저장하지 않고 브라우저 상태로만 둔다.
+   */
+  async function select(offerId) {
     const offer = state.offers.find((item) => item.offerId === offerId);
     if (!offer) return;
 
     const deselected = state.selectedId === offerId;
+    const previousId = state.selectedId;
+    const previousBookingId = state.bookingId;
+
     state.selectedId = deselected ? null : offerId;
     render();
     window.dispatchEvent(new CustomEvent("allmytrips:accommodation-selected", {
       detail: { offer: deselected ? null : { ...offer } }
     }));
+
+    if (!canPersist()) return;
+
+    try {
+      if (deselected) {
+        if (previousBookingId) await removeStay(previousBookingId);
+        state.bookingId = null;
+      } else {
+        state.bookingId = await saveStay(offer);
+      }
+    } catch (error) {
+      /* 저장에 실패했는데 화면만 선택된 채로 두면 새로고침 때 사라져 더 혼란스럽다. */
+      state.selectedId = previousId;
+      state.bookingId = previousBookingId;
+      render();
+      window.dispatchEvent(new CustomEvent("allmytrips:accommodation-selected", {
+        detail: { offer: previousId ? { ...state.offers.find((item) => item.offerId === previousId) } : null }
+      }));
+      showError(error.message || "숙소를 담지 못했어요. 잠시 후 다시 시도해주세요.");
+    }
+  }
+
+  async function saveStay(offer) {
+    const payload = await request("POST", `/api/v1/trips/${state.tripId}/accommodations`, {
+      checkIn: $("h-checkin").value,
+      checkOut: $("h-checkout").value,
+      offerId: offer.offerId,
+      provider: offer.provider,
+      name: offer.name,
+      accommodationType: offer.type,
+      areaLabel: offer.areaLabel,
+      address: offer.address,
+      rating: offer.rating,
+      latitude: offer.latitude,
+      longitude: offer.longitude,
+      nightlyPrice: offer.nightlyPrice,
+      totalPrice: offer.totalPrice,
+      currency: offer.currency,
+      priceSource: offer.priceSource,
+      rooms: Number($("h-rooms")?.value) || 1,
+      adults: Number($("h-adults")?.value) || 2
+    });
+    const saved = (payload?.stays || []).find((stay) => stay.offerId === offer.offerId);
+    return saved ? saved.accommodationBookingId : null;
+  }
+
+  async function removeStay(bookingId) {
+    await request("DELETE", `/api/v1/trips/${state.tripId}/accommodations/${bookingId}`);
+  }
+
+  /**
+   * 저장해 둔 숙소를 화면에 되살린다.
+   *
+   * 검색 결과에 같은 offerId가 있으면 그 카드를 선택 상태로 표시한다. 없으면
+   * (다른 날짜를 검색한 경우 등) 우측 예약 현황에만 반영한다. 담아둔 것을 지우지는 않는다.
+   */
+  async function restoreSaved() {
+    if (!canPersist()) return;
+
+    let payload;
+    try { payload = await request("GET", `/api/v1/trips/${state.tripId}/accommodations`); }
+    catch (error) { return; }
+
+    const stay = (payload?.stays || [])[0];
+    if (!stay) return;
+
+    state.bookingId = stay.accommodationBookingId;
+    state.selectedId = stay.offerId;
+    render();
+
+    window.dispatchEvent(new CustomEvent("allmytrips:accommodation-selected", {
+      detail: {
+        offer: {
+          offerId: stay.offerId, provider: stay.provider, name: stay.name,
+          type: stay.accommodationType, areaLabel: stay.areaLabel, address: stay.address,
+          rating: stay.rating, nightlyPrice: stay.nightlyPrice, totalPrice: stay.totalPrice,
+          currency: stay.currency, priceSource: stay.priceSource,
+          nightsLabel: `${stay.nights}박`
+        }
+      }
+    }));
+  }
+
+  async function request(method, url, body) {
+    const options = { method, headers: { Accept: "application/json" } };
+    if (body) {
+      options.headers["Content-Type"] = "application/json";
+      options.body = JSON.stringify(body);
+    }
+    const response = await fetch(url, options);
+    const result = await response.json().catch(() => null);
+
+    if (!response.ok || !result?.success) {
+      const error = new Error(result?.message || "요청을 처리하지 못했습니다.");
+      error.code = result?.code || "";
+      throw error;
+    }
+    return result.data;
   }
 
   function bind() {
@@ -291,14 +430,26 @@
     window.addEventListener("allmytrips:booking-tab-changed", (event) => {
       if (event.detail?.tab !== "hotel") return;
       syncDefaultsFromFlight();
-      if (!state.searched) searchHotels();
+      /* 여행이 있으면 여행 기간이 항공 폼 값을 덮는다. init과 같은 순서다. */
+      syncDefaultsFromTrip().finally(() => {
+        if (!state.searched) searchHotels();
+      });
     });
   }
 
   function init() {
     syncDefaultsFromFlight();
     bind();
-    if (!$("panel-hotel").hidden) searchHotels();
+    /*
+     * 담아둔 숙소를 먼저 되살리고 검색한다. 순서를 바꾸면 검색 결과가 렌더된 뒤에
+     * 선택 표시가 뒤늦게 붙어 화면이 한 번 깜빡인다.
+     * restoreSaved는 실패해도 조용히 넘어간다 — 비교 화면 자체는 살아 있어야 한다.
+     */
+    syncDefaultsFromTrip()
+      .then(restoreSaved)
+      .finally(() => {
+        if (!$("panel-hotel").hidden) searchHotels();
+      });
   }
 
   document.addEventListener("DOMContentLoaded", init);

@@ -162,6 +162,21 @@ public enum ErrorCode {
     INVALID_ACCOMMODATION_DESTINATION(
             HttpStatus.BAD_REQUEST,
             "숙소를 검색할 지역을 입력해 주세요."
+    ),
+
+    ACCOMMODATION_PERIOD_OUT_OF_TRIP(
+            HttpStatus.BAD_REQUEST,
+            "숙소 기간은 여행 기간 안에 있어야 합니다."
+    ),
+
+    ACCOMMODATION_PERIOD_OVERLAP(
+            HttpStatus.CONFLICT,
+            "같은 기간에 이미 담아둔 숙소가 있습니다."
+    ),
+
+    ACCOMMODATION_BOOKING_NOT_FOUND(
+            HttpStatus.NOT_FOUND,
+            "담아둔 숙소를 찾을 수 없습니다."
     );
 
     private final HttpStatus status;
