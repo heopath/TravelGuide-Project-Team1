@@ -139,6 +139,16 @@ public enum ErrorCode {
             "여행 기록을 찾을 수 없습니다."
     ),
 
+    PLACE_REVIEW_ALREADY_EXISTS(
+            HttpStatus.CONFLICT,
+            "이미 이 장소에 작성한 후기가 있습니다."
+    ),
+
+    PLACE_REVIEW_NOT_FOUND(
+            HttpStatus.NOT_FOUND,
+            "장소 후기를 찾을 수 없습니다."
+    ),
+
     REPORT_ALREADY_PENDING(
             HttpStatus.CONFLICT,
             "이미 처리 대기 중인 신고가 있습니다."
