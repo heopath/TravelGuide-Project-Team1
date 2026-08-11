@@ -128,7 +128,9 @@ const ALL_MY_TRIPS_TEMPLATE_ROUTES = {
 function navigateTo(route) {
   let destination = route || "/home";
   if (window.location.protocol === "file:") {
-    const template = ALL_MY_TRIPS_TEMPLATE_ROUTES[route || "/home"];
+    /* 탭·패널은 ?tab= / ?panel= 로 구분한다. 템플릿 맵은 경로만 들고 있으므로 쿼리를 뗀다.
+       정적 파일로 열 때는 탭이 미리 선택되지 않는다. 파일에는 서버가 없어 어쩔 수 없다. */
+    const template = ALL_MY_TRIPS_TEMPLATE_ROUTES[(route || "/home").split("?")[0]];
     if (template) {
       destination = new URL("../" + template + ".html", window.location.href).href;
     }
@@ -262,24 +264,36 @@ const ALL_MY_TRIPS_SCREENS = [
     "테마 여행",
     "guide"
   ],
+  /*
+   * 예약은 주소 하나에 탭 넷이다. 사용자가 보는 것이 탭마다 완전히 다르므로 각각 한 화면으로 센다.
+   * flights.js가 ?tab= 을 읽어 해당 탭을 열어준다(flight/hotel/ticket/mine).
+   *
+   * /booking 과 /booking/hotels 는 목록에서 뺐다. 둘 다 여기로 오는 리다이렉트라
+   * 남겨두면 같은 화면이 세 번 등장한다. 이미 공유된 주소가 있어 라우트 자체는 남긴다.
+   */
   [
-    "/booking",
-    "예약 허브",
+    "/booking/flights?tab=flight",
+    "예약 · 항공편 검색",
+    "booking"
+  ],
+  [
+    "/booking/flights?tab=hotel",
+    "예약 · 숙소 검색",
+    "booking"
+  ],
+  [
+    "/booking/flights?tab=ticket",
+    "예약 · 티켓·액티비티",
+    "booking"
+  ],
+  [
+    "/booking/flights?tab=mine",
+    "예약 · 내 예약",
     "booking"
   ],
   [
     "/booking/tickets/blueline",
     "티켓 상세·예약",
-    "booking"
-  ],
-  [
-    "/booking/hotels",
-    "숙소 검색",
-    "booking"
-  ],
-  [
-    "/booking/flights",
-    "항공편 검색",
     "booking"
   ],
   [
@@ -302,14 +316,48 @@ const ALL_MY_TRIPS_SCREENS = [
     "여행 기록",
     "trips"
   ],
+  /*
+   * 관리자도 주소 하나에 사이드바로 고르는 패널 일곱이다. 예약과 같은 이유로 각각 센다.
+   * admin.js가 ?panel= 을 읽는다. 없으면 신고 관리가 열린다.
+   */
   [
-    "/admin",
-    "관리자 대시보드",
+    "/admin?panel=reports",
+    "관리자 · 신고 관리",
     "admin"
   ],
   [
     "/admin/places",
-    "추천 장소 관리",
+    "관리자 · 추천 장소 관리",
+    "admin"
+  ],
+  [
+    "/admin?panel=metrics",
+    "관리자 · 운영 지표",
+    "admin"
+  ],
+  [
+    "/admin?panel=products",
+    "관리자 · 예약 상품·재고",
+    "admin"
+  ],
+  [
+    "/admin?panel=theme",
+    "관리자 · 테마 여행 등록",
+    "admin"
+  ],
+  [
+    "/admin?panel=reservations",
+    "관리자 · 예약 모니터링",
+    "admin"
+  ],
+  [
+    "/admin?panel=performance",
+    "관리자 · 성능 모니터링",
+    "admin"
+  ],
+  [
+    "/admin?panel=chat",
+    "관리자 · 상담 채팅",
     "admin"
   ]
 ];
