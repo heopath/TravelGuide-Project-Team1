@@ -32,4 +32,13 @@
         SELECT COUNT(*) FROM support_inquiries WHERE user_id = #{userId}
     </select>
 
+    <select id="findReplies" resultType="org.example.all_my_trip_project.domain.support.dto.SupportReplyDTO">
+        SELECT sr.support_reply_id, sr.support_inquiry_id, sr.admin_user_id,
+               u.nickname AS admin_nickname, sr.content, sr.created_at
+        FROM support_replies sr
+        LEFT JOIN users u ON u.user_id = sr.admin_user_id
+        WHERE sr.support_inquiry_id = #{inquiryId}
+        ORDER BY sr.created_at, sr.support_reply_id
+    </select>
+
 </mapper>

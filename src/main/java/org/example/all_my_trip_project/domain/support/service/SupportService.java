@@ -50,6 +50,7 @@ public class SupportService {
         validateUser(userId);
         SupportInquiryDTO inquiry = requireInquiry(inquiryId);
         if (!userId.equals(inquiry.getUserId())) throw new BusinessException(ErrorCode.FORBIDDEN);
+        inquiry.setReplies(supportDAO.findReplies(inquiryId));
         return inquiry;
     }
 

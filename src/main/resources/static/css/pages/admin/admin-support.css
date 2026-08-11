@@ -1,0 +1,71 @@
+.page-admin-support { background: #f5f7fb; color: #14213d; }
+.support-admin-shell { width: min(1320px, calc(100% - 48px)); margin: 0 auto; padding: 48px 0 80px; }
+.support-admin-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; margin-bottom: 28px; }
+.support-admin-eyebrow { margin: 0 0 8px; color: #5865f2; font-size: 12px; font-weight: 800; letter-spacing: .12em; }
+.support-admin-heading h1 { margin: 0; font-size: 34px; letter-spacing: -.04em; }
+.support-admin-heading > div > p:last-child { margin: 10px 0 0; color: #667085; }
+.support-admin-back { padding: 11px 16px; border: 1px solid #d9deea; border-radius: 10px; background: #fff; color: #344054; font-weight: 700; text-decoration: none; }
+.support-admin-back:hover { border-color: #8e99b3; }
+.support-admin-filters { display: flex; gap: 8px; margin-bottom: 18px; }
+.support-admin-filters button { padding: 9px 16px; border: 1px solid #dbe1ec; border-radius: 999px; background: #fff; color: #596579; font-weight: 700; }
+.support-admin-filters button.is-current { border-color: #5865f2; background: #5865f2; color: #fff; box-shadow: 0 6px 16px rgba(88,101,242,.2); }
+.support-admin-workspace { display: grid; grid-template-columns: minmax(340px, .8fr) minmax(520px, 1.5fr); min-height: 660px; overflow: hidden; border: 1px solid #dfe4ee; border-radius: 18px; background: #fff; box-shadow: 0 18px 48px rgba(31,42,68,.08); }
+.support-admin-list-panel { border-right: 1px solid #e5e9f1; }
+.support-admin-panel-head { height: 68px; padding: 0 22px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #e9edf4; }
+.support-admin-panel-head h2 { margin: 0; font-size: 18px; }
+.support-admin-panel-head span { color: #667085; font-size: 13px; }
+.support-admin-list { min-height: 520px; }
+.support-admin-state { margin: 0; padding: 52px 24px; color: #7a8497; text-align: center; }
+.support-admin-state.error { color: #c33b4a; }
+.support-admin-item { width: 100%; padding: 18px 22px; display: block; border: 0; border-bottom: 1px solid #edf0f5; background: #fff; color: inherit; text-align: left; }
+.support-admin-item:hover, .support-admin-item.is-current { background: #f4f6ff; }
+.support-admin-item.is-current { box-shadow: inset 3px 0 #5865f2; }
+.support-admin-item > div { display: flex; justify-content: space-between; gap: 12px; }
+.support-admin-item span { color: #697386; font-size: 12px; }
+.support-admin-item em { padding: 3px 8px; border-radius: 999px; background: #eef1f7; color: #4f5c72; font-size: 11px; font-style: normal; font-weight: 800; }
+.support-admin-item em.status-open { background: #fff3dc; color: #9a6300; }
+.support-admin-item em.status-in_progress { background: #e8edff; color: #4251c8; }
+.support-admin-item em.status-answered { background: #e4f6ed; color: #18724b; }
+.support-admin-item strong { margin: 10px 0 7px; display: block; overflow: hidden; font-size: 15px; text-overflow: ellipsis; white-space: nowrap; }
+.support-admin-item small { color: #8a93a4; }
+.support-admin-pagination { min-height: 56px; padding: 12px; display: flex; justify-content: center; gap: 5px; border-top: 1px solid #edf0f5; }
+.support-admin-pagination button { width: 32px; height: 32px; border: 1px solid #dfe4ed; border-radius: 8px; background: #fff; color: #667085; }
+.support-admin-pagination button.is-current { border-color: #5865f2; background: #5865f2; color: #fff; }
+.support-admin-detail-panel { padding: 28px 32px; }
+.support-admin-empty { min-height: 590px; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #7a8497; text-align: center; }
+.support-admin-empty[hidden],
+.support-admin-detail-panel [data-detail][hidden] { display: none !important; }
+.support-admin-empty strong { margin-bottom: 8px; color: #39445a; font-size: 18px; }
+.support-admin-empty p { margin: 0; }
+.support-admin-detail-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; padding-bottom: 22px; border-bottom: 1px solid #e8ecf2; }
+.support-admin-detail-head span { color: #5865f2; font-size: 12px; font-weight: 800; }
+.support-admin-detail-head h2 { margin: 8px 0; font-size: 23px; letter-spacing: -.025em; }
+.support-admin-detail-head p { margin: 0; color: #7a8497; font-size: 13px; }
+.support-admin-detail-head select { min-width: 116px; padding: 9px 32px 9px 11px; border: 1px solid #ccd3e0; border-radius: 9px; background: #fff; }
+.support-admin-question, .support-admin-replies { padding: 24px 0; border-bottom: 1px solid #e8ecf2; }
+.support-admin-question h3, .support-admin-replies h3, .support-admin-reply-form label { margin: 0 0 12px; display: block; font-size: 14px; }
+.support-admin-question p { margin: 0; color: #3c4658; line-height: 1.75; white-space: pre-wrap; }
+.support-admin-reply { margin-top: 10px; padding: 16px; border-radius: 12px; background: #f5f7fc; }
+.support-admin-reply:first-child { margin-top: 0; }
+.support-admin-reply div { display: flex; justify-content: space-between; color: #657087; font-size: 12px; }
+.support-admin-reply p { margin: 10px 0 0; line-height: 1.65; white-space: pre-wrap; }
+.support-admin-no-reply { margin: 0; color: #8a93a4; font-size: 13px; }
+.support-admin-reply-form { padding-top: 24px; }
+.support-admin-reply-form textarea { width: 100%; padding: 14px; resize: vertical; border: 1px solid #ccd3e0; border-radius: 12px; color: #273247; line-height: 1.55; }
+.support-admin-reply-form textarea:focus { outline: 3px solid rgba(88,101,242,.12); border-color: #5865f2; }
+.support-admin-reply-form > div { margin-top: 12px; display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.support-admin-reply-form p { margin: 0; color: #c33b4a; font-size: 13px; }
+.support-admin-reply-form button { padding: 11px 18px; border: 0; border-radius: 10px; background: #5865f2; color: #fff; font-weight: 800; }
+.support-admin-reply-form button:disabled { opacity: .55; cursor: wait; }
+@media (max-width: 900px) {
+  .support-admin-workspace { grid-template-columns: 1fr; }
+  .support-admin-list-panel { border-right: 0; border-bottom: 1px solid #e5e9f1; }
+  .support-admin-heading { align-items: flex-start; flex-direction: column; }
+}
+@media (max-width: 600px) {
+  .support-admin-shell { width: min(100% - 24px, 1320px); padding-top: 28px; }
+  .support-admin-filters { overflow-x: auto; }
+  .support-admin-filters button { flex: 0 0 auto; }
+  .support-admin-detail-panel { padding: 22px 18px; }
+  .support-admin-detail-head { flex-direction: column; }
+}
