@@ -31,6 +31,11 @@
             updated_at = CURRENT_TIMESTAMP(6)
         WHERE itinerary_item_id = #{itineraryItemId}
     </update>
+    <update id="updateSortOrder">
+        UPDATE itinerary_items
+        SET sort_order = #{sortOrder}, updated_at = CURRENT_TIMESTAMP(6)
+        WHERE itinerary_item_id = #{itineraryItemId}
+    </update>
     <delete id="delete">
         DELETE FROM itinerary_items WHERE itinerary_item_id = #{itineraryItemId}
     </delete>
