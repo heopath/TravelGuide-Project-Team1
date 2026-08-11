@@ -11,10 +11,6 @@
   const OUTBOUND = 0;
   const INBOUND = 1;
 
-  /* 티켓 탭은 아직 없다. 우측 패널의 자리만 잡아두는 임시 추정치이며,
-     해당 탭이 붙으면 실제 선택 금액으로 대체한다. 숙소 임시 금액은 숙소 탭을 붙이며 제거했다. */
-  const PLACEHOLDER_ACTIVITY = 56000;
-
   /* 일정 충돌 배지와 추천 스코어의 기준.
      가는 편은 1일차 첫 활동 시작 시각, 오는 편은 마지막날 마지막 활동 종료 시각을 본다.
      loadItinerary()가 여행 일정에서 채운다. 비어 있으면 페널티가 0이라 가격만으로 순위가 갈린다. */
@@ -53,6 +49,7 @@
   let initialTab = "flight";
   let search = { origin: "GMP", destination: "CJU", departureDate: null, returnDate: null, adults: 2 };
   let hotelSelection = null;
+  let ticketReservation = null;
 
   /* ────────── 파생값 ────────── */
   const offerOf = (leg, id) => offers[leg].find((o) => o.offerId === id) || null;
@@ -101,6 +98,8 @@
         minimumFractionDigits: 2, maximumFractionDigits: 2
       })}`;
   };
+  const ticketDone = () => !!ticketReservation;
+  const ticketTotal = () => ticketDone() ? Number(ticketReservation.totalAmount || 0) : 0;
 
   /* 목록에 출처가 섞이면 카드마다 개별 표시되고, 하단 문구가 그 사실을 알린다. */
   const sourceLabel = () => offers[state.leg][0]?.priceSourceLabel || "공시운임";
@@ -282,8 +281,10 @@
         sub: hotelHasDisplayPrice()
           ? `${hotelSelection.nightsLabel}${hotelPriceNote()}${hotelCanAddToTotal() ? "" : " · 합계 제외"}`
           : hotelDone() ? "요금 미제공" : "숙소에서 선택", dim: !hotelHasDisplayPrice() },
-      { ic: "◈", icc: "n", nm: "티켓·액티비티", ds: "대기 · 임시 추정치", dsc: "",
-        pv: won(PLACEHOLDER_ACTIVITY), sub: "예상", dim: true }
+      { ic: "◈", icc: ticketDone() ? "g" : "n", nm: "티켓·액티비티",
+        ds: ticketDone() ? `모의 예약 · ${ticketReservation.productName}` : "선택 전",
+        dsc: ticketDone() ? "o" : "", pv: ticketDone() ? won(ticketTotal()) : "—",
+        sub: ticketDone() ? "실습용 · 실제 결제 아님" : "티켓에서 선택", dim: !ticketDone() }
     ];
 
     return rows.map((r) => `<div class="sr">
@@ -316,7 +317,7 @@
     $("rows").innerHTML = sideRows();
 
     if (hasOffers()) {
-      const total = airTotal() + hotelTotal() + PLACEHOLDER_ACTIVITY;
+      const total = airTotal() + hotelTotal() + ticketTotal();
       text("cTot", won(total));
       text("cPer", `1인 ${won(Math.round(total / search.adults))}`);
     } else {
@@ -331,9 +332,10 @@
         : hotelSelection?.priceSource === "MOCK"
           ? "숙소 샘플가"
           : hotelCanAddToTotal() ? "숙소 선택가" : "숙소 요금 제외";
-    text("costNote", `${airLabel} · ${hotelLabel} · 티켓 임시 추정`);
+    const ticketLabel = ticketDone() ? "티켓 모의 예약가" : "티켓 미선택";
+    text("costNote", `${airLabel} · ${hotelLabel} · ${ticketLabel}`);
 
-    const done = (airDone() ? 1 : 0) + (hotelDone() ? 1 : 0);
+    const done = (airDone() ? 1 : 0) + (hotelDone() ? 1 : 0) + (ticketDone() ? 1 : 0);
     text("dn", done);
     text("tabCount", done);
     $("fill").style.width = Math.round((done / 3) * 100) + "%";
@@ -798,6 +800,10 @@
       hotelSelection = event.detail?.offer || null;
       sync();
     });
+    window.addEventListener("allmytrips:ticket-reserved", (event) => {
+      ticketReservation = event.detail?.reservation || null;
+      sync();
+    });
   }
 
   async function init() {
@@ -826,6 +832,7 @@
     reportBooked, reportNo, reportLater, saveRefAndNext, closeModal3,
     status, legPrice, airTotal, airDone, airIsEstimate, render, sync,
     getSearch: () => ({ ...search }),
-    getHotelSelection: () => hotelSelection
+    getHotelSelection: () => hotelSelection,
+    getTicketReservation: () => ticketReservation
   };
 })();

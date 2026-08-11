@@ -194,6 +194,21 @@ public enum ErrorCode {
             "담아둔 숙소를 찾을 수 없습니다."
     ),
 
+    TICKET_NOT_FOUND(
+            HttpStatus.NOT_FOUND,
+            "선택한 티켓 상품이나 시간대를 찾을 수 없습니다."
+    ),
+
+    TICKET_NOT_AVAILABLE(
+            HttpStatus.CONFLICT,
+            "선택한 티켓의 남은 수량이 부족합니다."
+    ),
+
+    INVALID_TICKET_REQUEST(
+            HttpStatus.BAD_REQUEST,
+            "티켓 사용일, 수량 또는 여행 정보가 올바르지 않습니다."
+    ),
+
     SUPPORT_INQUIRY_NOT_FOUND(
             HttpStatus.NOT_FOUND,
             "고객센터 문의를 찾을 수 없습니다."
