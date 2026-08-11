@@ -36,10 +36,10 @@ function until(predicate, timeoutMs = 4000) {
 }
 
 /** 신고 목록 응답을 상황별로 바꿔 끼울 수 있는 화면 한 벌. */
-async function boot(responder) {
+async function boot(responder, url) {
   const calls = [];
   const dom = new JSDOM(fs.readFileSync(HTML, "utf8"), {
-    url: "http://localhost/admin",
+    url: url || "http://localhost/admin",
     runScripts: "outside-only"
   });
   const w = dom.window;
@@ -172,6 +172,33 @@ async function run() {
     w.__adminDashboard.openPanel("없는화면");
     T("모르는 화면 이름은 신고 관리로 되돌린다",
       shown().length === 1 && shown()[0] === "reports");
+  }
+
+  /* ── 주소로 화면을 바로 연다 (#165 · 스토리보드가 관리자를 여덟 장으로 센다) ── */
+  {
+    const { w, d } = await boot(() => ok([]), "http://localhost/admin?panel=chat");
+    const shown = () => [...d.querySelectorAll("[data-admin-section]")]
+      .filter((section) => !section.hidden)
+      .map((section) => section.dataset.adminSection);
+
+    T("?panel= 으로 해당 화면을 바로 연다", shown().length === 1 && shown()[0] === "chat");
+    T("사이드바 현재 표시도 그 화면으로 간다",
+      d.querySelector('[data-admin-panel="chat"]').getAttribute("aria-current") === "page");
+    T("맞는 값이면 주소를 그대로 둔다",
+      new w.URLSearchParams(w.location.search).get("panel") === "chat");
+  }
+
+  {
+    const { w, d } = await boot(() => ok([]), "http://localhost/admin?panel=없는패널");
+    const shown = () => [...d.querySelectorAll("[data-admin-section]")]
+      .filter((section) => !section.hidden)
+      .map((section) => section.dataset.adminSection);
+
+    T("주소에 모르는 값이 와도 신고 관리를 연다",
+      shown().length === 1 && shown()[0] === "reports");
+    /* 주소에 그대로 두면 새로고침할 때마다 같은 일이 반복된다. */
+    T("열지 못한 값은 주소에서 지운다",
+      new w.URLSearchParams(w.location.search).get("panel") === null);
   }
 
   /* ── 신고 목록: 유일하게 실제로 붙어 있는 API ── */

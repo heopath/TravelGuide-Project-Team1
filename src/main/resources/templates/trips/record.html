@@ -11,7 +11,8 @@
     <link rel="stylesheet" th:href="@{/css/common/components.css}" href="../../static/css/common/components.css" />
     <link rel="stylesheet" th:href="@{/css/pages/trips/record.css}" href="../../static/css/pages/trips/record.css" />
   </head>
-  <body class="page-record" data-route="/trips/busan/record" th:attr="data-trip-id=${tripId}" data-trip-id="">
+  <!-- data-route는 전체 화면 목록에서 "현재 화면"을 표시하는 데만 쓴다. 목록의 경로와 맞춘다. -->
+  <body class="page-record" data-route="/trips/1/record" th:attr="data-trip-id=${tripId}" data-trip-id="">
     <div class="app">
       <div th:replace="~{fragments/header :: header('trips')}"></div>
       <main id="page-content">

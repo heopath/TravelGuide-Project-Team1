@@ -173,6 +173,27 @@
     });
 
     state.panel = target;
+    return target;
+  }
+
+  /**
+   * 주소로 특정 화면을 바로 연다. `/admin?panel=chat` 처럼 쓴다.
+   *
+   * <p>전체 화면 목록과 스토리보드가 관리자 화면을 일곱 장으로 세기 때문에 필요하다.
+   * 주소가 없으면 목록의 일곱 항목이 전부 `/admin`으로 가서 신고 관리만 열린다.
+   *
+   * <p>모르는 값이 들어오면 openPanel이 신고 관리로 되돌린다. 이때 주소만 남아 있으면
+   * 새로고침할 때마다 같은 일이 반복되므로, 실제로 열린 화면에 맞춰 주소를 정리한다.
+   */
+  function openPanelFromUrl() {
+    const requested = new URLSearchParams(window.location.search).get("panel");
+    const opened = openPanel(requested || state.panel);
+
+    if (requested && requested !== opened) {
+      const url = new URL(window.location.href);
+      url.searchParams.delete("panel");
+      window.history.replaceState({}, "", url);
+    }
   }
 
   function bind() {
@@ -208,12 +229,12 @@
 
   function init() {
     bind();
-    openPanel(state.panel);
+    openPanelFromUrl();
     loadReports();
     document.body.dataset.pageReady = "true";
   }
 
   document.addEventListener("DOMContentLoaded", init);
 
-  window.__adminDashboard = { state, loadReports, openPanel };
+  window.__adminDashboard = { state, loadReports, openPanel, openPanelFromUrl };
 })();
