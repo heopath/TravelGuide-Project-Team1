@@ -517,6 +517,7 @@ document.addEventListener("DOMContentLoaded", function () {
       showEmpty(timeline, "아직 추가한 장소가 없습니다. 오른쪽에서 장소를 검색해보세요.");
       refreshMap();
       if (lastSearchResults.length) renderSearchResults(lastSearchResults);
+      window.dispatchEvent(new CustomEvent("allmytrips:schedule-changed"));
       return;
     }
     toggleAiEmptyCta(false);
@@ -526,6 +527,7 @@ document.addEventListener("DOMContentLoaded", function () {
     refreshMap();
     if (orderedItems[0]?.place) selectItem(orderedItems[0], false);
     if (lastSearchResults.length) renderSearchResults(lastSearchResults);
+    window.dispatchEvent(new CustomEvent("allmytrips:schedule-changed"));
   }
 
   async function renderAllDays(days) {
@@ -561,6 +563,7 @@ document.addEventListener("DOMContentLoaded", function () {
       });
       if (!activeItems.length) showEmpty(timeline, "아직 추가한 장소가 없습니다.");
       refreshMap();
+      window.dispatchEvent(new CustomEvent("allmytrips:schedule-changed"));
     } catch (error) {
       showEmpty(timeline, error.message);
     }
@@ -833,45 +836,103 @@ document.addEventListener("DOMContentLoaded", function () {
     await selectDay(activeDay, selectedButton);
   }
 
+  function findScheduleDay(dayNumber) {
+    const requestedDay = Number(dayNumber);
+    return Number.isInteger(requestedDay)
+      ? scheduleDays.find(function (day) { return day.dayNumber === requestedDay; })
+      : activeDay;
+  }
+
+  async function loadScheduleDayItems(day) {
+    if (!day?.tripDayId) return [];
+    return day.tripDayId === activeDay?.tripDayId
+      ? activeItems
+      : await api("/api/v1/trip-days/" + day.tripDayId + "/items");
+  }
+
+  function verifiedRecommendationPlaceId(recommendation) {
+    const placeId = Number(recommendation?.placeId);
+    return Number.isInteger(placeId) && placeId > 0 ? placeId : null;
+  }
+
+  async function getAiRecommendationStates(recommendations, recommendedDayNumber) {
+    const targetDay = findScheduleDay(recommendedDayNumber);
+    if (!targetDay?.tripDayId) return new Set();
+    const requestedPlaceIds = new Set((recommendations || [])
+      .map(verifiedRecommendationPlaceId)
+      .filter(Boolean));
+    if (!requestedPlaceIds.size) return new Set();
+    const targetItems = await loadScheduleDayItems(targetDay);
+    return new Set(targetItems
+      .map(function (item) { return Number(item.placeId); })
+      .filter(function (placeId) { return requestedPlaceIds.has(placeId); }));
+  }
+
+  async function addAiRecommendations(recommendations, recommendedDayNumber) {
+    const targetDay = findScheduleDay(recommendedDayNumber);
+    if (!targetDay?.tripDayId) {
+      throw new Error("추천 일차가 현재 여행에 없어 일정에 추가할 수 없습니다.");
+    }
+    const targetItems = await loadScheduleDayItems(targetDay);
+    const storedPlaceIds = new Set(targetItems.map(function (item) { return Number(item.placeId); }));
+    const handledPlaceIds = new Set();
+    const result = { added: 0, alreadyAdded: 0, failed: [] };
+    let nextSortOrder = targetItems.reduce(function (max, item) {
+      return Math.max(max, Number(item.sortOrder) || 0);
+    }, 0) + 1;
+
+    for (const recommendation of recommendations || []) {
+      const placeId = verifiedRecommendationPlaceId(recommendation);
+      if (!placeId) {
+        result.failed.push(recommendation?.name || "알 수 없는 장소");
+        continue;
+      }
+      if (storedPlaceIds.has(placeId) || handledPlaceIds.has(placeId)) {
+        result.alreadyAdded += 1;
+        handledPlaceIds.add(placeId);
+        continue;
+      }
+      try {
+        await api("/api/v1/trip-days/" + targetDay.tripDayId + "/items", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            placeId,
+            itemType: "PLACE",
+            title: recommendation.name,
+            startTime: recommendation.time || null,
+            sortOrder: nextSortOrder,
+            memo: recommendation.reason || null,
+            currencyCode: "KRW",
+            source: "AI"
+          })
+        });
+        nextSortOrder += 1;
+        storedPlaceIds.add(placeId);
+        handledPlaceIds.add(placeId);
+        result.added += 1;
+      } catch (error) {
+        result.failed.push(recommendation.name || "알 수 없는 장소");
+      }
+    }
+
+    const selectedButton = Array.from(dayTabs.querySelectorAll("button"))
+      .find(function (button) { return button.textContent === "DAY " + targetDay.dayNumber; });
+    await selectDay(targetDay, selectedButton);
+    if (result.added) toast("DAY " + targetDay.dayNumber + "에 " + result.added + "개 일정을 추가했습니다.");
+    return result;
+  }
+
   window.AllMyTripsSchedule = {
+    getAiRecommendationStates,
+    addAiRecommendations,
     addAiRecommendation: async function (recommendation, recommendedDayNumber) {
-      const placeId = Number(recommendation?.placeId);
-      if (!Number.isInteger(placeId) || placeId <= 0) {
-        throw new Error("실제 장소로 확인된 추천만 일정에 추가할 수 있습니다.");
-      }
-      if (!activeDay || !activeDay.tripDayId) {
-        throw new Error("추가할 DAY를 먼저 선택해주세요.");
-      }
-      const requestedDay = Number(recommendedDayNumber);
-      const targetDay = Number.isInteger(requestedDay)
-        ? scheduleDays.find(function (day) { return day.dayNumber === requestedDay; })
-        : activeDay;
-      if (!targetDay?.tripDayId) {
-        throw new Error("\uCD94\uCC9C \uC77C\uCC28\uAC00 \uD604\uC7AC \uC5EC\uD589\uC5D0 \uC5C6\uC5B4 \uC77C\uC815\uC5D0 \uCD94\uAC00\uD560 \uC218 \uC5C6\uC2B5\uB2C8\uB2E4.");
-      }
-      const targetItems = targetDay.tripDayId === activeDay.tripDayId
-        ? activeItems
-        : await hydrateItems(await api("/api/v1/trip-days/" + targetDay.tripDayId + "/items"));
-      const nextSortOrder = targetItems.reduce(function (max, item) {
-        return Math.max(max, Number(item.sortOrder) || 0);
-      }, 0) + 1;
-      await api("/api/v1/trip-days/" + targetDay.tripDayId + "/items", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          placeId,
-          itemType: "PLACE",
-          title: recommendation.name,
-          startTime: recommendation.time || null,
-          sortOrder: nextSortOrder,
-          memo: recommendation.reason || null,
-          currencyCode: "KRW",
-          source: "AI"
-        })
-      });
-      const selectedButton = Array.from(dayTabs.querySelectorAll("button"))
-        .find(function (button) { return button.textContent === "DAY " + targetDay.dayNumber; });
-      await selectDay(targetDay, selectedButton);
+      const placeId = verifiedRecommendationPlaceId(recommendation);
+      if (!placeId) throw new Error("실제 장소로 확인된 추천만 일정에 추가할 수 있습니다.");
+      if (!activeDay || !activeDay.tripDayId) throw new Error("추가할 DAY를 먼저 선택해주세요.");
+      const result = await addAiRecommendations([recommendation], recommendedDayNumber);
+      if (result.failed.length) throw new Error("일정 추가에 실패했습니다. 다시 시도해주세요.");
+      return result;
     }
   };
 
