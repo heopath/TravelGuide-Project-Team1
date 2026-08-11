@@ -108,7 +108,7 @@ const ALL_MY_TRIPS_TEMPLATE_ROUTES = {
   "/trips/new/style": "trips/style",
   "/guide": "guide/guide",
   "/guide/places/haeundae": "guide/place-detail",
-  "/trips/busan/schedule": "trips/schedule",
+  "/trips/schedule": "trips/schedule",
   "/trips/busan/map": "trips/map",
   "/ai-trip-plan": "guide/ai-trip-plan",
   "/ai-guide": "guide/ai-guide",
@@ -120,8 +120,9 @@ const ALL_MY_TRIPS_TEMPLATE_ROUTES = {
   "/booking/flights": "booking/flights",
   "/booking/queue": "booking/queue",
   "/mypage": "mypage/mypage",
-  "/trips/busan/record": "trips/record",
-  "/admin": "admin/admin"
+  "/trips/1/record": "trips/record",
+  "/admin": "admin/admin",
+  "/admin/places": "admin/places"
 };
 
 function navigateTo(route) {
@@ -181,6 +182,14 @@ document.addEventListener("submit", function (event) {
 });
 
 
+/*
+ * 전체 화면 목록. 각 항목은 [경로, 이름, 그룹] 세 칸이다.
+ *
+ * 경로는 실제로 열리는 주소여야 한다. 예전에는 여행 관련 화면이 전부 `/trips/busan/...`
+ * 이었는데, map·optimize는 컨트롤러가 slug(String)를 받아 열리지만
+ * schedule·record는 tripId(Long)를 받아 400이 났다. 목록에서 눌러 확인할 수 없는
+ * 화면이 두 개 있었던 셈이다.
+ */
 const ALL_MY_TRIPS_SCREENS = [
   [
     "/home",
@@ -223,7 +232,8 @@ const ALL_MY_TRIPS_SCREENS = [
     "guide"
   ],
   [
-    "/trips/busan/schedule",
+    /* tripId 없이 여는 진입점. schedule.js가 사용자의 여행 목록에서 첫 번째를 잡는다. */
+    "/trips/schedule",
     "여행 일정 편집",
     "trips"
   ],
@@ -283,13 +293,23 @@ const ALL_MY_TRIPS_SCREENS = [
     "mypage"
   ],
   [
-    "/trips/busan/record",
+    /*
+     * 기록 화면은 schedule과 달리 tripId 없이 여는 경로가 없고, record.js도
+     * 여행 목록에서 대신 골라주지 않는다(없으면 "잘못된 여행 정보입니다"를 띄운다).
+     * 그래서 실제 번호로 둔다. 여행이 하나도 없는 환경에서는 안내 문구가 보인다.
+     */
+    "/trips/1/record",
     "여행 기록",
     "trips"
   ],
   [
     "/admin",
     "관리자 대시보드",
+    "admin"
+  ],
+  [
+    "/admin/places",
+    "추천 장소 관리",
     "admin"
   ]
 ];
