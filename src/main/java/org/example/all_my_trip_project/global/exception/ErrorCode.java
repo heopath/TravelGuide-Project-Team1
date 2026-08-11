@@ -204,6 +204,16 @@ public enum ErrorCode {
             "선택한 티켓의 남은 수량이 부족합니다."
     ),
 
+    TICKET_RESERVATION_NOT_FOUND(
+            HttpStatus.NOT_FOUND,
+            "티켓 예약을 찾을 수 없습니다."
+    ),
+
+    TICKET_CANCEL_NOT_ALLOWED(
+            HttpStatus.CONFLICT,
+            "현재 상태에서는 티켓 예약을 취소할 수 없습니다."
+    ),
+
     INVALID_TICKET_REQUEST(
             HttpStatus.BAD_REQUEST,
             "티켓 사용일, 수량 또는 여행 정보가 올바르지 않습니다."

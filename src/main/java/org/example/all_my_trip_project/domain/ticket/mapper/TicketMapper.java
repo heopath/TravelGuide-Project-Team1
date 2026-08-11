@@ -17,8 +17,12 @@ public interface TicketMapper {
     Optional<TicketOfferDTO> findSlotForUpdate(@Param("slotId") Long slotId);
     Optional<TicketReservationDTO> findReservationByRequestKey(@Param("userId") Long userId,
                                                                 @Param("requestKey") String requestKey);
+    Optional<TicketReservationDTO> findReservationForCancel(@Param("userId") Long userId,
+                                                             @Param("reservationId") Long reservationId);
     List<TicketReservationDTO> findReservationsByTrip(@Param("tripId") Long tripId);
     int reserveInventory(@Param("slotId") Long slotId, @Param("quantity") int quantity);
+    int releaseInventory(@Param("slotId") Long slotId, @Param("quantity") int quantity);
+    int cancelReservation(@Param("reservationId") Long reservationId);
     int insertReservation(TicketReservationDTO reservation);
     int insertReservationItem(TicketReservationDTO reservation);
 }

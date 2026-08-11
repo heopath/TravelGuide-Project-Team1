@@ -90,6 +90,30 @@ public class TicketService {
         return ticketDAO.findByTrip(tripId);
     }
 
+    /** PENDING 모의 예약만 취소하고, 잡아 두었던 수량을 같은 트랜잭션에서 되돌린다. */
+    @Transactional
+    public TicketReservationDTO cancel(Long userId, Long reservationId) {
+        if (userId == null || userId < 1) {
+            throw new BusinessException(ErrorCode.UNAUTHORIZED);
+        }
+
+        TicketReservationDTO reservation = ticketDAO.findForCancel(userId, reservationId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.TICKET_RESERVATION_NOT_FOUND));
+        requireOwnedTrip(userId, reservation.getTripId());
+
+        if ("CANCELLED".equals(reservation.getStatus())) return reservation;
+        if (!"PENDING".equals(reservation.getStatus())) {
+            throw new BusinessException(ErrorCode.TICKET_CANCEL_NOT_ALLOWED);
+        }
+
+        if (ticketDAO.cancelReservation(reservationId) != 1
+                || ticketDAO.releaseInventory(reservation.getSlotId(), reservation.getQuantity()) != 1) {
+            throw new BusinessException(ErrorCode.TICKET_CANCEL_NOT_ALLOWED);
+        }
+        reservation.setStatus("CANCELLED");
+        return reservation;
+    }
+
     private TripDTO requireOwnedTrip(Long userId, Long tripId) {
         if (userId == null || userId < 1) {
             throw new BusinessException(ErrorCode.UNAUTHORIZED);

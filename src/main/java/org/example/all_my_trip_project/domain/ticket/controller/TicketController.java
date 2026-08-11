@@ -13,7 +13,9 @@ import org.example.all_my_trip_project.global.security.AuthenticatedUser;
 import org.springframework.context.annotation.Profile;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -52,6 +54,14 @@ public class TicketController {
             @AuthenticationPrincipal AuthenticatedUser principal,
             @RequestParam Long tripId) {
         return ApiResponse.success(ticketService.reservations(requireUserId(principal), tripId));
+    }
+
+    @DeleteMapping("/ticket-reservations/{reservationId}")
+    public ApiResponse<TicketReservationDTO> cancel(
+            @AuthenticationPrincipal AuthenticatedUser principal,
+            @PathVariable Long reservationId) {
+        return ApiResponse.success("모의 예약을 취소하고 수량을 다시 열었습니다.",
+                ticketService.cancel(requireUserId(principal), reservationId));
     }
 
     private Long requireUserId(AuthenticatedUser principal) {

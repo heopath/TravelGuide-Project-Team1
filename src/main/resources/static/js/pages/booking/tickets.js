@@ -82,8 +82,9 @@
         headers: { Accept: "application/json" }, credentials: "same-origin"
       });
       const payload = await response.json();
-      const reservation = payload?.data?.[0] || null;
+      const reservation = (payload?.data || []).find((item) => !["CANCELLED", "EXPIRED"].includes(item.status)) || null;
       if (reservation) selected(reservation);
+      else state.reservation = null;
     } catch (error) { /* 복원 실패가 상품 조회를 막지는 않는다. */ }
   }
 
@@ -118,6 +119,12 @@
     window.addEventListener("allmytrips:booking-tab-changed", (event) => {
       if (event.detail?.tab === "ticket") search();
     });
+    window.addEventListener("allmytrips:ticket-cancelled", (event) => {
+      if (String(state.reservation?.reservationId) !== String(event.detail?.reservationId)) return;
+      state.reservation = null;
+      status("모의 예약을 취소했습니다. 취소한 수량은 다시 예약할 수 있습니다.");
+      void restore();
+    });
     $("ticketList").addEventListener("click", (event) => {
       const button = event.target.closest("[data-ticket-reserve]");
       if (button) reserve(button.dataset.ticketReserve, button);
@@ -129,5 +136,5 @@
     restore();
     if (new URL(location.href).searchParams.get("tab") === "ticket") search();
   });
-  window.__ticketBooking = { state, search, reserve };
+  window.__ticketBooking = { state, search, reserve, restore };
 })();
