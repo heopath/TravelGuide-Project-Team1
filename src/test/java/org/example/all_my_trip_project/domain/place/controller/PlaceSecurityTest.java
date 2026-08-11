@@ -71,12 +71,22 @@ class PlaceSecurityTest {
     }
 
     @Test
-    void acceptsAuthenticatedPlaceCreationWithValidCsrfToken() throws Exception {
+    void rejectsNormalUserPlaceCreationEvenWithValidCsrfToken() throws Exception {
+        mockMvc.perform(post("/api/v1/places")
+                        .with(authentication(authenticatedUser()))
+                        .with(csrf().asHeader())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(PLACE_JSON))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void acceptsAdminPlaceCreationWithValidCsrfToken() throws Exception {
         when(placeService.create(any(PlaceDTO.class))).thenReturn(1L);
         when(placeService.get(1L)).thenReturn(new PlaceDTO());
 
         mockMvc.perform(post("/api/v1/places")
-                        .with(authentication(authenticatedUser()))
+                        .with(authentication(adminUser()))
                         .with(csrf().asHeader())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(PLACE_JSON))
@@ -96,6 +106,14 @@ class PlaceSecurityTest {
                 new AuthenticatedUser(1L, "place-test@example.com", "USER"),
                 null,
                 List.of(new SimpleGrantedAuthority("ROLE_USER"))
+        );
+    }
+
+    private UsernamePasswordAuthenticationToken adminUser() {
+        return UsernamePasswordAuthenticationToken.authenticated(
+                new AuthenticatedUser(1L, "place-admin@example.com", "ADMIN"),
+                null,
+                List.of(new SimpleGrantedAuthority("ROLE_ADMIN"))
         );
     }
 }

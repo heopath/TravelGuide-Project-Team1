@@ -10,6 +10,14 @@ import {
     initFavorites,
 } from "./mypage-favorites.js";
 
+import {
+    initReviews,
+} from "./mypage-reviews.js";
+
+import {
+    initSupport,
+} from "./mypage-support.js";
+
 document.addEventListener(
     "DOMContentLoaded",
     () => {
@@ -26,6 +34,16 @@ document.addEventListener(
         const favoritesView =
             document.querySelector(
                 "[data-favorites-view]",
+            );
+
+        const reviewsView =
+            document.querySelector(
+                "[data-reviews-view]",
+            );
+
+        const supportView =
+            document.querySelector(
+                "[data-support-view]",
             );
 
         const settingsView =
@@ -48,6 +66,16 @@ document.addEventListener(
                 "[data-open-favorites]",
             );
 
+        const openReviewButtons =
+            document.querySelectorAll(
+                "[data-open-reviews]",
+            );
+
+        const openSupportButtons =
+            document.querySelectorAll(
+                "[data-open-support]",
+            );
+
         const openSettingsButton =
             document.querySelector(
                 "[data-open-settings]",
@@ -61,6 +89,16 @@ document.addEventListener(
         const closeFavoriteButton =
             document.querySelector(
                 "[data-close-favorites]",
+            );
+
+        const closeReviewButton =
+            document.querySelector(
+                "[data-close-reviews]",
+            );
+
+        const closeSupportButton =
+            document.querySelector(
+                "[data-close-support]",
             );
 
         const closeSettingsButton =
@@ -120,6 +158,26 @@ document.addEventListener(
                             button,
                             view ===
                             "favorites",
+                        );
+                    },
+                );
+
+            openReviewButtons
+                .forEach(
+                    (button) => {
+                        setCurrent(
+                            button,
+                            view === "reviews",
+                        );
+                    },
+                );
+
+            openSupportButtons
+                .forEach(
+                    (button) => {
+                        setCurrent(
+                            button,
+                            view === "support",
                         );
                     },
                 );
@@ -189,6 +247,16 @@ document.addEventListener(
                     "favorites";
             }
 
+            if (reviewsView) {
+                reviewsView.hidden =
+                    view !== "reviews";
+            }
+
+            if (supportView) {
+                supportView.hidden =
+                    view !== "support";
+            }
+
             if (settingsView) {
                 settingsView.hidden =
                     view !==
@@ -211,6 +279,10 @@ document.addEventListener(
                     : view ===
                     "favorites"
                         ? favoritesView
+                        : view === "reviews"
+                            ? reviewsView
+                        : view === "support"
+                            ? supportView
                         : view ===
                         "settings"
                             ? settingsView
@@ -239,6 +311,8 @@ document.addEventListener(
                 [
                     "trips",
                     "favorites",
+                    "reviews",
+                    "support",
                     "settings",
                 ].includes(value)
                     ? value
@@ -295,6 +369,30 @@ document.addEventListener(
                 },
             );
 
+        openReviewButtons
+            .forEach(
+                (button) => {
+                    button.addEventListener(
+                        "click",
+                        () => {
+                            applyView("reviews");
+                        },
+                    );
+                },
+            );
+
+        openSupportButtons
+            .forEach(
+                (button) => {
+                    button.addEventListener(
+                        "click",
+                        () => {
+                            applyView("support");
+                        },
+                    );
+                },
+            );
+
         openSettingsButton
             ?.addEventListener(
                 "click",
@@ -322,6 +420,22 @@ document.addEventListener(
                     applyView(
                         "dashboard",
                     );
+                },
+            );
+
+        closeReviewButton
+            ?.addEventListener(
+                "click",
+                () => {
+                    applyView("dashboard");
+                },
+            );
+
+        closeSupportButton
+            ?.addEventListener(
+                "click",
+                () => {
+                    applyView("dashboard");
                 },
             );
 
@@ -377,6 +491,8 @@ document.addEventListener(
             initAccount(),
             initTrips(),
             initFavorites(),
+            initReviews(),
+            initSupport(),
         ]).then(
             () => {
                 document.body

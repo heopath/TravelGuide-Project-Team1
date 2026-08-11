@@ -18,19 +18,66 @@
       }).then(function (response) {
         if (!response.ok) throw new Error("CSRF 토큰을 발급받지 못했습니다.");
         return response.json();
-      }).then(function (payload) { return payload.token; });
+      }).then(function (payload) { return payload.token; })
+        .catch(function (error) {
+          // 토큰 발급 자체가 실패한 거부 프로미스를 캐시하면 새로고침 전까지
+          // 이후 모든 쓰기 요청이 같은 거부 프로미스를 받아 계속 막힌다.
+          // 캐시를 비워 다음 요청이 다시 시도할 수 있게 한다.
+          csrfTokenPromise = undefined;
+          throw error;
+        });
     }
     return csrfTokenPromise;
   }
 
-  window.fetch = async function csrfAwareFetch(input, options) {
-    if (!isUnsafeSameOriginRequest(input, options)) return nativeFetch(input, options);
+  async function sendWithToken(input, options) {
     const token = await csrfToken();
     const requestOptions = { ...(options || {}) };
     requestOptions.credentials = requestOptions.credentials || "same-origin";
-    requestOptions.headers = new Headers(requestOptions.headers || {});
+    // input이 Request면 그 안에 담긴 헤더(Content-Type 등)가 기본값이 되어야 한다.
+    // options.headers가 없다고 해서 비워버리면 Request에 실려 있던 헤더가 사라진다.
+    requestOptions.headers = new Headers(input instanceof Request ? input.headers : undefined);
+    if (options && options.headers) {
+      new Headers(options.headers).forEach(function (value, key) {
+        requestOptions.headers.set(key, value);
+      });
+    }
     requestOptions.headers.set("X-CSRF-TOKEN", token);
     return nativeFetch(input, requestOptions);
+  }
+
+  window.fetch = async function csrfAwareFetch(input, options) {
+    if (!isUnsafeSameOriginRequest(input, options)) return nativeFetch(input, options);
+
+    // input이 Request면 첫 전송에서 body가 소모된다. 재시도가 필요할 경우를 대비해
+    // 아직 아무것도 읽지 않은 지금 시점에 clone을 떠서 재시도 전용으로 남겨둔다.
+    const retryInput = input instanceof Request ? input.clone() : input;
+
+    const response = await sendWithToken(input, options);
+    if (response.status !== 403) return response;
+
+    // 403은 CSRF 토큰 실패(ACCESS_DENIED)와 권한 부족(FORBIDDEN 등)을 모두 포함한다.
+    // 둘을 구분하려면 응답 본문의 code를 봐야 하는데, Response.body는 한 번 읽으면
+    // 소모되므로 clone()으로 읽어 재시도하지 않을 때 호출자에게 넘길 원본은 그대로 둔다.
+    let code;
+    try {
+      code = (await response.clone().json())?.code;
+    } catch (error) {
+      code = undefined;
+    }
+    if (code !== "ACCESS_DENIED") return response;
+
+    // 토큰이 어긋난 것으로 보고 캐시를 버리고 새로 받은 토큰으로 딱 한 번만 재시도한다.
+    // 재시도 후에도 403이면 그대로 호출자에게 넘겨 무한 재시도를 막는다(서버가 계속
+    // 거부하는 경우 대비). ACCESS_DENIED가 앞으로도 CSRF 전용이라는 보장은 없어서
+    // (권한 규칙이 늘면 그쪽도 ACCESS_DENIED일 수 있음) 이 1회 제한이 안전망 역할도 한다.
+    //
+    // 주의: options.body가 문자열(JSON.stringify 등)이면 재전송해도 안전하지만,
+    // FormData나 스트림이면 두 번째 요청에서 바디가 비어버릴 수 있다. 지금은 모든
+    // 쓰기 요청이 JSON 문자열 바디라 문제없지만, 파일 업로드처럼 스트림 바디를 쓰게
+    // 되면 재시도 전에 바디를 미리 복제해두는 처리가 필요하다.
+    csrfTokenPromise = undefined;
+    return sendWithToken(retryInput, options);
   };
 })();
 

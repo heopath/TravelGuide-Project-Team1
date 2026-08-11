@@ -1,0 +1,124 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.example.all_my_trip_project.domain.ticket.mapper.TicketMapper">
+
+    <sql id="offerColumns">
+        tp.ticket_product_id AS product_id, tp.place_id, tp.name AS product_name,
+        tp.description, p.name AS place_name, p.region, p.city,
+        (SELECT pi.image_url FROM place_images pi WHERE pi.place_id = p.place_id
+         ORDER BY pi.is_primary DESC, pi.sort_order LIMIT 1) AS image_url,
+        tpo.ticket_product_option_id AS option_id, tpo.name AS option_name,
+        tts.ticket_time_slot_id AS slot_id, tts.usage_date, tts.start_time, tts.end_time,
+        tpo.unit_price, tpo.currency_code AS currency,
+        tpo.max_quantity_per_user,
+        (ti.total_quantity - ti.reserved_quantity) AS remaining_quantity
+    </sql>
+
+    <select id="findOffers" resultType="org.example.all_my_trip_project.domain.ticket.dto.TicketOfferDTO">
+        SELECT <include refid="offerColumns"/>
+        FROM ticket_products tp
+        JOIN places p ON p.place_id = tp.place_id AND p.is_active = TRUE
+        JOIN ticket_product_options tpo ON tpo.ticket_product_id = tp.ticket_product_id AND tpo.is_active = TRUE
+        JOIN ticket_time_slots tts ON tts.ticket_product_option_id = tpo.ticket_product_option_id
+        JOIN ticket_inventory ti ON ti.ticket_time_slot_id = tts.ticket_time_slot_id
+        WHERE tp.status = 'ON_SALE'
+          AND CURRENT_TIMESTAMP BETWEEN tp.sale_start_at AND tp.sale_end_at
+          AND tts.status = 'OPEN'
+          AND tts.usage_date BETWEEN #{from} AND #{to}
+          AND ti.reserved_quantity &lt; ti.total_quantity
+          AND (#{destination} IS NULL OR #{destination} = '' OR
+               CONCAT_WS(' ', p.region, p.city, p.address, p.name) ILIKE '%' || #{destination} || '%')
+        ORDER BY tts.usage_date, tts.start_time NULLS FIRST, tp.ticket_product_id, tpo.sort_order
+    </select>
+
+    <select id="findSlotForUpdate" resultType="org.example.all_my_trip_project.domain.ticket.dto.TicketOfferDTO">
+        SELECT <include refid="offerColumns"/>
+        FROM ticket_products tp
+        JOIN places p ON p.place_id = tp.place_id AND p.is_active = TRUE
+        JOIN ticket_product_options tpo ON tpo.ticket_product_id = tp.ticket_product_id AND tpo.is_active = TRUE
+        JOIN ticket_time_slots tts ON tts.ticket_product_option_id = tpo.ticket_product_option_id
+        JOIN ticket_inventory ti ON ti.ticket_time_slot_id = tts.ticket_time_slot_id
+        WHERE tts.ticket_time_slot_id = #{slotId}
+          AND tp.status = 'ON_SALE'
+          AND CURRENT_TIMESTAMP BETWEEN tp.sale_start_at AND tp.sale_end_at
+          AND tts.status = 'OPEN'
+        FOR UPDATE OF ti
+    </select>
+
+    <update id="reserveInventory">
+        UPDATE ticket_inventory
+        SET reserved_quantity = reserved_quantity + #{quantity}, version = version + 1
+        WHERE ticket_time_slot_id = #{slotId}
+          AND total_quantity - reserved_quantity &gt;= #{quantity}
+    </update>
+
+    <update id="releaseInventory">
+        UPDATE ticket_inventory
+        SET reserved_quantity = reserved_quantity - #{quantity}, version = version + 1
+        WHERE ticket_time_slot_id = #{slotId}
+          AND reserved_quantity &gt;= #{quantity}
+    </update>
+
+    <update id="cancelReservation">
+        UPDATE reservations
+        SET status = 'CANCELLED', cancelled_at = CURRENT_TIMESTAMP
+        WHERE reservation_id = #{reservationId} AND status = 'PENDING'
+    </update>
+
+    <insert id="insertReservation" useGeneratedKeys="true"
+            keyProperty="reservationId" keyColumn="reservation_id">
+        INSERT INTO reservations (
+            reservation_number, trip_id, user_id, status, total_amount, currency_code,
+            request_key, expires_at
+        ) VALUES (
+            #{reservationNumber}, #{tripId}, #{userId}, 'PENDING', #{totalAmount}, #{currency},
+            #{requestKey}, CURRENT_TIMESTAMP + INTERVAL '15 minutes'
+        )
+    </insert>
+
+    <insert id="insertReservationItem">
+        INSERT INTO reservation_items (
+            reservation_id, ticket_time_slot_id, product_name, option_name,
+            usage_date, usage_start_time, quantity, unit_price, line_amount
+        ) VALUES (
+            #{reservationId}, #{slotId}, #{productName}, #{optionName},
+            #{usageDate}, #{usageStartTime}, #{quantity}, #{unitPrice}, #{totalAmount}
+        )
+    </insert>
+
+    <sql id="reservationColumns">
+        r.reservation_id, r.reservation_number, r.trip_id, r.user_id, r.status,
+        r.total_amount, r.currency_code AS currency, r.request_key,
+        ri.ticket_time_slot_id AS slot_id, ri.product_name, ri.option_name,
+        ri.usage_date, ri.usage_start_time, ri.quantity, ri.unit_price
+    </sql>
+
+    <select id="findReservationByRequestKey"
+            resultType="org.example.all_my_trip_project.domain.ticket.dto.TicketReservationDTO">
+        SELECT <include refid="reservationColumns"/>
+        FROM reservations r JOIN reservation_items ri ON ri.reservation_id = r.reservation_id
+        WHERE r.user_id = #{userId} AND r.request_key = #{requestKey}
+        ORDER BY ri.reservation_item_id LIMIT 1
+    </select>
+
+    <!-- 예약 행과 재고 행을 함께 잠가 취소를 두 번 눌러도 수량이 두 번 복구되지 않게 한다. -->
+    <select id="findReservationForCancel"
+            resultType="org.example.all_my_trip_project.domain.ticket.dto.TicketReservationDTO">
+        SELECT <include refid="reservationColumns"/>
+        FROM reservations r
+        JOIN reservation_items ri ON ri.reservation_id = r.reservation_id
+        JOIN ticket_inventory ti ON ti.ticket_time_slot_id = ri.ticket_time_slot_id
+        WHERE r.reservation_id = #{reservationId} AND r.user_id = #{userId}
+        ORDER BY ri.reservation_item_id
+        LIMIT 1
+        FOR UPDATE OF r, ti
+    </select>
+
+    <select id="findReservationsByTrip"
+            resultType="org.example.all_my_trip_project.domain.ticket.dto.TicketReservationDTO">
+        SELECT <include refid="reservationColumns"/>
+        FROM reservations r JOIN reservation_items ri ON ri.reservation_id = r.reservation_id
+        WHERE r.trip_id = #{tripId}
+        ORDER BY r.created_at DESC
+    </select>
+</mapper>

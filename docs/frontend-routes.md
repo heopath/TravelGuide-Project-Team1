@@ -23,7 +23,7 @@
 | `/trips/{tripSlug}/schedule` | `trips/schedule.html` |
 | `/trips/{tripSlug}/map` | `trips/map.html` |
 | `/trips/{tripSlug}/optimize` | `trips/optimize.html` |
-| `/trips/{tripSlug}/record` | `trips/record.html` |
+| `/trips/{tripId}/record` | `trips/record.html` |
 | `/guide` | `guide/guide.html` |
 | `/guide/themes` | `guide/themes.html` |
 | `/guide/places/{placeSlug}` | `guide/place-detail.html` |

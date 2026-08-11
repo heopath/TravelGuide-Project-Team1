@@ -123,11 +123,10 @@
 
             <button
                     type="button"
-                    disabled
+                    data-open-reviews
             >
               <span aria-hidden="true">☆</span>
               <span>리뷰 &amp; 후기</span>
-              <em>준비 중</em>
             </button>
 
           </nav>
@@ -153,11 +152,10 @@
 
             <button
                     type="button"
-                    disabled
+                    data-open-support
             >
               <span aria-hidden="true">◎</span>
               <span>고객센터</span>
-              <em>준비 중</em>
             </button>
 
           </div>
@@ -506,6 +504,149 @@
                     hidden
             ></nav>
 
+          </section>
+
+          <!-- =================================================
+               내가 작성한 장소 후기
+               ================================================= -->
+          <section
+                  class="white-panel mypage-reviews-view"
+                  data-reviews-view
+                  hidden
+          >
+            <div class="mypage-view-head">
+              <div class="mypage-view-title">
+                <button
+                        type="button"
+                        class="mypage-back-button"
+                        data-close-reviews
+                >
+                  ← 이전 화면
+                </button>
+
+                <div>
+                  <h2>리뷰 &amp; 후기</h2>
+                  <p>내가 장소에 남긴 별점과 후기를 확인하세요.</p>
+                </div>
+              </div>
+
+              <strong
+                      class="mypage-total-badge"
+                      data-review-total-count
+              >
+                —
+              </strong>
+            </div>
+
+            <div
+                    class="mypage-review-list"
+                    data-review-list
+                    aria-live="polite"
+            >
+              <p class="mypage-state">작성한 후기를 불러오는 중입니다.</p>
+            </div>
+
+            <nav
+                    class="mypage-pagination"
+                    data-review-pagination
+                    aria-label="내 후기 페이지 이동"
+                    hidden
+            ></nav>
+          </section>
+
+          <!-- =================================================
+               고객센터
+               ================================================= -->
+          <section
+                  class="white-panel mypage-support-view"
+                  data-support-view
+                  hidden
+          >
+            <div class="mypage-view-head">
+              <div class="mypage-view-title">
+                <button type="button" class="mypage-back-button" data-close-support>← 이전 화면</button>
+                <div>
+                  <h2>고객센터</h2>
+                  <p>궁금한 내용을 확인하고 해결되지 않은 문제는 직접 문의해 주세요.</p>
+                </div>
+              </div>
+            </div>
+
+            <div class="support-tabs" role="tablist" aria-label="고객센터 메뉴">
+              <button type="button" class="is-current" data-support-tab="faq">자주 묻는 질문</button>
+              <button type="button" data-support-tab="write">1:1 문의하기</button>
+              <button type="button" data-support-tab="mine">내 문의 내역</button>
+            </div>
+
+            <div class="support-panel" data-support-panel="faq">
+              <div class="support-intro">
+                <span>HELP CENTER</span>
+                <h3>무엇을 도와드릴까요?</h3>
+                <p>여행 일정, AI 계획, 장소와 예약에 관한 답변을 빠르게 찾아보세요.</p>
+                <label class="support-search">
+                  <span class="visually-hidden">FAQ 검색</span>
+                  <input type="search" placeholder="궁금한 내용을 검색하세요" data-support-search />
+                </label>
+              </div>
+              <div class="support-faq-categories" data-support-faq-categories></div>
+              <div class="support-faq-list" data-support-faq-list></div>
+              <p class="mypage-state" data-support-faq-empty hidden>검색 결과가 없습니다.</p>
+            </div>
+
+            <div class="support-panel" data-support-panel="write" hidden>
+              <div class="support-section-title">
+                <h3>1:1 문의하기</h3>
+                <p>문의 내용을 자세히 남겨주시면 고객센터 담당자가 확인할 수 있습니다.</p>
+              </div>
+              <form class="support-form" data-support-form data-no-global-loading>
+                <label>
+                  <span>문의 유형</span>
+                  <select data-support-category required>
+                    <option value="">문의 유형을 선택하세요</option>
+                    <option value="TRIP_PLAN">여행 일정</option>
+                    <option value="AI_PLAN">AI 여행 계획</option>
+                    <option value="PLACE_FAVORITE">추천 장소·찜</option>
+                    <option value="BOOKING">항공·숙소 예약</option>
+                    <option value="ACCOUNT">계정·로그인</option>
+                    <option value="ERROR">오류 신고</option>
+                    <option value="OTHER">기타</option>
+                  </select>
+                </label>
+                <label>
+                  <span>제목</span>
+                  <input type="text" maxlength="150" placeholder="문의 제목을 입력하세요" data-support-title required />
+                </label>
+                <label>
+                  <span>문의 내용</span>
+                  <textarea maxlength="3000" placeholder="발생한 상황과 궁금한 내용을 자세히 작성해 주세요." data-support-content required></textarea>
+                  <small><b data-support-content-length>0</b> / 3000</small>
+                </label>
+                <p class="support-form-message" data-support-form-message aria-live="polite"></p>
+                <button type="submit" class="support-submit" data-support-submit>문의 접수하기</button>
+              </form>
+            </div>
+
+            <div class="support-panel" data-support-panel="mine" hidden>
+              <div class="support-section-title support-section-title-row">
+                <div>
+                  <h3>내 문의 내역</h3>
+                  <p>내가 접수한 문의 내용과 처리 상태를 확인하세요.</p>
+                </div>
+                <strong class="mypage-total-badge" data-support-total>—</strong>
+              </div>
+              <div class="support-inquiry-list" data-support-inquiry-list>
+                <p class="mypage-state">문의 내역을 불러오는 중입니다.</p>
+              </div>
+              <nav class="mypage-pagination" data-support-pagination aria-label="문의 내역 페이지 이동" hidden></nav>
+            </div>
+
+            <div class="support-detail" data-support-detail hidden>
+              <button type="button" class="support-detail-backdrop" data-support-detail-close aria-label="문의 상세 닫기"></button>
+              <section class="support-detail-panel" role="dialog" aria-modal="true" aria-labelledby="support-detail-title">
+                <button type="button" class="support-detail-close" data-support-detail-close aria-label="닫기">×</button>
+                <div data-support-detail-content></div>
+              </section>
+            </div>
           </section>
 
           <!-- =================================================

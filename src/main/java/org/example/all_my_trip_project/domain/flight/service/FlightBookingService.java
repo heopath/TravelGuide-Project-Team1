@@ -43,7 +43,7 @@ public class FlightBookingService {
     public static final int OUTBOUND_LEG = 0;
     public static final int INBOUND_LEG = 1;
 
-    /** 항공 · 숙소 · 티켓. 숙소와 티켓은 아직 미구현이라 항공만 카운트된다. */
+    /** 항공 단독 응답의 이전 호환값. 전체 진행률은 BookingSummaryService가 다시 계산한다. */
     private static final int PROGRESS_TOTAL = 3;
 
     private static final DateTimeFormatter TIME = DateTimeFormatter.ofPattern("HH:mm");
