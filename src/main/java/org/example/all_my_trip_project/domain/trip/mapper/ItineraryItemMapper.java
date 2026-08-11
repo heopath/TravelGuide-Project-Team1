@@ -15,6 +15,8 @@ public interface ItineraryItemMapper {
     Optional<ItineraryItemDTO> findById(Long itineraryItemId);
     List<ItineraryItemDTO> findByTripDayId(Long tripDayId);
     int countByTripDayId(Long tripDayId);
+    int nextSortOrderByTripDayId(Long tripDayId);
+    boolean existsByTripDayIdAndPlaceId(Long tripDayId, Long placeId);
     int update(ItineraryItemDTO item);
     int updateSortOrder(@Param("itineraryItemId") Long itineraryItemId, @Param("sortOrder") Integer sortOrder);
     int delete(Long itineraryItemId);

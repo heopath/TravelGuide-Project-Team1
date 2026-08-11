@@ -13,12 +13,14 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.dao.DataIntegrityViolationException;
 
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -57,6 +59,8 @@ class ItineraryItemServiceTest {
         when(tripDayDAO.findById(20L)).thenReturn(Optional.of(day));
         when(tripDAO.findById(10L)).thenReturn(Optional.of(trip));
         when(itemDAO.countByTripDayId(20L)).thenReturn(3);
+        when(itemDAO.existsByTripDayIdAndPlaceId(20L, 100L)).thenReturn(false);
+        when(itemDAO.nextSortOrderByTripDayId(20L)).thenReturn(3);
 
         assertThat(itineraryItemService.create(42L, item)).isEqualTo(30L);
 
@@ -79,6 +83,61 @@ class ItineraryItemServiceTest {
                 .isEqualTo(ErrorCode.ITINERARY_ITEM_LIMIT_EXCEEDED);
 
         verify(itemDAO, never()).insert(item);
+    }
+
+    @Test
+    void createUsesMaxSortOrderPlusOneAfterMiddleItemWasDeleted() {
+        TripDayDTO day = TripDayDTO.builder().tripDayId(20L).tripId(10L).build();
+        TripDTO trip = TripDTO.builder().tripId(10L).userId(42L).build();
+        ItineraryItemDTO item = ItineraryItemDTO.builder()
+                .itineraryItemId(31L).tripDayId(20L).placeId(101L).title("새 장소").build();
+        when(tripDayDAO.findById(20L)).thenReturn(Optional.of(day));
+        when(tripDAO.findById(10L)).thenReturn(Optional.of(trip));
+        when(itemDAO.countByTripDayId(20L)).thenReturn(2);
+        when(itemDAO.existsByTripDayIdAndPlaceId(20L, 101L)).thenReturn(false);
+        when(itemDAO.nextSortOrderByTripDayId(20L)).thenReturn(3);
+
+        itineraryItemService.create(42L, item);
+
+        assertThat(item.getSortOrder()).isEqualTo(3);
+        verify(itemDAO).insert(item);
+    }
+
+    @Test
+    void createRejectsPlaceAlreadyStoredInSameDay() {
+        TripDayDTO day = TripDayDTO.builder().tripDayId(20L).tripId(10L).build();
+        TripDTO trip = TripDTO.builder().tripId(10L).userId(42L).build();
+        ItineraryItemDTO item = ItineraryItemDTO.builder().tripDayId(20L).placeId(100L).title("중복 장소").build();
+        when(tripDayDAO.findById(20L)).thenReturn(Optional.of(day));
+        when(tripDAO.findById(10L)).thenReturn(Optional.of(trip));
+        when(itemDAO.countByTripDayId(20L)).thenReturn(1);
+        when(itemDAO.existsByTripDayIdAndPlaceId(20L, 100L)).thenReturn(true);
+
+        assertThatThrownBy(() -> itineraryItemService.create(42L, item))
+                .isInstanceOf(BusinessException.class)
+                .extracting(exception -> ((BusinessException) exception).getErrorCode())
+                .isEqualTo(ErrorCode.ITINERARY_PLACE_ALREADY_ADDED);
+
+        verify(itemDAO, never()).insert(item);
+    }
+
+    @Test
+    void createTreatsConcurrentDuplicatePlaceInsertAsAlreadyAdded() {
+        TripDayDTO day = TripDayDTO.builder().tripDayId(20L).tripId(10L).build();
+        TripDTO trip = TripDTO.builder().tripId(10L).userId(42L).build();
+        ItineraryItemDTO item = ItineraryItemDTO.builder().tripDayId(20L).placeId(100L).title("동시 요청 장소").build();
+        when(tripDayDAO.findById(20L)).thenReturn(Optional.of(day));
+        when(tripDAO.findById(10L)).thenReturn(Optional.of(trip));
+        when(itemDAO.countByTripDayId(20L)).thenReturn(1);
+        when(itemDAO.existsByTripDayIdAndPlaceId(20L, 100L)).thenReturn(false, true);
+        when(itemDAO.nextSortOrderByTripDayId(20L)).thenReturn(1);
+        doThrow(new DataIntegrityViolationException("duplicate place"))
+                .when(itemDAO).insert(item);
+
+        assertThatThrownBy(() -> itineraryItemService.create(42L, item))
+                .isInstanceOf(BusinessException.class)
+                .extracting(exception -> ((BusinessException) exception).getErrorCode())
+                .isEqualTo(ErrorCode.ITINERARY_PLACE_ALREADY_ADDED);
     }
 
     @Test
