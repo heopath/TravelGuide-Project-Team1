@@ -34,7 +34,9 @@
     reports: [],
     loading: false,
     /* 상담 채팅은 화면만 있고 연동 전이다. 선택한 필터만 기억한다. */
-    chatFilter: ""
+    chatFilter: "",
+    /* 사이드바에서 고른 화면. 실연동은 신고 관리뿐이라 그것부터 연다. */
+    panel: "reports"
   };
 
   const date = (value) => {
@@ -145,7 +147,39 @@
     renderReports();
   }
 
+  /**
+   * 사이드바에서 고른 화면만 보여준다.
+   *
+   * <p>연동 전 항목도 막지 않는다. 막아버리면 앞으로 무엇이 붙는지 볼 수 없고,
+   * "연동 안 된 것을 숨기지 않는다"는 이 화면의 원칙과도 어긋난다.
+   * 대신 각 화면이 `연동 전` 배지와 빈 값으로 상태를 스스로 밝힌다.
+   */
+  function openPanel(name) {
+    const sections = document.querySelectorAll("[data-admin-section]");
+    const target = [...sections].some((section) => section.dataset.adminSection === name)
+      ? name
+      : "reports";
+
+    sections.forEach((section) => {
+      section.hidden = section.dataset.adminSection !== target;
+    });
+
+    document.querySelectorAll("[data-admin-panel]").forEach((button) => {
+      const on = button.dataset.adminPanel === target;
+      button.classList.toggle("is-current", on);
+      /* aria-current는 참일 때만 둔다. "false" 문자열은 읽어주는 도구가 그대로 읽는다. */
+      if (on) button.setAttribute("aria-current", "page");
+      else button.removeAttribute("aria-current");
+    });
+
+    state.panel = target;
+  }
+
   function bind() {
+    document.querySelectorAll("[data-admin-panel]").forEach((button) => {
+      button.addEventListener("click", () => openPanel(button.dataset.adminPanel));
+    });
+
     document.querySelectorAll("[data-report-status]").forEach((button) => {
       button.addEventListener("click", () => {
         document.querySelectorAll("[data-report-status]").forEach((item) => item.classList.remove("on"));
@@ -174,11 +208,12 @@
 
   function init() {
     bind();
+    openPanel(state.panel);
     loadReports();
     document.body.dataset.pageReady = "true";
   }
 
   document.addEventListener("DOMContentLoaded", init);
 
-  window.__adminDashboard = { state, loadReports };
+  window.__adminDashboard = { state, loadReports, openPanel };
 })();

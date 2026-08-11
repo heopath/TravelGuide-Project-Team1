@@ -32,207 +32,240 @@
           <div class="admin-notice" id="adminAuthNotice" role="status" hidden></div>
 
           <!--
-            운영 지표. 값은 서버 연동 후 채운다.
-            이전 화면은 여기에 "1,284건" 같은 숫자가 박혀 있었는데, 되는 것처럼 보여서
-            연동이 빠진 것을 아무도 눈치채지 못했다. 연동 전에는 값 자리를 비워 둔다.
+            사이드바 + 패널 구조 (#165). 일곱 블록을 세로로 늘어놓으니 아래쪽 화면까지
+            한참 스크롤해야 했고, 연동이 붙을수록 길어지기만 했다. 마이페이지와 같은 방식이다.
+
+            연동 전 항목도 누를 수 있게 둔다. 막아버리면 앞으로 무엇이 붙는지 볼 수 없고,
+            #164에서 정한 "연동 안 된 것을 숨기지 않는다"는 원칙과도 어긋난다.
           -->
-          <section class="admin-section" aria-labelledby="metricsTitle">
-            <div class="admin-section-head">
-              <h2 id="metricsTitle">운영 지표</h2>
-              <span class="admin-tag" data-admin-state="metrics">연동 전</span>
-            </div>
-            <div class="admin-metric-row">
-              <div class="admin-metric">
-                <span>오늘 예약</span>
-                <strong data-metric="todayReservations">—</strong>
-                <small>집계 API 연동 예정</small>
-              </div>
-              <div class="admin-metric">
-                <span>대기 사용자</span>
-                <strong data-metric="waitingUsers">—</strong>
-                <small>대기열 연동 예정</small>
-              </div>
-              <div class="admin-metric">
-                <span>티켓 재고 경고</span>
-                <strong data-metric="stockAlerts">—</strong>
-                <small>재고 임계값 연동 예정</small>
-              </div>
-              <div class="admin-metric">
-                <span>API 오류율</span>
-                <strong data-metric="errorRate">—</strong>
-                <small>성능 모니터링 연동 예정</small>
-              </div>
-            </div>
-          </section>
+          <div class="admin-layout">
+            <aside class="white-panel admin-sidebar">
+              <nav class="admin-nav" aria-label="관리자 메뉴">
+                <button type="button" class="is-current" aria-current="page" data-admin-panel="reports">
+                  <span aria-hidden="true">⚑</span><span>신고 관리</span><em class="live">실연동</em>
+                </button>
+                <button type="button" data-admin-panel="metrics">
+                  <span aria-hidden="true">▦</span><span>운영 지표</span><em>연동 전</em>
+                </button>
+                <button type="button" data-admin-panel="products">
+                  <span aria-hidden="true">▤</span><span>예약 상품·재고</span><em>연동 전</em>
+                </button>
+                <button type="button" data-admin-panel="theme">
+                  <span aria-hidden="true">✦</span><span>테마 여행 등록</span><em>연동 전</em>
+                </button>
+                <button type="button" data-admin-panel="reservations">
+                  <span aria-hidden="true">◈</span><span>예약 모니터링</span><em>연동 전</em>
+                </button>
+                <button type="button" data-admin-panel="performance">
+                  <span aria-hidden="true">◐</span><span>성능 모니터링</span><em>연동 전</em>
+                </button>
+                <button type="button" data-admin-panel="chat">
+                  <span aria-hidden="true">✉</span><span>상담 채팅</span><em>연동 전</em>
+                </button>
+              </nav>
+            </aside>
 
-          <!--
-            신고 관리. 이 화면에서 유일하게 실제 API가 붙어 있는 자리다.
-            (GET /api/v1/travel-record-reports — PR #148로 develop에 이미 있음)
-          -->
-          <section class="admin-section" aria-labelledby="reportsTitle">
-            <div class="admin-section-head">
-              <h2 id="reportsTitle">신고 관리</h2>
-              <span class="admin-tag live" data-admin-state="reports">실연동</span>
-              <div class="admin-filter" role="group" aria-label="신고 상태 필터">
-                <button type="button" class="admin-chip on" data-report-status="">전체</button>
-                <button type="button" class="admin-chip" data-report-status="PENDING">접수</button>
-                <button type="button" class="admin-chip" data-report-status="REVIEWING">검토 중</button>
-                <button type="button" class="admin-chip" data-report-status="RESOLVED">처리 완료</button>
-                <button type="button" class="admin-chip" data-report-status="REJECTED">반려</button>
-              </div>
-            </div>
-            <div class="white-panel admin-panel">
-              <div class="admin-table-head admin-report-row">
-                <span>기록</span><span>사유</span><span>상세</span><span>상태</span><span>접수일</span>
-              </div>
-              <div id="reportList" class="admin-table-body"></div>
-              <p class="admin-empty" id="reportEmpty" role="status">신고 목록을 불러오는 중이에요.</p>
-            </div>
-          </section>
-
-          <div class="admin-columns">
-            <!-- 예약 상품·재고. 재고는 별도 화면이 아니라 상품 행의 수량·품절 처리로 다룬다. -->
-            <section class="admin-section" aria-labelledby="productsTitle">
-              <div class="admin-section-head">
-                <h2 id="productsTitle">예약 상품·재고 관리</h2>
-                <span class="admin-tag" data-admin-state="products">연동 전</span>
-              </div>
-              <div class="white-panel admin-panel">
-                <div class="admin-table-head admin-product-row">
-                  <span>상품</span><span>재고</span><span>판매 상태</span><span></span>
-                </div>
-                <div id="productList" class="admin-table-body"></div>
-                <p class="admin-empty" id="productEmpty" role="status">
-                  상품 관리 API가 붙으면 등록된 상품이 표시돼요.
-                </p>
-              </div>
-            </section>
-
-            <!-- 테마 등록. 저장 API가 없어 제출을 막아둔다. 누르면 아무 일도 없는 버튼이 더 나쁘다. -->
-            <section class="admin-section" aria-labelledby="themeTitle">
-              <div class="admin-section-head">
-                <h2 id="themeTitle">테마 여행 등록</h2>
-                <span class="admin-tag" data-admin-state="theme">연동 전</span>
-              </div>
-              <form class="white-panel admin-panel theme-form" id="themeForm">
-                <label class="field">
-                  <span>테마명</span>
-                  <input id="themeName" name="themeName" autocomplete="off" disabled />
-                </label>
-                <label class="field">
-                  <span>대표 지역</span>
-                  <input id="themeArea" name="themeArea" autocomplete="off" disabled />
-                </label>
-                <label class="field">
-                  <span>예산 범위</span>
-                  <input id="themeBudget" name="themeBudget" autocomplete="off" disabled />
-                </label>
-                <label class="field">
-                  <span>추천 태그</span>
-                  <input id="themeTags" name="themeTags" autocomplete="off" disabled />
-                </label>
-                <button type="submit" class="primary-button wide" id="themeSubmit" disabled>테마 등록</button>
-                <p class="admin-hint">테마 저장 API 연동 후 사용할 수 있어요.</p>
-              </form>
-            </section>
-          </div>
-
-          <div class="admin-columns">
-            <!-- 예약 모니터링 (피그마 No 21-21 · 5번) -->
-            <section class="admin-section" aria-labelledby="monitorTitle">
-              <div class="admin-section-head">
-                <h2 id="monitorTitle">예약 모니터링</h2>
-                <span class="admin-tag" data-admin-state="reservations">연동 전</span>
-              </div>
-              <div class="white-panel admin-panel">
-                <div class="admin-table-head admin-monitor-row">
-                  <span>예약</span><span>상태</span><span>변경 시각</span>
-                </div>
-                <div id="reservationList" class="admin-table-body"></div>
-                <p class="admin-empty" id="reservationEmpty" role="status">
-                  취소·환불·Lock 상태를 여기서 확인할 수 있게 연동할 예정이에요.
-                </p>
-              </div>
-            </section>
-
-            <!-- 성능 모니터링 (피그마 No 21-21 · 6번) -->
-            <section class="admin-section" aria-labelledby="perfTitle">
-              <div class="admin-section-head">
-                <h2 id="perfTitle">성능 모니터링</h2>
-                <span class="admin-tag" data-admin-state="performance">연동 전</span>
-              </div>
-              <div class="white-panel admin-panel admin-perf">
-                <div><span>TPS</span><strong data-metric="tps">—</strong></div>
-                <div><span>평균 응답시간</span><strong data-metric="latency">—</strong></div>
-                <div><span>오류율</span><strong data-metric="failureRate">—</strong></div>
-                <p class="admin-hint">
-                  어떤 지표를 어디까지 노출할지 정한 뒤 연동해요. 운영 정보라 공개 범위를 먼저 정해야 해요.
-                </p>
-              </div>
-            </section>
-          </div>
-
-          <!--
-            상담 채팅. 피그마에 없는 화면이라 구조만 먼저 잡는다.
-            사용자 한 명당 방 하나이고, 그 방을 봇이 받다가 관리자가 넘겨받는 모델이다.
-            그래서 방 목록에 "누가 응대 중인지"가 상태로 들어간다.
-
-            WebSocket 연동 전이라 목록과 대화는 비어 있고 입력창도 막아둔다.
-            가짜 대화를 넣어두면 붙였을 때 무엇이 진짜인지 구분이 안 된다.
-          -->
-          <section class="admin-section" aria-labelledby="chatTitle">
-            <div class="admin-section-head">
-              <h2 id="chatTitle">상담 채팅</h2>
-              <span class="admin-tag" data-admin-state="chat">연동 전</span>
-              <div class="admin-filter" role="group" aria-label="상담 상태 필터">
-                <button type="button" class="admin-chip on" data-chat-filter="">전체</button>
-                <button type="button" class="admin-chip" data-chat-filter="BOT">봇 응대 중</button>
-                <button type="button" class="admin-chip" data-chat-filter="WAITING">대기</button>
-                <button type="button" class="admin-chip" data-chat-filter="ASSIGNED">내 담당</button>
-                <button type="button" class="admin-chip" data-chat-filter="CLOSED">종료</button>
-              </div>
-            </div>
-
-            <div class="white-panel admin-chat">
-              <div class="admin-chat-rooms">
-                <label class="admin-chat-search">
-                  <span class="sr-only">상담 검색</span>
-                  <input id="chatSearch" type="search" placeholder="닉네임·문의 내용 검색" disabled />
-                </label>
-                <div id="chatRoomList" class="admin-chat-room-list"></div>
-                <p class="admin-empty" id="chatRoomEmpty" role="status">
-                  상담 채팅 연동 후 문의 중인 사용자가 여기에 쌓여요.
-                </p>
-              </div>
-
-              <div class="admin-chat-thread">
-                <div class="admin-chat-thread-head">
-                  <div>
-                    <strong id="chatPeerName">대화를 선택해 주세요</strong>
-                    <small id="chatPeerMeta">왼쪽 목록에서 상담을 고르면 대화가 열려요.</small>
+            <div class="admin-content">
+              <!--
+                신고 관리. 이 화면에서 유일하게 실제 API가 붙어 있는 자리라 기본으로 연다.
+                (GET /api/v1/travel-record-reports — PR #148로 develop에 이미 있음)
+              -->
+              <section class="admin-section" data-admin-section="reports" aria-labelledby="reportsTitle">
+                <div class="admin-section-head">
+                  <h2 id="reportsTitle">신고 관리</h2>
+                  <span class="admin-tag live" data-admin-state="reports">실연동</span>
+                  <div class="admin-filter" role="group" aria-label="신고 상태 필터">
+                    <button type="button" class="admin-chip on" data-report-status="">전체</button>
+                    <button type="button" class="admin-chip" data-report-status="PENDING">접수</button>
+                    <button type="button" class="admin-chip" data-report-status="REVIEWING">검토 중</button>
+                    <button type="button" class="admin-chip" data-report-status="RESOLVED">처리 완료</button>
+                    <button type="button" class="admin-chip" data-report-status="REJECTED">반려</button>
                   </div>
-                  <button type="button" class="admin-chat-takeover" id="chatTakeover" disabled>
-                    내가 응대하기
-                  </button>
+                </div>
+                <div class="white-panel admin-panel">
+                  <div class="admin-table-head admin-report-row">
+                    <span>기록</span><span>사유</span><span>상세</span><span>상태</span><span>접수일</span>
+                  </div>
+                  <div id="reportList" class="admin-table-body"></div>
+                  <p class="admin-empty" id="reportEmpty" role="status">신고 목록을 불러오는 중이에요.</p>
+                </div>
+              </section>
+
+              <!--
+                운영 지표. 값은 서버 연동 후 채운다.
+                이전 화면은 여기에 "1,284건" 같은 숫자가 박혀 있었는데, 되는 것처럼 보여서
+                연동이 빠진 것을 아무도 눈치채지 못했다. 연동 전에는 값 자리를 비워 둔다.
+              -->
+              <section class="admin-section" data-admin-section="metrics" aria-labelledby="metricsTitle" hidden>
+                <div class="admin-section-head">
+                  <h2 id="metricsTitle">운영 지표</h2>
+                  <span class="admin-tag" data-admin-state="metrics">연동 전</span>
+                </div>
+                <div class="admin-metric-row">
+                  <div class="admin-metric">
+                    <span>오늘 예약</span>
+                    <strong data-metric="todayReservations">—</strong>
+                    <small>집계 API 연동 예정</small>
+                  </div>
+                  <div class="admin-metric">
+                    <span>대기 사용자</span>
+                    <strong data-metric="waitingUsers">—</strong>
+                    <small>대기열 연동 예정</small>
+                  </div>
+                  <div class="admin-metric">
+                    <span>티켓 재고 경고</span>
+                    <strong data-metric="stockAlerts">—</strong>
+                    <small>재고 임계값 연동 예정</small>
+                  </div>
+                  <div class="admin-metric">
+                    <span>API 오류율</span>
+                    <strong data-metric="errorRate">—</strong>
+                    <small>성능 모니터링 연동 예정</small>
+                  </div>
+                </div>
+              </section>
+
+              <!-- 예약 상품·재고. 재고는 별도 화면이 아니라 상품 행의 수량·품절 처리로 다룬다. -->
+              <section class="admin-section" data-admin-section="products" aria-labelledby="productsTitle" hidden>
+                <div class="admin-section-head">
+                  <h2 id="productsTitle">예약 상품·재고 관리</h2>
+                  <span class="admin-tag" data-admin-state="products">연동 전</span>
+                </div>
+                <div class="white-panel admin-panel">
+                  <div class="admin-table-head admin-product-row">
+                    <span>상품</span><span>재고</span><span>판매 상태</span><span></span>
+                  </div>
+                  <div id="productList" class="admin-table-body"></div>
+                  <p class="admin-empty" id="productEmpty" role="status">
+                    상품 관리 API가 붙으면 등록된 상품이 표시돼요.
+                  </p>
+                </div>
+              </section>
+
+              <!-- 테마 등록. 저장 API가 없어 제출을 막아둔다. 누르면 아무 일도 없는 버튼이 더 나쁘다. -->
+              <section class="admin-section" data-admin-section="theme" aria-labelledby="themeTitle" hidden>
+                <div class="admin-section-head">
+                  <h2 id="themeTitle">테마 여행 등록</h2>
+                  <span class="admin-tag" data-admin-state="theme">연동 전</span>
+                </div>
+                <form class="white-panel admin-panel theme-form" id="themeForm">
+                  <label class="field">
+                    <span>테마명</span>
+                    <input id="themeName" name="themeName" autocomplete="off" disabled />
+                  </label>
+                  <label class="field">
+                    <span>대표 지역</span>
+                    <input id="themeArea" name="themeArea" autocomplete="off" disabled />
+                  </label>
+                  <label class="field">
+                    <span>예산 범위</span>
+                    <input id="themeBudget" name="themeBudget" autocomplete="off" disabled />
+                  </label>
+                  <label class="field">
+                    <span>추천 태그</span>
+                    <input id="themeTags" name="themeTags" autocomplete="off" disabled />
+                  </label>
+                  <button type="submit" class="primary-button wide" id="themeSubmit" disabled>테마 등록</button>
+                  <p class="admin-hint">테마 저장 API 연동 후 사용할 수 있어요.</p>
+                </form>
+              </section>
+
+              <!-- 예약 모니터링 (피그마 No 21-21 · 5번) -->
+              <section class="admin-section" data-admin-section="reservations" aria-labelledby="monitorTitle" hidden>
+                <div class="admin-section-head">
+                  <h2 id="monitorTitle">예약 모니터링</h2>
+                  <span class="admin-tag" data-admin-state="reservations">연동 전</span>
+                </div>
+                <div class="white-panel admin-panel">
+                  <div class="admin-table-head admin-monitor-row">
+                    <span>예약</span><span>상태</span><span>변경 시각</span>
+                  </div>
+                  <div id="reservationList" class="admin-table-body"></div>
+                  <p class="admin-empty" id="reservationEmpty" role="status">
+                    취소·환불·Lock 상태를 여기서 확인할 수 있게 연동할 예정이에요.
+                  </p>
+                </div>
+              </section>
+
+              <!-- 성능 모니터링 (피그마 No 21-21 · 6번) -->
+              <section class="admin-section" data-admin-section="performance" aria-labelledby="perfTitle" hidden>
+                <div class="admin-section-head">
+                  <h2 id="perfTitle">성능 모니터링</h2>
+                  <span class="admin-tag" data-admin-state="performance">연동 전</span>
+                </div>
+                <div class="white-panel admin-panel admin-perf">
+                  <div><span>TPS</span><strong data-metric="tps">—</strong></div>
+                  <div><span>평균 응답시간</span><strong data-metric="latency">—</strong></div>
+                  <div><span>오류율</span><strong data-metric="failureRate">—</strong></div>
+                  <p class="admin-hint">
+                    어떤 지표를 어디까지 노출할지 정한 뒤 연동해요. 운영 정보라 공개 범위를 먼저 정해야 해요.
+                  </p>
+                </div>
+              </section>
+
+              <!--
+                상담 채팅. 피그마에 없는 화면이라 구조만 먼저 잡는다.
+                사용자 한 명당 방 하나이고, 그 방을 봇이 받다가 관리자가 넘겨받는 모델이다.
+                그래서 방 목록에 "누가 응대 중인지"가 상태로 들어간다.
+
+                WebSocket 연동 전이라 목록과 대화는 비어 있고 입력창도 막아둔다.
+                가짜 대화를 넣어두면 붙였을 때 무엇이 진짜인지 구분이 안 된다.
+              -->
+              <section class="admin-section" data-admin-section="chat" aria-labelledby="chatTitle" hidden>
+                <div class="admin-section-head">
+                  <h2 id="chatTitle">상담 채팅</h2>
+                  <span class="admin-tag" data-admin-state="chat">연동 전</span>
+                  <div class="admin-filter" role="group" aria-label="상담 상태 필터">
+                    <button type="button" class="admin-chip on" data-chat-filter="">전체</button>
+                    <button type="button" class="admin-chip" data-chat-filter="BOT">봇 응대 중</button>
+                    <button type="button" class="admin-chip" data-chat-filter="WAITING">대기</button>
+                    <button type="button" class="admin-chip" data-chat-filter="ASSIGNED">내 담당</button>
+                    <button type="button" class="admin-chip" data-chat-filter="CLOSED">종료</button>
+                  </div>
                 </div>
 
-                <div id="chatMessages" class="admin-chat-messages"></div>
-                <p class="admin-empty" id="chatMessageEmpty" role="status">
-                  아직 연동되지 않았어요. WebSocket이 붙으면 실시간으로 대화가 표시돼요.
-                </p>
+                <div class="white-panel admin-chat">
+                  <div class="admin-chat-rooms">
+                    <label class="admin-chat-search">
+                      <span class="sr-only">상담 검색</span>
+                      <input id="chatSearch" type="search" placeholder="닉네임·문의 내용 검색" disabled />
+                    </label>
+                    <div id="chatRoomList" class="admin-chat-room-list"></div>
+                    <p class="admin-empty" id="chatRoomEmpty" role="status">
+                      상담 채팅 연동 후 문의 중인 사용자가 여기에 쌓여요.
+                    </p>
+                  </div>
 
-                <form class="admin-chat-composer" id="chatComposer">
-                  <label class="sr-only" for="chatInput">답장 입력</label>
-                  <input id="chatInput" autocomplete="off" placeholder="연동 후 답장할 수 있어요" disabled />
-                  <button type="submit" class="primary-button" id="chatSend" disabled>보내기</button>
-                </form>
-              </div>
+                  <div class="admin-chat-thread">
+                    <div class="admin-chat-thread-head">
+                      <div>
+                        <strong id="chatPeerName">대화를 선택해 주세요</strong>
+                        <small id="chatPeerMeta">왼쪽 목록에서 상담을 고르면 대화가 열려요.</small>
+                      </div>
+                      <button type="button" class="admin-chat-takeover" id="chatTakeover" disabled>
+                        내가 응대하기
+                      </button>
+                    </div>
+
+                    <div id="chatMessages" class="admin-chat-messages"></div>
+                    <p class="admin-empty" id="chatMessageEmpty" role="status">
+                      아직 연동되지 않았어요. WebSocket이 붙으면 실시간으로 대화가 표시돼요.
+                    </p>
+
+                    <form class="admin-chat-composer" id="chatComposer">
+                      <label class="sr-only" for="chatInput">답장 입력</label>
+                      <input id="chatInput" autocomplete="off" placeholder="연동 후 답장할 수 있어요" disabled />
+                      <button type="submit" class="primary-button" id="chatSend" disabled>보내기</button>
+                    </form>
+                  </div>
+                </div>
+                <p class="admin-hint">
+                  봇이 먼저 받고 관리자가 넘겨받는 구조예요. 넘겨받는 시점과 관리자가 없을 때의 동작은
+                  연동 전에 정해야 해요.
+                </p>
+              </section>
             </div>
-            <p class="admin-hint">
-              봇이 먼저 받고 관리자가 넘겨받는 구조예요. 넘겨받는 시점과 관리자가 없을 때의 동작은
-              연동 전에 정해야 해요.
-            </p>
-          </section>
+          </div>
         </section>
       </main>
       <div th:replace="~{fragments/modals :: modalRoots}"><div id="directory-root"></div><div id="modal-root"></div><div id="toast-root" aria-live="polite"></div></div>
