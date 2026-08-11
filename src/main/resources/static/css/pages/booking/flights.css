@@ -469,3 +469,30 @@
 
 /* 운임 미제공 — 0원이 아니라 값이 없는 것이므로 금액처럼 보이지 않게 한다. */
 .page-flights .fp .tot.none { font-size: 14px; font-weight: 700; color: var(--muted); letter-spacing: 0; }
+
+/* V7 내부 상품을 이용하는 티켓·액티비티 실습 화면. */
+.page-flights .ticket-head { display:flex; align-items:flex-start; justify-content:space-between; gap:18px; margin-bottom:18px; }
+.page-flights .ticket-head h2 { margin:4px 0 5px; color:#0b1b3f; font-size:22px; }
+.page-flights .ticket-head p { margin:0; color:#6f7f9f; font-size:13px; }
+.page-flights .ticket-kicker { color:#5468ff; font-size:12px; font-weight:800; }
+.page-flights .ticket-practice { padding:8px 12px; border-radius:999px; background:#eef4ff; color:#285fc7; font-size:12px; font-weight:800; white-space:nowrap; }
+.page-flights .ticket-status { padding:18px; border:1px dashed #cbd5ea; border-radius:14px; color:#63718f; text-align:center; }
+.page-flights .ticket-status.error { border-color:#f1b9b9; background:#fff6f6; color:#b33a3a; }
+.page-flights .ticket-list { display:grid; gap:10px; }
+.page-flights .ticket-card { display:flex; align-items:center; justify-content:space-between; gap:18px; padding:18px; border:1px solid #dce3f1; border-radius:16px; background:#fff; }
+.page-flights .ticket-copy span { color:#5b6cff; font-size:12px; font-weight:700; }
+.page-flights .ticket-copy h3 { margin:6px 0; color:#0b1b3f; font-size:18px; }
+.page-flights .ticket-copy p, .page-flights .ticket-copy small { margin:0; color:#72809b; }
+.page-flights .ticket-action { min-width:190px; display:grid; justify-items:end; gap:5px; }
+.page-flights .ticket-action strong { color:#0b1b3f; font-size:20px; }
+.page-flights .ticket-action small { color:#72809b; font-size:11px; }
+.page-flights .ticket-action label { color:#52617c; font-size:12px; }
+.page-flights .ticket-action input { width:58px; margin-left:5px; padding:6px; border:1px solid #d5ddec; border-radius:8px; }
+.page-flights .ticket-action button { width:100%; padding:10px 14px; border:0; border-radius:9px; background:#0b1538; color:#fff; font-weight:800; cursor:pointer; }
+.page-flights .ticket-action button:disabled { opacity:.55; cursor:wait; }
+
+@media (max-width: 680px) {
+  .page-flights .ticket-head, .page-flights .ticket-card { align-items:stretch; flex-direction:column; }
+  .page-flights .ticket-practice { align-self:flex-start; }
+  .page-flights .ticket-action { min-width:0; justify-items:stretch; }
+}
