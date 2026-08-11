@@ -234,6 +234,7 @@ document.addEventListener("DOMContentLoaded", function () {
     content.hidden = false;
     renderMap(place);
     loadFavoriteState(place.placeId);
+    document.dispatchEvent(new CustomEvent("placeDetailLoaded", { detail: { place: place } }));
   }
 
   async function loadDetail() {

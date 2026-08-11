@@ -123,11 +123,10 @@
 
             <button
                     type="button"
-                    disabled
+                    data-open-reviews
             >
               <span aria-hidden="true">☆</span>
               <span>리뷰 &amp; 후기</span>
-              <em>준비 중</em>
             </button>
 
           </nav>
@@ -506,6 +505,54 @@
                     hidden
             ></nav>
 
+          </section>
+
+          <!-- =================================================
+               내가 작성한 장소 후기
+               ================================================= -->
+          <section
+                  class="white-panel mypage-reviews-view"
+                  data-reviews-view
+                  hidden
+          >
+            <div class="mypage-view-head">
+              <div class="mypage-view-title">
+                <button
+                        type="button"
+                        class="mypage-back-button"
+                        data-close-reviews
+                >
+                  ← 이전 화면
+                </button>
+
+                <div>
+                  <h2>리뷰 &amp; 후기</h2>
+                  <p>내가 장소에 남긴 별점과 후기를 확인하세요.</p>
+                </div>
+              </div>
+
+              <strong
+                      class="mypage-total-badge"
+                      data-review-total-count
+              >
+                —
+              </strong>
+            </div>
+
+            <div
+                    class="mypage-review-list"
+                    data-review-list
+                    aria-live="polite"
+            >
+              <p class="mypage-state">작성한 후기를 불러오는 중입니다.</p>
+            </div>
+
+            <nav
+                    class="mypage-pagination"
+                    data-review-pagination
+                    aria-label="내 후기 페이지 이동"
+                    hidden
+            ></nav>
           </section>
 
           <!-- =================================================

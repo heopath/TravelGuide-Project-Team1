@@ -88,7 +88,72 @@
                 </section>
               </aside>
             </div>
+
+            <section class="reviews-section" aria-labelledby="reviews-title">
+              <div class="reviews-heading">
+                <div>
+                  <span class="section-eyebrow">PLACE REVIEWS</span>
+                  <h2 id="reviews-title">방문자 후기</h2>
+                  <p>이 장소를 방문한 여행자들의 솔직한 경험을 확인해 보세요.</p>
+                </div>
+                <button type="button" class="review-write-button" data-review-open>후기 작성하기</button>
+              </div>
+
+              <div class="review-summary-card">
+                <div class="review-average">
+                  <strong data-review-average>0.0</strong>
+                  <div>
+                    <span class="review-stars" data-review-average-stars aria-label="평균 평점 0점">☆☆☆☆☆</span>
+                    <small><b data-review-count>0</b>개의 후기</small>
+                  </div>
+                </div>
+                <div class="rating-distribution" aria-label="평점 분포">
+                  <div data-rating-row="5"><span>5점</span><i><b></b></i><em>0</em></div>
+                  <div data-rating-row="4"><span>4점</span><i><b></b></i><em>0</em></div>
+                  <div data-rating-row="3"><span>3점</span><i><b></b></i><em>0</em></div>
+                  <div data-rating-row="2"><span>2점</span><i><b></b></i><em>0</em></div>
+                  <div data-rating-row="1"><span>1점</span><i><b></b></i><em>0</em></div>
+                </div>
+              </div>
+
+              <div class="review-state" data-review-state aria-live="polite">후기를 불러오는 중입니다.</div>
+              <div class="review-list" data-review-list hidden></div>
+              <button type="button" class="review-more-button" data-review-more hidden>후기 더 보기</button>
+            </section>
           </article>
+
+          <div class="review-modal" data-review-modal hidden aria-hidden="true">
+            <button type="button" class="review-modal-backdrop" data-review-close aria-label="후기 작성 닫기"></button>
+            <section class="review-modal-panel" role="dialog" aria-modal="true" aria-labelledby="review-modal-title">
+              <button type="button" class="review-modal-close" data-review-close aria-label="닫기">×</button>
+              <span class="section-eyebrow">WRITE A REVIEW</span>
+              <h2 id="review-modal-title" data-review-modal-title>후기 작성하기</h2>
+              <p data-review-place-name></p>
+              <form data-review-form data-no-global-loading>
+                <fieldset class="review-rating-field">
+                  <legend>별점</legend>
+                  <div class="review-rating-buttons" data-review-rating role="radiogroup" aria-label="장소 별점">
+                    <button type="button" data-rating="1" role="radio" aria-checked="false" aria-label="1점">★</button>
+                    <button type="button" data-rating="2" role="radio" aria-checked="false" aria-label="2점">★</button>
+                    <button type="button" data-rating="3" role="radio" aria-checked="false" aria-label="3점">★</button>
+                    <button type="button" data-rating="4" role="radio" aria-checked="false" aria-label="4점">★</button>
+                    <button type="button" data-rating="5" role="radio" aria-checked="false" aria-label="5점">★</button>
+                  </div>
+                </fieldset>
+                <label class="review-content-field" for="place-review-content">
+                  <span>후기 내용</span>
+                  <textarea id="place-review-content" data-review-content maxlength="1000"
+                            placeholder="장소에서 좋았던 점과 여행 팁을 남겨주세요." required></textarea>
+                  <small><b data-review-length>0</b> / 1000</small>
+                </label>
+                <p class="review-form-error" data-review-error aria-live="polite"></p>
+                <div class="review-form-actions">
+                  <button type="button" data-review-close>취소</button>
+                  <button type="submit" class="review-submit-button" data-review-submit>등록하기</button>
+                </div>
+              </form>
+            </section>
+          </div>
         </section>
       </main>
       <div th:replace="~{fragments/modals :: modalRoots}"><div id="directory-root"></div><div id="modal-root"></div><div id="toast-root" aria-live="polite"></div></div>
@@ -100,5 +165,6 @@
       th:src="|https://dapi.kakao.com/v2/maps/sdk.js?appkey=${kakaoJavascriptKey}&amp;autoload=false|"
     ></script>
     <script th:src="@{/js/pages/guide/place-detail.js}" src="../../static/js/pages/guide/place-detail.js"></script>
+    <script th:src="@{/js/pages/guide/place-reviews.js}" src="../../static/js/pages/guide/place-reviews.js"></script>
   </body>
 </html>
