@@ -34,7 +34,14 @@
     const token = await csrfToken();
     const requestOptions = { ...(options || {}) };
     requestOptions.credentials = requestOptions.credentials || "same-origin";
-    requestOptions.headers = new Headers(requestOptions.headers || {});
+    // input이 Request면 그 안에 담긴 헤더(Content-Type 등)가 기본값이 되어야 한다.
+    // options.headers가 없다고 해서 비워버리면 Request에 실려 있던 헤더가 사라진다.
+    requestOptions.headers = new Headers(input instanceof Request ? input.headers : undefined);
+    if (options && options.headers) {
+      new Headers(options.headers).forEach(function (value, key) {
+        requestOptions.headers.set(key, value);
+      });
+    }
     requestOptions.headers.set("X-CSRF-TOKEN", token);
     return nativeFetch(input, requestOptions);
   }
