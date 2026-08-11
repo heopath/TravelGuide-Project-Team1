@@ -100,6 +100,24 @@ class TicketServiceTest {
                         assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.INVALID_TICKET_REQUEST));
     }
 
+    @Test
+    @DisplayName("모의 예약을 취소하면 상태를 바꾸고 잡아 둔 재고를 복구한다")
+    void cancelsAndReleasesInventory() {
+        stubOwnedTrip();
+        TicketReservationDTO reservation = TicketReservationDTO.builder()
+                .reservationId(90L).tripId(10L).userId(7L).status("PENDING")
+                .slotId(31L).quantity(2).build();
+        when(ticketDAO.findForCancel(7L, 90L)).thenReturn(Optional.of(reservation));
+        when(ticketDAO.cancelReservation(90L)).thenReturn(1);
+        when(ticketDAO.releaseInventory(31L, 2)).thenReturn(1);
+
+        TicketReservationDTO result = service.cancel(7L, 90L);
+
+        assertThat(result.getStatus()).isEqualTo("CANCELLED");
+        verify(ticketDAO).cancelReservation(90L);
+        verify(ticketDAO).releaseInventory(31L, 2);
+    }
+
     private void stubOwnedTrip() {
         when(tripDAO.findById(10L)).thenReturn(Optional.of(TripDTO.builder()
                 .tripId(10L).userId(7L)

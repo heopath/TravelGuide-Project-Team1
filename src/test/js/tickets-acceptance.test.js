@@ -62,6 +62,13 @@ async function main() {
   T("예약 후에도 실제 결제가 아니라는 안내를 유지한다",
     d.getElementById("ticketStatus").textContent.includes("실제 결제는 이루어지지 않았습니다"));
 
+  w.dispatchEvent(new w.CustomEvent("allmytrips:ticket-cancelled", {
+    detail: { reservationId: 9 }
+  }));
+  T("내 예약에서 취소하면 티켓 탭의 선택 상태도 함께 해제된다",
+    w.__ticketBooking.state.reservation === null
+      && d.getElementById("ticketStatus").textContent.includes("다시 예약할 수 있습니다"));
+
   console.log(`\n${passed} passed, ${failed} failed`);
   process.exit(failed ? 1 : 0);
 }

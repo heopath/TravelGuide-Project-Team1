@@ -68,7 +68,9 @@ const won = (n) => Math.round(n).toLocaleString("ko-KR") + "원";
  */
 async function boot(options = {}) {
   const trip = options.trip || null;
+  let summary = options.summary || null;
   const urls = [];
+  const calls = [];
   const dom = new JSDOM(fs.readFileSync(HTML, "utf8"), {
     url: "http://localhost/booking/flights" + (options.query || ""),
     runScripts: "outside-only"
@@ -80,8 +82,10 @@ async function boot(options = {}) {
   Object.defineProperty(d, "visibilityState", { value: "visible", configurable: true });
 
   w.open = () => null;
-  w.fetch = async (url) => {
+  w.confirm = () => true;
+  w.fetch = async (url, request = {}) => {
     urls.push(url);
+    calls.push(`${request.method || "GET"} ${url}`);
     if (url.startsWith("/api/v1/csrf")) {
       return json({ headerName: "X-CSRF-TOKEN", token: "test-token" });
     }
@@ -89,6 +93,19 @@ async function boot(options = {}) {
       // 오는 편은 출발지와 도착지가 뒤집혀 조회된다.
       const inbound = url.includes("destination=GMP");
       return json({ success: true, data: { offers: inbound ? OFFERS.inbound : OFFERS.outbound, meta: META } });
+    }
+    if (/^\/api\/v1\/trips\/\d+\/booking-summary$/.test(url) && summary) {
+      return json({ success: true, data: summary });
+    }
+    if (/^\/api\/v1\/ticket-reservations\/\d+$/.test(url) && request.method === "DELETE") {
+      const id = url.split("/").pop();
+      summary = {
+        ...summary,
+        items: summary.items.map((item) => String(item.referenceId) === id
+          ? { ...item, status: "CANCELLED", statusLabel: "취소됨", includedInEstimate: false }
+          : item)
+      };
+      return json({ success: true, data: { reservationId: Number(id), status: "CANCELLED" } });
     }
     if (trip) {
       if (/^\/api\/v1\/trips\/\d+\/days$/.test(url)) {
@@ -113,7 +130,7 @@ async function boot(options = {}) {
   }
   await until(() => d.body.dataset.pageReady === "true");
 
-  return { w, d, staticTotal, api: w.__flightBooking, urls };
+  return { w, d, staticTotal, api: w.__flightBooking, urls, calls };
 }
 
 function json(body) {
@@ -217,6 +234,43 @@ async function run() {
     d.querySelector('[data-mine-tab="hotel"]').click();
     T("내 예약에서 숙소 확인 버튼을 누르면 숙소 탭으로 이동한다",
       !$("panel-hotel").hidden && $("panel-mine").hidden);
+  }
+
+  /* ────────── 통합 내 예약 조회와 티켓 취소 ────────── */
+  {
+    const summary = {
+      items: [
+        { type: "ACCOMMODATION", referenceId: "20", title: "제주 호텔", detail: "2026-08-17 → 2026-08-19",
+          status: "SELECTED", statusLabel: "선택 완료", amount: null, currency: "KRW",
+          amountSource: "UNAVAILABLE", includedInEstimate: false, practice: false },
+        { type: "TICKET", referenceId: "30", title: "아쿠아리움", detail: "성인",
+          status: "PENDING", statusLabel: "모의 예약", amount: 40000, currency: "KRW",
+          amountSource: "INTERNAL_MOCK", includedInEstimate: true, practice: true,
+          usageDate: "2026-08-18", quantity: 2 }
+      ],
+      money: { estimatedTotal: 40000, practiceTotal: 40000, currency: "KRW", actualPaymentConfirmed: false },
+      progress: { done: 1, total: 3 },
+      errors: [{ section: "FLIGHT", message: "항공 예약 정보를 불러오지 못했습니다." }]
+    };
+    const { d, calls } = await boot({ query: "?tripId=10&tab=mine", summary });
+    await until(() => d.querySelector("[data-mine-ticket-cancel]"));
+
+    T("통합 조회 일부가 실패해도 숙소와 티켓은 표시한다",
+      d.getElementById("mineList").textContent.includes("항공 예약 정보를 불러오지 못했습니다")
+        && d.getElementById("mineList").textContent.includes("제주 호텔")
+        && d.getElementById("mineList").textContent.includes("아쿠아리움"));
+    T("통합 조회가 숙소 요금 미제공과 티켓 실습 금액을 구분한다",
+      d.getElementById("mineList").textContent.includes("요금 미제공")
+        && d.getElementById("mineList").textContent.includes("실제 결제 아님"));
+
+    d.querySelector("[data-mine-ticket-cancel]").click();
+    await until(() => calls.includes("DELETE /api/v1/ticket-reservations/30"));
+    await until(() => d.getElementById("mineList").textContent.includes("취소됨"));
+    T("내 예약에서 티켓 모의 예약 취소 API를 호출한다",
+      calls.includes("DELETE /api/v1/ticket-reservations/30"));
+    T("취소한 티켓은 취소됨으로 바뀌고 취소 버튼이 사라진다",
+      !d.querySelector("[data-mine-ticket-cancel]")
+        && d.getElementById("mineList").textContent.includes("취소됨"));
   }
 
   /* ────────── 플로우: 예약함 → 확정 → 왕복 완료 ────────── */

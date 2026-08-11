@@ -24,8 +24,13 @@ public class TicketDAO {
     public Optional<TicketReservationDTO> findByRequestKey(Long userId, String key) {
         return mapper.findReservationByRequestKey(userId, key);
     }
+    public Optional<TicketReservationDTO> findForCancel(Long userId, Long reservationId) {
+        return mapper.findReservationForCancel(userId, reservationId);
+    }
     public List<TicketReservationDTO> findByTrip(Long tripId) { return mapper.findReservationsByTrip(tripId); }
     public int reserveInventory(Long slotId, int quantity) { return mapper.reserveInventory(slotId, quantity); }
+    public int releaseInventory(Long slotId, int quantity) { return mapper.releaseInventory(slotId, quantity); }
+    public int cancelReservation(Long reservationId) { return mapper.cancelReservation(reservationId); }
     public int insertReservation(TicketReservationDTO value) { return mapper.insertReservation(value); }
     public int insertReservationItem(TicketReservationDTO value) { return mapper.insertReservationItem(value); }
 }
