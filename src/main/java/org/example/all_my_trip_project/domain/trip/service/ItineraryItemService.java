@@ -54,6 +54,31 @@ class ItineraryItemService {
     }
 
     @Transactional
+    public void reorder(Long userId, Long tripDayId, List<Long> itemIds) {
+        ownershipGuard.requireOwnedTripDay(userId, tripDayId);
+        List<ItineraryItemDTO> existing = itemDAO.findByTripDayId(tripDayId);
+        if (existing.size() != itemIds.size()) {
+            throw new IllegalArgumentException("일정 항목 전체 순서를 보내야 합니다.");
+        }
+        java.util.Set<Long> existingIds = existing.stream()
+                .map(ItineraryItemDTO::getItineraryItemId)
+                .collect(java.util.stream.Collectors.toSet());
+        if (itemIds.stream().anyMatch(id -> id == null || !existingIds.contains(id))
+                || itemIds.size() != new java.util.HashSet<>(itemIds).size()) {
+            throw new IllegalArgumentException("다른 일차의 일정 항목은 순서를 변경할 수 없습니다.");
+        }
+        // (trip_day_id, sort_order)가 유니크이므로 기존 순번과 바로 교환하면 충돌한다.
+        // 먼저 일정 범위를 벗어난 임시 순번으로 이동한 뒤 최종 순번을 저장한다.
+        int temporaryBase = 1000;
+        for (int index = 0; index < itemIds.size(); index++) {
+            itemDAO.updateSortOrder(itemIds.get(index), temporaryBase + index);
+        }
+        for (int index = 0; index < itemIds.size(); index++) {
+            itemDAO.updateSortOrder(itemIds.get(index), index);
+        }
+    }
+
+    @Transactional
     public void delete(Long userId, Long tripDayId, Long itemId) {
         ownershipGuard.requireOwnedItem(userId, tripDayId, itemId);
         if (itemDAO.delete(itemId) == 0) {
