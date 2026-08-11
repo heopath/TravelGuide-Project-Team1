@@ -7,14 +7,15 @@ import org.example.all_my_trip_project.domain.place.dto.PlaceDTO;
 import org.example.all_my_trip_project.domain.rag.dto.RagSearchResult;
 import org.example.all_my_trip_project.domain.rag.service.PlaceRagService;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
+import java.time.Duration;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
-import java.util.ArrayList;
+import java.util.List;
 import java.util.regex.Pattern;
 
 /**
@@ -27,9 +28,10 @@ import java.util.regex.Pattern;
 @RequiredArgsConstructor
 public class KakaoPlaceDiscoveryService {
 
-    private static final int MAX_KAKAO_SEARCHES_PER_QUESTION = 12;
+    private static final int MAX_KAKAO_SEARCHES_PER_QUESTION = 8;
     private static final int MAX_PLACES_PER_SEARCH = 3;
     private static final int MAX_DISCOVERED_PLACES = 24;
+    private static final long DEFAULT_TOTAL_SEARCH_TIMEOUT_MILLIS = 7000L;
 
     private static final Pattern RECOMMENDATION_PHRASE = Pattern.compile(
             "(추천해?\s*줘|추천\s*해\s*줘|추천\s*해주세요|추천|알려\s*줘|알려\s*주세요|찾아\s*줘|찾아\s*주세요|해\s*줘|해주세요|좀)"
@@ -40,12 +42,11 @@ public class KakaoPlaceDiscoveryService {
     private final PlaceDAO placeDAO;
     private final ObjectProvider<PlaceRagService> placeRagServiceProvider;
 
-    @Transactional
+    @Value("${kakao.local.total-search-timeout-millis:7000}")
+    private long totalSearchTimeoutMillis = DEFAULT_TOTAL_SEARCH_TIMEOUT_MILLIS;
+
     public List<RagSearchResult> discoverAndIndex(String question, String destination) {
-        List<PlaceDTO> discovered = searchKeywords(question, destination).stream()
-                // Keep a few candidates from every location/category query. Without this,
-                // the first location's ten results can crowd later days out of the prompt.
-                .flatMap(keyword -> kakaoLocalPlaceClient.search(keyword).stream().limit(MAX_PLACES_PER_SEARCH))
+        List<PlaceDTO> discovered = searchWithinBudget(question, destination).stream()
                 .collect(java.util.stream.Collectors.toMap(
                         PlaceDTO::getExternalPlaceId,
                         place -> place,
@@ -59,9 +60,18 @@ public class KakaoPlaceDiscoveryService {
             return List.of();
         }
 
-        List<PlaceDTO> saved = discovered.stream()
-                .map(this::upsertAndLoad)
-                .toList();
+        List<PlaceDTO> saved = new ArrayList<>();
+        for (PlaceDTO place : discovered) {
+            try {
+                saved.add(upsertAndLoad(place));
+            } catch (Exception exception) {
+                log.warn("Failed to save Kakao place. externalPlaceId={}, name={}",
+                        place.getExternalPlaceId(), place.getName(), exception);
+            }
+        }
+        if (saved.isEmpty()) {
+            return List.of();
+        }
 
         PlaceRagService placeRagService = placeRagServiceProvider.getIfAvailable();
         if (placeRagService == null) {
@@ -73,6 +83,28 @@ public class KakaoPlaceDiscoveryService {
             log.warn("Kakao places were saved but RAG indexing failed. count={}", saved.size(), exception);
         }
         return saved.stream().map(placeRagService::toSearchResult).toList();
+    }
+
+    private List<PlaceDTO> searchWithinBudget(String question, String destination) {
+        long timeoutMillis = Math.max(1L, totalSearchTimeoutMillis);
+        long deadline = System.nanoTime() + Duration.ofMillis(timeoutMillis).toNanos();
+        List<PlaceDTO> discovered = new ArrayList<>();
+        for (String keyword : searchKeywords(question, destination)) {
+            long remainingNanos = deadline - System.nanoTime();
+            if (remainingNanos <= 0) {
+                log.warn("Kakao Local search budget exhausted. timeoutMillis={}", timeoutMillis);
+                break;
+            }
+            // Keep a few candidates from every location/category query. Without this,
+            // the first location's results can crowd later days out of the prompt.
+            List<PlaceDTO> searchedPlaces = kakaoLocalPlaceClient.search(keyword, Duration.ofNanos(remainingNanos));
+            if (searchedPlaces != null) {
+                discovered.addAll(searchedPlaces.stream()
+                        .limit(MAX_PLACES_PER_SEARCH)
+                        .toList());
+            }
+        }
+        return discovered;
     }
 
     private PlaceDTO upsertAndLoad(PlaceDTO place) {

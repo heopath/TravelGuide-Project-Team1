@@ -9,8 +9,11 @@ import org.springframework.beans.factory.ObjectProvider;
 
 import java.util.List;
 import java.util.Optional;
+import org.springframework.dao.DataIntegrityViolationException;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -30,9 +33,27 @@ class KakaoPlaceDiscoveryServiceTest {
         PlaceDTO discovered = PlaceDTO.builder().externalProvider("KAKAO").externalPlaceId("123").name("Real Cafe").build();
         PlaceDTO saved = PlaceDTO.builder().placeId(77L).externalProvider("KAKAO").externalPlaceId("123").name("Real Cafe").build();
         RagSearchResult result = new RagSearchResult("place:77", "Place name: Real Cafe");
-        when(kakaoClient.search("Seoul cafe")).thenReturn(List.of(discovered));
+        when(kakaoClient.search(eq("Seoul cafe"), any())).thenReturn(List.of(discovered));
         when(placeDAO.upsert(discovered)).thenReturn(77L);
         when(placeDAO.findById(77L)).thenReturn(Optional.of(saved));
+        when(placeRagServiceProvider.getIfAvailable()).thenReturn(placeRagService);
+        when(placeRagService.toSearchResult(saved)).thenReturn(result);
+
+        assertThat(service.discoverAndIndex("cafe", "Seoul")).containsExactly(result);
+
+        verify(placeRagService).indexPlaces(List.of(saved));
+    }
+
+    @Test
+    void continuesWhenOneKakaoPlaceCannotBeSaved() {
+        PlaceDTO failed = PlaceDTO.builder().externalProvider("KAKAO").externalPlaceId("failed").name("Failed place").build();
+        PlaceDTO discovered = PlaceDTO.builder().externalProvider("KAKAO").externalPlaceId("saved").name("Saved place").build();
+        PlaceDTO saved = PlaceDTO.builder().placeId(88L).externalProvider("KAKAO").externalPlaceId("saved").name("Saved place").build();
+        RagSearchResult result = new RagSearchResult("place:88", "Place name: Saved place");
+        when(kakaoClient.search(eq("Seoul cafe"), any())).thenReturn(List.of(failed, discovered));
+        when(placeDAO.upsert(failed)).thenThrow(new DataIntegrityViolationException("constraint"));
+        when(placeDAO.upsert(discovered)).thenReturn(88L);
+        when(placeDAO.findById(88L)).thenReturn(Optional.of(saved));
         when(placeRagServiceProvider.getIfAvailable()).thenReturn(placeRagService);
         when(placeRagService.toSearchResult(saved)).thenReturn(result);
 
@@ -88,5 +109,12 @@ class KakaoPlaceDiscoveryServiceTest {
                 .containsExactlyInAnyOrder(
                         "성수 맛집", "연남 맛집", "이태원 맛집", "이태원 술집", "강남 맛집", "강남 쇼핑"
                 );
+    }
+
+    @Test
+    void limitsKakaoSearchKeywordsToProtectOverallResponseTime() {
+        assertThat(KakaoPlaceDiscoveryService.searchKeywords(
+                "성수 연남 이태원 강남 잠실 홍대 합정 여의도 카페 맛집 술집 쇼핑 관광지 추천해줘", "서울"))
+                .hasSizeLessThanOrEqualTo(8);
     }
 }

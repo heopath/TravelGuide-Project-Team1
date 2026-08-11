@@ -51,12 +51,20 @@ public class KakaoLocalPlaceClient {
     }
 
     public List<PlaceDTO> search(String keyword) {
+        return search(keyword, timeout);
+    }
+
+    public List<PlaceDTO> search(String keyword, Duration requestTimeout) {
         if (restApiKey == null || restApiKey.isBlank() || keyword == null || keyword.isBlank()) {
             if (restApiKey == null || restApiKey.isBlank()) {
                 log.warn("Kakao Local place search skipped because KAKAO_REST_API_KEY is not configured.");
             }
             return List.of();
         }
+
+        Duration effectiveTimeout = requestTimeout == null || requestTimeout.isNegative() || requestTimeout.isZero()
+                ? timeout
+                : requestTimeout.compareTo(timeout) < 0 ? requestTimeout : timeout;
 
         URI uri = UriComponentsBuilder.fromUri(KEYWORD_SEARCH_URI)
                 .queryParam("query", keyword.trim())
@@ -65,7 +73,7 @@ public class KakaoLocalPlaceClient {
                 .encode()
                 .toUri();
         HttpRequest request = HttpRequest.newBuilder(uri)
-                .timeout(timeout)
+                .timeout(effectiveTimeout)
                 .header("Authorization", "KakaoAK " + restApiKey)
                 .GET()
                 .build();
