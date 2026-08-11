@@ -9,6 +9,7 @@ import org.example.all_my_trip_project.global.exception.ErrorCode;
 import org.springframework.stereotype.Service;
 import org.springframework.context.annotation.Profile;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.dao.DataIntegrityViolationException;
 
 import java.util.List;
 
@@ -29,9 +30,22 @@ class ItineraryItemService {
         if (existingCount >= TripPolicy.MAX_ITINERARY_ITEMS_PER_DAY) {
             throw new BusinessException(ErrorCode.ITINERARY_ITEM_LIMIT_EXCEEDED);
         }
-        // 순서는 Service가 계산한다: 새 항목은 항상 해당 일차의 맨 뒤(0부터 시작하는 다음 인덱스)에 추가된다.
-        item.setSortOrder(existingCount);
-        itemDAO.insert(item);
+        if (item.getPlaceId() != null
+                && itemDAO.existsByTripDayIdAndPlaceId(item.getTripDayId(), item.getPlaceId())) {
+            throw new BusinessException(ErrorCode.ITINERARY_PLACE_ALREADY_ADDED);
+        }
+        // 삭제로 중간 순번이 비어도 마지막 순번 뒤에 추가한다.
+        item.setSortOrder(itemDAO.nextSortOrderByTripDayId(item.getTripDayId()));
+        try {
+            itemDAO.insert(item);
+        } catch (DataIntegrityViolationException exception) {
+            // 동시 요청에서 DB의 (trip_day_id, place_id) 유일 인덱스가 중복을 막는다.
+            if (item.getPlaceId() != null
+                    && itemDAO.existsByTripDayIdAndPlaceId(item.getTripDayId(), item.getPlaceId())) {
+                throw new BusinessException(ErrorCode.ITINERARY_PLACE_ALREADY_ADDED);
+            }
+            throw exception;
+        }
         return item.getItineraryItemId();
     }
 

@@ -280,6 +280,7 @@ document.addEventListener("DOMContentLoaded", function () {
     if (!response.ok || !payload?.success) {
       const error = new Error(payload?.message || payload?.detail || "요청을 처리하지 못했습니다.");
       error.status = response.status;
+      error.code = payload?.code;
       throw error;
     }
     return payload.data;
@@ -845,7 +846,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
   async function loadScheduleDayItems(day) {
     if (!day?.tripDayId) return [];
-    return day.tripDayId === activeDay?.tripDayId
+    return !allScheduleVisible && day.tripDayId === activeDay?.tripDayId
       ? activeItems
       : await api("/api/v1/trip-days/" + day.tripDayId + "/items");
   }
@@ -912,6 +913,12 @@ document.addEventListener("DOMContentLoaded", function () {
         handledPlaceIds.add(placeId);
         result.added += 1;
       } catch (error) {
+        if (error.code === "ITINERARY_PLACE_ALREADY_ADDED") {
+          storedPlaceIds.add(placeId);
+          handledPlaceIds.add(placeId);
+          result.alreadyAdded += 1;
+          continue;
+        }
         result.failed.push(recommendation.name || "알 수 없는 장소");
       }
     }

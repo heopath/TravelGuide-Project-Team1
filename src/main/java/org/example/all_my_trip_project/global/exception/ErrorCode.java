@@ -104,6 +104,11 @@ public enum ErrorCode {
             "일차당 일정은 최대 100개까지 등록할 수 있습니다."
     ),
 
+    ITINERARY_PLACE_ALREADY_ADDED(
+            HttpStatus.CONFLICT,
+            "같은 DAY에 이미 추가된 장소입니다."
+    ),
+
     INVALID_FLIGHT_LEG(
             HttpStatus.BAD_REQUEST,
             "항공 구간은 가는 편(0) 또는 오는 편(1)만 지정할 수 있습니다."
