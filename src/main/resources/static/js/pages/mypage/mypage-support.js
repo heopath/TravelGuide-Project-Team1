@@ -181,7 +181,28 @@ export function initSupport() {
             const question = document.createElement("p");
             question.className = "support-detail-question";
             question.textContent = data.content;
-            detailContent.append(heading, question);
+            const replies = document.createElement("section");
+            replies.className = "support-detail-replies";
+            const repliesTitle = document.createElement("h4");
+            repliesTitle.textContent = "관리자 답변";
+            replies.appendChild(repliesTitle);
+            if (!data.replies?.length) {
+                const waiting = document.createElement("p");
+                waiting.className = "support-detail-waiting";
+                waiting.textContent = "담당자가 문의를 확인하고 있습니다. 답변이 등록되면 이곳에서 확인할 수 있어요.";
+                replies.appendChild(waiting);
+            } else {
+                data.replies.forEach((reply) => {
+                    const item = document.createElement("article");
+                    const meta = document.createElement("small");
+                    meta.textContent = `${reply.adminNickname || "관리자"} · ${formatDate(reply.createdAt)}`;
+                    const content = document.createElement("p");
+                    content.textContent = reply.content;
+                    item.append(meta, content);
+                    replies.appendChild(item);
+                });
+            }
+            detailContent.append(heading, question, replies);
         } catch (error) {
             detailContent.textContent = error.message || "문의 내용을 불러오지 못했습니다.";
         }

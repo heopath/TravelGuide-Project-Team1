@@ -137,8 +137,11 @@ async function run() {
       .filter((section) => !section.hidden)
       .map((section) => section.dataset.adminSection);
 
-    T("사이드바에 일곱 화면이 모두 있다",
-      d.querySelectorAll("[data-admin-panel]").length === 7);
+    T("사이드바에 여덟 화면이 모두 있다",
+      d.querySelectorAll("[data-admin-panel]").length === 8);
+    T("1:1 문의 관리 패널이 있다",
+      d.querySelector('[data-admin-panel="support"]') !== null
+        && d.querySelector('[data-admin-section="support"]') !== null);
 
     /* 실연동이 신고 관리뿐이라, 들어오자마자 쓸 수 있는 것이 먼저 보여야 한다. */
     T("기본으로 신고 관리가 열린다",

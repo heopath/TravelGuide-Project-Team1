@@ -105,6 +105,7 @@ body.page-admin #page-content {
   font-size: 18px;
   letter-spacing: -0.02em;
 }
+.page-admin .admin-section-description { margin: 0; color: var(--muted); font-size: 13px; }
 
 /* 연동 여부를 화면에 드러낸다. 값이 비어 있는 것이 고장이 아니라는 표시다. */
 .page-admin .admin-tag {
