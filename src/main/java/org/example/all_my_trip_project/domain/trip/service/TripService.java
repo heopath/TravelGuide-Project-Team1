@@ -98,6 +98,11 @@ public class TripService {
     }
 
     @Transactional
+    public void reorderItems(Long userId, Long tripDayId, List<Long> itemIds) {
+        itineraryItemService.reorder(userId, tripDayId, itemIds);
+    }
+
+    @Transactional
     public void deleteItem(Long userId, Long tripDayId, Long itemId) {
         itineraryItemService.delete(userId, tripDayId, itemId);
     }
