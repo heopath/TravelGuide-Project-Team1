@@ -152,4 +152,31 @@ class AiGuideServiceTest {
                 item -> assertThat(item.placeId()).isNull()
         );
     }
+
+    @Test
+    void doesNotAttachPlaceMetadataWhenSeveralVerifiedPlacesHaveTheSameName() {
+        AiGuideRequest request = new AiGuideRequest("스타벅스 추천", 12L);
+        AiGuideContext context = new AiGuideContext(null, List.of());
+        RagSearchResult firstBranch = new RagSearchResult("place:25", "verified", 25L,
+                "스타벅스", "CAFE", "서울 성동구 성수동", "https://place.map.kakao.com/25");
+        RagSearchResult secondBranch = new RagSearchResult("place:26", "verified", 26L,
+                "스타벅스", "CAFE", "서울 강남구 역삼동", "https://place.map.kakao.com/26");
+        AiGuideResponse response = new AiGuideResponse("추천", List.of(new AiGuideDayResponse(1, "DAY 1",
+                List.of(new AiGuideItemResponse("10:00", "스타벅스", "카페 추천")))), List.of(), List.of());
+        org.example.all_my_trip_project.domain.rag.service.PlaceRagService ragService = mock(org.example.all_my_trip_project.domain.rag.service.PlaceRagService.class);
+
+        when(conversationHistoryService.load(1L, 12L)).thenReturn(List.of());
+        when(contextService.load(1L, request)).thenReturn(context);
+        when(ragServiceProvider.getIfAvailable()).thenReturn(ragService);
+        when(ragService.search(request.question())).thenReturn(List.of(firstBranch, secondBranch));
+        when(aiModelClient.generate(request, List.of(), context, List.of(firstBranch, secondBranch))).thenReturn(response);
+
+        AiGuideResponse actual = service.generate(request, false, 1L);
+
+        AiGuideItemResponse item = actual.days().getFirst().items().getFirst();
+        assertThat(item.placeId()).isNull();
+        assertThat(item.placeCategory()).isNull();
+        assertThat(item.placeAddress()).isNull();
+        assertThat(item.placeUrl()).isNull();
+    }
 }

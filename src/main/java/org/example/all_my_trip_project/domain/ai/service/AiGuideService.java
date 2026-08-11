@@ -49,17 +49,24 @@ public class AiGuideService {
         if (response == null || response.days() == null || ragResults == null || ragResults.isEmpty()) {
             return response;
         }
-        Map<String, RagSearchResult> placesByName = ragResults.stream()
+        Map<String, List<RagSearchResult>> candidatesByName = ragResults.stream()
                 .filter(result -> result.placeId() != null && result.placeName() != null && !result.placeName().isBlank())
-                .collect(java.util.stream.Collectors.toMap(
+                .collect(java.util.stream.Collectors.groupingBy(
                         result -> normalizePlaceName(result.placeName()),
-                        result -> result,
+                        LinkedHashMap::new,
+                        java.util.stream.Collectors.toList()
+                ));
+        Map<String, RagSearchResult> uniquePlacesByName = candidatesByName.entrySet().stream()
+                .filter(entry -> entry.getValue().size() == 1)
+                .collect(java.util.stream.Collectors.toMap(
+                        Map.Entry::getKey,
+                        entry -> entry.getValue().getFirst(),
                         (first, ignored) -> first,
                         LinkedHashMap::new
                 ));
         List<AiGuideDayResponse> days = response.days().stream()
                 .map(day -> new AiGuideDayResponse(day.day(), day.title(), day.items().stream()
-                        .map(item -> toVerifiedItem(item, placesByName.get(normalizePlaceName(item.name()))))
+                        .map(item -> toVerifiedItem(item, uniquePlacesByName.get(normalizePlaceName(item.name()))))
                         .toList()))
                 .toList();
         return new AiGuideResponse(response.answer(), days, response.externalLinks(), response.sources());
