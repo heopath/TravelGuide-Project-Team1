@@ -201,6 +201,22 @@ async function run() {
       $("dn").textContent === "1" && $("fill").style.width === "33%"
         && $("costNote").textContent.includes("티켓 모의 예약가")
         && $("rows").textContent.includes("실제 결제 아님"));
+
+    w.dispatchEvent(new w.CustomEvent("allmytrips:accommodation-selected", { detail: { offer: {
+      name: "제주 테스트 호텔", totalPrice: null, currency: "KRW",
+      priceSource: "UNAVAILABLE", nightsLabel: "2박"
+    } } }));
+    d.querySelector('[data-tab="mine"]').click();
+    T("내 예약 탭에 항공·숙소·티켓 세 종류를 함께 표시한다",
+      d.querySelectorAll("#mineList .mine-group").length === 3
+        && $("mineList").textContent.includes("제주 테스트 호텔")
+        && $("mineList").textContent.includes("제주 아쿠아리움 입장권"));
+    T("숙박 요금 미제공과 티켓 모의 예약을 실제 결제액처럼 표시하지 않는다",
+      $("mineList").textContent.includes("요금 미제공")
+        && $("mineList").textContent.includes("실제 결제 아님"));
+    d.querySelector('[data-mine-tab="hotel"]').click();
+    T("내 예약에서 숙소 확인 버튼을 누르면 숙소 탭으로 이동한다",
+      !$("panel-hotel").hidden && $("panel-mine").hidden);
   }
 
   /* ────────── 플로우: 예약함 → 확정 → 왕복 완료 ────────── */
