@@ -6,6 +6,7 @@ import org.example.all_my_trip_project.domain.accommodation.dto.TripAccommodatio
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 
@@ -83,5 +84,34 @@ class TripAccommodationsResponseTest {
                 List.of(booking(false, null)), List.of(click(999L)));
 
         assertThat(response.unresolvedClicks()).isEmpty();
+    }
+
+    private AccommodationBookingDTO priced(String priceSource, BigDecimal total) {
+        AccommodationBookingDTO booking = booking(false, null);
+        booking.setQuotedPriceSource(priceSource);
+        booking.setQuotedTotalPrice(total);
+        return booking;
+    }
+
+    /* 카드에 요금이 보이는데 합계만 0이면, 못 가져온 것인지 안 세는 것인지 알 수 없다. */
+    @Test
+    @DisplayName("샘플·실습 요금도 합계에 넣고 출처만 밝힌다")
+    void countsPracticePricesInTotal() {
+        assertThat(TripAccommodationsResponse.from(List.of(priced("MOCK", new BigDecimal("291200"))))
+                .selectedTotal()).isEqualByComparingTo("291200");
+
+        assertThat(TripAccommodationsResponse.from(List.of(priced("SANDBOX", new BigDecimal("180000"))))
+                .selectedTotal()).isEqualByComparingTo("180000");
+    }
+
+    @Test
+    @DisplayName("요금이 없는 숙소는 합계에 넣지 않는다")
+    void skipsUnavailablePrice() {
+        TripAccommodationsResponse response =
+                TripAccommodationsResponse.from(List.of(priced("UNAVAILABLE", null)));
+
+        assertThat(response.selectedTotal()).isEqualByComparingTo("0");
+        assertThat(response.stays()).singleElement()
+                .satisfies(stay -> assertThat(stay.countedInTotal()).isFalse());
     }
 }
