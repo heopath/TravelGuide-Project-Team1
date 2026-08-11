@@ -62,6 +62,9 @@ public class ApiSecurityConfig {
                         )
                         .authenticated()
 
+                        .requestMatchers("/api/v1/support/**")
+                        .authenticated()
+
                         .requestMatchers(
                                 HttpMethod.POST,
                                 "/api/v1/ai-guides/generate"

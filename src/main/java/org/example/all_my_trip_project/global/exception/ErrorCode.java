@@ -187,6 +187,11 @@ public enum ErrorCode {
     ACCOMMODATION_BOOKING_NOT_FOUND(
             HttpStatus.NOT_FOUND,
             "담아둔 숙소를 찾을 수 없습니다."
+    ),
+
+    SUPPORT_INQUIRY_NOT_FOUND(
+            HttpStatus.NOT_FOUND,
+            "고객센터 문의를 찾을 수 없습니다."
     );
 
     private final HttpStatus status;
