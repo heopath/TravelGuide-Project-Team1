@@ -11,9 +11,8 @@
   const OUTBOUND = 0;
   const INBOUND = 1;
 
-  /* 숙소·티켓 탭은 아직 없다. 우측 패널의 자리만 잡아두는 임시 추정치이며,
-     해당 탭이 붙으면 실제 선택 금액으로 대체한다. */
-  const PLACEHOLDER_HOTEL = 290000;
+  /* 티켓 탭은 아직 없다. 우측 패널의 자리만 잡아두는 임시 추정치이며,
+     해당 탭이 붙으면 실제 선택 금액으로 대체한다. 숙소 임시 금액은 숙소 탭을 붙이며 제거했다. */
   const PLACEHOLDER_ACTIVITY = 56000;
 
   /* 일정 충돌 배지와 추천 스코어의 기준.
@@ -51,7 +50,9 @@
   let sortKey = "rec";
   let pendingOfferId = null;
   let tripId = null;
+  let initialTab = "flight";
   let search = { origin: "GMP", destination: "CJU", departureDate: null, returnDate: null, adults: 2 };
+  let hotelSelection = null;
 
   /* ────────── 파생값 ────────── */
   const offerOf = (leg, id) => offers[leg].find((o) => o.offerId === id) || null;
@@ -72,6 +73,34 @@
   const airTotal = () => legPrice(OUTBOUND) + legPrice(INBOUND);
   const airIsEstimate = () => !airDone();
   const hasOffers = () => offers[OUTBOUND].length > 0 || offers[INBOUND].length > 0;
+  const hotelDone = () => !!hotelSelection;
+  /*
+   * 요금이 있으면 출처와 상관없이 보여주고 합계에 넣는다. 항공이 샘플 운임을 다루는 방식과 같다.
+   * 숙소만 샘플을 빼면 카드에는 291,200원이 보이는데 예약 현황은 "요금 미정"이 되어,
+   * 요금을 못 가져온 것인지 화면이 안 세는 것인지 구분할 수 없다.
+   *
+   * 샘플·실습 요금이 운영에 나갈 걱정은 없다. Mock provider는 @Profile("!prod")이고
+   * Sandbox provider는 prod에서 호출되지 않으며, 그래도 새어 나오면 검색 단계에서 막는다.
+   * 대신 어떤 출처인지는 sub 라벨과 하단 문구에 그대로 드러낸다.
+   */
+  const hotelHasDisplayPrice = () => hotelDone()
+    && hotelSelection.totalPrice !== null
+    && hotelSelection.totalPrice !== undefined
+    && hotelSelection.priceSource !== "UNAVAILABLE";
+  const hotelPriceNote = () => hotelSelection?.priceSource === "SANDBOX" ? " · 실습"
+    : hotelSelection?.priceSource === "MOCK" ? " · 샘플" : "";
+  const hotelCanAddToTotal = () => hotelHasDisplayPrice()
+    && String(hotelSelection.currency || "KRW").toUpperCase() === "KRW";
+  const hotelTotal = () => hotelCanAddToTotal() ? Number(hotelSelection.totalPrice) : 0;
+  const hotelPriceLabel = () => {
+    if (!hotelHasDisplayPrice()) return "요금 미정";
+    const currency = String(hotelSelection.currency || "KRW").toUpperCase();
+    return currency === "KRW"
+      ? won(hotelSelection.totalPrice)
+      : `${currency} ${Number(hotelSelection.totalPrice).toLocaleString("ko-KR", {
+        minimumFractionDigits: 2, maximumFractionDigits: 2
+      })}`;
+  };
 
   /* 목록에 출처가 섞이면 카드마다 개별 표시되고, 하단 문구가 그 사실을 알린다. */
   const sourceLabel = () => offers[state.leg][0]?.priceSourceLabel || "공시운임";
@@ -247,8 +276,12 @@
     const rows = [
       { ic: "✈", icc: air[2], nm: "왕복 항공", ds: air[0], dsc: air[1],
         pv: hasOffers() ? (airTotal() > 0 ? won(airTotal()) : "미정") : "—", sub: airIsEstimate() ? "예상" : `성인 ${search.adults}명 총액`, dim: false },
-      { ic: "▤", icc: "n", nm: "숙소", ds: "대기 · 임시 추정치", dsc: "",
-        pv: won(PLACEHOLDER_HOTEL), sub: "예상", dim: true },
+      { ic: "▤", icc: hotelDone() ? "g" : "n", nm: "숙소",
+        ds: hotelDone() ? `선택 완료 · ${hotelSelection.name}` : "선택 전", dsc: hotelDone() ? "o" : "",
+        pv: hotelDone() ? hotelPriceLabel() : "—",
+        sub: hotelHasDisplayPrice()
+          ? `${hotelSelection.nightsLabel}${hotelPriceNote()}${hotelCanAddToTotal() ? "" : " · 합계 제외"}`
+          : hotelDone() ? "요금 미제공" : "숙소에서 선택", dim: !hotelHasDisplayPrice() },
       { ic: "◈", icc: "n", nm: "티켓·액티비티", ds: "대기 · 임시 추정치", dsc: "",
         pv: won(PLACEHOLDER_ACTIVITY), sub: "예상", dim: true }
     ];
@@ -283,18 +316,24 @@
     $("rows").innerHTML = sideRows();
 
     if (hasOffers()) {
-      const total = airTotal() + PLACEHOLDER_HOTEL + PLACEHOLDER_ACTIVITY;
+      const total = airTotal() + hotelTotal() + PLACEHOLDER_ACTIVITY;
       text("cTot", won(total));
       text("cPer", `1인 ${won(Math.round(total / search.adults))}`);
     } else {
       text("cTot", "—");
       text("cPer", "항공편을 먼저 검색해 주세요");
     }
-    text("costNote", airIsEstimate()
-      ? `항공은 추천가 · ${sourceLabel()} 기준`
-      : "항공 확정 · 숙소/티켓 예상");
+    const airLabel = airIsEstimate() ? `항공 추천가 · ${sourceLabel()}` : "항공 확정";
+    const hotelLabel = hotelHasDisplayPrice() && !hotelCanAddToTotal()
+      ? "숙소 통화 달라 합계 제외"
+      : hotelSelection?.priceSource === "SANDBOX"
+        ? "숙소 Sandbox 실습가"
+        : hotelSelection?.priceSource === "MOCK"
+          ? "숙소 샘플가"
+          : hotelCanAddToTotal() ? "숙소 선택가" : "숙소 요금 제외";
+    text("costNote", `${airLabel} · ${hotelLabel} · 티켓 임시 추정`);
 
-    const done = airDone() ? 1 : 0;
+    const done = (airDone() ? 1 : 0) + (hotelDone() ? 1 : 0);
     text("dn", done);
     text("tabCount", done);
     $("fill").style.width = Math.round((done / 3) * 100) + "%";
@@ -517,14 +556,26 @@
 
   /* ────────── 탭 ────────── */
   function setTab(name) {
+    const availableTabs = ["flight", "hotel", "ticket", "mine"];
+    const nextTab = availableTabs.includes(name) ? name : "flight";
+
     document.querySelectorAll(".tab").forEach((t) => {
-      const on = t.dataset.tab === name;
+      const on = t.dataset.tab === nextTab;
       t.classList.toggle("on", on);
       t.setAttribute("aria-selected", String(on));
     });
-    ["flight", "hotel", "ticket", "mine"].forEach((key) => {
-      $("panel-" + key).hidden = key !== name;
+    availableTabs.forEach((key) => {
+      $("panel-" + key).hidden = key !== nextTab;
     });
+
+    // 탭을 주소에 남겨 새로고침하거나 링크를 공유해도 같은 탭이 다시 열린다.
+    const url = new URL(location.href);
+    if (nextTab === "flight") url.searchParams.delete("tab");
+    else url.searchParams.set("tab", nextTab);
+    history.replaceState(null, "", url.pathname + url.search + url.hash);
+    window.dispatchEvent(new CustomEvent("allmytrips:booking-tab-changed", {
+      detail: { tab: nextTab }
+    }));
   }
 
   /* ────────── 저장된 상태 복원 ────────── */
@@ -575,6 +626,9 @@
     const params = new URLSearchParams(location.search);
     const id = params.get("tripId");
     tripId = id && /^\d+$/.test(id) ? id : null;
+    initialTab = ["flight", "hotel", "ticket", "mine"].includes(params.get("tab"))
+      ? params.get("tab")
+      : "flight";
 
     const today = new Date();
     const depart = new Date(today.getTime() + 7 * 86400000);
@@ -739,11 +793,17 @@
         sync();
       }
     });
+
+    window.addEventListener("allmytrips:accommodation-selected", (event) => {
+      hotelSelection = event.detail?.offer || null;
+      sync();
+    });
   }
 
   async function init() {
     readParams();
     bind();
+    setTab(initialTab);
 
     let seen = false;
     try { seen = localStorage.getItem(EXT_NOTICE_KEY) === "1"; } catch (e) { /* 비공개 모드 */ }
@@ -764,6 +824,8 @@
   window.__flightBooking = {
     state, offers, setLeg, openOut, goOut,
     reportBooked, reportNo, reportLater, saveRefAndNext, closeModal3,
-    status, legPrice, airTotal, airDone, airIsEstimate, render, sync
+    status, legPrice, airTotal, airDone, airIsEstimate, render, sync,
+    getSearch: () => ({ ...search }),
+    getHotelSelection: () => hotelSelection
   };
 })();

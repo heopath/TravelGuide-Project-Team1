@@ -1,0 +1,145 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.example.all_my_trip_project.domain.review.mapper.PlaceReviewMapper">
+    <sql id="reviewColumns">
+        pr.place_review_id, pr.place_id, pr.user_id, u.nickname,
+        pr.rating, pr.content, pr.verified_visit, pr.status,
+        pr.created_at, pr.updated_at,
+        CASE
+            WHEN #{requesterUserId,jdbcType=BIGINT} IS NULL THEN FALSE
+            ELSE pr.user_id = #{requesterUserId,jdbcType=BIGINT}
+        END AS owned_by_requester
+    </sql>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="placeReviewId">
+        INSERT INTO place_reviews (
+            place_id, user_id, rating, content, verified_visit, status
+        ) VALUES (
+            #{placeId}, #{userId}, #{rating}, #{content},
+            COALESCE(#{verifiedVisit}, FALSE), 'VISIBLE'
+        )
+    </insert>
+
+    <select id="findById" resultType="org.example.all_my_trip_project.domain.review.dto.PlaceReviewDTO">
+        SELECT <include refid="reviewColumns"/>
+        FROM place_reviews pr
+        JOIN users u ON u.user_id = pr.user_id
+        WHERE pr.place_review_id = #{reviewId}
+          AND pr.status = 'VISIBLE'
+    </select>
+
+    <select id="findByUserAndPlace" resultType="org.example.all_my_trip_project.domain.review.dto.PlaceReviewDTO">
+        SELECT pr.place_review_id, pr.place_id, pr.user_id, u.nickname,
+               pr.rating, pr.content, pr.verified_visit, pr.status,
+               pr.created_at, pr.updated_at, TRUE AS owned_by_requester
+        FROM place_reviews pr
+        JOIN users u ON u.user_id = pr.user_id
+        WHERE pr.user_id = #{userId}
+          AND pr.place_id = #{placeId}
+          AND pr.status = 'VISIBLE'
+    </select>
+
+    <select id="findPage" resultType="org.example.all_my_trip_project.domain.review.dto.PlaceReviewDTO">
+        SELECT <include refid="reviewColumns"/>
+        FROM place_reviews pr
+        JOIN users u ON u.user_id = pr.user_id
+        WHERE pr.place_id = #{placeId}
+          AND pr.status = 'VISIBLE'
+        ORDER BY pr.created_at DESC, pr.place_review_id DESC
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+    <select id="findMyPage" resultType="org.example.all_my_trip_project.domain.review.dto.PlaceReviewDTO">
+        SELECT pr.place_review_id, pr.place_id,
+               p.name AS place_name, p.category AS place_category,
+               p.address AS place_address,
+               (
+                   SELECT pi.image_url
+                   FROM place_images pi
+                   WHERE pi.place_id = p.place_id
+                   ORDER BY pi.is_primary DESC, pi.sort_order, pi.place_image_id
+                   LIMIT 1
+               ) AS place_image_url,
+               pr.user_id, u.nickname, pr.rating, pr.content,
+               pr.verified_visit, pr.status, pr.created_at, pr.updated_at,
+               TRUE AS owned_by_requester
+        FROM place_reviews pr
+        JOIN places p ON p.place_id = pr.place_id
+        JOIN users u ON u.user_id = pr.user_id
+        WHERE pr.user_id = #{userId}
+          AND pr.status = 'VISIBLE'
+        ORDER BY pr.updated_at DESC, pr.place_review_id DESC
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+    <select id="countByUser" resultType="long">
+        SELECT COUNT(*)
+        FROM place_reviews
+        WHERE user_id = #{userId}
+          AND status = 'VISIBLE'
+    </select>
+
+    <select id="countVisible" resultType="long">
+        SELECT COUNT(*)
+        FROM place_reviews
+        WHERE place_id = #{placeId}
+          AND status = 'VISIBLE'
+    </select>
+
+    <select id="averageVisible" resultType="java.math.BigDecimal">
+        SELECT COALESCE(ROUND(AVG(rating)::numeric, 2), 0)
+        FROM place_reviews
+        WHERE place_id = #{placeId}
+          AND status = 'VISIBLE'
+    </select>
+
+    <select id="countByRating" resultType="org.example.all_my_trip_project.domain.review.dto.PlaceReviewRatingCount">
+        SELECT rating, COUNT(*) AS count
+        FROM place_reviews
+        WHERE place_id = #{placeId}
+          AND status = 'VISIBLE'
+        GROUP BY rating
+        ORDER BY rating DESC
+    </select>
+
+    <select id="hasCompletedVisit" resultType="boolean">
+        SELECT EXISTS (
+            SELECT 1
+            FROM itinerary_items ii
+            JOIN trip_days td ON td.trip_day_id = ii.trip_day_id
+            JOIN trips t ON t.trip_id = td.trip_id
+            WHERE ii.place_id = #{placeId}
+              AND t.user_id = #{userId}
+              AND t.status = 'COMPLETED'
+              AND t.deleted_at IS NULL
+        )
+    </select>
+
+    <update id="update">
+        UPDATE place_reviews
+        SET rating = #{rating},
+            content = #{content},
+            updated_at = CURRENT_TIMESTAMP
+        WHERE place_review_id = #{placeReviewId}
+          AND user_id = #{userId}
+          AND status = 'VISIBLE'
+    </update>
+
+    <delete id="delete">
+        DELETE FROM place_reviews
+        WHERE place_review_id = #{reviewId}
+          AND user_id = #{userId}
+    </delete>
+
+    <update id="updatePlaceAverageRating">
+        UPDATE places
+        SET average_rating = (
+            SELECT ROUND(AVG(rating)::numeric, 2)
+            FROM place_reviews
+            WHERE place_id = #{placeId}
+              AND status = 'VISIBLE'
+        ),
+        updated_at = CURRENT_TIMESTAMP
+        WHERE place_id = #{placeId}
+    </update>
+</mapper>

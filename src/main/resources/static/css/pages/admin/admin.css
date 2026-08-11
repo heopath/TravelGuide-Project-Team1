@@ -8,3 +8,423 @@ body.page-admin #page-content {
     min-height: calc(100vh - 64px);
   }
 }
+
+/* 권한 안내. 승격 전에는 신고 목록이 비므로 이유를 화면이 직접 밝힌다. */
+.page-admin .admin-notice {
+  margin-bottom: 24px;
+  padding: 14px 18px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid #f7dcb0;
+  border-radius: 12px;
+  background: #fff7e8;
+  color: #7a4c07;
+  font-size: 13px;
+  font-weight: 650;
+  line-height: 1.5;
+}
+.page-admin .admin-notice[hidden] { display: none; }
+.page-admin .admin-notice.error {
+  border-color: #fecaca;
+  background: #fff1f2;
+  color: #b42318;
+}
+
+/* ── 사이드바 + 패널 (#165) ──
+   마이페이지와 같은 구조다. minmax(0, 1fr)을 쓰는 이유는 1fr의 최소 크기가 auto라
+   내용 너비 아래로 줄지 않아 좁은 화면에서 오른쪽이 밖으로 밀려나기 때문이다. */
+.page-admin .admin-layout {
+  display: grid;
+  grid-template-columns: 232px minmax(0, 1fr);
+  align-items: start;
+  gap: 20px;
+}
+
+.page-admin .admin-sidebar {
+  position: sticky;
+  top: 96px;
+  padding: 14px 12px;
+}
+
+.page-admin .admin-content { min-width: 0; }
+
+.page-admin .admin-nav { display: flex; flex-direction: column; gap: 4px; }
+.page-admin .admin-nav button {
+  width: 100%;
+  min-height: 44px;
+  padding: 0 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: 0;
+  border-radius: 11px;
+  background: transparent;
+  color: #344054;
+  font-size: 13.5px;
+  font-weight: 650;
+  text-align: left;
+  cursor: pointer;
+  transition: color 0.18s ease, background 0.18s ease;
+}
+.page-admin .admin-nav button > span:first-child {
+  width: 18px;
+  flex: 0 0 18px;
+  display: grid;
+  place-items: center;
+  color: #7c89a4;
+}
+/* 사이드바 배지. 본문의 .admin-tag와 같은 뜻이지만 훨씬 작게 둔다. */
+.page-admin .admin-nav button em {
+  margin-left: auto;
+  color: #98a2b3;
+  font-size: 10px;
+  font-style: normal;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.page-admin .admin-nav button em.live { color: var(--primary); }
+.page-admin .admin-nav button.is-current { background: #f0f1ff; color: var(--primary); }
+.page-admin .admin-nav button.is-current > span:first-child { color: var(--primary); }
+.page-admin .admin-nav button:not(.is-current):hover { background: #f5f6ff; color: var(--primary); }
+
+/* 한 번에 한 화면만 보이므로 아래 여백이 필요 없다. */
+.page-admin .admin-section { margin-bottom: 0; }
+.page-admin .admin-section[hidden] { display: none; }
+
+.page-admin .admin-section-head {
+  margin-bottom: 14px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.page-admin .admin-section-head h2 {
+  margin: 0;
+  color: var(--navy);
+  font-size: 18px;
+  letter-spacing: -0.02em;
+}
+
+/* 연동 여부를 화면에 드러낸다. 값이 비어 있는 것이 고장이 아니라는 표시다. */
+.page-admin .admin-tag {
+  padding: 4px 9px;
+  border-radius: 999px;
+  background: #eef1f7;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+}
+.page-admin .admin-tag.live {
+  background: var(--primary-soft, #eef0ff);
+  color: var(--primary);
+}
+
+.page-admin .admin-filter { margin-left: auto; display: flex; gap: 6px; flex-wrap: wrap; }
+.page-admin .admin-chip {
+  padding: 6px 12px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: #fff;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+.page-admin .admin-chip.on {
+  border-color: var(--primary);
+  background: var(--primary);
+  color: #fff;
+}
+
+.page-admin .admin-metric-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+}
+.page-admin .admin-metric {
+  padding: 18px 20px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: var(--shadow);
+}
+.page-admin .admin-metric span { display: block; color: var(--muted); font-size: 12px; font-weight: 700; }
+.page-admin .admin-metric strong {
+  display: block;
+  margin: 8px 0 6px;
+  color: var(--navy);
+  font-size: 26px;
+  letter-spacing: -0.03em;
+}
+.page-admin .admin-metric small { color: #97a1b5; font-size: 11px; }
+
+.page-admin .admin-panel { padding: 20px 22px; }
+
+.page-admin .admin-table-head,
+.page-admin .admin-table-body > div {
+  display: grid;
+  align-items: center;
+  gap: 10px;
+}
+.page-admin .admin-table-head {
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+}
+.page-admin .admin-table-body > div {
+  min-height: 56px;
+  border-bottom: 1px solid #f0f3f8;
+  font-size: 13px;
+}
+.page-admin .admin-table-body > div:last-child { border-bottom: 0; }
+
+.page-admin .admin-report-row { grid-template-columns: 90px 100px 1fr 90px 110px; }
+.page-admin .admin-product-row { grid-template-columns: 1fr 80px 90px 60px; }
+.page-admin .admin-monitor-row { grid-template-columns: 1fr 90px 120px; }
+
+/* 상세 사유는 길어질 수 있어 한 줄로 자른다. 표가 행마다 들쭉날쭉해지면 훑기 어렵다. */
+.page-admin .admin-clamp {
+  overflow: hidden;
+  color: var(--muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.page-admin .admin-status {
+  padding: 4px 9px;
+  border-radius: 7px;
+  background: #eef1f7;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+  text-align: center;
+}
+.page-admin .admin-status.pending { background: #fff7e8; color: #9a6513; }
+.page-admin .admin-status.reviewing { background: #eef0ff; color: var(--primary); }
+.page-admin .admin-status.resolved { background: #eaf9f3; color: #15845d; }
+.page-admin .admin-status.rejected { background: #f2f4f9; color: var(--muted); }
+
+.page-admin .admin-empty {
+  margin: 0;
+  padding: 26px 4px;
+  color: var(--muted);
+  font-size: 13px;
+  text-align: center;
+}
+.page-admin .admin-empty[hidden] { display: none; }
+
+.page-admin .admin-hint {
+  margin: 14px 0 0;
+  color: #97a1b5;
+  font-size: 11.5px;
+  line-height: 1.5;
+}
+
+.page-admin .theme-form .field input:disabled {
+  background: #f7f9fc;
+  color: #a5aec1;
+}
+.page-admin .primary-button:disabled { opacity: 0.55; }
+
+.page-admin .admin-perf > div {
+  min-height: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid #f0f3f8;
+}
+.page-admin .admin-perf > div:last-of-type { border-bottom: 0; }
+.page-admin .admin-perf span { color: var(--muted); font-size: 12px; font-weight: 700; }
+.page-admin .admin-perf strong { color: var(--navy); font-size: 18px; }
+
+/* ── 상담 채팅 ──
+   왼쪽 방 목록 + 오른쪽 대화. 방이 여러 개라 목록과 대화를 동시에 봐야 한다. */
+.page-admin .admin-chat {
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  min-height: 460px;
+  padding: 0;
+  overflow: hidden;
+}
+
+/* min-width를 풀지 않으면 좁은 화면에서 칸이 내용 너비 아래로 못 줄어 밖으로 삐져나간다. */
+.page-admin .admin-chat-rooms {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid var(--border);
+  background: #fbfcfe;
+}
+.page-admin .admin-chat-search { padding: 14px; border-bottom: 1px solid var(--border); }
+.page-admin .admin-chat-search input {
+  width: 100%;
+  height: 38px;
+  padding: 0 12px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: #fff;
+  font-size: 12.5px;
+}
+.page-admin .admin-chat-search input:disabled { background: #f2f4f9; color: #a5aec1; }
+
+.page-admin .admin-chat-room-list { flex: 1; overflow-y: auto; }
+/* 방이 없을 때는 목록이 자리를 차지하지 않게 두고, 안내 문구를 가운데에 세운다. */
+.page-admin .admin-chat-room-list:empty { flex: 0; }
+.page-admin .admin-chat-rooms .admin-empty {
+  flex: 1;
+  display: grid;
+  place-items: center;
+  padding: 20px 16px;
+  line-height: 1.5;
+}
+.page-admin .admin-chat-room {
+  width: 100%;
+  padding: 13px 14px;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 4px 8px;
+  border: 0;
+  border-bottom: 1px solid #eef1f7;
+  background: transparent;
+  text-align: left;
+}
+.page-admin .admin-chat-room.on { background: var(--primary-soft, #eef0ff); }
+.page-admin .admin-chat-room strong { color: var(--navy); font-size: 13px; }
+.page-admin .admin-chat-room small {
+  grid-column: 1 / -1;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 11.5px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.page-admin .admin-chat-unread {
+  min-width: 19px;
+  height: 19px;
+  padding: 0 5px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  background: #e5484d;
+  color: #fff;
+  font-size: 10.5px;
+  font-weight: 800;
+}
+
+.page-admin .admin-chat-thread { min-width: 0; display: flex; flex-direction: column; }
+.page-admin .admin-chat-thread-head {
+  padding: 15px 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-bottom: 1px solid var(--border);
+}
+/* 버튼은 줄바꿈을 막아뒀으므로, 좁아질 때 양보하는 쪽은 왼쪽 텍스트여야 한다. */
+.page-admin .admin-chat-thread-head > div { min-width: 0; }
+.page-admin .admin-chat-thread-head strong { display: block; color: var(--navy); font-size: 14px; }
+.page-admin .admin-chat-thread-head small { display: block; margin-top: 3px; color: var(--muted); font-size: 11.5px; }
+.page-admin .admin-chat-takeover {
+  padding: 8px 14px;
+  border: 1px solid var(--primary);
+  border-radius: 9px;
+  background: #fff;
+  color: var(--primary);
+  font-size: 12px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+.page-admin .admin-chat-takeover:disabled { border-color: var(--border); color: #a5aec1; }
+
+.page-admin .admin-chat-messages { flex: 1; padding: 18px; display: grid; gap: 10px; align-content: start; overflow-y: auto; }
+.page-admin .admin-chat-messages:empty { padding: 0; }
+
+.page-admin .admin-chat-composer {
+  padding: 12px 14px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 88px;
+  gap: 8px;
+  border-top: 1px solid var(--border);
+}
+.page-admin .admin-chat-composer input {
+  height: 42px;
+  padding: 0 13px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font-size: 13px;
+}
+.page-admin .admin-chat-composer input:disabled { background: #f2f4f9; color: #a5aec1; }
+.page-admin .admin-chat-composer .primary-button { min-height: 42px; }
+
+.page-admin .sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/*
+  한 칸으로 접을 때 1fr이 아니라 minmax(0, 1fr)을 쓴다.
+  1fr의 최소 크기는 auto라 내용 너비 아래로 줄지 않는다. 채팅은 `내가 응대하기`(100px)와
+  `보내기`(88px) 때문에 최소 폭이 327px이라, 그냥 1fr로 두면 컨테이너보다 넓은 칸이 만들어지고
+  admin-chat의 overflow:hidden에 잘렸다. 428px 아래에서 `보내기` 버튼이 사라진 원인이다.
+*/
+@media (max-width: 1080px) {
+  .page-admin .admin-chat { grid-template-columns: minmax(0, 1fr); }
+  .page-admin .admin-chat-rooms { border-right: 0; border-bottom: 1px solid var(--border); }
+  .page-admin .admin-chat-room-list { max-height: 220px; }
+
+  .page-admin .admin-metric-row { grid-template-columns: repeat(2, 1fr); }
+}
+
+/*
+  사이드바를 위로 접는다. 세로로 쌓으면 메뉴만으로 한 화면이 차서 정작 내용이 안 보인다.
+  가로로 굴리는 편이 항목 수가 늘어도 버틴다.
+*/
+@media (max-width: 860px) {
+  .page-admin .admin-layout { grid-template-columns: minmax(0, 1fr); }
+  .page-admin .admin-sidebar { position: static; padding: 10px; }
+  .page-admin .admin-nav {
+    flex-direction: row;
+    gap: 6px;
+    overflow-x: auto;
+    scrollbar-width: thin;
+  }
+  .page-admin .admin-nav button {
+    width: auto;
+    flex: 0 0 auto;
+    min-height: 38px;
+    padding: 0 12px;
+  }
+  /* 좁은 폭에서는 아이콘과 배지를 빼고 이름만 남긴다. 이름이 잘리면 고를 수가 없다. */
+  .page-admin .admin-nav button > span:first-child,
+  .page-admin .admin-nav button em { display: none; }
+}
+
+@media (max-width: 620px) {
+  .page-admin .admin-metric-row { grid-template-columns: 1fr; }
+
+  /*
+    상세·접수일을 숨기면 기록·사유·상태 셋이 남는다. 칸을 둘로 잡아두면 상태가 다음 줄로 밀려
+    한 건이 두 줄이 되고, 가운데 정렬된 상태 배지가 기록 칸 아래에 덩그러니 놓인다.
+    숨기는 칸 수와 남는 칸 수를 반드시 같이 고친다.
+  */
+  .page-admin .admin-report-row { grid-template-columns: 58px minmax(0, 1fr) 74px; }
+  .page-admin .admin-report-row > :nth-child(3),
+  .page-admin .admin-report-row > :nth-child(5) { display: none; }
+
+  /*
+    상품·예약 모니터링은 뒤쪽 칸이 고정 폭이라 1fr이 10px까지 눌린다. 상품명이 세로로 접혀
+    행 높이가 260px를 넘고, 패널이 화면 밖으로 밀려 페이지 전체가 가로로 스크롤됐다.
+    아직 연동 전이라 어떤 칸을 버릴지 정할 수 없으므로, 칸을 지우는 대신 패널 안에서 굴린다.
+  */
+  .page-admin .admin-panel { overflow-x: auto; }
+  .page-admin .admin-product-row { min-width: 360px; }
+  .page-admin .admin-monitor-row { min-width: 330px; }
+
+  .page-admin .admin-filter { margin-left: 0; }
+}

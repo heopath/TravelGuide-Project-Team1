@@ -9,6 +9,8 @@ import org.springframework.cache.interceptor.CacheErrorHandler;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
+import org.springframework.data.redis.cache.RedisCacheConfiguration;
+import org.springframework.data.redis.cache.RedisCacheManager.RedisCacheManagerBuilder;
 
 import java.time.Duration;
 
@@ -43,7 +45,38 @@ public class CacheConfig implements CachingConfigurer {
     @Bean
     public RedisCacheManagerBuilderCustomizer flightSearchCacheCustomizer() {
         return builder -> builder.withCacheConfiguration("flightSearch",
-                builder.cacheDefaults().entryTtl(Duration.ofHours(6)));
+                withTtl(builder, Duration.ofHours(6)));
+    }
+
+    /**
+     * 숙소 검색 캐시는 1시간으로 둔다.
+     *
+     * <p><b>요금 보강이 실제로 붙으면 5분으로 되돌려야 한다.</b> 판단 기준은 검색 응답의
+     * {@code meta.matchedPriceCount}다. 이 값이 0보다 커지는 순간 아래 이유가 다시 살아난다.
+     *
+     * <p>원래 5분이었던 이유: 국내선 스케줄은 하루 단위로 거의 안 바뀌지만 숙소 요금과
+     * 잔여 객실은 하루 안에도 움직인다. 길게 잡으면 이미 매진된 숙소를 계속 보여주게 되고,
+     * LiteAPI Sandbox의 초당 호출 제한도 걸린다.
+     *
+     * <p>지금 늘리는 이유: 현재 캐시에 담기는 것은 TourAPI가 준 숙소명·주소·사진·좌표뿐이고
+     * 요금은 전부 UNAVAILABLE이다. 한 달에 한 번 바뀔까 말까 한 공공데이터를 위해 5분마다
+     * TourAPI를 다시 부르고 있었다. 그 왕복이 5.5초라 사용자가 5분마다 그 시간을 다시 기다렸다.
+     * 캐시 적중은 0.03초다. (#147)
+     */
+    @Bean
+    public RedisCacheManagerBuilderCustomizer accommodationSearchCacheCustomizer() {
+        return builder -> builder.withCacheConfiguration("accommodationSearch",
+                withTtl(builder, Duration.ofHours(1)));
+    }
+
+    /**
+     * TTL만 바꾸고 나머지 설정은 부트가 만든 것을 그대로 물려받는다.
+     *
+     * <p>캐시가 늘어날 때마다 {@code builder.cacheDefaults()}를 쓰는 걸 잊지 않도록
+     * 한 곳으로 모았다. #139는 이 한 줄을 빠뜨려서 났다.
+     */
+    private RedisCacheConfiguration withTtl(RedisCacheManagerBuilder builder, Duration ttl) {
+        return builder.cacheDefaults().entryTtl(ttl);
     }
 
     @Override

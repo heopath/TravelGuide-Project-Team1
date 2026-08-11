@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.example.all_my_trip_project.domain.accommodation.mapper.AccommodationBookingMapper">
+
+    <sql id="columns">
+        accommodation_booking_id, trip_id, user_id, check_in, check_out,
+        offer_id, provider, name, accommodation_type, area_label, address,
+        rating, latitude, longitude,
+        quoted_nightly_price, quoted_total_price, quoted_currency,
+        quoted_price_source, quoted_at, rooms, adults,
+        user_reported_booked, user_reported_at,
+        booking_ref, booking_ref_added_at, created_at, updated_at
+    </sql>
+
+    <!--
+      같은 기간을 다시 고르면 스냅샷만 새로 박제하고 자가 신고와 예약번호는 초기화한다.
+      다른 숙소를 골라놓고 이전 숙소의 예약 표시가 남아 있으면 그 자체가 거짓 데이터다.
+      항공의 upsertSelection과 같은 판단이다.
+    -->
+    <insert id="upsertSelection" useGeneratedKeys="true"
+            keyProperty="accommodationBookingId" keyColumn="accommodation_booking_id">
+        INSERT INTO accommodation_bookings (
+            trip_id, user_id, check_in, check_out,
+            offer_id, provider, name, accommodation_type, area_label, address,
+            rating, latitude, longitude,
+            quoted_nightly_price, quoted_total_price, quoted_currency,
+            quoted_price_source, quoted_at, rooms, adults
+        ) VALUES (
+            #{tripId}, #{userId}, #{checkIn}, #{checkOut},
+            #{offerId}, #{provider}, #{name}, #{accommodationType}, #{areaLabel}, #{address},
+            #{rating}, #{latitude}, #{longitude},
+            #{quotedNightlyPrice}, #{quotedTotalPrice}, #{quotedCurrency},
+            #{quotedPriceSource}, CURRENT_TIMESTAMP, #{rooms}, #{adults}
+        )
+        ON CONFLICT (trip_id, check_in, check_out) DO UPDATE SET
+            user_id              = EXCLUDED.user_id,
+            offer_id             = EXCLUDED.offer_id,
+            provider             = EXCLUDED.provider,
+            name                 = EXCLUDED.name,
+            accommodation_type   = EXCLUDED.accommodation_type,
+            area_label           = EXCLUDED.area_label,
+            address              = EXCLUDED.address,
+            rating               = EXCLUDED.rating,
+            latitude             = EXCLUDED.latitude,
+            longitude            = EXCLUDED.longitude,
+            quoted_nightly_price = EXCLUDED.quoted_nightly_price,
+            quoted_total_price   = EXCLUDED.quoted_total_price,
+            quoted_currency      = EXCLUDED.quoted_currency,
+            quoted_price_source  = EXCLUDED.quoted_price_source,
+            quoted_at            = CURRENT_TIMESTAMP,
+            rooms                = EXCLUDED.rooms,
+            adults               = EXCLUDED.adults,
+            user_reported_booked = FALSE,
+            user_reported_at     = NULL,
+            booking_ref          = NULL,
+            booking_ref_added_at = NULL
+    </insert>
+
+    <select id="findByTrip" resultType="org.example.all_my_trip_project.domain.accommodation.dto.AccommodationBookingDTO">
+        SELECT <include refid="columns"/>
+        FROM accommodation_bookings
+        WHERE trip_id = #{tripId}
+        ORDER BY check_in, accommodation_booking_id
+    </select>
+
+    <select id="findById" resultType="org.example.all_my_trip_project.domain.accommodation.dto.AccommodationBookingDTO">
+        SELECT <include refid="columns"/>
+        FROM accommodation_bookings
+        WHERE accommodation_booking_id = #{accommodationBookingId}
+    </select>
+
+    <!--
+      겹침 판정은 반개구간이다. 체크아웃 날에 다른 숙소로 체크인하는 것은 정상이므로
+      경계가 맞닿는 경우(A.check_out = B.check_in)는 겹침이 아니다.
+    -->
+    <select id="findOverlapping" resultType="org.example.all_my_trip_project.domain.accommodation.dto.AccommodationBookingDTO">
+        SELECT <include refid="columns"/>
+        FROM accommodation_bookings
+        WHERE trip_id = #{tripId}
+          AND check_in &lt; #{checkOut}
+          AND check_out &gt; #{checkIn}
+        ORDER BY check_in
+    </select>
+
+    <update id="updateUserReported">
+        UPDATE accommodation_bookings
+        SET user_reported_booked = #{userReportedBooked},
+            user_reported_at = CASE WHEN #{userReportedBooked} THEN CURRENT_TIMESTAMP ELSE NULL END
+        WHERE accommodation_booking_id = #{accommodationBookingId}
+    </update>
+
+    <!-- 공백만 들어온 예약번호는 없는 것으로 본다. 상태가 확정으로 올라가면 안 된다. -->
+    <update id="updateBookingRef">
+        UPDATE accommodation_bookings
+        SET booking_ref = NULLIF(TRIM(#{bookingRef}), ''),
+            booking_ref_added_at = CASE
+                WHEN NULLIF(TRIM(#{bookingRef}), '') IS NULL THEN NULL
+                ELSE CURRENT_TIMESTAMP
+            END
+        WHERE accommodation_booking_id = #{accommodationBookingId}
+    </update>
+
+    <delete id="delete">
+        DELETE FROM accommodation_bookings
+        WHERE accommodation_booking_id = #{accommodationBookingId}
+    </delete>
+
+</mapper>

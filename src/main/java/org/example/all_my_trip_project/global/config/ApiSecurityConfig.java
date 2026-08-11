@@ -80,6 +80,24 @@ public class ApiSecurityConfig {
                         )
                         .authenticated()
 
+                        .requestMatchers(
+                                HttpMethod.POST,
+                                "/api/v1/places/*/reviews"
+                        )
+                        .authenticated()
+
+                        .requestMatchers(
+                                HttpMethod.PATCH,
+                                "/api/v1/place-reviews/*"
+                        )
+                        .authenticated()
+
+                        .requestMatchers(
+                                HttpMethod.DELETE,
+                                "/api/v1/place-reviews/*"
+                        )
+                        .authenticated()
+
                         .anyRequest()
                         .permitAll()
                 )

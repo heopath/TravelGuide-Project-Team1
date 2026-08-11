@@ -11,24 +11,108 @@
     <link rel="stylesheet" th:href="@{/css/common/components.css}" href="../../static/css/common/components.css" />
     <link rel="stylesheet" th:href="@{/css/pages/trips/record.css}" href="../../static/css/pages/trips/record.css" />
   </head>
-  <body class="page-record" data-route="/trips/busan/record">
+  <body class="page-record" data-route="/trips/busan/record" th:attr="data-trip-id=${tripId}" data-trip-id="">
     <div class="app">
-      <div th:replace="~{fragments/header :: header('mypage')}"></div>
+      <div th:replace="~{fragments/header :: header('trips')}"></div>
       <main id="page-content">
         <section class="page-shell">
-    <section class="page-heading">
-      <div>
-        <h1><span>05 </span>부산 여행 기록</h1>
-        <p>사진과 메모를 남기면 다음 추천에 취향으로 반영됩니다.</p>
-        <i>✦</i>
-      </div>
-      
-    </section>
-  <div class="record-layout"><section class="white-panel"><div class="record-grid"><div class="tone-blue featured"></div><div class="tone-sunset"></div><div class="tone-mint"></div><button type="button" data-modal="upload">+ 사진 추가</button></div><label class="record-note"><span>여행 메모</span><textarea>광안리 야경과 감천문화마을 골목이 가장 기억에 남았다. 다음에는 해운대에서 하루 더 머물고 싶다.</textarea></label></section><aside class="white-panel record-summary"><span>2026.08.14–08.17</span><h2>부산 미식 여행</h2><p>4일 · 방문 장소 12곳 · 사진 24장</p><div>★★★★★</div><button class="primary-button wide" data-toast="여행 기록을 저장했습니다.">기록 저장</button></aside></div></section>
+          <section class="page-heading">
+            <div>
+              <h1><span data-record-trip-title>여행 기록</span></h1>
+              <p data-record-trip-period>여행 정보를 불러오는 중입니다…</p>
+              <i>✦</i>
+            </div>
+          </section>
+
+          <p class="record-status" data-record-loading>여행 기록을 불러오는 중입니다…</p>
+
+          <div class="empty-state" data-record-error hidden>
+            <span>⚠</span>
+            <h1>여행 기록을 불러올 수 없습니다</h1>
+            <p data-record-error-message>잠시 후 다시 시도해주세요.</p>
+          </div>
+
+          <div class="empty-state" data-record-blocked hidden>
+            <span>🧳</span>
+            <h1>완료된 여행에서만 기록을 작성할 수 있습니다</h1>
+            <p>여행이 완료 상태로 바뀌면 이 화면에서 기록을 남길 수 있어요.</p>
+          </div>
+
+          <div class="record-layout" data-record-app hidden>
+            <section class="white-panel">
+              <div class="record-grid" data-record-image-list></div>
+
+              <form class="record-image-form" data-record-image-form data-no-global-loading novalidate>
+                <div class="field">
+                  <span>이미지 URL 추가</span>
+                  <input type="url" name="imageUrl" placeholder="https://..." maxlength="1000" required />
+                </div>
+                <div class="field">
+                  <span>대체 텍스트(선택)</span>
+                  <input type="text" name="altText" placeholder="사진 설명" maxlength="255" />
+                </div>
+                <label class="record-image-cover">
+                  <input type="checkbox" name="cover" />
+                  <span>대표 사진으로 지정</span>
+                </label>
+                <button type="submit" class="outline-button">이미지 추가</button>
+              </form>
+              <p class="field-error" data-record-image-error role="alert"></p>
+
+              <label class="record-note">
+                <span>여행 메모</span>
+                <textarea data-record-content placeholder="이번 여행에서 기억에 남는 순간을 적어보세요."></textarea>
+              </label>
+              <p class="field-error" data-record-content-error role="alert"></p>
+            </section>
+
+            <aside class="white-panel record-summary">
+              <span data-record-mode-label>새 기록 작성</span>
+
+              <div class="field">
+                <span>제목</span>
+                <input type="text" data-record-title maxlength="200" placeholder="여행 기록 제목" />
+              </div>
+              <p class="field-error" data-record-title-error role="alert"></p>
+
+              <div class="record-rating" data-record-rating role="group" aria-label="평점">
+                <button type="button" data-value="1">★</button>
+                <button type="button" data-value="2">★</button>
+                <button type="button" data-value="3">★</button>
+                <button type="button" data-value="4">★</button>
+                <button type="button" data-value="5">★</button>
+              </div>
+
+              <div class="field">
+                <span>공개 범위</span>
+                <select data-record-visibility>
+                  <option value="PRIVATE">나만 보기</option>
+                  <option value="PUBLIC">전체 공개</option>
+                </select>
+              </div>
+
+              <button class="primary-button wide" type="button" data-record-submit>기록 저장</button>
+
+              <div class="record-delete" data-record-delete-section hidden>
+                <button type="button" class="outline-button wide danger-text" data-record-delete-open>기록 삭제</button>
+
+                <div class="notice danger record-delete-confirm" data-record-delete-confirm hidden>
+                  <strong>기록을 삭제하시겠어요?</strong>
+                  <span>삭제한 기록은 복구할 수 없습니다.</span>
+                  <div class="record-delete-actions">
+                    <button type="button" class="outline-button" data-record-delete-cancel>취소</button>
+                    <button type="button" class="danger-button" data-record-delete-submit>삭제</button>
+                  </div>
+                </div>
+              </div>
+            </aside>
+          </div>
+        </section>
       </main>
       <div th:replace="~{fragments/modals :: modalRoots}"><div id="directory-root"></div><div id="modal-root"></div><div id="toast-root" aria-live="polite"></div></div>
       <div th:replace="~{fragments/footer :: footer}"></div>
     </div>
     <div th:replace="~{fragments/scripts :: appScripts}"></div>
+    <script th:src="@{/js/pages/trips/record.js}" src="../../static/js/pages/trips/record.js"></script>
   </body>
 </html>
