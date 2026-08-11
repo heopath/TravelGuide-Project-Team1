@@ -81,6 +81,12 @@ class KakaoPlaceDiscoveryServiceTest {
     }
 
     @Test
+    void removesRequestedCountSoKakaoCanSearchTheActualPlaceType() {
+        assertThat(KakaoPlaceDiscoveryService.searchKeyword("편집샵 세개만 추천해줘", "부산"))
+                .isEqualTo("부산 편집샵");
+    }
+
+    @Test
     void extractsCafeAndRestaurantSearchesForEachMentionedLocation() {
         assertThat(KakaoPlaceDiscoveryService.searchKeywords(
                 "성수와 연남에서 카페와 맛집을 추천해줘", "서울"))
@@ -99,6 +105,13 @@ class KakaoPlaceDiscoveryServiceTest {
         assertThat(KakaoPlaceDiscoveryService.searchKeywords(
                 "대전역 근처 쇼핑할 곳을 찾아줘", "대전"))
                 .contains("대전역 쇼핑");
+    }
+
+    @Test
+    void extractsSpecificVenueTermsForKakaoPlaceSearch() {
+        assertThat(KakaoPlaceDiscoveryService.searchKeywords(
+                "부산에서 혼술 LP 바를 추천해줘", "부산"))
+                .contains("부산 LP바", "부산 술집");
     }
 
     @Test

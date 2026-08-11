@@ -195,6 +195,9 @@ public class CohereAiModelClient implements AiModelClient {
 
                 Grounding rules:
                 - Name a real venue only when that exact venue name appears in Retrieved place knowledge.
+                - When retrieved candidates match the requested location and broad category, use their exact venue names
+                  rather than generic placeholder items. If a narrow feature such as an LP room is not documented,
+                  say that the feature is unverified but still present the verified venue as a general bar/cafe option.
                 - If no matching verified place knowledge is available, do not invent a cafe, restaurant, address,
                   popularity claim, or neighborhood-specific fact. Explain that verified place candidates are unavailable
                   and give general planning guidance instead.

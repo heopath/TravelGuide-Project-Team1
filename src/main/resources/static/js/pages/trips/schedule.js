@@ -835,6 +835,10 @@ document.addEventListener("DOMContentLoaded", function () {
 
   window.AllMyTripsSchedule = {
     addAiRecommendation: async function (recommendation, recommendedDayNumber) {
+      const placeId = Number(recommendation?.placeId);
+      if (!Number.isInteger(placeId) || placeId <= 0) {
+        throw new Error("실제 장소로 확인된 추천만 일정에 추가할 수 있습니다.");
+      }
       if (!activeDay || !activeDay.tripDayId) {
         throw new Error("추가할 DAY를 먼저 선택해주세요.");
       }
@@ -855,7 +859,8 @@ document.addEventListener("DOMContentLoaded", function () {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          itemType: "NOTE",
+          placeId,
+          itemType: "PLACE",
           title: recommendation.name,
           startTime: recommendation.time || null,
           sortOrder: nextSortOrder,
