@@ -22,6 +22,18 @@
     <select id="countByTripDayId" resultType="int">
         SELECT COUNT(*) FROM itinerary_items WHERE trip_day_id = #{tripDayId}
     </select>
+    <select id="nextSortOrderByTripDayId" resultType="int">
+        SELECT COALESCE(MAX(sort_order), -1) + 1
+        FROM itinerary_items
+        WHERE trip_day_id = #{tripDayId}
+    </select>
+    <select id="existsByTripDayIdAndPlaceId" resultType="boolean">
+        SELECT EXISTS(
+            SELECT 1 FROM itinerary_items
+            WHERE trip_day_id = #{tripDayId}
+              AND place_id = #{placeId}
+        )
+    </select>
     <update id="update">
         UPDATE itinerary_items
         SET place_id = #{placeId}, item_type = #{itemType}, title = #{title},
@@ -29,6 +41,11 @@
             sort_order = #{sortOrder}, memo = #{memo},
             estimated_cost = #{estimatedCost}, currency_code = #{currencyCode},
             updated_at = CURRENT_TIMESTAMP(6)
+        WHERE itinerary_item_id = #{itineraryItemId}
+    </update>
+    <update id="updateSortOrder">
+        UPDATE itinerary_items
+        SET sort_order = #{sortOrder}, updated_at = CURRENT_TIMESTAMP(6)
         WHERE itinerary_item_id = #{itineraryItemId}
     </update>
     <delete id="delete">

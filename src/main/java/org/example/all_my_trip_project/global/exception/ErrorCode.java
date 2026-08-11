@@ -69,6 +69,16 @@ public enum ErrorCode {
             "날씨는 오늘부터 3일 이내 일정만 확인할 수 있습니다."
     ),
 
+    ROUTE_NOT_CONFIGURED(
+            HttpStatus.SERVICE_UNAVAILABLE,
+            "경로 최적화 서비스가 아직 설정되지 않았습니다."
+    ),
+
+    ROUTE_API_FAILED(
+            HttpStatus.BAD_GATEWAY,
+            "카카오 길찾기 API 호출에 실패했습니다. REST API 키와 허용 IP를 확인해주세요."
+    ),
+
     INVALID_TRIP_REQUEST(
             HttpStatus.BAD_REQUEST,
             "여행 생성 요청값이 올바르지 않습니다."
@@ -102,6 +112,11 @@ public enum ErrorCode {
     ITINERARY_ITEM_LIMIT_EXCEEDED(
             HttpStatus.BAD_REQUEST,
             "일차당 일정은 최대 100개까지 등록할 수 있습니다."
+    ),
+
+    ITINERARY_PLACE_ALREADY_ADDED(
+            HttpStatus.CONFLICT,
+            "같은 DAY에 이미 추가된 장소입니다."
     ),
 
     INVALID_FLIGHT_LEG(
@@ -149,6 +164,16 @@ public enum ErrorCode {
             "장소 후기를 찾을 수 없습니다."
     ),
 
+    PLACE_NOT_FOUND(
+            HttpStatus.NOT_FOUND,
+            "추천 장소를 찾을 수 없습니다."
+    ),
+
+    INVALID_PLACE_REQUEST(
+            HttpStatus.BAD_REQUEST,
+            "추천 장소 입력값을 확인해 주세요."
+    ),
+
     REPORT_ALREADY_PENDING(
             HttpStatus.CONFLICT,
             "이미 처리 대기 중인 신고가 있습니다."
@@ -174,6 +199,11 @@ public enum ErrorCode {
             "숙소를 검색할 지역을 입력해 주세요."
     ),
 
+    ACCOMMODATION_PROVIDER_UNAVAILABLE(
+            HttpStatus.SERVICE_UNAVAILABLE,
+            "숙소 정보를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요."
+    ),
+
     ACCOMMODATION_PERIOD_OUT_OF_TRIP(
             HttpStatus.BAD_REQUEST,
             "숙소 기간은 여행 기간 안에 있어야 합니다."
@@ -187,6 +217,36 @@ public enum ErrorCode {
     ACCOMMODATION_BOOKING_NOT_FOUND(
             HttpStatus.NOT_FOUND,
             "담아둔 숙소를 찾을 수 없습니다."
+    ),
+
+    TICKET_NOT_FOUND(
+            HttpStatus.NOT_FOUND,
+            "선택한 티켓 상품이나 시간대를 찾을 수 없습니다."
+    ),
+
+    TICKET_NOT_AVAILABLE(
+            HttpStatus.CONFLICT,
+            "선택한 티켓의 남은 수량이 부족합니다."
+    ),
+
+    TICKET_RESERVATION_NOT_FOUND(
+            HttpStatus.NOT_FOUND,
+            "티켓 예약을 찾을 수 없습니다."
+    ),
+
+    TICKET_CANCEL_NOT_ALLOWED(
+            HttpStatus.CONFLICT,
+            "현재 상태에서는 티켓 예약을 취소할 수 없습니다."
+    ),
+
+    INVALID_TICKET_REQUEST(
+            HttpStatus.BAD_REQUEST,
+            "티켓 사용일, 수량 또는 여행 정보가 올바르지 않습니다."
+    ),
+
+    SUPPORT_INQUIRY_NOT_FOUND(
+            HttpStatus.NOT_FOUND,
+            "고객센터 문의를 찾을 수 없습니다."
     );
 
     private final HttpStatus status;

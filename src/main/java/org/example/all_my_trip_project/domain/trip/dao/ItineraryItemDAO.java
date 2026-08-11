@@ -18,8 +18,13 @@ public class ItineraryItemDAO {
 
     public int insert(ItineraryItemDTO item) { return itemMapper.insert(item); }
     public int update(ItineraryItemDTO item) { return itemMapper.update(item); }
+    public int updateSortOrder(Long itemId, Integer sortOrder) { return itemMapper.updateSortOrder(itemId, sortOrder); }
     public int delete(Long itemId) { return itemMapper.delete(itemId); }
     public Optional<ItineraryItemDTO> findById(Long itemId) { return itemMapper.findById(itemId); }
     public List<ItineraryItemDTO> findByTripDayId(Long tripDayId) { return itemMapper.findByTripDayId(tripDayId); }
     public int countByTripDayId(Long tripDayId) { return itemMapper.countByTripDayId(tripDayId); }
+    public int nextSortOrderByTripDayId(Long tripDayId) { return itemMapper.nextSortOrderByTripDayId(tripDayId); }
+    public boolean existsByTripDayIdAndPlaceId(Long tripDayId, Long placeId) {
+        return itemMapper.existsByTripDayIdAndPlaceId(tripDayId, placeId);
+    }
 }

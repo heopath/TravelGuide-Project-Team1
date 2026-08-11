@@ -11,10 +11,6 @@
   const OUTBOUND = 0;
   const INBOUND = 1;
 
-  /* 티켓 탭은 아직 없다. 우측 패널의 자리만 잡아두는 임시 추정치이며,
-     해당 탭이 붙으면 실제 선택 금액으로 대체한다. 숙소 임시 금액은 숙소 탭을 붙이며 제거했다. */
-  const PLACEHOLDER_ACTIVITY = 56000;
-
   /* 일정 충돌 배지와 추천 스코어의 기준.
      가는 편은 1일차 첫 활동 시작 시각, 오는 편은 마지막날 마지막 활동 종료 시각을 본다.
      loadItinerary()가 여행 일정에서 채운다. 비어 있으면 페널티가 0이라 가격만으로 순위가 갈린다. */
@@ -53,6 +49,9 @@
   let initialTab = "flight";
   let search = { origin: "GMP", destination: "CJU", departureDate: null, returnDate: null, adults: 2 };
   let hotelSelection = null;
+  let ticketReservation = null;
+  let bookingSummary = null;
+  let bookingSummaryError = null;
 
   /* ────────── 파생값 ────────── */
   const offerOf = (leg, id) => offers[leg].find((o) => o.offerId === id) || null;
@@ -101,6 +100,8 @@
         minimumFractionDigits: 2, maximumFractionDigits: 2
       })}`;
   };
+  const ticketDone = () => !!ticketReservation;
+  const ticketTotal = () => ticketDone() ? Number(ticketReservation.totalAmount || 0) : 0;
 
   /* 목록에 출처가 섞이면 카드마다 개별 표시되고, 하단 문구가 그 사실을 알린다. */
   const sourceLabel = () => offers[state.leg][0]?.priceSourceLabel || "공시운임";
@@ -282,8 +283,10 @@
         sub: hotelHasDisplayPrice()
           ? `${hotelSelection.nightsLabel}${hotelPriceNote()}${hotelCanAddToTotal() ? "" : " · 합계 제외"}`
           : hotelDone() ? "요금 미제공" : "숙소에서 선택", dim: !hotelHasDisplayPrice() },
-      { ic: "◈", icc: "n", nm: "티켓·액티비티", ds: "대기 · 임시 추정치", dsc: "",
-        pv: won(PLACEHOLDER_ACTIVITY), sub: "예상", dim: true }
+      { ic: "◈", icc: ticketDone() ? "g" : "n", nm: "티켓·액티비티",
+        ds: ticketDone() ? `모의 예약 · ${ticketReservation.productName}` : "선택 전",
+        dsc: ticketDone() ? "o" : "", pv: ticketDone() ? won(ticketTotal()) : "—",
+        sub: ticketDone() ? "실습용 · 실제 결제 아님" : "티켓에서 선택", dim: !ticketDone() }
     ];
 
     return rows.map((r) => `<div class="sr">
@@ -316,7 +319,7 @@
     $("rows").innerHTML = sideRows();
 
     if (hasOffers()) {
-      const total = airTotal() + hotelTotal() + PLACEHOLDER_ACTIVITY;
+      const total = airTotal() + hotelTotal() + ticketTotal();
       text("cTot", won(total));
       text("cPer", `1인 ${won(Math.round(total / search.adults))}`);
     } else {
@@ -331,9 +334,10 @@
         : hotelSelection?.priceSource === "MOCK"
           ? "숙소 샘플가"
           : hotelCanAddToTotal() ? "숙소 선택가" : "숙소 요금 제외";
-    text("costNote", `${airLabel} · ${hotelLabel} · 티켓 임시 추정`);
+    const ticketLabel = ticketDone() ? "티켓 모의 예약가" : "티켓 미선택";
+    text("costNote", `${airLabel} · ${hotelLabel} · ${ticketLabel}`);
 
-    const done = (airDone() ? 1 : 0) + (hotelDone() ? 1 : 0);
+    const done = (airDone() ? 1 : 0) + (hotelDone() ? 1 : 0) + (ticketDone() ? 1 : 0);
     text("dn", done);
     text("tabCount", done);
     $("fill").style.width = Math.round((done / 3) * 100) + "%";
@@ -355,11 +359,77 @@
 
   /* ────────── `내 예약` 탭 ──────────
      복귀 감지는 반드시 실패한다는 전제로, 언제든 수동으로 되돌릴 수 있는 경로를 둔다. */
+  function summaryAmount(item) {
+    if (item.amount === null || item.amount === undefined) return "요금 미제공";
+    const currency = String(item.currency || "KRW").toUpperCase();
+    return currency === "KRW" ? won(item.amount)
+      : `${currency} ${Number(item.amount).toLocaleString("ko-KR")}`;
+  }
+
+  function summaryError(section) {
+    return (bookingSummary?.errors || []).find((error) => error.section === section)?.message || "";
+  }
+
+  function renderSummaryMine(container) {
+    const items = bookingSummary.items || [];
+    const flights = items.filter((item) => item.type === "FLIGHT");
+    const stays = items.filter((item) => item.type === "ACCOMMODATION");
+    const tickets = items.filter((item) => item.type === "TICKET");
+
+    const section = (type, title, rows, empty) => {
+      const error = summaryError(type);
+      return `<section class="mine-group"><h3>${title}</h3>${error
+        ? `<p class="mn-e mine-error">${esc(error)}</p>`
+        : rows || `<p class="mn-e">${empty}</p>`}</section>`;
+    };
+
+    const flightRows = flights.map((item) => `<div class="mn">
+      <div class="mn-h">${item.leg === OUTBOUND ? "가는 편" : "오는 편"} <span class="mn-s">${esc(item.statusLabel)}</span></div>
+      <p class="mn-f">${esc(item.title)} · ${esc(summaryAmount(item))}</p>
+      <p class="mn-meta">${esc(item.detail || "")} · ${esc(item.amountSource || "출처 미제공")}</p>
+      <div class="mn-a">
+        <button type="button" class="mn-b" data-mine-report="${item.leg}"
+          ${item.status === "NONE" ? "" : "disabled"}>예약함으로 표시</button>
+        <input class="mn-i" data-mine-ref="${item.leg}" maxlength="12" placeholder="예약번호"
+          value="${esc(item.bookingRef || "")}" />
+        <button type="button" class="mn-b" data-mine-save="${item.leg}">예약번호 저장</button>
+      </div>
+    </div>`).join("");
+
+    const stayRows = stays.map((item) => `<div class="mn">
+      <div class="mn-h">숙소 <span class="mn-s">${esc(item.statusLabel)}</span></div>
+      <p class="mn-f">${esc(item.title)} · ${esc(summaryAmount(item))}</p>
+      <p class="mn-meta">${esc(item.detail || "")} · ${esc(item.amountSource || "요금 미제공")}</p>
+      <div class="mn-a"><button type="button" class="mn-b" data-mine-tab="hotel">숙소에서 확인·변경</button></div>
+    </div>`).join("");
+
+    const ticketRows = tickets.map((item) => `<div class="mn${item.status === "CANCELLED" ? " cancelled" : ""}">
+      <div class="mn-h">티켓·액티비티 <span class="mn-s">${esc(item.statusLabel)}</span></div>
+      <p class="mn-f">${esc(item.title)} · ${esc(item.detail || "")}</p>
+      <p class="mn-meta">${esc(item.usageDate || "")} · ${item.quantity || 1}매 · ${esc(summaryAmount(item))} · 실제 결제 아님</p>
+      <div class="mn-a">${item.status === "PENDING"
+        ? `<button type="button" class="mn-b danger" data-mine-ticket-cancel="${esc(item.referenceId)}">모의 예약 취소</button>`
+        : ""}<button type="button" class="mn-b" data-mine-tab="ticket">티켓에서 확인</button></div>
+    </div>`).join("");
+
+    const globalError = bookingSummaryError
+      ? `<p class="mn-e mine-error">${esc(bookingSummaryError)}</p>` : "";
+    container.innerHTML = globalError
+      + section("FLIGHT", "항공", flightRows, "아직 선택한 항공편이 없어요.")
+      + section("ACCOMMODATION", "숙소", stayRows, "아직 선택한 숙소가 없어요.")
+      + section("TICKET", "티켓·액티비티", ticketRows, "아직 담은 티켓이 없어요.");
+  }
+
   function renderMine() {
     const container = $("mineList");
     if (!container) return;
 
-    container.innerHTML = [OUTBOUND, INBOUND].map((leg) => {
+    if (bookingSummary?.items) {
+      renderSummaryMine(container);
+      return;
+    }
+
+    const flightCards = [OUTBOUND, INBOUND].map((leg) => {
       const offer = state.picked[leg] ? offerOf(leg, state.picked[leg]) : null;
       const name = leg === OUTBOUND ? "가는 편" : "오는 편";
       if (!offer) {
@@ -381,6 +451,48 @@
         </div>
       </div>`;
     }).join("");
+
+    const hotelState = window.__accommodationBooking?.state || {};
+    const hotelStatus = hotelState.status === "CONFIRMED" ? "확정"
+      : hotelState.status === "USER_REPORTED" ? "예약함 (직접 표시)"
+        : hotelDone() ? "선택 완료" : "선택 전";
+    const hotelCard = hotelDone()
+      ? `<div class="mn">
+          <div class="mn-h">숙소 <span class="mn-s">${hotelStatus}</span></div>
+          <p class="mn-f">${esc(hotelSelection.name)} · ${hotelPriceLabel()}</p>
+          <p class="mn-meta">${esc(hotelSelection.nightsLabel || "")} · ${esc(hotelSelection.priceSource === "UNAVAILABLE" ? "요금 미제공" : hotelSelection.priceSource)}</p>
+          <div class="mn-a"><button type="button" class="mn-b" data-mine-tab="hotel">숙소에서 확인·변경</button></div>
+        </div>`
+      : `<div class="mn"><div class="mn-h">숙소</div><p class="mn-e">아직 선택한 숙소가 없어요.</p>
+          <div class="mn-a"><button type="button" class="mn-b" data-mine-tab="hotel">숙소 선택하기</button></div></div>`;
+
+    const ticketCard = ticketDone()
+      ? `<div class="mn">
+          <div class="mn-h">티켓·액티비티 <span class="mn-s">모의 예약</span></div>
+          <p class="mn-f">${esc(ticketReservation.productName)} · ${esc(ticketReservation.optionName || "")}</p>
+          <p class="mn-meta">${esc(ticketReservation.usageDate || "")} · ${ticketReservation.quantity || 1}매 · ${won(ticketTotal())} · 실제 결제 아님</p>
+          <div class="mn-a"><button type="button" class="mn-b" data-mine-tab="ticket">티켓에서 확인</button></div>
+        </div>`
+      : `<div class="mn"><div class="mn-h">티켓·액티비티</div><p class="mn-e">아직 담은 티켓이 없어요.</p>
+          <div class="mn-a"><button type="button" class="mn-b" data-mine-tab="ticket">티켓 선택하기</button></div></div>`;
+
+    container.innerHTML = `<section class="mine-group"><h3>항공</h3>${flightCards}</section>
+      <section class="mine-group"><h3>숙소</h3>${hotelCard}</section>
+      <section class="mine-group"><h3>티켓·액티비티</h3>${ticketCard}</section>`;
+  }
+
+  async function loadBookingSummary() {
+    if (!canPersist()) return;
+    try {
+      const payload = await request("GET", `/api/v1/trips/${tripId}/booking-summary`);
+      if (!Array.isArray(payload.data?.items)) throw new Error("BOOKING_SUMMARY_INVALID");
+      bookingSummary = payload.data;
+      bookingSummaryError = null;
+    } catch (error) {
+      /* 기존 개별 복원 결과는 유지하고, 통합 조회 오류만 해당 탭에서 알린다. */
+      bookingSummaryError = "예약 정보를 한 번에 불러오지 못했습니다. 각 탭의 정보는 그대로 확인할 수 있습니다.";
+    }
+    renderMine();
   }
 
   /* ────────── 플로우 ────────── */
@@ -567,6 +679,10 @@
     availableTabs.forEach((key) => {
       $("panel-" + key).hidden = key !== nextTab;
     });
+    if (nextTab === "mine") {
+      renderMine();
+      void loadBookingSummary();
+    }
 
     // 탭을 주소에 남겨 새로고침하거나 링크를 공유해도 같은 탭이 다시 열린다.
     const url = new URL(location.href);
@@ -771,6 +887,33 @@
     });
 
     $("mineList").addEventListener("click", async (e) => {
+      const tab = e.target.closest("[data-mine-tab]");
+      if (tab) {
+        setTab(tab.dataset.mineTab);
+        return;
+      }
+      const cancelTicket = e.target.closest("[data-mine-ticket-cancel]");
+      if (cancelTicket) {
+        if (!window.confirm("이 모의 예약을 취소할까요? 취소한 수량은 다시 예약할 수 있게 됩니다.")) return;
+        cancelTicket.disabled = true;
+        try {
+          const reservationId = cancelTicket.dataset.mineTicketCancel;
+          await request("DELETE", `/api/v1/ticket-reservations/${reservationId}`);
+          if (String(ticketReservation?.reservationId) === reservationId) ticketReservation = null;
+          window.dispatchEvent(new CustomEvent("allmytrips:ticket-cancelled", {
+            detail: { reservationId: Number(reservationId) }
+          }));
+          bookingSummary = null;
+          await loadBookingSummary();
+          sync();
+        } catch (error) {
+          bookingSummaryError = error.message || "모의 예약을 취소하지 못했습니다.";
+          renderMine();
+        } finally {
+          cancelTicket.disabled = false;
+        }
+        return;
+      }
       const report = e.target.closest("[data-mine-report]");
       if (report) {
         const leg = Number(report.dataset.mineReport);
@@ -796,6 +939,12 @@
 
     window.addEventListener("allmytrips:accommodation-selected", (event) => {
       hotelSelection = event.detail?.offer || null;
+      bookingSummary = null;
+      sync();
+    });
+    window.addEventListener("allmytrips:ticket-reserved", (event) => {
+      ticketReservation = event.detail?.reservation || null;
+      bookingSummary = null;
       sync();
     });
   }
@@ -826,6 +975,7 @@
     reportBooked, reportNo, reportLater, saveRefAndNext, closeModal3,
     status, legPrice, airTotal, airDone, airIsEstimate, render, sync,
     getSearch: () => ({ ...search }),
-    getHotelSelection: () => hotelSelection
+    getHotelSelection: () => hotelSelection,
+    getTicketReservation: () => ticketReservation
   };
 })();

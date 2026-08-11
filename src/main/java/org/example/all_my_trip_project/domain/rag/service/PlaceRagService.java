@@ -66,7 +66,12 @@ public class PlaceRagService {
                     .filter(document -> !"LOCAL_SEED".equals(document.getMetadata().get("externalProvider")))
                     .map(document -> new RagSearchResult(
                             String.valueOf(document.getMetadata().getOrDefault("source", "place")),
-                            document.getText()))
+                            document.getText(),
+                            toLong(document.getMetadata().get("placeId")),
+                            toNullableString(document.getMetadata().get("name")),
+                            toNullableString(document.getMetadata().get("category")),
+                            toNullableString(document.getMetadata().get("address")),
+                            toNullableString(document.getMetadata().get("placeUrl"))))
                     .toList();
         } catch (Exception exception) {
             log.warn("RAG place search failed. Falling back to question-based recommendation.", exception);
@@ -75,7 +80,15 @@ public class PlaceRagService {
     }
 
     public RagSearchResult toSearchResult(PlaceDTO place) {
-        return new RagSearchResult("place:" + place.getPlaceId(), toDocument(place).getText());
+        return new RagSearchResult(
+                "place:" + place.getPlaceId(),
+                toDocument(place).getText(),
+                place.getPlaceId(),
+                nullToEmpty(place.getName()),
+                nullToEmpty(place.getCategory()),
+                nullToEmpty(place.getAddress()),
+                nullToEmpty(place.getWebsiteUrl())
+        );
     }
 
     private Document toDocument(PlaceDTO place) {
@@ -85,7 +98,9 @@ public class PlaceRagService {
                 "placeId", place.getPlaceId(),
                 "name", nullToEmpty(place.getName()),
                 "region", nullToEmpty(place.getRegion()),
-                "category", nullToEmpty(place.getCategory())
+                "category", nullToEmpty(place.getCategory()),
+                "address", nullToEmpty(place.getAddress()),
+                "placeUrl", nullToEmpty(place.getWebsiteUrl())
         );
         return Document.builder()
                 .id(UUID.nameUUIDFromBytes(("place:" + place.getPlaceId()).getBytes(StandardCharsets.UTF_8)).toString())
@@ -100,5 +115,24 @@ public class PlaceRagService {
 
     private String nullToEmpty(String value) {
         return value == null ? "" : value.trim();
+    }
+
+    private Long toLong(Object value) {
+        if (value instanceof Number number) {
+            return number.longValue();
+        }
+        try {
+            return value == null ? null : Long.parseLong(String.valueOf(value));
+        } catch (NumberFormatException exception) {
+            return null;
+        }
+    }
+
+    private String toNullableString(Object value) {
+        if (value == null) {
+            return null;
+        }
+        String text = String.valueOf(value).trim();
+        return text.isEmpty() ? null : text;
     }
 }

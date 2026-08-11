@@ -1,0 +1,73 @@
+.page-admin-places { background:#f5f7fc; color:#15213b; }
+.admin-place-shell { padding-top:36px; padding-bottom:72px; }
+.admin-place-heading { display:flex; justify-content:space-between; gap:24px; align-items:flex-end; margin-bottom:22px; }
+.admin-place-heading span { color:#6558ff; font-size:12px; font-weight:800; letter-spacing:.08em; }
+.admin-place-heading h1 { margin:8px 0 6px; font-size:34px; }
+.admin-place-heading p { margin:0; color:#71809f; }
+.admin-place-heading-actions { display:flex; gap:10px; flex-wrap:wrap; }
+.admin-place-notice { margin-bottom:16px; padding:13px 16px; border:1px solid #fecdca; border-radius:12px; background:#fff5f4; color:#b42318; }
+.admin-place-search { display:grid; grid-template-columns:minmax(220px,1fr) 180px 140px auto; gap:12px; align-items:end; padding:18px; margin-bottom:18px; }
+.admin-place-search label,.admin-place-form-grid label { display:grid; gap:7px; font-size:12px; font-weight:700; color:#62708e; }
+.admin-place-search input,.admin-place-search select,.admin-place-form-grid input,.admin-place-form-grid select,.admin-place-form-grid textarea {
+  width:100%; border:1px solid #dfe4ef; border-radius:10px; background:#fff; color:#15213b; padding:11px 12px; font:inherit;
+}
+.admin-place-form-grid textarea { resize:vertical; min-height:112px; }
+.admin-place-search input:focus,.admin-place-search select:focus,.admin-place-form-grid input:focus,.admin-place-form-grid select:focus,.admin-place-form-grid textarea:focus {
+  outline:2px solid #dcd8ff; border-color:#7868ff;
+}
+.admin-place-layout { display:grid; grid-template-columns:minmax(0,1.2fr) minmax(360px,.8fr); gap:18px; align-items:start; }
+.admin-place-list-panel,.admin-place-editor { padding:20px; }
+.admin-place-editor { position:sticky; top:84px; }
+.admin-place-section-head { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; margin-bottom:16px; }
+.admin-place-section-head h2 { margin:0 0 4px; font-size:19px; }
+.admin-place-section-head p { margin:0; color:#8894ab; font-size:12px; }
+.admin-place-section-head a { color:#6558ff; font-size:12px; font-weight:700; }
+.admin-place-list { display:grid; gap:10px; }
+.admin-place-row { display:grid; grid-template-columns:78px minmax(0,1fr) auto; gap:14px; align-items:center; padding:12px; border:1px solid #e3e7f0; border-radius:13px; background:#fff; }
+.admin-place-thumb { width:78px; height:66px; border-radius:10px; overflow:hidden; display:grid; place-items:center; background:#eef1f8; color:#8c98ae; }
+.admin-place-thumb img { width:100%; height:100%; object-fit:cover; }
+.admin-place-copy { min-width:0; }
+.admin-place-copy div { display:flex; align-items:center; gap:7px; margin-bottom:5px; }
+.admin-place-copy h3 { margin:0; font-size:15px; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
+.admin-place-copy p { margin:0; color:#7886a1; font-size:12px; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
+.admin-place-badge { padding:3px 7px; border-radius:999px; background:#eef0ff; color:#5f54dc; font-size:10px; font-weight:800; white-space:nowrap; }
+.admin-place-badge.hidden { background:#f2f4f7; color:#667085; }
+.admin-place-row-actions { display:grid; gap:7px; min-width:74px; }
+.admin-place-row-actions button { border:1px solid #dfe4ef; border-radius:8px; background:#fff; padding:7px 9px; color:#3f4d69; font-size:11px; font-weight:700; }
+.admin-place-row-actions button:hover { border-color:#7868ff; color:#6558ff; }
+.admin-place-empty { margin:24px 0; text-align:center; color:#8490a7; font-size:13px; }
+.admin-place-form-grid { display:grid; grid-template-columns:1fr 1fr; gap:13px; }
+.admin-place-form-grid .wide { grid-column:1 / -1; }
+.admin-place-check { display:flex!important; grid-template-columns:auto 1fr; align-items:center; }
+.admin-place-check input { width:18px; height:18px; }
+.admin-place-form-actions { display:flex; justify-content:flex-end; gap:9px; margin-top:18px; }
+.admin-place-form-status { margin:14px 0 0; padding:10px 12px; border-radius:9px; background:#ecfdf3; color:#067647; font-size:12px; }
+.admin-place-form-status.error { background:#fff5f4; color:#b42318; }
+
+/* 주소 칸 + 좌표 찾기 버튼. minmax(0,1fr)이 아니면 좁은 화면에서 버튼이 밖으로 밀린다. */
+.admin-place-address-row { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:8px; align-items:center; }
+.admin-place-address-row button { flex:0 0 auto; white-space:nowrap; padding:0 14px; height:40px; font-size:12px; }
+.admin-place-address-row button[hidden] { display:none; }
+
+/* 좌표가 선택이라는 것과, 비웠을 때 무엇이 빠지는지 밝히는 자리. */
+.admin-place-form-grid label em { margin-left:4px; color:#98a2b3; font-style:normal; font-weight:600; }
+.admin-place-form-hint { margin:0; color:#62708e; font-size:11.5px; line-height:1.6; }
+.admin-place-form-hint b { color:#344054; }
+.admin-place-form-hint.error { color:#b42318; }
+
+@media (max-width:560px) {
+  .admin-place-address-row { grid-template-columns:minmax(0,1fr); }
+}
+@media (max-width:1000px) {
+  .admin-place-layout { grid-template-columns:1fr; }
+  .admin-place-editor { position:static; }
+}
+@media (max-width:760px) {
+  .admin-place-heading { align-items:flex-start; flex-direction:column; }
+  .admin-place-search { grid-template-columns:1fr; }
+  .admin-place-form-grid { grid-template-columns:1fr; }
+  .admin-place-form-grid .wide { grid-column:auto; }
+  .admin-place-row { grid-template-columns:62px minmax(0,1fr); }
+  .admin-place-thumb { width:62px; height:58px; }
+  .admin-place-row-actions { grid-column:1 / -1; grid-template-columns:1fr 1fr; }
+}

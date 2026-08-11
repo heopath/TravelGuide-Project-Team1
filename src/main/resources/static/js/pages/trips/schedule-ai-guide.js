@@ -14,6 +14,7 @@ document.addEventListener("DOMContentLoaded", function () {
   let lastQuestion = "";
   let submitting = false;
   let lastOpenButton = openButtons[0];
+  const dayControls = [];
   const nudge = document.querySelector("[data-schedule-ai-nudge]");
   const nudgeStorageKey = "allMyTrips.scheduleAiNudgeSeen";
 
@@ -56,43 +57,154 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   }
 
+  function categoryLabel(value) {
+    const labels = {
+      ATTRACTION: "관광·명소", RESTAURANT: "맛집", CAFE: "카페", ACCOMMODATION: "숙소",
+      FESTIVAL: "축제", ACTIVITY: "체험", TRANSPORT: "교통"
+    };
+    return labels[value] || "실제 장소";
+  }
+
+  function isVerifiedPlace(item) {
+    return Number.isInteger(Number(item?.placeId)) && Number(item.placeId) > 0;
+  }
+
+  function setAddButtonState(button, added) {
+    button.disabled = added;
+    button.textContent = added ? "추가됨" : "일정에 추가";
+  }
+
+  function setDayStatus(control, text, isError) {
+    if (!control.status) return;
+    control.status.textContent = text || "";
+    control.status.classList.toggle("is-error", Boolean(isError));
+  }
+
+  function resultMessage(result) {
+    const parts = [];
+    if (result.added) parts.push(result.added + "개 추가됨");
+    if (result.alreadyAdded) parts.push(result.alreadyAdded + "개 이미 추가됨");
+    if (result.failed?.length) parts.push(result.failed.length + "개 추가 실패");
+    return parts.join(" · ");
+  }
+
+  async function refreshDayControl(control) {
+    if (!window.AllMyTripsSchedule?.getAiRecommendationStates) return;
+    try {
+      const addedPlaceIds = await window.AllMyTripsSchedule.getAiRecommendationStates(
+        control.items, control.dayNumber
+      );
+      control.itemButtons.forEach(function (entry) {
+        setAddButtonState(entry.button, addedPlaceIds.has(Number(entry.item.placeId)));
+      });
+      const hasUnaddedItem = control.items.some(function (item) {
+        return !addedPlaceIds.has(Number(item.placeId));
+      });
+      control.bulkButton.disabled = !hasUnaddedItem;
+      control.bulkButton.textContent = hasUnaddedItem
+        ? "DAY " + control.dayNumber + " 일정 모두 추가"
+        : "모두 추가됨";
+    } catch (error) {
+      setDayStatus(control, "현재 저장 상태를 확인하지 못했습니다.", true);
+    }
+  }
+
+  function refreshAllDayControls() {
+    dayControls.forEach(function (control) { refreshDayControl(control); });
+  }
+
   function renderResponse(payload) {
     const response = payload.data;
     appendMessage("schedule-ai-assistant", function (message) {
       message.append(create("p", response.answer));
       (response.days || []).forEach(function (day) {
         const dayCard = create("section", "", "schedule-ai-day");
-        dayCard.append(create("h3", day.title));
+        const heading = create("div", "", "schedule-ai-day-heading");
+        heading.append(create("h3", day.title));
         const list = create("ul");
+        const verifiedItems = (day.items || []).filter(isVerifiedPlace);
+        const control = verifiedItems.length ? {
+          dayNumber: day.day,
+          items: verifiedItems,
+          itemButtons: [],
+          bulkButton: create("button", "DAY " + day.day + " 일정 모두 추가", "schedule-ai-add-all"),
+          status: create("small", "", "schedule-ai-bulk-status")
+        } : null;
+        if (control) {
+          control.bulkButton.type = "button";
+          control.bulkButton.addEventListener("click", async function () {
+            if (!window.AllMyTripsSchedule?.addAiRecommendations) {
+              showError("일정 화면을 준비하지 못했습니다. 새로고침 후 다시 시도해주세요.");
+              return;
+            }
+            control.bulkButton.disabled = true;
+            control.bulkButton.textContent = "추가 중";
+            try {
+              const result = await window.AllMyTripsSchedule.addAiRecommendations(control.items, control.dayNumber);
+              setDayStatus(control, resultMessage(result), Boolean(result.failed?.length));
+              await refreshDayControl(control);
+            } catch (error) {
+              setDayStatus(control, error.message || "일정 추가에 실패했습니다.", true);
+              await refreshDayControl(control);
+            }
+          });
+          heading.append(control.bulkButton);
+        }
+        dayCard.append(heading);
         (day.items || []).forEach(function (item) {
           const row = create("li");
           row.append(create("time", item.time));
           const copy = create("div");
           copy.append(create("strong", item.name));
           copy.append(create("span", item.reason));
+          if (isVerifiedPlace(item)) {
+            const meta = create("div", "", "schedule-ai-place-meta");
+            meta.append(create("em", categoryLabel(item.placeCategory)));
+            if (item.placeAddress) meta.append(create("small", item.placeAddress));
+            copy.append(meta);
+          }
           row.append(copy);
-          const addButton = create("button", "일정에 추가", "schedule-ai-add-item");
-          addButton.type = "button";
-          addButton.addEventListener("click", async function () {
-            if (!window.AllMyTripsSchedule?.addAiRecommendation) {
-              showError("일정 화면을 준비하지 못했습니다. 새로고침 후 다시 시도해주세요.");
-              return;
+          if (isVerifiedPlace(item)) {
+            const actions = create("div", "", "schedule-ai-place-actions");
+            const placeUrl = safeExternalUrl(item.placeUrl);
+            if (placeUrl) {
+              const mapLink = create("a", "지도 보기 ↗", "schedule-ai-map-link");
+              mapLink.href = placeUrl;
+              mapLink.target = "_blank";
+              mapLink.rel = "noopener noreferrer";
+              actions.append(mapLink);
             }
-            addButton.disabled = true;
-            addButton.textContent = "추가 중";
-            try {
-              await window.AllMyTripsSchedule.addAiRecommendation(item, day.day);
-              addButton.textContent = "추가됨";
-            } catch (error) {
-              addButton.disabled = false;
-              addButton.textContent = "일정에 추가";
-              showError(error.message || "일정을 추가하지 못했습니다.");
-            }
-          });
-          row.append(addButton);
+            const addButton = create("button", "일정에 추가", "schedule-ai-add-item");
+            addButton.type = "button";
+            addButton.addEventListener("click", async function () {
+              if (!window.AllMyTripsSchedule?.addAiRecommendations) {
+                showError("일정 화면을 준비하지 못했습니다. 새로고침 후 다시 시도해주세요.");
+                return;
+              }
+              addButton.disabled = true;
+              addButton.textContent = "추가 중";
+              try {
+                const result = await window.AllMyTripsSchedule.addAiRecommendations([item], day.day);
+                if (control) setDayStatus(control, resultMessage(result), Boolean(result.failed?.length));
+                await refreshDayControl(control);
+              } catch (error) {
+                addButton.disabled = false;
+                addButton.textContent = "일정에 추가";
+                showError(error.message || "일정을 추가하지 못했습니다.");
+              }
+            });
+            if (control) control.itemButtons.push({ item, button: addButton });
+            actions.append(addButton);
+            row.append(actions);
+          }
           list.append(row);
         });
         dayCard.append(list);
+        if (control) {
+          dayCard.append(control.status);
+          dayControls.push(control);
+          refreshDayControl(control);
+        }
         message.append(dayCard);
       });
       const links = create("div", "", "schedule-ai-links");
@@ -217,6 +329,7 @@ document.addEventListener("DOMContentLoaded", function () {
   document.addEventListener("keydown", function (event) {
     if (event.key === "Escape" && !modal.hidden) closeModal();
   });
+  window.addEventListener("allmytrips:schedule-changed", refreshAllDayControls);
 
   if (nudge) {
     try {
