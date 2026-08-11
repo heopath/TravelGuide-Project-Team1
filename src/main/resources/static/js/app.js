@@ -301,9 +301,40 @@ const ALL_MY_TRIPS_SCREENS = [
     "예약 대기열",
     "booking"
   ],
+  /*
+   * 마이페이지도 주소 하나에 사이드바로 고르는 패널이다. 예약·관리자와 같은 이유로 각각 센다.
+   * mypage.js가 ?view= 를 읽는다(trips/favorites/reviews/support/settings, 없으면 대시보드).
+   *
+   * `예약 내역`과 `알림`은 사이드바에서 disabled라 열 수 없다. 목록에도 넣지 않는다.
+   */
   [
     "/mypage",
     "마이 페이지",
+    "mypage"
+  ],
+  [
+    "/mypage?view=trips",
+    "마이페이지 · 내 여행",
+    "mypage"
+  ],
+  [
+    "/mypage?view=favorites",
+    "마이페이지 · 찜한 여행지",
+    "mypage"
+  ],
+  [
+    "/mypage?view=reviews",
+    "마이페이지 · 리뷰 & 후기",
+    "mypage"
+  ],
+  [
+    "/mypage?view=support",
+    "마이페이지 · 고객센터 문의",
+    "mypage"
+  ],
+  [
+    "/mypage?view=settings",
+    "마이페이지 · 계정 설정",
     "mypage"
   ],
   [
@@ -358,6 +389,11 @@ const ALL_MY_TRIPS_SCREENS = [
   [
     "/admin?panel=chat",
     "관리자 · 상담 채팅",
+    "admin"
+  ],
+  [
+    "/admin?panel=support",
+    "관리자 · 1:1 문의 관리",
     "admin"
   ]
 ];
