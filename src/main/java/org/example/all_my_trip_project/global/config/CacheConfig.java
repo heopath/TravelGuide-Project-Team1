@@ -49,19 +49,24 @@ public class CacheConfig implements CachingConfigurer {
     }
 
     /**
-     * 숙소 검색 캐시는 5분으로 둔다.
+     * 숙소 검색 캐시는 1시간으로 둔다.
      *
-     * <p>항공보다 짧다. 국내선 스케줄은 하루 단위로 거의 안 바뀌지만 숙소 요금과 잔여 객실은
-     * 하루 안에도 움직인다. 6시간을 그대로 쓰면 이미 매진된 숙소를 계속 보여주게 된다.
-     * Sandbox라도 rates 응답은 특정 날짜의 재고·요금 결과다. 30분을 유지하면
-     * 실시간 조회라는 화면 설명과 차이가 커지므로 짧게 두되, 같은 검색의 연속 호출은 막는다.
+     * <p><b>요금 보강이 실제로 붙으면 5분으로 되돌려야 한다.</b> 판단 기준은 검색 응답의
+     * {@code meta.matchedPriceCount}다. 이 값이 0보다 커지는 순간 아래 이유가 다시 살아난다.
      *
-     * <p>LiteAPI Sandbox는 초당 호출 제한도 있으므로 짧은 캐시가 중복 호출을 줄인다. (#147)
+     * <p>원래 5분이었던 이유: 국내선 스케줄은 하루 단위로 거의 안 바뀌지만 숙소 요금과
+     * 잔여 객실은 하루 안에도 움직인다. 길게 잡으면 이미 매진된 숙소를 계속 보여주게 되고,
+     * LiteAPI Sandbox의 초당 호출 제한도 걸린다.
+     *
+     * <p>지금 늘리는 이유: 현재 캐시에 담기는 것은 TourAPI가 준 숙소명·주소·사진·좌표뿐이고
+     * 요금은 전부 UNAVAILABLE이다. 한 달에 한 번 바뀔까 말까 한 공공데이터를 위해 5분마다
+     * TourAPI를 다시 부르고 있었다. 그 왕복이 5.5초라 사용자가 5분마다 그 시간을 다시 기다렸다.
+     * 캐시 적중은 0.03초다. (#147)
      */
     @Bean
     public RedisCacheManagerBuilderCustomizer accommodationSearchCacheCustomizer() {
         return builder -> builder.withCacheConfiguration("accommodationSearch",
-                withTtl(builder, Duration.ofMinutes(5)));
+                withTtl(builder, Duration.ofHours(1)));
     }
 
     /**
