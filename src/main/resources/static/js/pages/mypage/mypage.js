@@ -14,6 +14,10 @@ import {
     initReviews,
 } from "./mypage-reviews.js";
 
+import {
+    initSupport,
+} from "./mypage-support.js";
+
 document.addEventListener(
     "DOMContentLoaded",
     () => {
@@ -35,6 +39,11 @@ document.addEventListener(
         const reviewsView =
             document.querySelector(
                 "[data-reviews-view]",
+            );
+
+        const supportView =
+            document.querySelector(
+                "[data-support-view]",
             );
 
         const settingsView =
@@ -62,6 +71,11 @@ document.addEventListener(
                 "[data-open-reviews]",
             );
 
+        const openSupportButtons =
+            document.querySelectorAll(
+                "[data-open-support]",
+            );
+
         const openSettingsButton =
             document.querySelector(
                 "[data-open-settings]",
@@ -80,6 +94,11 @@ document.addEventListener(
         const closeReviewButton =
             document.querySelector(
                 "[data-close-reviews]",
+            );
+
+        const closeSupportButton =
+            document.querySelector(
+                "[data-close-support]",
             );
 
         const closeSettingsButton =
@@ -149,6 +168,16 @@ document.addEventListener(
                         setCurrent(
                             button,
                             view === "reviews",
+                        );
+                    },
+                );
+
+            openSupportButtons
+                .forEach(
+                    (button) => {
+                        setCurrent(
+                            button,
+                            view === "support",
                         );
                     },
                 );
@@ -223,6 +252,11 @@ document.addEventListener(
                     view !== "reviews";
             }
 
+            if (supportView) {
+                supportView.hidden =
+                    view !== "support";
+            }
+
             if (settingsView) {
                 settingsView.hidden =
                     view !==
@@ -247,6 +281,8 @@ document.addEventListener(
                         ? favoritesView
                         : view === "reviews"
                             ? reviewsView
+                        : view === "support"
+                            ? supportView
                         : view ===
                         "settings"
                             ? settingsView
@@ -276,6 +312,7 @@ document.addEventListener(
                     "trips",
                     "favorites",
                     "reviews",
+                    "support",
                     "settings",
                 ].includes(value)
                     ? value
@@ -344,6 +381,18 @@ document.addEventListener(
                 },
             );
 
+        openSupportButtons
+            .forEach(
+                (button) => {
+                    button.addEventListener(
+                        "click",
+                        () => {
+                            applyView("support");
+                        },
+                    );
+                },
+            );
+
         openSettingsButton
             ?.addEventListener(
                 "click",
@@ -375,6 +424,14 @@ document.addEventListener(
             );
 
         closeReviewButton
+            ?.addEventListener(
+                "click",
+                () => {
+                    applyView("dashboard");
+                },
+            );
+
+        closeSupportButton
             ?.addEventListener(
                 "click",
                 () => {
@@ -435,6 +492,7 @@ document.addEventListener(
             initTrips(),
             initFavorites(),
             initReviews(),
+            initSupport(),
         ]).then(
             () => {
                 document.body

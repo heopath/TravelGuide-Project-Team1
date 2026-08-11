@@ -3,7 +3,7 @@
   "private": true,
   "description": "화면 수용 기준 테스트. Gradle 빌드와 분리되어 있어 필요할 때만 실행한다.",
   "scripts": {
-    "test": "node flights-acceptance.test.js && node accommodations-acceptance.test.js && node admin-acceptance.test.js && node place-reviews-acceptance.test.js && node mypage-reviews-acceptance.test.js"
+    "test": "node flights-acceptance.test.js && node accommodations-acceptance.test.js && node admin-acceptance.test.js && node place-reviews-acceptance.test.js && node mypage-reviews-acceptance.test.js && node mypage-support-acceptance.test.js"
   },
   "devDependencies": {
     "jsdom": "^30.0.1"
