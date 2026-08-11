@@ -149,6 +149,16 @@ public enum ErrorCode {
             "장소 후기를 찾을 수 없습니다."
     ),
 
+    PLACE_NOT_FOUND(
+            HttpStatus.NOT_FOUND,
+            "추천 장소를 찾을 수 없습니다."
+    ),
+
+    INVALID_PLACE_REQUEST(
+            HttpStatus.BAD_REQUEST,
+            "추천 장소 입력값을 확인해 주세요."
+    ),
+
     REPORT_ALREADY_PENDING(
             HttpStatus.CONFLICT,
             "이미 처리 대기 중인 신고가 있습니다."

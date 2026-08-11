@@ -67,6 +67,14 @@ class PageAccessControlTest {
                 .andExpect(status().isOk());
     }
 
+    @Test
+    void protectsNestedAdminPlacePageWithSameRoleRule() throws Exception {
+        mockMvc.perform(get("/admin/places").with(authentication(user("USER"))))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(get("/admin/places").with(authentication(user("ADMIN"))))
+                .andExpect(status().isOk());
+    }
+
     // 정적 리소스가 체인에 걸리면 비로그인 상태에서 로그인 화면으로 리다이렉트되어 화면이 깨진다.
     @Test
     void doesNotBlockStaticResources() throws Exception {
