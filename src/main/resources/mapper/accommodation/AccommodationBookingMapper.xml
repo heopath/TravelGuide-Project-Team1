@@ -82,6 +82,24 @@
         ORDER BY check_in
     </select>
 
+    <update id="updateUserReported">
+        UPDATE accommodation_bookings
+        SET user_reported_booked = #{userReportedBooked},
+            user_reported_at = CASE WHEN #{userReportedBooked} THEN CURRENT_TIMESTAMP ELSE NULL END
+        WHERE accommodation_booking_id = #{accommodationBookingId}
+    </update>
+
+    <!-- 공백만 들어온 예약번호는 없는 것으로 본다. 상태가 확정으로 올라가면 안 된다. -->
+    <update id="updateBookingRef">
+        UPDATE accommodation_bookings
+        SET booking_ref = NULLIF(TRIM(#{bookingRef}), ''),
+            booking_ref_added_at = CASE
+                WHEN NULLIF(TRIM(#{bookingRef}), '') IS NULL THEN NULL
+                ELSE CURRENT_TIMESTAMP
+            END
+        WHERE accommodation_booking_id = #{accommodationBookingId}
+    </update>
+
     <delete id="delete">
         DELETE FROM accommodation_bookings
         WHERE accommodation_booking_id = #{accommodationBookingId}

@@ -309,6 +309,17 @@
   border: 1px solid #fecaca; background: #fff1f2; color: #b42318;
 }
 .page-flights .hotel-pick.done:hover { background: #fee2e2; }
+/* 담아둔 숙소에만 나오는 외부 이동 버튼. 선택 전에는 보낼 곳이 정해지지 않는다. */
+.page-flights .hotel-book {
+  width: 100%; margin-top: 6px; padding: 9px; border: 1px solid var(--line); border-radius: 9px;
+  background: var(--white); color: var(--navy); font-size: 12.5px; font-weight: 700;
+}
+.page-flights .hotel-book:hover { border-color: var(--primary); color: var(--primary); }
+.page-flights .hotel-state {
+  display: block; margin-top: 7px; padding: 5px 7px; border-radius: 7px;
+  background: var(--ok-soft); color: var(--ok); font-size: 10.5px; font-weight: 700;
+}
+.page-flights .hotel-state.confirmed { background: #e8efff; color: var(--primary); }
 
 /* ── 우측: 패널 1개 ── */
 .page-flights .side { position: sticky; top: 92px; display: grid; gap: 10px; }

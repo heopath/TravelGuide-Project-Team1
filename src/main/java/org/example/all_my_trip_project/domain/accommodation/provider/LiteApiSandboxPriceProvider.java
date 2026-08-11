@@ -7,6 +7,7 @@ import org.example.all_my_trip_project.domain.accommodation.dto.AccommodationOff
 import org.example.all_my_trip_project.domain.accommodation.dto.AccommodationPriceResult;
 import org.example.all_my_trip_project.domain.accommodation.dto.AccommodationSearchQuery;
 import org.example.all_my_trip_project.domain.accommodation.type.AccommodationPriceSource;
+import jakarta.annotation.PostConstruct;
 import org.springframework.context.annotation.Profile;
 import org.springframework.core.annotation.Order;
 import org.springframework.core.env.Environment;
@@ -66,6 +67,31 @@ public class LiteApiSandboxPriceProvider implements AccommodationPriceProvider {
         this.environment = environment;
     }
 
+    /**
+     * 키가 없으면 조용히 건너뛰던 것을 기동할 때 한 번 알린다.
+     *
+     * <p>검색 응답만 봐서는 "키가 없어 호출을 안 한 것"과 "호출했는데 매칭이 0건인 것"이
+     * 구분되지 않는다. 둘 다 {@code priceProvider=null, matchedPriceCount=0}으로 나온다.
+     * 키 이름 오타나 형식 불일치를 여기서 잡지 못하면 화면만 보고 원인을 좁힐 수 없다.
+     *
+     * <p>키 값은 절대 남기지 않는다. 있고 없고와 형식이 맞는지만 밝힌다.
+     */
+    @PostConstruct
+    void reportKeyState() {
+        if (environment.acceptsProfiles(Profiles.of("prod"))) {
+            return;
+        }
+        if (properties.hasSandboxKey()) {
+            log.info("LiteAPI Sandbox 키를 확인했습니다. 좌표가 있는 숙소에 요금 보강을 시도합니다.");
+        } else if (properties.getApiKey() == null || properties.getApiKey().isBlank()) {
+            log.info("LiteAPI Sandbox 키가 없어 숙소 요금 보강을 건너뜁니다. "
+                    + "LITEAPI_SANDBOX_API_KEY 환경변수를 확인하세요.");
+        } else {
+            log.warn("LiteAPI Sandbox 키 형식이 맞지 않아 요금 보강을 건너뜁니다. "
+                    + "sand_ 또는 sandbox_ 로 시작하는 Sandbox 키가 필요합니다.");
+        }
+    }
+
     @Override
     public String name() {
         return NAME;
@@ -101,9 +127,17 @@ public class LiteApiSandboxPriceProvider implements AccommodationPriceProvider {
 
             List<LiteQuote> quotes = quotes(root);
             if (quotes.isEmpty()) {
+                /* 호출은 됐는데 이 지역에 Sandbox 재고가 없는 경우다. 키 문제와 구분해서 남긴다. */
+                log.info("LiteAPI Sandbox 응답에 요금이 없습니다. destination={} 반경={}m",
+                        query.destination(), radius);
                 return AccommodationPriceResult.unchanged(offers);
             }
-            return merge(offers, quotes, query);
+
+            AccommodationPriceResult result = merge(offers, quotes, query);
+            /* 매칭 0건도 응답에서는 priceProvider=null로 나온다. 어디서 떨어졌는지 여기서만 알 수 있다. */
+            log.info("LiteAPI Sandbox 요금 매칭 결과. 숙소={} 응답요금={} 매칭={}",
+                    offers.size(), quotes.size(), result.matchedCount());
+            return result;
         } catch (RestClientResponseException exception) {
             log.warn("LiteAPI Sandbox 요금 조회 HTTP 오류 status={}",
                     exception.getStatusCode().value());

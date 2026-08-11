@@ -28,5 +28,13 @@ public interface AccommodationBookingMapper {
                                                   @Param("checkIn") LocalDate checkIn,
                                                   @Param("checkOut") LocalDate checkOut);
 
+    /** 자가 신고 표시. 결제 확인이 아니라 사용자가 직접 말한 값이다. */
+    int updateUserReported(@Param("accommodationBookingId") Long accommodationBookingId,
+                           @Param("userReportedBooked") boolean userReportedBooked);
+
+    /** 예약번호가 들어오면 확정으로 승격하고, 지우면 자가 신고 상태로 되돌아간다. */
+    int updateBookingRef(@Param("accommodationBookingId") Long accommodationBookingId,
+                         @Param("bookingRef") String bookingRef);
+
     int delete(@Param("accommodationBookingId") Long accommodationBookingId);
 }

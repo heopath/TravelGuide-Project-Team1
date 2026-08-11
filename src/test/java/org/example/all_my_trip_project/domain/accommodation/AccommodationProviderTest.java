@@ -8,7 +8,9 @@ import org.example.all_my_trip_project.domain.accommodation.provider.CompositeAc
 import org.example.all_my_trip_project.domain.accommodation.provider.MockAccommodationSearchProvider;
 import org.example.all_my_trip_project.domain.accommodation.provider.TourApiAccommodationSearchProvider;
 import org.example.all_my_trip_project.domain.accommodation.provider.TourApiProperties;
+import org.example.all_my_trip_project.domain.accommodation.service.AccommodationDeeplinkProperties;
 import org.example.all_my_trip_project.domain.accommodation.service.AccommodationRecommendationScorer;
+import org.example.all_my_trip_project.domain.accommodation.service.SearchAccommodationDeeplinkBuilder;
 import org.example.all_my_trip_project.domain.accommodation.type.AccommodationPriceSource;
 import org.example.all_my_trip_project.domain.accommodation.type.AccommodationProviderRole;
 import org.example.all_my_trip_project.domain.accommodation.type.AccommodationType;
@@ -43,7 +45,12 @@ class AccommodationProviderTest {
         TourApiProperties properties = new TourApiProperties();
         properties.setBaseUrl(TOUR_API_BASE);
         properties.setServiceKey("test%2Fkey%3D%3D");
-        return new TourFixture(new TourApiAccommodationSearchProvider(properties, builder), server);
+        return new TourFixture(
+                new TourApiAccommodationSearchProvider(properties, builder, deeplinkBuilder()), server);
+    }
+
+    private SearchAccommodationDeeplinkBuilder deeplinkBuilder() {
+        return new SearchAccommodationDeeplinkBuilder(new AccommodationDeeplinkProperties());
     }
 
     @Test
@@ -73,6 +80,8 @@ class AccommodationProviderTest {
         assertThat(offer.longitude()).isEqualTo(129.1604);
         assertThat(offer.priceSource()).isEqualTo(AccommodationPriceSource.UNAVAILABLE);
         assertThat(offer.hasPrice()).isFalse();
+        /* TourAPI는 홈페이지를 주지 않는다. 예약하러 나갈 곳이 없으면 화면에 이동 버튼이 없다. */
+        assertThat(offer.deeplinkUrl()).startsWith("https://www.google.com/search?q=");
         fixture.server().verify();
     }
 
@@ -93,7 +102,7 @@ class AccommodationProviderTest {
     @DisplayName("서비스키가 없으면 TourAPI provider가 비활성화된다")
     void disablesTourApiWithoutKey() {
         TourApiAccommodationSearchProvider provider = new TourApiAccommodationSearchProvider(
-                new TourApiProperties(), RestClient.builder());
+                new TourApiProperties(), RestClient.builder(), deeplinkBuilder());
 
         assertThat(provider.supports(query("부산"))).isFalse();
     }
@@ -108,7 +117,7 @@ class AccommodationProviderTest {
             @Override public List<AccommodationOffer> search(AccommodationSearchQuery query) { return List.of(); }
         };
         CompositeAccommodationSearchProvider composite = new CompositeAccommodationSearchProvider(
-                List.of(emptyTourApi, new MockAccommodationSearchProvider()),
+                List.of(emptyTourApi, new MockAccommodationSearchProvider(deeplinkBuilder())),
                 new AccommodationRecommendationScorer());
 
         AccommodationSearchResult result = composite.search(query("부산"));

@@ -74,10 +74,21 @@
   const airIsEstimate = () => !airDone();
   const hasOffers = () => offers[OUTBOUND].length > 0 || offers[INBOUND].length > 0;
   const hotelDone = () => !!hotelSelection;
+  /*
+   * 요금이 있으면 출처와 상관없이 보여주고 합계에 넣는다. 항공이 샘플 운임을 다루는 방식과 같다.
+   * 숙소만 샘플을 빼면 카드에는 291,200원이 보이는데 예약 현황은 "요금 미정"이 되어,
+   * 요금을 못 가져온 것인지 화면이 안 세는 것인지 구분할 수 없다.
+   *
+   * 샘플·실습 요금이 운영에 나갈 걱정은 없다. Mock provider는 @Profile("!prod")이고
+   * Sandbox provider는 prod에서 호출되지 않으며, 그래도 새어 나오면 검색 단계에서 막는다.
+   * 대신 어떤 출처인지는 sub 라벨과 하단 문구에 그대로 드러낸다.
+   */
   const hotelHasDisplayPrice = () => hotelDone()
     && hotelSelection.totalPrice !== null
     && hotelSelection.totalPrice !== undefined
-    && !["MOCK", "UNAVAILABLE"].includes(hotelSelection.priceSource);
+    && hotelSelection.priceSource !== "UNAVAILABLE";
+  const hotelPriceNote = () => hotelSelection?.priceSource === "SANDBOX" ? " · 실습"
+    : hotelSelection?.priceSource === "MOCK" ? " · 샘플" : "";
   const hotelCanAddToTotal = () => hotelHasDisplayPrice()
     && String(hotelSelection.currency || "KRW").toUpperCase() === "KRW";
   const hotelTotal = () => hotelCanAddToTotal() ? Number(hotelSelection.totalPrice) : 0;
@@ -269,8 +280,8 @@
         ds: hotelDone() ? `선택 완료 · ${hotelSelection.name}` : "선택 전", dsc: hotelDone() ? "o" : "",
         pv: hotelDone() ? hotelPriceLabel() : "—",
         sub: hotelHasDisplayPrice()
-          ? `${hotelSelection.nightsLabel}${hotelSelection.priceSource === "SANDBOX" ? " · 실습" : ""}${hotelCanAddToTotal() ? "" : " · 합계 제외"}`
-          : hotelDone() ? "가격 조회 전" : "숙소에서 선택", dim: !hotelHasDisplayPrice() },
+          ? `${hotelSelection.nightsLabel}${hotelPriceNote()}${hotelCanAddToTotal() ? "" : " · 합계 제외"}`
+          : hotelDone() ? "요금 미제공" : "숙소에서 선택", dim: !hotelHasDisplayPrice() },
       { ic: "◈", icc: "n", nm: "티켓·액티비티", ds: "대기 · 임시 추정치", dsc: "",
         pv: won(PLACEHOLDER_ACTIVITY), sub: "예상", dim: true }
     ];
@@ -317,7 +328,9 @@
       ? "숙소 통화 달라 합계 제외"
       : hotelSelection?.priceSource === "SANDBOX"
         ? "숙소 Sandbox 실습가"
-        : hotelCanAddToTotal() ? "숙소 선택가" : "숙소 요금 제외";
+        : hotelSelection?.priceSource === "MOCK"
+          ? "숙소 샘플가"
+          : hotelCanAddToTotal() ? "숙소 선택가" : "숙소 요금 제외";
     text("costNote", `${airLabel} · ${hotelLabel} · 티켓 임시 추정`);
 
     const done = (airDone() ? 1 : 0) + (hotelDone() ? 1 : 0);

@@ -2,9 +2,14 @@ package org.example.all_my_trip_project.domain.accommodation.service;
 
 import lombok.RequiredArgsConstructor;
 import org.example.all_my_trip_project.domain.accommodation.dto.AccommodationBookingDTO;
+import org.example.all_my_trip_project.domain.accommodation.dto.AccommodationBookingRefRequest;
+import org.example.all_my_trip_project.domain.accommodation.dto.AccommodationOutboundClickDTO;
+import org.example.all_my_trip_project.domain.accommodation.dto.RecordAccommodationClickRequest;
+import org.example.all_my_trip_project.domain.accommodation.dto.ReportAccommodationBookedRequest;
 import org.example.all_my_trip_project.domain.accommodation.dto.SaveAccommodationRequest;
 import org.example.all_my_trip_project.domain.accommodation.dto.TripAccommodationsResponse;
 import org.example.all_my_trip_project.domain.accommodation.mapper.AccommodationBookingMapper;
+import org.example.all_my_trip_project.domain.accommodation.mapper.AccommodationOutboundClickMapper;
 import org.example.all_my_trip_project.domain.trip.dao.TripDAO;
 import org.example.all_my_trip_project.domain.trip.dto.TripDTO;
 import org.example.all_my_trip_project.global.exception.BusinessException;
@@ -20,7 +25,11 @@ import java.util.Objects;
 @RequiredArgsConstructor
 public class AccommodationBookingService {
 
+    private static final String OUTCOME_REPORTED_YES = "REPORTED_YES";
+    private static final String OUTCOME_LATER = "LATER";
+
     private final AccommodationBookingMapper accommodationBookingMapper;
+    private final AccommodationOutboundClickMapper accommodationOutboundClickMapper;
     private final TripDAO tripDAO;
 
     /**
@@ -39,25 +48,105 @@ public class AccommodationBookingService {
         return getBookings(userId, tripId);
     }
 
+    /**
+     * 담아둔 숙소를 뺀다.
+     *
+     * <p>이 숙소로 나갔던 이탈 이력도 함께 사라진다(FK CASCADE). 없어진 숙소를 두고
+     * "예약하셨나요?"라고 물을 수는 없다.
+     */
     @Transactional
     public TripAccommodationsResponse remove(Long userId, Long tripId, Long accommodationBookingId) {
         requireOwnedTrip(userId, tripId);
-
-        AccommodationBookingDTO booking = accommodationBookingMapper.findById(accommodationBookingId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.ACCOMMODATION_BOOKING_NOT_FOUND));
-        /* 남의 여행에 달린 예약을 id만 알아내 지우지 못하게 한다. */
-        if (!Objects.equals(booking.getTripId(), tripId)) {
-            throw new BusinessException(ErrorCode.ACCOMMODATION_BOOKING_NOT_FOUND);
-        }
+        requireBookingInTrip(tripId, accommodationBookingId);
 
         accommodationBookingMapper.delete(accommodationBookingId);
+        return getBookings(userId, tripId);
+    }
+
+    /**
+     * 딥링크 클릭 기록.
+     *
+     * <p>항공은 나가는 순간에 선택을 함께 저장했다. 복귀 감지를 놓치면 선택이 통째로
+     * 사라지기 때문이었다. 숙박은 카드에서 고를 때 이미 저장되므로 여기서는 이탈만 남긴다.
+     *
+     * @return 이 이탈 건의 id. 복귀 후 자가 신고가 이 값으로 결과를 적는다
+     */
+    @Transactional
+    public Long recordOutboundClick(Long userId, Long tripId, Long accommodationBookingId,
+                                    RecordAccommodationClickRequest request) {
+        requireOwnedTrip(userId, tripId);
+        AccommodationBookingDTO booking = requireBookingInTrip(tripId, accommodationBookingId);
+
+        AccommodationOutboundClickDTO click = AccommodationOutboundClickDTO.builder()
+                .accommodationBookingId(accommodationBookingId)
+                .userId(userId)
+                .tripId(tripId)
+                .offerId(booking.getOfferId())
+                .provider(booking.getProvider())
+                .deeplinkUrl(Objects.requireNonNullElse(request.deeplinkUrl(), ""))
+                .build();
+        accommodationOutboundClickMapper.insert(click);
+
+        return click.getAccommodationOutboundClickId();
+    }
+
+    /**
+     * 자가 신고.
+     *
+     * <p>{@code userReportedBooked=false}는 "아니요"가 아니라 "나중에 확인할게요"다.
+     * 담아둔 숙소는 그대로 두고 예약 표시만 하지 않는다. 선택을 되돌리는 것은 {@link #remove}다.
+     */
+    @Transactional
+    public TripAccommodationsResponse reportBooked(Long userId, Long tripId, Long accommodationBookingId,
+                                                   ReportAccommodationBookedRequest request) {
+        requireOwnedTrip(userId, tripId);
+        requireBookingInTrip(tripId, accommodationBookingId);
+
+        boolean reported = Boolean.TRUE.equals(request.userReportedBooked());
+        accommodationBookingMapper.updateUserReported(accommodationBookingId, reported);
+        resolveClick(request.clickId(), reported ? OUTCOME_REPORTED_YES : OUTCOME_LATER);
+
+        return getBookings(userId, tripId);
+    }
+
+    /** 예약번호를 넣으면 확정으로 승격하고, 지우면 자가 신고 상태로 되돌아간다. */
+    @Transactional
+    public TripAccommodationsResponse updateBookingRef(Long userId, Long tripId, Long accommodationBookingId,
+                                                       AccommodationBookingRefRequest request) {
+        requireOwnedTrip(userId, tripId);
+        requireBookingInTrip(tripId, accommodationBookingId);
+
+        String bookingRef = request.bookingRef() == null
+                ? null
+                : request.bookingRef().trim().toUpperCase();
+        accommodationBookingMapper.updateBookingRef(accommodationBookingId, bookingRef);
+
         return getBookings(userId, tripId);
     }
 
     @Transactional(readOnly = true)
     public TripAccommodationsResponse getBookings(Long userId, Long tripId) {
         requireOwnedTrip(userId, tripId);
-        return TripAccommodationsResponse.from(accommodationBookingMapper.findByTrip(tripId));
+        return TripAccommodationsResponse.from(
+                accommodationBookingMapper.findByTrip(tripId),
+                accommodationOutboundClickMapper.findUnresolvedByTrip(tripId));
+    }
+
+    /** 복귀 감지를 놓쳐 clickId가 없는 경로도 있으므로 없으면 조용히 넘어간다. */
+    private void resolveClick(Long clickId, String outcome) {
+        if (clickId != null) {
+            accommodationOutboundClickMapper.updateOutcome(clickId, outcome);
+        }
+    }
+
+    /** 남의 여행에 달린 예약을 id만 알아내 건드리지 못하게 한다. */
+    private AccommodationBookingDTO requireBookingInTrip(Long tripId, Long accommodationBookingId) {
+        AccommodationBookingDTO booking = accommodationBookingMapper.findById(accommodationBookingId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.ACCOMMODATION_BOOKING_NOT_FOUND));
+        if (!Objects.equals(booking.getTripId(), tripId)) {
+            throw new BusinessException(ErrorCode.ACCOMMODATION_BOOKING_NOT_FOUND);
+        }
+        return booking;
     }
 
     /**
