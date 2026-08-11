@@ -361,7 +361,7 @@
     const container = $("mineList");
     if (!container) return;
 
-    container.innerHTML = [OUTBOUND, INBOUND].map((leg) => {
+    const flightCards = [OUTBOUND, INBOUND].map((leg) => {
       const offer = state.picked[leg] ? offerOf(leg, state.picked[leg]) : null;
       const name = leg === OUTBOUND ? "가는 편" : "오는 편";
       if (!offer) {
@@ -383,6 +383,34 @@
         </div>
       </div>`;
     }).join("");
+
+    const hotelState = window.__accommodationBooking?.state || {};
+    const hotelStatus = hotelState.status === "CONFIRMED" ? "확정"
+      : hotelState.status === "USER_REPORTED" ? "예약함 (직접 표시)"
+        : hotelDone() ? "선택 완료" : "선택 전";
+    const hotelCard = hotelDone()
+      ? `<div class="mn">
+          <div class="mn-h">숙소 <span class="mn-s">${hotelStatus}</span></div>
+          <p class="mn-f">${esc(hotelSelection.name)} · ${hotelPriceLabel()}</p>
+          <p class="mn-meta">${esc(hotelSelection.nightsLabel || "")} · ${esc(hotelSelection.priceSource === "UNAVAILABLE" ? "요금 미제공" : hotelSelection.priceSource)}</p>
+          <div class="mn-a"><button type="button" class="mn-b" data-mine-tab="hotel">숙소에서 확인·변경</button></div>
+        </div>`
+      : `<div class="mn"><div class="mn-h">숙소</div><p class="mn-e">아직 선택한 숙소가 없어요.</p>
+          <div class="mn-a"><button type="button" class="mn-b" data-mine-tab="hotel">숙소 선택하기</button></div></div>`;
+
+    const ticketCard = ticketDone()
+      ? `<div class="mn">
+          <div class="mn-h">티켓·액티비티 <span class="mn-s">모의 예약</span></div>
+          <p class="mn-f">${esc(ticketReservation.productName)} · ${esc(ticketReservation.optionName || "")}</p>
+          <p class="mn-meta">${esc(ticketReservation.usageDate || "")} · ${ticketReservation.quantity || 1}매 · ${won(ticketTotal())} · 실제 결제 아님</p>
+          <div class="mn-a"><button type="button" class="mn-b" data-mine-tab="ticket">티켓에서 확인</button></div>
+        </div>`
+      : `<div class="mn"><div class="mn-h">티켓·액티비티</div><p class="mn-e">아직 담은 티켓이 없어요.</p>
+          <div class="mn-a"><button type="button" class="mn-b" data-mine-tab="ticket">티켓 선택하기</button></div></div>`;
+
+    container.innerHTML = `<section class="mine-group"><h3>항공</h3>${flightCards}</section>
+      <section class="mine-group"><h3>숙소</h3>${hotelCard}</section>
+      <section class="mine-group"><h3>티켓·액티비티</h3>${ticketCard}</section>`;
   }
 
   /* ────────── 플로우 ────────── */
@@ -569,6 +597,7 @@
     availableTabs.forEach((key) => {
       $("panel-" + key).hidden = key !== nextTab;
     });
+    if (nextTab === "mine") renderMine();
 
     // 탭을 주소에 남겨 새로고침하거나 링크를 공유해도 같은 탭이 다시 열린다.
     const url = new URL(location.href);
@@ -773,6 +802,11 @@
     });
 
     $("mineList").addEventListener("click", async (e) => {
+      const tab = e.target.closest("[data-mine-tab]");
+      if (tab) {
+        setTab(tab.dataset.mineTab);
+        return;
+      }
       const report = e.target.closest("[data-mine-report]");
       if (report) {
         const leg = Number(report.dataset.mineReport);
