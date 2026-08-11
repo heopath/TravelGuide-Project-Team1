@@ -91,9 +91,27 @@
                   <label><span>국가 코드</span><input id="placeCountryCode" value="KR" maxlength="2" /></label>
                   <label><span>광역 지역</span><input id="placeRegion" maxlength="100" placeholder="예: 제주특별자치도" /></label>
                   <label><span>도시</span><input id="placeCity" maxlength="100" placeholder="예: 서귀포시" /></label>
-                  <label class="wide"><span>주소</span><input id="placeAddress" maxlength="255" /></label>
-                  <label><span>위도</span><input id="placeLatitude" type="number" min="-90" max="90" step="0.0000001" /></label>
-                  <label><span>경도</span><input id="placeLongitude" type="number" min="-180" max="180" step="0.0000001" /></label>
+                  <label class="wide">
+                    <span>주소</span>
+                    <span class="admin-place-address-row">
+                      <input id="placeAddress" maxlength="255" />
+                      <!--
+                        좌표를 손으로 찾아 옮겨 적게 두면 등록이 사실상 막힌다.
+                        주소를 넣고 이 버튼을 누르면 카카오 지오코딩이 아래 두 칸을 채운다.
+                      -->
+                      <button type="button" class="outline-button" id="placeGeocodeButton">주소로 좌표 찾기</button>
+                    </span>
+                  </label>
+                  <label><span>위도 <em>선택</em></span><input id="placeLatitude" type="number" min="-90" max="90" step="0.0000001" /></label>
+                  <label><span>경도 <em>선택</em></span><input id="placeLongitude" type="number" min="-180" max="180" step="0.0000001" /></label>
+                  <!--
+                    좌표가 없어도 등록은 된다(DB도 nullable). 다만 지도가 조용히 빠진다.
+                    등록한 사람이 왜 안 나오는지 모르는 일이 없도록 여기서 밝힌다.
+                  -->
+                  <p class="admin-place-form-hint wide" id="placeGeocodeStatus" role="status">
+                    좌표는 비워도 등록됩니다. 다만 <b>장소 상세의 지도와 여행 일정 지도에 표시되지 않고</b>
+                    동선 계산에서도 빠집니다. 주소를 넣고 <b>주소로 좌표 찾기</b>를 누르면 자동으로 채워집니다.
+                  </p>
                   <label class="wide"><span>설명</span><textarea id="placeDescription" maxlength="5000" rows="5"></textarea></label>
                   <label><span>전화번호</span><input id="placePhone" maxlength="50" /></label>
                   <label><span>웹사이트 URL</span><input id="placeWebsiteUrl" type="url" maxlength="500" placeholder="https://" /></label>
@@ -114,6 +132,16 @@
       <div th:replace="~{fragments/footer :: footer}"></div>
     </div>
     <div th:replace="~{fragments/scripts :: appScripts}"></div>
+    <!--
+      주소로 좌표를 찾는 데만 쓴다. 지도를 그리지 않으므로 services 라이브러리만 필요하다.
+      키가 없으면 스크립트가 로드되지 않고, admin-places.js가 버튼을 숨긴다.
+    -->
+    <!--
+      th:if에 문자열을 그대로 쓰면 안 된다. Thymeleaf는 "false"/"off"/"no"만 거짓으로 보므로
+      빈 문자열이 참이 되어 키 없이 SDK를 부르게 된다. 반드시 isEmpty로 판단한다.
+    -->
+    <script th:if="${not #strings.isEmpty(kakaoJavascriptKey)}"
+            th:src="|https://dapi.kakao.com/v2/maps/sdk.js?appkey=${kakaoJavascriptKey}&amp;libraries=services&amp;autoload=false|"></script>
     <script th:src="@{/js/pages/admin/admin-places.js}" src="../../static/js/pages/admin/admin-places.js"></script>
   </body>
 </html>

@@ -143,6 +143,7 @@
     $("placeEditorTitle").textContent = "새 장소 등록";
     $("placeSaveButton").textContent = "장소 등록";
     $("placeFormStatus").hidden = true;
+    setGeocodeStatus(null);
   }
 
   function edit(placeId) {
@@ -196,7 +197,64 @@
     } finally { button.disabled = false; }
   }
 
+  /**
+   * 주소로 좌표를 찾아 위도·경도 칸을 채운다.
+   *
+   * <p>좌표를 손으로 알아내 옮겨 적게 두면 등록이 사실상 막힌다. 그렇다고 좌표를 필수로
+   * 만들 수는 없다 — DB도 nullable이고, 좌표를 모르는 장소도 등록할 수 있어야 한다.
+   * 그래서 필수로 만드는 대신 채우는 것을 쉽게 한다.
+   *
+   * <p>지도를 그리지 않으므로 services 라이브러리만 쓴다. 키가 없으면 SDK 자체가
+   * 로드되지 않으므로 버튼을 숨긴다. 그때도 직접 입력하면 등록은 그대로 된다.
+   */
+  function geocodeAddress() {
+    const address = value("placeAddress", "");
+    if (!address) {
+      setGeocodeStatus("주소를 먼저 입력해 주세요.", true);
+      $("placeAddress").focus();
+      return;
+    }
+
+    const button = $("placeGeocodeButton");
+    button.disabled = true;
+    setGeocodeStatus("좌표를 찾는 중이에요.");
+
+    window.kakao.maps.load(() => {
+      new window.kakao.maps.services.Geocoder().addressSearch(address, (result, status) => {
+        button.disabled = false;
+
+        if (status !== window.kakao.maps.services.Status.OK || !result.length) {
+          /* 실패해도 등록을 막지 않는다. 좌표는 선택 항목이다. */
+          setGeocodeStatus(
+            "이 주소로는 좌표를 찾지 못했어요. 주소를 더 정확히 적거나 좌표를 직접 입력해 주세요.", true);
+          return;
+        }
+
+        /* 카카오는 x가 경도, y가 위도다. 뒤집으면 엉뚱한 곳에 찍힌다. */
+        $("placeLatitude").value = Number(result[0].y).toFixed(7);
+        $("placeLongitude").value = Number(result[0].x).toFixed(7);
+        setGeocodeStatus(`좌표를 채웠어요. ${result[0].address_name}`);
+      });
+    });
+  }
+
+  /* 첫 안내 문구는 마크업이 갖고 있다. 조회 결과를 덮어쓴 뒤 되돌릴 수 있게 붙잡아 둔다. */
+  let geocodeHintDefault = "";
+
+  function setGeocodeStatus(message, error) {
+    const el = $("placeGeocodeStatus");
+    if (!geocodeHintDefault) geocodeHintDefault = el.innerHTML;
+    if (message === null) el.innerHTML = geocodeHintDefault;
+    else el.textContent = message;
+    el.classList.toggle("error", Boolean(error));
+  }
+
   function bind() {
+    const geocodeButton = $("placeGeocodeButton");
+    /* SDK가 없으면(키 미설정) 눌러도 아무 일이 없는 버튼이 된다. 그럴 바엔 숨긴다. */
+    if (window.kakao && window.kakao.maps) geocodeButton.addEventListener("click", geocodeAddress);
+    else geocodeButton.hidden = true;
+
     $("placeSearchForm").addEventListener("submit", (event) => { event.preventDefault(); load(); });
     $("newPlaceButton").addEventListener("click", () => { resetEditor(); $("placeName").focus(); });
     $("placeResetButton").addEventListener("click", resetEditor);
@@ -210,5 +268,5 @@
   }
 
   document.addEventListener("DOMContentLoaded", () => { bind(); resetEditor(); load(); });
-  window.__adminPlaces = { state, load, edit, resetEditor, payload };
+  window.__adminPlaces = { state, load, edit, resetEditor, payload, geocodeAddress };
 })();
