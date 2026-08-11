@@ -2,6 +2,8 @@ package org.example.all_my_trip_project.domain.route.controller;
 
 import lombok.RequiredArgsConstructor;
 import org.example.all_my_trip_project.domain.route.dto.RouteOptimizationResponse;
+import org.example.all_my_trip_project.domain.route.dto.TransitRouteRequest;
+import org.example.all_my_trip_project.domain.route.dto.TransitRouteResponse;
 import org.example.all_my_trip_project.domain.route.service.RouteOptimizationService;
 import org.example.all_my_trip_project.global.exception.BusinessException;
 import org.example.all_my_trip_project.global.exception.ErrorCode;
@@ -21,6 +23,15 @@ import java.util.List;
 @RequiredArgsConstructor
 public class RouteOptimizationController {
     private final RouteOptimizationService routeOptimizationService;
+
+    @PostMapping("/api/v1/routes/transit")
+    public ApiResponse<TransitRouteResponse> searchTransitRoute(
+            @AuthenticationPrincipal AuthenticatedUser principal,
+            @RequestBody TransitRouteRequest request) {
+        if (principal == null) throw new BusinessException(ErrorCode.UNAUTHORIZED);
+        return ApiResponse.success("대중교통 경로를 조회했습니다.",
+                routeOptimizationService.searchTransitRoute(request));
+    }
 
     @PostMapping("/api/v1/trip-days/{tripDayId}/optimize-route")
     public ApiResponse<RouteOptimizationResponse> optimize(

@@ -8,6 +8,8 @@ import org.example.all_my_trip_project.domain.place.dto.PlaceDTO;
 import org.example.all_my_trip_project.domain.place.service.PlaceService;
 import org.example.all_my_trip_project.domain.route.dto.RouteOptimizationResponse;
 import org.example.all_my_trip_project.domain.route.dto.RouteOptimizationResponse.RouteSegment;
+import org.example.all_my_trip_project.domain.route.dto.TransitRouteRequest;
+import org.example.all_my_trip_project.domain.route.dto.TransitRouteResponse;
 import org.example.all_my_trip_project.domain.trip.dto.ItineraryItemDTO;
 import org.example.all_my_trip_project.domain.trip.service.TripService;
 import org.example.all_my_trip_project.global.exception.BusinessException;
@@ -40,30 +42,130 @@ public class RouteOptimizationService {
     @Value("${kakao.mobility.rest-api-key:}")
     private String restApiKey;
 
-    @Transactional
+    @Value("${odsay.server-api-key:}")
+    private String odsayServerApiKey;
+
+    public TransitRouteResponse searchTransitRoute(TransitRouteRequest request) {
+        if (odsayServerApiKey == null || odsayServerApiKey.isBlank()) {
+            throw new BusinessException(ErrorCode.ROUTE_NOT_CONFIGURED);
+        }
+
+        String url = UriComponentsBuilder
+                .fromUriString("https://api.odsay.com/v1/api/searchPubTransPathT")
+                .queryParam("apiKey", odsayServerApiKey)
+                .queryParam("SX", request.startX())
+                .queryParam("SY", request.startY())
+                .queryParam("EX", request.endX())
+                .queryParam("EY", request.endY())
+                .queryParam("OPT", 0)
+                .queryParam("output", "json")
+                .build()
+                .encode()
+                .toUriString();
+
+        try {
+            String json = RestClient.create().get().uri(url)
+                    .header("Accept", "application/json")
+                    .retrieve().body(String.class);
+            JsonNode response = objectMapper.readTree(json);
+            if (response.path("error").isObject()) {
+                log.warn("ODsay transit route rejected request: {}", response.path("error"));
+                throw new BusinessException(ErrorCode.ROUTE_API_FAILED);
+            }
+            return parseTransitResponse(response, request);
+        } catch (RestClientResponseException error) {
+            log.warn("ODsay transit route rejected request: status={}, body={}",
+                    error.getStatusCode().value(), error.getResponseBodyAsString());
+            throw new BusinessException(ErrorCode.ROUTE_API_FAILED);
+        } catch (BusinessException error) {
+            throw error;
+        } catch (Exception error) {
+            log.warn("ODsay transit route request failed", error);
+            throw new BusinessException(ErrorCode.ROUTE_API_FAILED);
+        }
+    }
+
+    private TransitRouteResponse parseTransitResponse(JsonNode response, TransitRouteRequest request) {
+        JsonNode path = response.path("result").path("path").path(0);
+        if (!path.isObject()) throw new BusinessException(ErrorCode.ROUTE_API_FAILED);
+
+        JsonNode info = path.path("info");
+        List<TransitRouteResponse.TransitSection> sections = new ArrayList<>();
+        List<TransitRouteResponse.RoutePoint> points = new ArrayList<>();
+        addPoint(points, request.startX(), request.startY());
+
+        JsonNode subPaths = path.path("subPath");
+        if (subPaths.isArray()) {
+            for (JsonNode subPath : subPaths) {
+                int trafficType = subPath.path("trafficType").asInt(3);
+                String mode = switch (trafficType) {
+                    case 1 -> "지하철";
+                    case 2 -> "버스";
+                    default -> "도보";
+                };
+                String routeName = subPath.path("lane").path(0).path("name").asText("");
+                int durationSeconds = subPath.path("sectionTime").asInt(0) * 60;
+                int distanceMeters = subPath.path("distance").asInt(0);
+                sections.add(new TransitRouteResponse.TransitSection(
+                        mode,
+                        subPath.path("startName").asText("출발"),
+                        subPath.path("endName").asText("도착"),
+                        routeName,
+                        durationSeconds,
+                        distanceMeters));
+                JsonNode stations = subPath.path("passStopList").path("station");
+                if (stations.isArray()) {
+                    for (JsonNode station : stations) {
+                        addPoint(points, station.path("x").asDouble(Double.NaN),
+                                station.path("y").asDouble(Double.NaN));
+                    }
+                }
+            }
+        }
+        addPoint(points, request.endX(), request.endY());
+
+        return new TransitRouteResponse(
+                info.path("totalTime").asInt(0) * 60,
+                info.path("totalDistance").asInt(0),
+                info.path("totalWalk").asInt(0),
+                sections,
+                points);
+    }
+
+    private void addPoint(List<TransitRouteResponse.RoutePoint> points, double longitude, double latitude) {
+        if (!Double.isFinite(longitude) || !Double.isFinite(latitude)) return;
+        if (!points.isEmpty()) {
+            TransitRouteResponse.RoutePoint previous = points.get(points.size() - 1);
+            if (Double.compare(previous.longitude(), longitude) == 0
+                    && Double.compare(previous.latitude(), latitude) == 0) return;
+        }
+        points.add(new TransitRouteResponse.RoutePoint(longitude, latitude));
+    }
+
     public RouteOptimizationResponse optimize(Long userId, Long tripDayId) {
         if (restApiKey == null || restApiKey.isBlank()) {
             throw new BusinessException(ErrorCode.ROUTE_NOT_CONFIGURED);
         }
-        List<ItineraryItemDTO> items = tripService.getItems(userId, tripDayId).stream()
+        List<ItineraryItemDTO> allItems = tripService.getItems(userId, tripDayId);
+        List<ItineraryItemDTO> placeItems = allItems.stream()
                 .filter(item -> item.getPlaceId() != null)
                 .toList();
-        if (items.size() < 2) {
+        if (placeItems.size() < 2) {
             PathMetrics empty = PathMetrics.empty();
-            return response(items, empty, empty, false);
+            return response(allItems, empty, empty, false);
         }
 
         Map<Long, PlaceDTO> places = new HashMap<>();
-        for (ItineraryItemDTO item : items) {
+        for (ItineraryItemDTO item : placeItems) {
             places.put(item.getItineraryItemId(), placeService.get(item.getPlaceId()));
         }
 
-        PathMetrics originalMetrics = measurePath(items, places);
+        PathMetrics originalMetrics = measurePath(placeItems, places);
 
-        List<ItineraryItemDTO> remaining = new ArrayList<>(items);
-        List<ItineraryItemDTO> ordered = new ArrayList<>();
+        List<ItineraryItemDTO> remaining = new ArrayList<>(placeItems);
+        List<ItineraryItemDTO> orderedPlaces = new ArrayList<>();
         ItineraryItemDTO current = remaining.remove(0);
-        ordered.add(current);
+        orderedPlaces.add(current);
         int totalDuration = 0;
         int totalDistance = 0;
         boolean distancePriorityApplied = false;
@@ -87,20 +189,34 @@ public class RouteOptimizationService {
             if (best == null) {
                 throw new IllegalArgumentException("자동차 경로를 찾을 수 없는 장소가 일정에 포함되어 있습니다.");
             }
-            ordered.add(best.item());
+            orderedPlaces.add(best.item());
             remaining.remove(best.item());
             totalDuration += best.durationSeconds();
             totalDistance += best.distanceMeters();
             current = best.item();
         }
 
-        tripService.reorderItems(userId, tripDayId,
-                ordered.stream().map(ItineraryItemDTO::getItineraryItemId).toList());
-        PathMetrics optimizedMetrics = measurePath(ordered, places);
+        List<ItineraryItemDTO> orderedAllItems = mergePlaceOrder(allItems, orderedPlaces);
+        PathMetrics optimizedMetrics = measurePath(orderedPlaces, places);
         if (optimizedMetrics == null) {
             optimizedMetrics = new PathMetrics(totalDuration, totalDistance, List.of());
         }
-        return response(ordered, optimizedMetrics, originalMetrics, distancePriorityApplied);
+        return response(orderedAllItems, optimizedMetrics, originalMetrics, distancePriorityApplied);
+    }
+
+    private List<ItineraryItemDTO> mergePlaceOrder(
+            List<ItineraryItemDTO> allItems,
+            List<ItineraryItemDTO> orderedPlaces) {
+        List<ItineraryItemDTO> merged = new ArrayList<>(allItems.size());
+        int placeIndex = 0;
+        for (ItineraryItemDTO item : allItems) {
+            if (item.getPlaceId() != null && placeIndex < orderedPlaces.size()) {
+                merged.add(orderedPlaces.get(placeIndex++));
+            } else {
+                merged.add(item);
+            }
+        }
+        return merged;
     }
 
     @Transactional
@@ -112,6 +228,10 @@ public class RouteOptimizationService {
         if (origin == null || destination == null || origin.getLatitude() == null || origin.getLongitude() == null
                 || destination.getLatitude() == null || destination.getLongitude() == null) {
             throw new IllegalArgumentException("모든 일정 장소에 좌표가 필요합니다.");
+        }
+        String kakaoKey = restApiKey == null ? "" : restApiKey.trim();
+        if (kakaoKey.isBlank()) {
+            throw new BusinessException(ErrorCode.ROUTE_NOT_CONFIGURED);
         }
         String cacheKey = routeCacheKey(origin, destination);
         RouteLegResult cached = getCachedRoute(cacheKey);
@@ -129,7 +249,7 @@ public class RouteOptimizationService {
                 .toUriString();
         try {
             String json = RestClient.create().get().uri(url)
-                    .header("Authorization", "KakaoAK " + restApiKey)
+                    .header("Authorization", "KakaoAK " + kakaoKey)
                     .header("Content-Type", "application/json")
                     .retrieve().body(String.class);
             JsonNode route = objectMapper.readTree(json).path("routes").path(0);
