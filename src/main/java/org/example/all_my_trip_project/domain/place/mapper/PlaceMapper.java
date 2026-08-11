@@ -17,6 +17,14 @@ public interface PlaceMapper {
     List<PlaceImageResult> findImagesByPlaceId(Long placeId);
     List<PlaceStyleResult> findStylesByPlaceId(Long placeId);
     List<PlaceDTO> findAll();
+    List<PlaceDTO> findAdminPage(@Param("keyword") String keyword,
+                                 @Param("category") String category,
+                                 @Param("active") Boolean active,
+                                 @Param("offset") int offset,
+                                 @Param("size") int size);
+    long countAdmin(@Param("keyword") String keyword,
+                    @Param("category") String category,
+                    @Param("active") Boolean active);
     List<PlaceDTO> findPage(@Param("userId") Long userId,
                             @Param("offset") int offset,
                             @Param("size") int size);
@@ -28,5 +36,13 @@ public interface PlaceMapper {
                           @Param("offset") int offset,
                           @Param("size") int size);
     int update(PlaceDTO place);
+    int updateActive(@Param("placeId") Long placeId, @Param("active") boolean active);
+    int updatePrimaryImage(@Param("placeId") Long placeId,
+                           @Param("imageUrl") String imageUrl,
+                           @Param("altText") String altText);
+    int insertPrimaryImage(@Param("placeId") Long placeId,
+                           @Param("imageUrl") String imageUrl,
+                           @Param("altText") String altText);
+    int deletePrimaryImage(@Param("placeId") Long placeId);
     int delete(Long placeId);
 }

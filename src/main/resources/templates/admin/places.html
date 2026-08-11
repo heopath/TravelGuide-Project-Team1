@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="All My Trips 관리자 추천 장소 관리" />
+    <title>추천 장소 관리 — All My Trips</title>
+    <link rel="icon" th:href="@{/images/icons/app-icon.png}" href="../../static/images/icons/app-icon.png" />
+    <link rel="stylesheet" th:href="@{/css/common/reset.css}" href="../../static/css/common/reset.css" />
+    <link rel="stylesheet" th:href="@{/css/common/layout.css}" href="../../static/css/common/layout.css" />
+    <link rel="stylesheet" th:href="@{/css/common/components.css}" href="../../static/css/common/components.css" />
+    <link rel="stylesheet" th:href="@{/css/pages/admin/admin-places.css}" href="../../static/css/pages/admin/admin-places.css" />
+  </head>
+  <body class="page-admin-places" data-route="/admin/places">
+    <div class="app">
+      <div th:replace="~{fragments/header :: header('admin')}"></div>
+      <main id="page-content">
+        <section class="page-shell admin-place-shell">
+          <header class="admin-place-heading">
+            <div>
+              <span>ADMIN · PLACE MANAGEMENT</span>
+              <h1>추천 장소 관리</h1>
+              <p>사용자 추천 장소 화면에 표시할 장소를 등록하고 수정합니다.</p>
+            </div>
+            <div class="admin-place-heading-actions">
+              <button type="button" class="outline-button" data-route="/admin">관리자 대시보드</button>
+              <button type="button" class="primary-button" id="newPlaceButton">새 장소 등록</button>
+            </div>
+          </header>
+
+          <div class="admin-place-notice" id="placeAuthNotice" role="status" hidden></div>
+
+          <form class="white-panel admin-place-search" id="placeSearchForm">
+            <label>
+              <span>검색</span>
+              <input id="placeKeyword" type="search" placeholder="장소명·지역·주소" autocomplete="off" />
+            </label>
+            <label>
+              <span>카테고리</span>
+              <select id="placeCategoryFilter">
+                <option value="">전체</option>
+                <option value="ATTRACTION">관광지</option>
+                <option value="RESTAURANT">맛집</option>
+                <option value="CAFE">카페</option>
+                <option value="ACCOMMODATION">숙박</option>
+                <option value="FESTIVAL">축제</option>
+                <option value="ACTIVITY">액티비티</option>
+                <option value="TRANSPORT">교통</option>
+              </select>
+            </label>
+            <label>
+              <span>노출 상태</span>
+              <select id="placeActiveFilter">
+                <option value="">전체</option>
+                <option value="true">공개</option>
+                <option value="false">숨김</option>
+              </select>
+            </label>
+            <button type="submit" class="primary-button">검색</button>
+          </form>
+
+          <div class="admin-place-layout">
+            <section class="white-panel admin-place-list-panel" aria-labelledby="placeListTitle">
+              <div class="admin-place-section-head">
+                <div><h2 id="placeListTitle">등록된 추천 장소</h2><p id="placeCount">불러오는 중</p></div>
+                <a href="/guide" target="_blank" rel="noopener noreferrer">사용자 화면 보기 ↗</a>
+              </div>
+              <div class="admin-place-list" id="placeList"></div>
+              <p class="admin-place-empty" id="placeEmpty" role="status">장소를 불러오는 중입니다.</p>
+            </section>
+
+            <section class="white-panel admin-place-editor" aria-labelledby="placeEditorTitle">
+              <div class="admin-place-section-head">
+                <div><h2 id="placeEditorTitle">새 장소 등록</h2><p>필수 항목은 이름과 카테고리입니다.</p></div>
+              </div>
+              <form id="placeEditorForm">
+                <input type="hidden" id="placeId" />
+                <div class="admin-place-form-grid">
+                  <label class="wide"><span>장소명 *</span><input id="placeName" maxlength="150" required /></label>
+                  <label><span>카테고리 *</span>
+                    <select id="placeCategory" required>
+                      <option value="ATTRACTION">관광지</option>
+                      <option value="RESTAURANT">맛집</option>
+                      <option value="CAFE">카페</option>
+                      <option value="ACCOMMODATION">숙박</option>
+                      <option value="FESTIVAL">축제</option>
+                      <option value="ACTIVITY">액티비티</option>
+                      <option value="TRANSPORT">교통</option>
+                    </select>
+                  </label>
+                  <label><span>국가 코드</span><input id="placeCountryCode" value="KR" maxlength="2" /></label>
+                  <label><span>광역 지역</span><input id="placeRegion" maxlength="100" placeholder="예: 제주특별자치도" /></label>
+                  <label><span>도시</span><input id="placeCity" maxlength="100" placeholder="예: 서귀포시" /></label>
+                  <label class="wide"><span>주소</span><input id="placeAddress" maxlength="255" /></label>
+                  <label><span>위도</span><input id="placeLatitude" type="number" min="-90" max="90" step="0.0000001" /></label>
+                  <label><span>경도</span><input id="placeLongitude" type="number" min="-180" max="180" step="0.0000001" /></label>
+                  <label class="wide"><span>설명</span><textarea id="placeDescription" maxlength="5000" rows="5"></textarea></label>
+                  <label><span>전화번호</span><input id="placePhone" maxlength="50" /></label>
+                  <label><span>웹사이트 URL</span><input id="placeWebsiteUrl" type="url" maxlength="500" placeholder="https://" /></label>
+                  <label class="wide"><span>대표 이미지 URL</span><input id="placeImageUrl" type="url" maxlength="1000" placeholder="https://" /></label>
+                  <label class="admin-place-check wide"><input id="placeActive" type="checkbox" checked /><span>사용자 추천 장소 화면에 공개</span></label>
+                </div>
+                <div class="admin-place-form-actions">
+                  <button type="button" class="outline-button" id="placeResetButton">입력 초기화</button>
+                  <button type="submit" class="primary-button" id="placeSaveButton">장소 등록</button>
+                </div>
+                <p class="admin-place-form-status" id="placeFormStatus" role="status" hidden></p>
+              </form>
+            </section>
+          </div>
+        </section>
+      </main>
+      <div th:replace="~{fragments/modals :: modalRoots}"><div id="directory-root"></div><div id="modal-root"></div><div id="toast-root" aria-live="polite"></div></div>
+      <div th:replace="~{fragments/footer :: footer}"></div>
+    </div>
+    <div th:replace="~{fragments/scripts :: appScripts}"></div>
+    <script th:src="@{/js/pages/admin/admin-places.js}" src="../../static/js/pages/admin/admin-places.js"></script>
+  </body>
+</html>
