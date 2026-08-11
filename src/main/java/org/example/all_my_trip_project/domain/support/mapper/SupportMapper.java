@@ -3,6 +3,7 @@ package org.example.all_my_trip_project.domain.support.mapper;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import org.example.all_my_trip_project.domain.support.dto.SupportInquiryDTO;
+import org.example.all_my_trip_project.domain.support.dto.SupportReplyDTO;
 
 import java.util.List;
 import java.util.Optional;
@@ -15,4 +16,5 @@ public interface SupportMapper {
                                        @Param("offset") int offset,
                                        @Param("limit") int limit);
     long countMine(@Param("userId") Long userId);
+    List<SupportReplyDTO> findReplies(@Param("inquiryId") Long inquiryId);
 }

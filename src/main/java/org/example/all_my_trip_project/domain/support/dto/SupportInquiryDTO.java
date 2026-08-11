@@ -7,6 +7,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.time.OffsetDateTime;
+import java.util.List;
 
 @Getter
 @Setter
@@ -24,4 +25,6 @@ public class SupportInquiryDTO {
     private String status;
     private OffsetDateTime createdAt;
     private OffsetDateTime updatedAt;
+    @Builder.Default
+    private List<SupportReplyDTO> replies = List.of();
 }

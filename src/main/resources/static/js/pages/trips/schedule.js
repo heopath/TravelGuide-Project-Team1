@@ -19,11 +19,49 @@ document.addEventListener("DOMContentLoaded", function () {
   let activeTrip = null;
   let savingTrip = false;
   let scheduleDays = [];
+  let lastRouteResult = null;
+  let transitRouteResult = null;
+  let transitRoutePath = null;
   let allScheduleVisible = false;
   const placeCategoryNames = new Map();
+  const placeCategoryStorageKey = "allMyTrips.kakaoPlaceCategoryNames";
   const scheduleTimeStorageKey = "tripScheduleTimeOverrides";
   let activeTimeEditor = null;
   let activeTimeItem = null;
+  let draggedScheduleItem = null;
+  let dropPlaceholder = null;
+  const pendingReorders = new Map();
+  let floatingAddressPopover = null;
+  let floatingAddressButton = null;
+  let floatingAddressParent = null;
+
+  function loadPlaceCategoryNames() {
+    try {
+      const saved = JSON.parse(sessionStorage.getItem(placeCategoryStorageKey) || "{}");
+      Object.entries(saved).forEach(function ([placeId, categoryName]) {
+        if (placeId && categoryName) placeCategoryNames.set(String(placeId), String(categoryName));
+      });
+    } catch (error) {
+      try {
+        sessionStorage.removeItem(placeCategoryStorageKey);
+      } catch (storageError) {
+        // sessionStorage 접근이 차단된 환경에서는 메모리 Map만 사용한다.
+      }
+    }
+  }
+
+  function rememberPlaceCategory(placeId, categoryName) {
+    if (!placeId || !categoryName) return;
+    placeCategoryNames.set(String(placeId), String(categoryName));
+    try {
+      const saved = Object.fromEntries(placeCategoryNames.entries());
+      sessionStorage.setItem(placeCategoryStorageKey, JSON.stringify(saved));
+    } catch (error) {
+      // sessionStorage 사용이 제한된 환경에서도 화면 표시 기능은 유지한다.
+    }
+  }
+
+  loadPlaceCategoryNames();
 
   const tripList = document.querySelector("[data-trip-list]");
   const title = document.querySelector("[data-schedule-title]");
@@ -34,6 +72,7 @@ document.addEventListener("DOMContentLoaded", function () {
   const mapContainer = document.querySelector("[data-schedule-map]");
   const mapExpandButton = document.querySelector(".map-expand-button");
   const mapRouteToggle = document.querySelector("[data-toggle-route-map]");
+  const optimizeRouteButton = document.querySelector("[data-optimize-route]");
   const mapModal = document.querySelector("[data-map-modal]");
   const expandedMapContainer = document.querySelector("[data-schedule-map-expanded]");
   const mapStatus = document.querySelector("[data-map-status]");
@@ -47,6 +86,37 @@ document.addEventListener("DOMContentLoaded", function () {
   const routeToggle = document.querySelector("[data-toggle-route]");
   const backButton = document.querySelector("[data-schedule-back]");
   const aiEmptyCta = document.querySelector("[data-schedule-ai-empty-cta]");
+
+  const transitRouteButton = document.createElement("button");
+  transitRouteButton.type = "button";
+  transitRouteButton.className = "route-transit-button";
+  transitRouteButton.textContent = "대중교통 경로";
+  transitRouteButton.style.cssText = "margin-left:8px;padding:10px 14px;border:1px solid #dfe3ff;border-radius:10px;background:#fff;color:#5967d8;font-weight:700;cursor:pointer;";
+  if (optimizeRouteButton?.parentElement) {
+    optimizeRouteButton.parentElement.insertBefore(transitRouteButton, optimizeRouteButton.nextSibling);
+  }
+
+  function updateFloatingAddressPopover() {
+    if (!floatingAddressPopover || !floatingAddressButton || floatingAddressPopover.hidden) return;
+    const buttonRect = floatingAddressButton.getBoundingClientRect();
+    floatingAddressPopover.style.left = (buttonRect.left + buttonRect.width / 2) + "px";
+    floatingAddressPopover.style.top = (buttonRect.bottom + 9) + "px";
+  }
+
+  function closeFloatingAddressPopover() {
+    if (!floatingAddressPopover) return;
+    floatingAddressPopover.hidden = true;
+    floatingAddressPopover.classList.remove("is-floating");
+    floatingAddressPopover.removeAttribute("style");
+    if (floatingAddressParent) floatingAddressParent.appendChild(floatingAddressPopover);
+    if (floatingAddressButton) floatingAddressButton.setAttribute("aria-expanded", "false");
+    floatingAddressPopover = null;
+    floatingAddressButton = null;
+    floatingAddressParent = null;
+  }
+
+  window.addEventListener("scroll", updateFloatingAddressPopover, true);
+  window.addEventListener("resize", updateFloatingAddressPopover);
 
   function toggleAiEmptyCta(visible) {
     if (aiEmptyCta) aiEmptyCta.hidden = !visible;
@@ -62,6 +132,156 @@ document.addEventListener("DOMContentLoaded", function () {
 
   function toast(message) {
     if (window.AllMyTripsModal?.showToast) window.AllMyTripsModal.showToast(message);
+  }
+
+  function formatRouteDistance(meters) {
+    const value = Number(meters) || 0;
+    if (value < 1000) return value + "m";
+    return (value / 1000).toFixed(1).replace(".0", "") + "km";
+  }
+
+  function formatRouteDuration(seconds) {
+    const minutes = Math.max(0, Math.round((Number(seconds) || 0) / 60));
+    if (minutes < 60) return minutes + "분";
+    const hours = Math.floor(minutes / 60);
+    const rest = minutes % 60;
+    return rest ? hours + "시간 " + rest + "분" : hours + "시간";
+  }
+
+  function clearRouteDisplay() {
+    lastRouteResult = null;
+    transitRouteResult = null;
+    transitRoutePath = null;
+    document.querySelectorAll(".route-optimization-summary, .route-segment-summary")
+      .forEach(function (element) { element.remove(); });
+    document.querySelectorAll(".transit-route-summary, .transit-route-segment-summary")
+      .forEach(function (element) { element.remove(); });
+  }
+
+  function renderRouteSummary(result) {
+    if (!result || !timeline?.parentElement) return;
+    document.querySelectorAll(".route-optimization-summary").forEach(function (element) { element.remove(); });
+
+    const summary = document.createElement("div");
+    summary.className = "route-optimization-summary";
+    summary.style.cssText = "margin:12px 0 16px;padding:14px 16px;border:1px solid #dfe3ff;border-radius:14px;background:#f8f9ff;color:#23305f;font-size:13px;line-height:1.7;";
+
+    const title = document.createElement("strong");
+    title.textContent = "추천 동선 이동 정보";
+    title.style.display = "block";
+    title.style.marginBottom = "4px";
+    summary.appendChild(title);
+
+    const total = document.createElement("div");
+    total.textContent = "총 이동시간 " + formatRouteDuration(result.totalDurationSeconds)
+      + " · 총 이동거리 " + formatRouteDistance(result.totalDistanceMeters);
+    summary.appendChild(total);
+
+    if (result.originalRouteAvailable) {
+      const comparison = document.createElement("div");
+      comparison.textContent = "기존 " + formatRouteDuration(result.originalDurationSeconds)
+        + " → 최적화 후 " + formatRouteDuration(result.optimizedDurationSeconds)
+        + " · " + formatRouteDuration(result.savedDurationSeconds) + " 절약";
+      summary.appendChild(comparison);
+    }
+
+    if (result.distancePriorityApplied) {
+      const tieBreak = document.createElement("div");
+      tieBreak.textContent = "이동시간이 같아 이동 거리를 우선순위로 정렬했습니다.";
+      tieBreak.style.color = "#6873c7";
+      summary.appendChild(tieBreak);
+    }
+
+    timeline.parentElement.insertBefore(summary, timeline);
+  }
+
+  function renderRouteSegments(result) {
+    if (!result || !Array.isArray(result.segments) || !result.segments.length) return;
+    document.querySelectorAll(".route-segment-summary").forEach(function (element) { element.remove(); });
+    const cards = Array.from(timeline.querySelectorAll(":scope > .schedule-item"));
+    result.segments.forEach(function (segment, index) {
+      const fromCard = cards[index];
+      if (!fromCard) return;
+      const segmentElement = document.createElement("div");
+      segmentElement.className = "route-segment-summary";
+      segmentElement.style.cssText = "margin:-4px 18px 8px;padding:5px 8px;color:#7480c8;font-size:12px;text-align:center;";
+      segmentElement.textContent = "↓ 자동차 " + formatRouteDuration(segment.durationSeconds)
+        + " · " + formatRouteDistance(segment.distanceMeters);
+      fromCard.after(segmentElement);
+    });
+  }
+
+  function transitModeLabel(section) {
+    const routeName = section.routeName ? " " + section.routeName : "";
+    return section.mode + routeName;
+  }
+
+  function renderTransitRoute(result) {
+    if (!result || !timeline?.parentElement) return;
+    document.querySelectorAll(".transit-route-summary, .transit-route-segment-summary")
+      .forEach(function (element) { element.remove(); });
+
+    const summary = document.createElement("div");
+    summary.className = "transit-route-summary";
+    summary.style.cssText = "margin:12px 0 16px;padding:14px 16px;border:1px solid #dfe3ff;border-radius:14px;background:#f8f9ff;color:#23305f;font-size:13px;line-height:1.7;";
+    summary.textContent = "대중교통 총 " + formatRouteDuration(result.totalDurationSeconds)
+      + " · " + formatRouteDistance(result.totalDistanceMeters)
+      + " · 도보 " + formatRouteDistance(result.totalWalkMeters);
+    timeline.parentElement.insertBefore(summary, timeline);
+
+    const cards = Array.from(timeline.querySelectorAll(":scope > .schedule-item"));
+    (result.legs || []).forEach(function (leg, index) {
+      const fromCard = cards[index];
+      if (!fromCard) return;
+      const element = document.createElement("div");
+      element.className = "transit-route-segment-summary";
+      element.style.cssText = "margin:-4px 18px 8px;padding:6px 8px;color:#5967d8;font-size:12px;text-align:center;";
+      const modes = (leg.sections || []).map(transitModeLabel).join(" · ");
+      element.textContent = "↓ " + modes + " · " + formatRouteDuration(leg.totalDurationSeconds)
+        + " · " + formatRouteDistance(leg.totalDistanceMeters);
+      fromCard.after(element);
+    });
+  }
+
+  async function loadTransitRoutes() {
+    const mapped = activeItems.filter(function (item) {
+      return item.place?.latitude != null && item.place?.longitude != null;
+    });
+    if (mapped.length < 2) throw new Error("좌표가 있는 장소가 2개 이상 필요합니다.");
+
+    const legs = [];
+    const allPoints = [];
+    for (let index = 0; index < mapped.length - 1; index++) {
+      const from = mapped[index];
+      const to = mapped[index + 1];
+      const result = await api("/api/v1/routes/transit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          startX: Number(from.place.longitude),
+          startY: Number(from.place.latitude),
+          endX: Number(to.place.longitude),
+          endY: Number(to.place.latitude)
+        })
+      });
+      legs.push({
+        fromTitle: from.title,
+        toTitle: to.title,
+        totalDurationSeconds: result.totalDurationSeconds,
+        totalDistanceMeters: result.totalDistanceMeters,
+        sections: result.sections || []
+      });
+      (result.points || []).forEach(function (point) {
+        allPoints.push(new window.kakao.maps.LatLng(Number(point.latitude), Number(point.longitude)));
+      });
+    }
+    const totalDurationSeconds = legs.reduce(function (sum, leg) { return sum + Number(leg.totalDurationSeconds || 0); }, 0);
+    const totalDistanceMeters = legs.reduce(function (sum, leg) { return sum + Number(leg.totalDistanceMeters || 0); }, 0);
+    const totalWalkMeters = legs.reduce(function (sum, leg) {
+      return sum + (leg.sections || []).filter(function (section) { return section.mode === "도보"; })
+        .reduce(function (sectionSum, section) { return sectionSum + Number(section.distanceMeters || 0); }, 0);
+    }, 0);
+    return { legs, totalDurationSeconds, totalDistanceMeters, totalWalkMeters, points: allPoints };
   }
 
   function formatDate(value) {
@@ -340,9 +560,10 @@ document.addEventListener("DOMContentLoaded", function () {
         yAnchor: 1,
       }));
     });
-    if (routeVisible && path.length > 1) {
+    const displayedPath = transitRoutePath?.length > 1 ? transitRoutePath : path;
+    if (routeVisible && displayedPath.length > 1) {
       routeLine = new window.kakao.maps.Polyline({
-        path,
+        path: displayedPath,
         strokeWeight: 4,
         strokeColor: "#6372df",
         strokeOpacity: .85,
@@ -386,9 +607,10 @@ document.addEventListener("DOMContentLoaded", function () {
         yAnchor: 1,
       }));
     });
-    if (routeVisible && path.length > 1) {
+    const displayedPath = transitRoutePath?.length > 1 ? transitRoutePath : path;
+    if (routeVisible && displayedPath.length > 1) {
       expandedRouteLine = new window.kakao.maps.Polyline({
-        path,
+        path: displayedPath,
         strokeWeight: 4,
         strokeColor: "#6372df",
         strokeOpacity: .85,
@@ -440,6 +662,7 @@ document.addEventListener("DOMContentLoaded", function () {
   function createScheduleItem(item, index, day) {
     const row = document.createElement("article");
     row.className = "schedule-item";
+    const dragHandle = document.createElement("button");
     const order = document.createElement("span");
     const copy = document.createElement("div");
     const name = document.createElement("strong");
@@ -452,8 +675,19 @@ document.addEventListener("DOMContentLoaded", function () {
     const durationTag = document.createElement("span");
     const weatherTag = document.createElement("span");
     const address = document.createElement("small");
+    const addressControl = document.createElement("span");
+    const addressButton = document.createElement("button");
+    const addressPopover = document.createElement("span");
     const titleLine = document.createElement("div");
     const timeControl = document.createElement("div");
+    dragHandle.type = "button";
+    dragHandle.className = "schedule-drag-handle";
+    dragHandle.textContent = "⠿";
+    dragHandle.title = "일정 순서 이동";
+    dragHandle.setAttribute("aria-label", "일정 순서 이동");
+    const canReorder = Boolean(!allScheduleVisible && day?.tripDayId && item.itineraryItemId
+      && String(day.tripDayId) === String(activeDay?.tripDayId));
+    dragHandle.disabled = false;
     order.textContent = index + 1;
     name.textContent = item.title || "일정";
     const startTime = getItemStartTime(item);
@@ -481,29 +715,193 @@ document.addEventListener("DOMContentLoaded", function () {
     weatherTag.textContent = item.place ? "날씨 확인 중" : "날씨 정보 없음";
     address.className = "schedule-item-location";
     address.textContent = item.place?.address || "";
+    addressControl.className = "schedule-item-address-control";
+    addressButton.type = "button";
+    addressButton.className = "schedule-item-address-toggle";
+    addressButton.textContent = "주소";
+    addressButton.disabled = !address.textContent;
+    addressButton.setAttribute("aria-expanded", "false");
+    addressButton.addEventListener("click", function (event) {
+      event.stopPropagation();
+      if (floatingAddressPopover === addressPopover && !addressPopover.hidden) {
+        closeFloatingAddressPopover();
+        return;
+      }
+      closeFloatingAddressPopover();
+      floatingAddressPopover = addressPopover;
+      floatingAddressButton = addressButton;
+      floatingAddressParent = addressControl;
+      document.body.appendChild(addressPopover);
+      addressPopover.classList.add("is-floating");
+      addressPopover.hidden = false;
+      addressButton.setAttribute("aria-expanded", "true");
+      updateFloatingAddressPopover();
+    });
+    addressPopover.className = "schedule-item-address-popover";
+    addressPopover.textContent = address.textContent || "주소 정보가 없습니다.";
+    addressPopover.hidden = true;
+    addressControl.append(addressButton, addressPopover);
     titleLine.className = "schedule-item-title-line";
     titleLine.append(name);
-    if (address.textContent) titleLine.append(address);
     actions.className = "schedule-item-actions";
     actions.appendChild(deleteButton);
     const tags = document.createElement("div");
     tags.className = "schedule-item-tags";
     tags.append(categoryTag);
     if (durationTag.textContent) tags.append(durationTag);
-    tags.append(weatherTag, infoButton);
+    tags.append(weatherTag, infoButton, addressControl);
     copy.append(titleLine, tags);
     if (meta.textContent) copy.append(meta);
-    row.append(order, timeControl, copy, actions);
+    row.append(dragHandle, order, timeControl, copy, actions);
+    if (canReorder) attachDragEvents(row);
     if (item.place) loadScheduleWeather(item, day?.tripDate, weatherTag);
     return row;
   }
 
+  function ensureDropPlaceholder() {
+    if (dropPlaceholder) return dropPlaceholder;
+    dropPlaceholder = document.createElement("div");
+    dropPlaceholder.className = "schedule-drop-placeholder";
+    dropPlaceholder.textContent = "여기에 놓으면 순서가 변경됩니다.";
+    dropPlaceholder.addEventListener("dragover", function (event) {
+      event.preventDefault();
+      event.dataTransfer.dropEffect = "move";
+    });
+    dropPlaceholder.addEventListener("drop", completeDrop);
+    return dropPlaceholder;
+  }
+
+  async function completeDrop(event) {
+    event.preventDefault();
+    if (!draggedScheduleItem || !dropPlaceholder?.parentElement) return;
+    clearRouteDisplay();
+    dropPlaceholder.parentElement.insertBefore(draggedScheduleItem, dropPlaceholder);
+    const orderIds = Array.from(timeline.querySelectorAll(".schedule-item[data-itinerary-item-id]"))
+      .map(function (element) { return Number(element.dataset.itineraryItemId); });
+    clearDragState();
+    await saveManualOrder(orderIds);
+  }
+
+  function clearDragState() {
+    if (dropPlaceholder?.parentElement) dropPlaceholder.remove();
+    document.querySelectorAll(".schedule-item.is-dragging, .schedule-item.is-drag-over")
+      .forEach(function (element) { element.classList.remove("is-dragging", "is-drag-over"); });
+    draggedScheduleItem = null;
+  }
+
+  function attachDragEvents(row) {
+    row.draggable = true;
+    const handle = row.querySelector(".schedule-drag-handle");
+    if (handle) {
+      handle.addEventListener("pointerdown", function () {
+        row.dataset.dragReady = "true";
+      });
+      handle.addEventListener("pointerup", function () {
+        window.setTimeout(function () { delete row.dataset.dragReady; }, 0);
+      });
+    }
+    row.addEventListener("dragstart", function (event) {
+      if (row.dataset.dragReady !== "true") {
+        event.preventDefault();
+        return;
+      }
+      draggedScheduleItem = row;
+      row.classList.add("is-dragging");
+      event.dataTransfer.effectAllowed = "move";
+      event.dataTransfer.setData("text/plain", row.dataset.itineraryItemId || "");
+    });
+    row.addEventListener("dragover", function (event) {
+      if (!draggedScheduleItem || draggedScheduleItem === row) return;
+      event.preventDefault();
+      const rectangle = row.getBoundingClientRect();
+      const before = event.clientY < rectangle.top + rectangle.height / 2;
+      row.classList.toggle("is-drag-over", true);
+      if (before) row.parentElement.insertBefore(ensureDropPlaceholder(), row);
+      else row.parentElement.insertBefore(ensureDropPlaceholder(), row.nextSibling);
+    });
+    row.addEventListener("dragleave", function (event) {
+      if (!row.contains(event.relatedTarget)) row.classList.remove("is-drag-over");
+    });
+    row.addEventListener("drop", completeDrop);
+    row.addEventListener("dragend", function () {
+      delete row.dataset.dragReady;
+      clearDragState();
+    });
+  }
+
+  async function saveManualOrder(orderIds) {
+    if (!orderIds.length || !activeDay) return;
+    try {
+      if (activeDay.tripDayId) {
+        pendingReorders.set(String(activeDay.tripDayId), orderIds.slice());
+        const orderMap = new Map(orderIds.map(function (id, index) { return [String(id), index]; }));
+        activeItems.sort(function (left, right) {
+          return orderMap.get(String(left.itineraryItemId)) - orderMap.get(String(right.itineraryItemId));
+        });
+        activeItems.forEach(function (item, index) { item.sortOrder = index; });
+        renderItems(activeItems);
+        refreshMap();
+      } else {
+        const orderMap = new Map(orderIds.map(function (id, index) { return [String(id), index]; }));
+        activeItems.sort(function (left, right) {
+          return orderMap.get(String(left.itineraryItemId)) - orderMap.get(String(right.itineraryItemId));
+        });
+        activeItems.forEach(function (item, index) { item.sortOrder = index; });
+        const draft = readDraft();
+        draft.scheduleItems = draft.scheduleItems || {};
+        draft.scheduleItems[draftDayKey(activeDay)] = activeItems;
+        sessionStorage.setItem("tripDraft", JSON.stringify(draft));
+        renderItems(activeItems);
+        refreshMap();
+      }
+    } catch (error) {
+      toast(error.message || "일정 순서 저장에 실패했습니다.");
+      if (activeDay.tripDayId) {
+        const selectedButton = Array.from(dayTabs.querySelectorAll("button"))
+          .find(function (button) { return button.classList.contains("selected"); });
+        await selectDay(activeDay, selectedButton);
+      }
+    }
+  }
+
+  async function savePendingReorders() {
+    for (const [tripDayId, orderIds] of pendingReorders.entries()) {
+      await api("/api/v1/trip-days/" + tripDayId + "/items/reorder", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify(orderIds),
+      });
+    }
+  }
+
+  function applyPendingOrder(orderIds) {
+    if (!Array.isArray(orderIds) || !orderIds.length) return;
+    const orderMap = new Map(orderIds.map(function (id, index) { return [String(id), index]; }));
+    activeItems.sort(function (left, right) {
+      return (orderMap.get(String(left.itineraryItemId)) ?? Number.MAX_SAFE_INTEGER)
+        - (orderMap.get(String(right.itineraryItemId)) ?? Number.MAX_SAFE_INTEGER);
+    });
+    activeItems.forEach(function (item, index) { item.sortOrder = index; });
+  }
+
   function getPlaceCategoryLabel(place) {
     if (!place) return "관광지";
-    return place.categoryName || place.category_name || placeCategoryNames.get(String(place.externalPlaceId)) || "관광지";
+    const categoryLabels = {
+      ATTRACTION: "관광지",
+      RESTAURANT: "음식점",
+      CAFE: "카페",
+      ACCOMMODATION: "숙소",
+      TRANSPORT: "교통",
+    };
+    return place.categoryName
+      || place.category_name
+      || placeCategoryNames.get(String(place.externalPlaceId))
+      || categoryLabels[String(place.category || "").toUpperCase()]
+      || "관광지";
   }
 
   function renderItems(items) {
+    clearRouteDisplay();
     const orderedItems = items.slice().sort(function (left, right) {
       return (left.sortOrder || 0) - (right.sortOrder || 0);
     });
@@ -523,7 +921,9 @@ document.addEventListener("DOMContentLoaded", function () {
     }
     toggleAiEmptyCta(false);
     orderedItems.forEach(function (item, index) {
-      timeline.appendChild(createScheduleItem(item, index, activeDay));
+      const element = createScheduleItem(item, index, activeDay);
+      element.dataset.itineraryItemId = item.itineraryItemId || "";
+      timeline.appendChild(element);
     });
     refreshMap();
     if (orderedItems[0]?.place) selectItem(orderedItems[0], false);
@@ -571,6 +971,7 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   async function selectDay(day, selectedButton) {
+    clearRouteDisplay();
     activeDay = day;
     dayTabs.querySelectorAll("button").forEach(function (button) { button.classList.toggle("selected", button === selectedButton); });
     showEmpty(timeline, "DAY " + day.dayNumber + " 일정을 불러오는 중입니다.");
@@ -805,7 +1206,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
   async function findOrCreatePlace(kakaoPlace) {
     if (kakaoPlace.category_name) {
-      placeCategoryNames.set(String(kakaoPlace.id), kakaoPlace.category_name);
+      rememberPlaceCategory(kakaoPlace.id, kakaoPlace.category_name);
     }
     const placePayload = {
       externalProvider:"KAKAO", externalPlaceId:kakaoPlace.id, category:mapKakaoCategory(kakaoPlace),
@@ -1138,12 +1539,14 @@ document.addEventListener("DOMContentLoaded", function () {
     saveButton.disabled = true;
     saveButton.textContent = "저장 중...";
     try {
+      await savePendingReorders();
       const saved = await api("/api/v1/trips/" + activeTripId, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({...activeTrip, status: "CONFIRMED"}),
       });
       activeTrip = saved;
+      pendingReorders.clear();
       const draft = readDraft();
       draft.trip = saved;
       sessionStorage.setItem("tripDraft", JSON.stringify(draft));
@@ -1191,6 +1594,63 @@ document.addEventListener("DOMContentLoaded", function () {
     routeVisible = !routeVisible;
     mapRouteToggle.textContent = routeVisible ? "경로선 ON" : "경로선 OFF";
     refreshMap();
+  });
+  if (optimizeRouteButton) optimizeRouteButton.addEventListener("click", async function () {
+    if (!activeDay?.tripDayId) {
+      toast("저장된 DAY에서만 동선을 최적화할 수 있습니다.");
+      return;
+    }
+    if (activeItems.filter(function (item) { return item.place?.latitude && item.place?.longitude; }).length < 2) {
+      toast("좌표가 있는 장소가 2개 이상 필요합니다.");
+      return;
+    }
+    optimizeRouteButton.disabled = true;
+    optimizeRouteButton.textContent = "최적화 중...";
+    try {
+      const result = await api("/api/v1/trip-days/" + activeDay.tripDayId + "/optimize-route", {method: "POST"});
+      const minutes = Math.round(Number(result.totalDurationSeconds || 0) / 60);
+      applyPendingOrder(result.itineraryItemIds);
+      pendingReorders.set(String(activeDay.tripDayId), result.itineraryItemIds.slice());
+      renderItems(activeItems);
+      lastRouteResult = result;
+      renderRouteSummary(result);
+      renderRouteSegments(result);
+      if (result.distancePriorityApplied) {
+        toast("이동시간이 같아 이동 거리를 우선순위로 정렬했습니다.");
+      } else {
+        toast(minutes > 0
+          ? "이동시간 기준으로 동선을 정리했습니다. 예상 이동시간 " + minutes + "분"
+          : "이동시간 기준으로 동선을 정리했습니다.");
+      }
+    } catch (error) {
+      toast(error.message || "동선 최적화에 실패했습니다.");
+    } finally {
+      optimizeRouteButton.disabled = false;
+      optimizeRouteButton.textContent = "✨ 동선 최적화";
+    }
+  });
+  transitRouteButton.addEventListener("click", async function () {
+    if (!activeDay) {
+      toast("일정을 먼저 선택해주세요.");
+      return;
+    }
+    transitRouteButton.disabled = true;
+    transitRouteButton.textContent = "조회 중...";
+    try {
+      const result = await loadTransitRoutes();
+      transitRouteResult = result;
+      transitRoutePath = result.points;
+      renderTransitRoute(result);
+      refreshMap();
+    } catch (error) {
+      transitRouteResult = null;
+      transitRoutePath = null;
+      refreshMap();
+      toast(error.message || "대중교통 경로 조회에 실패했습니다.");
+    } finally {
+      transitRouteButton.disabled = false;
+      transitRouteButton.textContent = "대중교통 경로";
+    }
   });
   document.querySelectorAll("[data-schedule-guide]").forEach(function (button) {
     button.addEventListener("click", function () {

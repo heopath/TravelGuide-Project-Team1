@@ -27,6 +27,12 @@ public class PlaceDAO {
         return placeMapper.findStylesByPlaceId(placeId);
     }
     public List<PlaceDTO> findAll() { return placeMapper.findAll(); }
+    public List<PlaceDTO> findAdminPage(String keyword, String category, Boolean active, int offset, int size) {
+        return placeMapper.findAdminPage(keyword, category, active, offset, size);
+    }
+    public long countAdmin(String keyword, String category, Boolean active) {
+        return placeMapper.countAdmin(keyword, category, active);
+    }
     public List<PlaceDTO> findPage(Long userId, int offset, int size) {
         return placeMapper.findPage(userId, offset, size);
     }
@@ -35,5 +41,13 @@ public class PlaceDAO {
         return placeMapper.search(userId, keyword, category, region, styleId, offset, size);
     }
     public int update(PlaceDTO place) { return placeMapper.update(place); }
+    public int updateActive(Long placeId, boolean active) { return placeMapper.updateActive(placeId, active); }
+    public int updatePrimaryImage(Long placeId, String imageUrl, String altText) {
+        return placeMapper.updatePrimaryImage(placeId, imageUrl, altText);
+    }
+    public int insertPrimaryImage(Long placeId, String imageUrl, String altText) {
+        return placeMapper.insertPrimaryImage(placeId, imageUrl, altText);
+    }
+    public int deletePrimaryImage(Long placeId) { return placeMapper.deletePrimaryImage(placeId); }
     public int delete(Long placeId) { return placeMapper.delete(placeId); }
 }

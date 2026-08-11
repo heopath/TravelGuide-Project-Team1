@@ -69,6 +69,16 @@ public enum ErrorCode {
             "날씨는 오늘부터 3일 이내 일정만 확인할 수 있습니다."
     ),
 
+    ROUTE_NOT_CONFIGURED(
+            HttpStatus.SERVICE_UNAVAILABLE,
+            "경로 최적화 서비스가 아직 설정되지 않았습니다."
+    ),
+
+    ROUTE_API_FAILED(
+            HttpStatus.BAD_GATEWAY,
+            "카카오 길찾기 API 호출에 실패했습니다. REST API 키와 허용 IP를 확인해주세요."
+    ),
+
     INVALID_TRIP_REQUEST(
             HttpStatus.BAD_REQUEST,
             "여행 생성 요청값이 올바르지 않습니다."
@@ -152,6 +162,16 @@ public enum ErrorCode {
     PLACE_REVIEW_NOT_FOUND(
             HttpStatus.NOT_FOUND,
             "장소 후기를 찾을 수 없습니다."
+    ),
+
+    PLACE_NOT_FOUND(
+            HttpStatus.NOT_FOUND,
+            "추천 장소를 찾을 수 없습니다."
+    ),
+
+    INVALID_PLACE_REQUEST(
+            HttpStatus.BAD_REQUEST,
+            "추천 장소 입력값을 확인해 주세요."
     ),
 
     REPORT_ALREADY_PENDING(

@@ -10,4 +10,9 @@ public class AdminPageController {
     public String admin() {
         return "admin/admin";
     }
+
+    @GetMapping("/admin/places")
+    public String places() {
+        return "admin/places";
+    }
 }
