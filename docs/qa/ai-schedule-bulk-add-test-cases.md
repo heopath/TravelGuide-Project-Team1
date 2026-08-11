@@ -13,4 +13,4 @@
 ## 자동 검증
 
 - `ItineraryItemServiceTest`: 삭제 뒤 `MAX(sort_order) + 1` 적용과 같은 DAY의 장소 중복 요청을 검증한다.
-- DB 마이그레이션 `V17__prevent_duplicate_itinerary_places.sql`: `place_id`가 있는 일정 항목에만 `(trip_day_id, place_id)` 유일 인덱스를 적용한다.
+- DB 마이그레이션 `V18__prevent_duplicate_itinerary_places.sql`: `place_id`가 있는 일정 항목에만 `(trip_day_id, place_id)` 유일 인덱스를 적용한다.
