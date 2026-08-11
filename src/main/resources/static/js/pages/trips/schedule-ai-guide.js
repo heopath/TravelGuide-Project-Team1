@@ -56,6 +56,18 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   }
 
+  function categoryLabel(value) {
+    const labels = {
+      ATTRACTION: "관광·명소", RESTAURANT: "맛집", CAFE: "카페", ACCOMMODATION: "숙소",
+      FESTIVAL: "축제", ACTIVITY: "체험", TRANSPORT: "교통"
+    };
+    return labels[value] || "실제 장소";
+  }
+
+  function isVerifiedPlace(item) {
+    return Number.isInteger(Number(item?.placeId)) && Number(item.placeId) > 0;
+  }
+
   function renderResponse(payload) {
     const response = payload.data;
     appendMessage("schedule-ai-assistant", function (message) {
@@ -70,26 +82,44 @@ document.addEventListener("DOMContentLoaded", function () {
           const copy = create("div");
           copy.append(create("strong", item.name));
           copy.append(create("span", item.reason));
+          if (isVerifiedPlace(item)) {
+            const meta = create("div", "", "schedule-ai-place-meta");
+            meta.append(create("em", categoryLabel(item.placeCategory)));
+            if (item.placeAddress) meta.append(create("small", item.placeAddress));
+            copy.append(meta);
+          }
           row.append(copy);
-          const addButton = create("button", "일정에 추가", "schedule-ai-add-item");
-          addButton.type = "button";
-          addButton.addEventListener("click", async function () {
-            if (!window.AllMyTripsSchedule?.addAiRecommendation) {
-              showError("일정 화면을 준비하지 못했습니다. 새로고침 후 다시 시도해주세요.");
-              return;
+          if (isVerifiedPlace(item)) {
+            const actions = create("div", "", "schedule-ai-place-actions");
+            const placeUrl = safeExternalUrl(item.placeUrl);
+            if (placeUrl) {
+              const mapLink = create("a", "지도 보기 ↗", "schedule-ai-map-link");
+              mapLink.href = placeUrl;
+              mapLink.target = "_blank";
+              mapLink.rel = "noopener noreferrer";
+              actions.append(mapLink);
             }
-            addButton.disabled = true;
-            addButton.textContent = "추가 중";
-            try {
-              await window.AllMyTripsSchedule.addAiRecommendation(item, day.day);
-              addButton.textContent = "추가됨";
-            } catch (error) {
-              addButton.disabled = false;
-              addButton.textContent = "일정에 추가";
-              showError(error.message || "일정을 추가하지 못했습니다.");
-            }
-          });
-          row.append(addButton);
+            const addButton = create("button", "일정에 추가", "schedule-ai-add-item");
+            addButton.type = "button";
+            addButton.addEventListener("click", async function () {
+              if (!window.AllMyTripsSchedule?.addAiRecommendation) {
+                showError("일정 화면을 준비하지 못했습니다. 새로고침 후 다시 시도해주세요.");
+                return;
+              }
+              addButton.disabled = true;
+              addButton.textContent = "추가 중";
+              try {
+                await window.AllMyTripsSchedule.addAiRecommendation(item, day.day);
+                addButton.textContent = "추가됨";
+              } catch (error) {
+                addButton.disabled = false;
+                addButton.textContent = "일정에 추가";
+                showError(error.message || "일정을 추가하지 못했습니다.");
+              }
+            });
+            actions.append(addButton);
+            row.append(actions);
+          }
           list.append(row);
         });
         dayCard.append(list);

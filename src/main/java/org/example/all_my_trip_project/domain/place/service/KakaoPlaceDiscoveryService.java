@@ -139,6 +139,11 @@ public class KakaoPlaceDiscoveryService {
         if (locations.isEmpty() && destination != null && !destination.isBlank()) {
             locations = List.of(destination.trim());
         }
+        for (String location : locations) {
+            for (String term : extractVenueSearchTerms(question)) {
+                keywords.add(location + " " + term);
+            }
+        }
         if (!hasDaySpecificKeywords) {
             List<String> categories = extractCategories(question);
             for (String location : locations) {
@@ -268,12 +273,37 @@ public class KakaoPlaceDiscoveryService {
         return categories;
     }
 
+    /**
+     * 카카오에 그대로 전달할 핵심 업종어다. "혼술 LP 바"처럼 긴 문장 검색이
+     * 실패해도 "부산 LP바" 후보를 별도로 확보해 실제 상호명 추천을 돕는다.
+     */
+    private static List<String> extractVenueSearchTerms(String question) {
+        String value = question == null ? "" : question.toLowerCase(java.util.Locale.ROOT);
+        LinkedHashSet<String> terms = new LinkedHashSet<>();
+        if (value.contains("lp") && value.contains("바")) terms.add("LP바");
+        if (value.contains("와인")) terms.add("와인바");
+        if (value.contains("칵테일")) terms.add("칵테일바");
+        if (value.contains("버거")) terms.add("버거");
+        if (value.contains("피자")) terms.add("피자");
+        if (value.contains("치킨")) terms.add("치킨");
+        if (value.contains("브런치")) terms.add("브런치");
+        if (value.contains("디저트")) terms.add("디저트");
+        if (value.contains("이탈리안")) terms.add("이탈리안");
+        if (value.contains("중식")) terms.add("중식");
+        if (value.contains("일식")) terms.add("일식");
+        if (value.contains("한식")) terms.add("한식");
+        return List.copyOf(terms);
+    }
+
     private static String normalizeQuestion(String question) {
         if (question == null || question.isBlank()) {
             return "";
         }
         String normalized = question.replaceAll("[?!.,]", " ");
         normalized = RECOMMENDATION_PHRASE.matcher(normalized).replaceAll(" ");
+        // "편집샵 세개만 추천해줘"처럼 수량 표현까지 카카오에 전달하면
+        // 실제 장소 키워드 검색이 비어 버릴 수 있으므로 검색 의도만 남긴다.
+        normalized = normalized.replaceAll("(?:^|\\s)(?:[0-9]+|한|두|세|네|다섯|몇)\\s*개(?:만|정도)?(?=\\s|$)", " ");
         normalized = normalized.replaceAll("\\s+", " ").trim();
         String[] tokens = normalized.split(" ");
         if (tokens.length == 0) {

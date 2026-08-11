@@ -18,7 +18,14 @@
       }).then(function (response) {
         if (!response.ok) throw new Error("CSRF 토큰을 발급받지 못했습니다.");
         return response.json();
-      }).then(function (payload) { return payload.token; });
+      }).then(function (payload) { return payload.token; })
+        .catch(function (error) {
+          // 토큰 발급 자체가 실패한 거부 프로미스를 캐시하면 새로고침 전까지
+          // 이후 모든 쓰기 요청이 같은 거부 프로미스를 받아 계속 막힌다.
+          // 캐시를 비워 다음 요청이 다시 시도할 수 있게 한다.
+          csrfTokenPromise = undefined;
+          throw error;
+        });
     }
     return csrfTokenPromise;
   }
@@ -27,13 +34,24 @@
     const token = await csrfToken();
     const requestOptions = { ...(options || {}) };
     requestOptions.credentials = requestOptions.credentials || "same-origin";
-    requestOptions.headers = new Headers(requestOptions.headers || {});
+    // input이 Request면 그 안에 담긴 헤더(Content-Type 등)가 기본값이 되어야 한다.
+    // options.headers가 없다고 해서 비워버리면 Request에 실려 있던 헤더가 사라진다.
+    requestOptions.headers = new Headers(input instanceof Request ? input.headers : undefined);
+    if (options && options.headers) {
+      new Headers(options.headers).forEach(function (value, key) {
+        requestOptions.headers.set(key, value);
+      });
+    }
     requestOptions.headers.set("X-CSRF-TOKEN", token);
     return nativeFetch(input, requestOptions);
   }
 
   window.fetch = async function csrfAwareFetch(input, options) {
     if (!isUnsafeSameOriginRequest(input, options)) return nativeFetch(input, options);
+
+    // input이 Request면 첫 전송에서 body가 소모된다. 재시도가 필요할 경우를 대비해
+    // 아직 아무것도 읽지 않은 지금 시점에 clone을 떠서 재시도 전용으로 남겨둔다.
+    const retryInput = input instanceof Request ? input.clone() : input;
 
     const response = await sendWithToken(input, options);
     if (response.status !== 403) return response;
@@ -59,7 +77,7 @@
     // 쓰기 요청이 JSON 문자열 바디라 문제없지만, 파일 업로드처럼 스트림 바디를 쓰게
     // 되면 재시도 전에 바디를 미리 복제해두는 처리가 필요하다.
     csrfTokenPromise = undefined;
-    return sendWithToken(input, options);
+    return sendWithToken(retryInput, options);
   };
 })();
 

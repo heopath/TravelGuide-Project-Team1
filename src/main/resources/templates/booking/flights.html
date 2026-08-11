@@ -180,7 +180,18 @@
                 <p class="srcnote" id="hotelSourceNote" hidden></p>
               </div>
               <div class="panel" id="panel-ticket" hidden>
-                <p class="empty">티켓·액티비티 비교는 아직 준비 중이에요.</p>
+                <div class="ticket-head">
+                  <div>
+                    <span class="ticket-kicker">내부 실습 상품</span>
+                    <h2>티켓·액티비티 찾기</h2>
+                    <p>여행 기간에 이용할 수 있는 상품의 옵션과 남은 수량을 확인하세요.</p>
+                  </div>
+                  <span class="ticket-practice">모의 예약 · 실제 결제 아님</span>
+                </div>
+                <div class="ticket-status" id="ticketStatus" role="status" aria-live="polite">
+                  티켓 탭을 열면 여행 일정에 맞춰 자동으로 조회합니다.
+                </div>
+                <div class="ticket-list" id="ticketList"></div>
               </div>
               <div class="panel" id="panel-mine" hidden>
                 <p class="mine-help">
@@ -404,5 +415,6 @@
     <div th:replace="~{fragments/scripts :: appScripts}"></div>
     <script th:src="@{/js/pages/booking/flights.js}" src="../../static/js/pages/booking/flights.js"></script>
     <script th:src="@{/js/pages/booking/accommodations.js}" src="../../static/js/pages/booking/accommodations.js"></script>
+    <script th:src="@{/js/pages/booking/tickets.js}" src="../../static/js/pages/booking/tickets.js"></script>
   </body>
 </html>

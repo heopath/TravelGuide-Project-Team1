@@ -69,6 +69,8 @@ async function run() {
   const urls = [];
   let sandboxMode = false;
   let mockMode = false;
+  let emptyMode = false;
+  let providerFailureMode = false;
   const dom = new JSDOM(fs.readFileSync(HTML, "utf8"), {
     url: "http://localhost/booking/flights?tab=hotel&destination=CJU&date=2026-08-17&returnDate=2026-08-19&adults=2",
     runScripts: "outside-only"
@@ -86,16 +88,28 @@ async function run() {
       } });
     }
     if (url.startsWith("/api/v1/accommodations/search")) {
+      if (providerFailureMode) {
+        return {
+          ok: false,
+          status: 503,
+          json: async () => ({
+            success: false,
+            code: "ACCOMMODATION_PROVIDER_UNAVAILABLE",
+            message: "숙소 정보를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요."
+          })
+        };
+      }
       return json({ success: true, data: {
-        offers: mockMode ? [mockHotel()]
+        offers: emptyMode ? [] : mockMode ? [mockHotel()]
           : sandboxMode ? [hotel("tour:1", "가나다 리조트", "콘도미니엄"), sandboxHotel()]
             : [hotel("tour:2", "제주 바다 호텔", "호텔"), hotel("tour:1", "가나다 리조트", "콘도미니엄")],
         meta: {
-          listingProvider: mockMode ? "mock" : "tourapi",
+          listingProvider: emptyMode ? "tourapi" : mockMode ? "mock" : "tourapi",
           priceProvider: sandboxMode && !mockMode ? "liteapi-sandbox" : null,
-          matchedPriceCount: sandboxMode && !mockMode ? 1 : 0, totalCount: mockMode ? 1 : 2,
+          matchedPriceCount: sandboxMode && !mockMode ? 1 : 0,
+          totalCount: emptyMode ? 0 : mockMode ? 1 : 2,
           nights: 2, priceSource: mockMode ? "MOCK" : sandboxMode ? "SANDBOX" : "UNAVAILABLE",
-          priceSourceNotice: mockMode ? "개발용 샘플 데이터입니다." : sandboxMode
+          priceSourceNotice: emptyMode ? null : mockMode ? "개발용 샘플 데이터입니다." : sandboxMode
             ? "LiteAPI Sandbox 실습용 요금입니다. 실제 예약 가능 여부나 결제 금액이 아닙니다."
             : "이 지역은 요금 정보가 제공되지 않아 예약 사이트에서 확인해야 해요."
         }
@@ -137,7 +151,7 @@ async function run() {
     $("rows").textContent.includes("선택 완료 · 가나다 리조트") && $("rows").textContent.includes("요금 미정"));
   T("숙소 선택 완료가 진행 현황에 반영된다", $("dn").textContent === "1" && $("fill").style.width === "33%");
   T("가격 없는 숙소는 예상 총액에 더하지 않고 안내한다",
-    $("cTot").textContent === "256,000원" && $("costNote").textContent.includes("숙소 요금 제외"));
+    $("cTot").textContent === "200,000원" && $("costNote").textContent.includes("숙소 요금 제외"));
   T("선택은 브라우저 상태에만 있고 DB 저장 API를 호출하지 않는다",
     !urls.some((url) => /\/trips\/\d+\/.*accommodation/.test(url)));
 
@@ -150,8 +164,26 @@ async function run() {
   T("숙소 선택 해제가 예약 현황과 진행률에 반영된다",
     $("rows").textContent.includes("선택 전") && $("dn").textContent === "0" && $("fill").style.width === "0%");
   T("숙소 선택 해제 후 예상 총액에서 숙소 금액이 빠진다",
-    $("cTot").textContent === "256,000원" && $("costNote").textContent.includes("숙소 요금 제외"));
+    $("cTot").textContent === "200,000원" && $("costNote").textContent.includes("숙소 요금 제외"));
 
+  emptyMode = true;
+  $("hotelSearchForm").dispatchEvent(new w.Event("submit", { bubbles: true, cancelable: true }));
+  await until(() => w.__accommodationBooking.state.searched
+    && !w.__accommodationBooking.state.loading && w.__accommodationBooking.state.offers.length === 0);
+  T("TourAPI 정상 0건은 검색 조건 안내로 표시한다",
+    $("hotelStatus").textContent.includes("조건에 맞는 숙소를 찾지 못했어요")
+      && $("hotelCount").textContent === "0곳");
+
+  emptyMode = false;
+  providerFailureMode = true;
+  $("hotelSearchForm").dispatchEvent(new w.Event("submit", { bubbles: true, cancelable: true }));
+  await until(() => $("hotelStatus").classList.contains("error")
+    && !w.__accommodationBooking.state.loading);
+  T("TourAPI 장애는 정상 0건과 다른 재시도 안내로 표시한다",
+    $("hotelStatus").textContent === "숙소 정보를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요."
+      && $("hotelCount").textContent === "검색 실패");
+
+  providerFailureMode = false;
   mockMode = true;
   $("hotelSearchForm").dispatchEvent(new w.Event("submit", { bubbles: true, cancelable: true }));
   await until(() => w.__accommodationBooking.state.meta?.listingProvider === "mock"
@@ -182,13 +214,13 @@ async function run() {
 
   d.querySelector('[data-hotel-pick="tour:2"]').click();
   T("선택한 Sandbox KRW 요금은 예상 총액에 실습가로 반영한다",
-    $("cTot").textContent === "831,240원"
+    $("cTot").textContent === "775,240원"
       && $("costNote").textContent.includes("숙소 Sandbox 실습가")
       && $("rows").textContent.includes("575,240원"));
 
   d.querySelector('[data-hotel-pick="tour:2"]').click();
   T("가격이 있는 숙소도 선택 취소하면 예상 총액에서 제거된다",
-    $("cTot").textContent === "256,000원"
+    $("cTot").textContent === "200,000원"
       && $("rows").textContent.includes("선택 전")
       && $("dn").textContent === "0");
 

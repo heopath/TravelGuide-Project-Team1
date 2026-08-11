@@ -26,7 +26,7 @@ public record TripFlightBookingsResponse(
 ) {
     public static final String MIXED = "MIXED";
 
-    /** 항공·숙소·티켓 3개 중 몇 개가 끝났는지. 숙소·티켓은 미구현이라 항상 0이다. */
+    /** 항공 단독 API의 이전 호환 진행률. 전체 진행률은 통합 예약 조회 응답을 사용한다. */
     public record Progress(int done, int total) {}
 
     /**
