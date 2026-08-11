@@ -9,10 +9,6 @@ body.page-admin #page-content {
   }
 }
 
-.page-admin {
-  --admin-gap: 26px;
-}
-
 /* 권한 안내. 승격 전에는 신고 목록이 비므로 이유를 화면이 직접 밝힌다. */
 .page-admin .admin-notice {
   margin-bottom: 24px;
@@ -35,7 +31,66 @@ body.page-admin #page-content {
   color: #b42318;
 }
 
-.page-admin .admin-section { margin-bottom: 38px; }
+/* ── 사이드바 + 패널 (#165) ──
+   마이페이지와 같은 구조다. minmax(0, 1fr)을 쓰는 이유는 1fr의 최소 크기가 auto라
+   내용 너비 아래로 줄지 않아 좁은 화면에서 오른쪽이 밖으로 밀려나기 때문이다. */
+.page-admin .admin-layout {
+  display: grid;
+  grid-template-columns: 232px minmax(0, 1fr);
+  align-items: start;
+  gap: 20px;
+}
+
+.page-admin .admin-sidebar {
+  position: sticky;
+  top: 96px;
+  padding: 14px 12px;
+}
+
+.page-admin .admin-content { min-width: 0; }
+
+.page-admin .admin-nav { display: flex; flex-direction: column; gap: 4px; }
+.page-admin .admin-nav button {
+  width: 100%;
+  min-height: 44px;
+  padding: 0 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: 0;
+  border-radius: 11px;
+  background: transparent;
+  color: #344054;
+  font-size: 13.5px;
+  font-weight: 650;
+  text-align: left;
+  cursor: pointer;
+  transition: color 0.18s ease, background 0.18s ease;
+}
+.page-admin .admin-nav button > span:first-child {
+  width: 18px;
+  flex: 0 0 18px;
+  display: grid;
+  place-items: center;
+  color: #7c89a4;
+}
+/* 사이드바 배지. 본문의 .admin-tag와 같은 뜻이지만 훨씬 작게 둔다. */
+.page-admin .admin-nav button em {
+  margin-left: auto;
+  color: #98a2b3;
+  font-size: 10px;
+  font-style: normal;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.page-admin .admin-nav button em.live { color: var(--primary); }
+.page-admin .admin-nav button.is-current { background: #f0f1ff; color: var(--primary); }
+.page-admin .admin-nav button.is-current > span:first-child { color: var(--primary); }
+.page-admin .admin-nav button:not(.is-current):hover { background: #f5f6ff; color: var(--primary); }
+
+/* 한 번에 한 화면만 보이므로 아래 여백이 필요 없다. */
+.page-admin .admin-section { margin-bottom: 0; }
+.page-admin .admin-section[hidden] { display: none; }
 
 .page-admin .admin-section-head {
   margin-bottom: 14px;
@@ -102,13 +157,6 @@ body.page-admin #page-content {
   letter-spacing: -0.03em;
 }
 .page-admin .admin-metric small { color: #97a1b5; font-size: 11px; }
-
-.page-admin .admin-columns {
-  display: grid;
-  grid-template-columns: 1.35fr 0.85fr;
-  gap: var(--admin-gap);
-  align-items: start;
-}
 
 .page-admin .admin-panel { padding: 20px 22px; }
 
@@ -330,8 +378,31 @@ body.page-admin #page-content {
   .page-admin .admin-chat-rooms { border-right: 0; border-bottom: 1px solid var(--border); }
   .page-admin .admin-chat-room-list { max-height: 220px; }
 
-  .page-admin .admin-columns { grid-template-columns: minmax(0, 1fr); }
   .page-admin .admin-metric-row { grid-template-columns: repeat(2, 1fr); }
+}
+
+/*
+  사이드바를 위로 접는다. 세로로 쌓으면 메뉴만으로 한 화면이 차서 정작 내용이 안 보인다.
+  가로로 굴리는 편이 항목 수가 늘어도 버틴다.
+*/
+@media (max-width: 860px) {
+  .page-admin .admin-layout { grid-template-columns: minmax(0, 1fr); }
+  .page-admin .admin-sidebar { position: static; padding: 10px; }
+  .page-admin .admin-nav {
+    flex-direction: row;
+    gap: 6px;
+    overflow-x: auto;
+    scrollbar-width: thin;
+  }
+  .page-admin .admin-nav button {
+    width: auto;
+    flex: 0 0 auto;
+    min-height: 38px;
+    padding: 0 12px;
+  }
+  /* 좁은 폭에서는 아이콘과 배지를 빼고 이름만 남긴다. 이름이 잘리면 고를 수가 없다. */
+  .page-admin .admin-nav button > span:first-child,
+  .page-admin .admin-nav button em { display: none; }
 }
 
 @media (max-width: 620px) {

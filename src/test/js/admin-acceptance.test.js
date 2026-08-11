@@ -130,6 +130,47 @@ async function run() {
         && d.querySelectorAll('[data-chat-filter].on').length === 1);
   }
 
+  /* ── 사이드바: 고른 화면 하나만 보여준다 (#165) ── */
+  {
+    const { w, d, calls } = await boot(() => ok([]));
+    const shown = () => [...d.querySelectorAll("[data-admin-section]")]
+      .filter((section) => !section.hidden)
+      .map((section) => section.dataset.adminSection);
+
+    T("사이드바에 일곱 화면이 모두 있다",
+      d.querySelectorAll("[data-admin-panel]").length === 7);
+
+    /* 실연동이 신고 관리뿐이라, 들어오자마자 쓸 수 있는 것이 먼저 보여야 한다. */
+    T("기본으로 신고 관리가 열린다",
+      shown().length === 1 && shown()[0] === "reports");
+    T("기본 화면 메뉴에 현재 표시가 붙는다",
+      d.querySelector('[data-admin-panel="reports"]').getAttribute("aria-current") === "page");
+
+    /*
+     * 연동 전 항목을 막지 않는다. 막으면 앞으로 무엇이 붙는지 볼 수 없고,
+     * "연동 안 된 것을 숨기지 않는다"는 이 화면의 원칙과도 어긋난다.
+     */
+    T("연동 전 화면도 누를 수 있다",
+      [...d.querySelectorAll("[data-admin-panel]")].every((button) => !button.disabled));
+
+    d.querySelector('[data-admin-panel="chat"]').click();
+    T("고른 화면 하나만 보인다", shown().length === 1 && shown()[0] === "chat");
+    T("현재 표시가 함께 옮겨간다",
+      d.querySelectorAll('[data-admin-panel][aria-current="page"]').length === 1
+        && d.querySelector('[data-admin-panel="chat"]').classList.contains("is-current"));
+
+    /* 화면을 옮겨도 신고 목록을 다시 부르지 않는다. 사이드바는 표시만 바꾼다. */
+    const before = calls.length;
+    d.querySelector('[data-admin-panel="metrics"]').click();
+    T("화면 전환만으로 API를 다시 부르지 않는다", calls.length === before);
+    T("api 상태에 고른 화면이 남는다", w.__adminDashboard.state.panel === "metrics");
+
+    /* 없는 이름이 들어와도 빈 화면이 되면 안 된다. */
+    w.__adminDashboard.openPanel("없는화면");
+    T("모르는 화면 이름은 신고 관리로 되돌린다",
+      shown().length === 1 && shown()[0] === "reports");
+  }
+
   /* ── 신고 목록: 유일하게 실제로 붙어 있는 API ── */
   {
     const { d, calls, api } = await boot(() => ok([
