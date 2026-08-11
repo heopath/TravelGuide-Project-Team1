@@ -43,6 +43,17 @@ public class PlaceRagService {
         return documents.size();
     }
 
+    /** 외부 검색으로 새로 확인한 장소만 즉시 RAG에 추가한다. */
+    public void indexPlaces(List<PlaceDTO> places) {
+        if (places == null || places.isEmpty()) {
+            return;
+        }
+        for (int start = 0; start < places.size(); start += EMBEDDING_BATCH_SIZE) {
+            int end = Math.min(start + EMBEDDING_BATCH_SIZE, places.size());
+            vectorStore.add(places.subList(start, end).stream().map(this::toDocument).toList());
+        }
+    }
+
     /**
      * 검색 장애는 AI 추천 자체를 막지 않는다. 호출자는 빈 결과를 기본 추천 흐름으로 사용한다.
      */
@@ -61,6 +72,10 @@ public class PlaceRagService {
             log.warn("RAG place search failed. Falling back to question-based recommendation.", exception);
             return List.of();
         }
+    }
+
+    public RagSearchResult toSearchResult(PlaceDTO place) {
+        return new RagSearchResult("place:" + place.getPlaceId(), toDocument(place).getText());
     }
 
     private Document toDocument(PlaceDTO place) {
