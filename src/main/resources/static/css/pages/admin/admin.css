@@ -201,7 +201,9 @@ body.page-admin #page-content {
   overflow: hidden;
 }
 
+/* min-width를 풀지 않으면 좁은 화면에서 칸이 내용 너비 아래로 못 줄어 밖으로 삐져나간다. */
 .page-admin .admin-chat-rooms {
+  min-width: 0;
   display: flex;
   flex-direction: column;
   border-right: 1px solid var(--border);
@@ -263,7 +265,7 @@ body.page-admin #page-content {
   font-weight: 800;
 }
 
-.page-admin .admin-chat-thread { display: flex; flex-direction: column; }
+.page-admin .admin-chat-thread { min-width: 0; display: flex; flex-direction: column; }
 .page-admin .admin-chat-thread-head {
   padding: 15px 18px;
   display: flex;
@@ -272,6 +274,8 @@ body.page-admin #page-content {
   gap: 12px;
   border-bottom: 1px solid var(--border);
 }
+/* 버튼은 줄바꿈을 막아뒀으므로, 좁아질 때 양보하는 쪽은 왼쪽 텍스트여야 한다. */
+.page-admin .admin-chat-thread-head > div { min-width: 0; }
 .page-admin .admin-chat-thread-head strong { display: block; color: var(--navy); font-size: 14px; }
 .page-admin .admin-chat-thread-head small { display: block; margin-top: 3px; color: var(--muted); font-size: 11.5px; }
 .page-admin .admin-chat-takeover {
@@ -292,7 +296,7 @@ body.page-admin #page-content {
 .page-admin .admin-chat-composer {
   padding: 12px 14px;
   display: grid;
-  grid-template-columns: 1fr 88px;
+  grid-template-columns: minmax(0, 1fr) 88px;
   gap: 8px;
   border-top: 1px solid var(--border);
 }
@@ -315,21 +319,41 @@ body.page-admin #page-content {
   white-space: nowrap;
 }
 
+/*
+  한 칸으로 접을 때 1fr이 아니라 minmax(0, 1fr)을 쓴다.
+  1fr의 최소 크기는 auto라 내용 너비 아래로 줄지 않는다. 채팅은 `내가 응대하기`(100px)와
+  `보내기`(88px) 때문에 최소 폭이 327px이라, 그냥 1fr로 두면 컨테이너보다 넓은 칸이 만들어지고
+  admin-chat의 overflow:hidden에 잘렸다. 428px 아래에서 `보내기` 버튼이 사라진 원인이다.
+*/
 @media (max-width: 1080px) {
-  .page-admin .admin-chat { grid-template-columns: 1fr; }
+  .page-admin .admin-chat { grid-template-columns: minmax(0, 1fr); }
   .page-admin .admin-chat-rooms { border-right: 0; border-bottom: 1px solid var(--border); }
   .page-admin .admin-chat-room-list { max-height: 220px; }
-}
 
-@media (max-width: 1080px) {
-  .page-admin .admin-columns { grid-template-columns: 1fr; }
+  .page-admin .admin-columns { grid-template-columns: minmax(0, 1fr); }
   .page-admin .admin-metric-row { grid-template-columns: repeat(2, 1fr); }
 }
 
 @media (max-width: 620px) {
   .page-admin .admin-metric-row { grid-template-columns: 1fr; }
-  .page-admin .admin-report-row { grid-template-columns: 1fr 90px; }
+
+  /*
+    상세·접수일을 숨기면 기록·사유·상태 셋이 남는다. 칸을 둘로 잡아두면 상태가 다음 줄로 밀려
+    한 건이 두 줄이 되고, 가운데 정렬된 상태 배지가 기록 칸 아래에 덩그러니 놓인다.
+    숨기는 칸 수와 남는 칸 수를 반드시 같이 고친다.
+  */
+  .page-admin .admin-report-row { grid-template-columns: 58px minmax(0, 1fr) 74px; }
   .page-admin .admin-report-row > :nth-child(3),
   .page-admin .admin-report-row > :nth-child(5) { display: none; }
+
+  /*
+    상품·예약 모니터링은 뒤쪽 칸이 고정 폭이라 1fr이 10px까지 눌린다. 상품명이 세로로 접혀
+    행 높이가 260px를 넘고, 패널이 화면 밖으로 밀려 페이지 전체가 가로로 스크롤됐다.
+    아직 연동 전이라 어떤 칸을 버릴지 정할 수 없으므로, 칸을 지우는 대신 패널 안에서 굴린다.
+  */
+  .page-admin .admin-panel { overflow-x: auto; }
+  .page-admin .admin-product-row { min-width: 360px; }
+  .page-admin .admin-monitor-row { min-width: 330px; }
+
   .page-admin .admin-filter { margin-left: 0; }
 }
