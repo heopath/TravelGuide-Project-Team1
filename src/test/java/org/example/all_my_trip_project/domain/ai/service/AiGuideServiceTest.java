@@ -6,6 +6,8 @@ import org.example.all_my_trip_project.domain.ai.dto.AiGuideRequest;
 import org.example.all_my_trip_project.domain.ai.dto.AiGuideResponse;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.ObjectProvider;
+import org.example.all_my_trip_project.domain.place.service.KakaoPlaceDiscoveryService;
+import org.example.all_my_trip_project.domain.rag.dto.RagSearchResult;
 
 import java.util.List;
 
@@ -20,8 +22,10 @@ class AiGuideServiceTest {
     private final AiConversationHistoryService conversationHistoryService = mock(AiConversationHistoryService.class);
     private final AiGuideContextService contextService = mock(AiGuideContextService.class);
     private final ObjectProvider<org.example.all_my_trip_project.domain.rag.service.PlaceRagService> ragServiceProvider = mock(ObjectProvider.class);
+    private final ObjectProvider<KakaoPlaceDiscoveryService> kakaoPlaceDiscoveryServiceProvider = mock(ObjectProvider.class);
     private final AiGuideService service = new AiGuideService(
-            aiModelClient, conversationHistoryService, contextService, ragServiceProvider
+            aiModelClient, conversationHistoryService, contextService, ragServiceProvider,
+            kakaoPlaceDiscoveryServiceProvider
     );
 
     @Test
@@ -57,5 +61,60 @@ class AiGuideServiceTest {
                 org.mockito.ArgumentMatchers.anyString(),
                 org.mockito.ArgumentMatchers.anyString()
         );
+    }
+
+    @Test
+    void discoversVerifiedKakaoPlacesWhenRagHasNoCandidate() {
+        AiGuideRequest request = new AiGuideRequest("Seongsu cafe", 12L);
+        AiGuideContext context = new AiGuideContext(
+                new AiGuideContext.Trip(12L, "Seoul trip", "Seoul", null, null,
+                        null, null, null, null, null, null, null, null, null, List.of()),
+                List.of()
+        );
+        AiGuideResponse response = new AiGuideResponse("Cafe result", List.of(), List.of(), List.of());
+        org.example.all_my_trip_project.domain.rag.service.PlaceRagService ragService = mock(org.example.all_my_trip_project.domain.rag.service.PlaceRagService.class);
+        KakaoPlaceDiscoveryService discoveryService = mock(KakaoPlaceDiscoveryService.class);
+        List<RagSearchResult> discovered = List.of(new RagSearchResult("place:99", "Place name: Real Cafe"));
+
+        when(conversationHistoryService.load(1L, 12L)).thenReturn(List.of());
+        when(contextService.load(1L, request)).thenReturn(context);
+        when(ragServiceProvider.getIfAvailable()).thenReturn(ragService);
+        when(ragService.search(request.question())).thenReturn(List.of());
+        when(kakaoPlaceDiscoveryServiceProvider.getIfAvailable()).thenReturn(discoveryService);
+        when(discoveryService.discoverAndIndex(request.question(), "Seoul")).thenReturn(discovered);
+        when(aiModelClient.generate(request, List.of(), context, discovered)).thenReturn(response);
+
+        service.generate(request, false, 1L);
+
+        verify(discoveryService).discoverAndIndex(request.question(), "Seoul");
+        verify(aiModelClient).generate(request, List.of(), context, discovered);
+    }
+
+    @Test
+    void supplementsExistingRagCandidatesWithFreshKakaoPlaces() {
+        AiGuideRequest request = new AiGuideRequest("Seongsu restaurant", 12L);
+        AiGuideContext context = new AiGuideContext(
+                new AiGuideContext.Trip(12L, "Seoul trip", "Seoul", null, null,
+                        null, null, null, null, null, null, null, null, null, List.of()),
+                List.of()
+        );
+        AiGuideResponse response = new AiGuideResponse("Restaurant result", List.of(), List.of(), List.of());
+        org.example.all_my_trip_project.domain.rag.service.PlaceRagService ragService = mock(org.example.all_my_trip_project.domain.rag.service.PlaceRagService.class);
+        KakaoPlaceDiscoveryService discoveryService = mock(KakaoPlaceDiscoveryService.class);
+        RagSearchResult indexed = new RagSearchResult("place:1", "Place name: Existing cafe");
+        RagSearchResult discovered = new RagSearchResult("place:2", "Place name: Real restaurant");
+
+        when(conversationHistoryService.load(1L, 12L)).thenReturn(List.of());
+        when(contextService.load(1L, request)).thenReturn(context);
+        when(ragServiceProvider.getIfAvailable()).thenReturn(ragService);
+        when(ragService.search(request.question())).thenReturn(List.of(indexed));
+        when(kakaoPlaceDiscoveryServiceProvider.getIfAvailable()).thenReturn(discoveryService);
+        when(discoveryService.discoverAndIndex(request.question(), "Seoul")).thenReturn(List.of(discovered));
+        when(aiModelClient.generate(request, List.of(), context, List.of(discovered, indexed))).thenReturn(response);
+
+        service.generate(request, false, 1L);
+
+        verify(discoveryService).discoverAndIndex(request.question(), "Seoul");
+        verify(aiModelClient).generate(request, List.of(), context, List.of(discovered, indexed));
     }
 }
