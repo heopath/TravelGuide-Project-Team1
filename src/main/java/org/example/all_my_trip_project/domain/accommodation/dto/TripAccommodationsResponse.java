@@ -98,19 +98,35 @@ public record TripAccommodationsResponse(
         );
     }
 
+    /**
+     * 답을 못 받은 이탈 건 중 아직 물어볼 것이 남은 건만 남긴다.
+     *
+     * <p>이미 자가 신고했거나 예약번호까지 넣은 숙소는 답이 나온 것이라 다시 묻지 않는다.
+     * 확정된 예약을 두고 "예약하셨나요?"를 물으면 사용자가 배너에서 {@code 아니요}를 눌러
+     * 예약번호까지 들어간 예약을 통째로 지우게 된다. 확정한 예약 페이지를 다시 열어보는 것은
+     * 자연스러운 행동이라 outcome이 비어 있는 이탈 건은 얼마든지 더 생긴다.
+     *
+     * <p>이 판정을 SQL로 내리지 않는 이유는 상태 컬럼이 없기 때문이다.
+     * {@link AccommodationBookingDTO#status()}가 두 필드에서 파생하므로 규칙을 한곳에 둔다.
+     */
     private static List<UnresolvedOutboundClick> toUnresolvedClicks(
             List<AccommodationBookingDTO> bookings, List<AccommodationOutboundClickDTO> unresolved) {
 
-        Map<Long, String> namesByBookingId = bookings.stream()
+        Map<Long, AccommodationBookingDTO> bookingsById = bookings.stream()
                 .collect(Collectors.toMap(AccommodationBookingDTO::getAccommodationBookingId,
-                        AccommodationBookingDTO::getName, (first, second) -> first));
+                        booking -> booking, (first, second) -> first));
 
         return unresolved.stream()
+                /* 담긴 숙소가 없는 이탈 건은 무엇을 묻는지 밝힐 수 없어 함께 뺀다. */
+                .filter(click -> {
+                    AccommodationBookingDTO booking = bookingsById.get(click.getAccommodationBookingId());
+                    return booking != null && booking.status() == AccommodationBookingStatus.SELECTED;
+                })
                 .map(click -> new UnresolvedOutboundClick(
                         click.getAccommodationOutboundClickId(),
                         click.getAccommodationBookingId(),
                         click.getOfferId(),
-                        namesByBookingId.get(click.getAccommodationBookingId())))
+                        bookingsById.get(click.getAccommodationBookingId()).getName()))
                 .toList();
     }
 

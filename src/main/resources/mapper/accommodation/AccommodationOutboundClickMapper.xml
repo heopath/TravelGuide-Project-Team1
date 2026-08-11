@@ -28,6 +28,10 @@
       같은 숙소로 여러 번 나갔다가 한 번도 답하지 않은 경우, 배너는 한 번만 물어야 한다.
       숙소별로 가장 최근 이탈 건만 남긴다. 항공은 구간이 둘뿐이라 전부 내려도 됐지만
       숙박은 건수가 가변이라 그대로 두면 배너가 줄줄이 뜬다.
+
+      이미 답이 나온 숙소(자가 신고·예약번호 입력)를 빼는 것은 여기가 아니라
+      TripAccommodationsResponse.toUnresolvedClicks에서 한다. 상태 컬럼이 없어
+      SQL로 판정하면 파생 규칙이 두 군데로 갈라진다.
     -->
     <select id="findUnresolvedByTrip"
             resultType="org.example.all_my_trip_project.domain.accommodation.dto.AccommodationOutboundClickDTO">
