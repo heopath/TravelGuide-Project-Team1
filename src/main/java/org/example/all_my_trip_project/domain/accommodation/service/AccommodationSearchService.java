@@ -6,7 +6,10 @@ import org.example.all_my_trip_project.domain.accommodation.dto.AccommodationSea
 import org.example.all_my_trip_project.domain.accommodation.dto.AccommodationSearchResponse;
 import org.example.all_my_trip_project.domain.accommodation.dto.AccommodationSearchResult;
 import org.example.all_my_trip_project.domain.accommodation.provider.CompositeAccommodationSearchProvider;
+import org.example.all_my_trip_project.domain.accommodation.provider.AccommodationProviderException;
 import org.example.all_my_trip_project.domain.accommodation.type.AccommodationPriceSource;
+import org.example.all_my_trip_project.global.exception.BusinessException;
+import org.example.all_my_trip_project.global.exception.ErrorCode;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.context.annotation.Profile;
 import org.springframework.core.env.Environment;
@@ -32,9 +35,13 @@ public class AccommodationSearchService {
      */
     @Cacheable(cacheNames = "accommodationSearch", key = "#query.toString()")
     public AccommodationSearchResponse search(AccommodationSearchQuery query) {
-        AccommodationSearchResult result = compositeProvider.search(query);
-        rejectPracticePricesInProduction(result);
-        return AccommodationSearchResponse.from(result, query.nights());
+        try {
+            AccommodationSearchResult result = compositeProvider.search(query);
+            rejectPracticePricesInProduction(result);
+            return AccommodationSearchResponse.from(result, query.nights());
+        } catch (AccommodationProviderException exception) {
+            throw new BusinessException(ErrorCode.ACCOMMODATION_PROVIDER_UNAVAILABLE);
+        }
     }
 
     /**

@@ -174,6 +174,11 @@ public enum ErrorCode {
             "숙소를 검색할 지역을 입력해 주세요."
     ),
 
+    ACCOMMODATION_PROVIDER_UNAVAILABLE(
+            HttpStatus.SERVICE_UNAVAILABLE,
+            "숙소 정보를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요."
+    ),
+
     ACCOMMODATION_PERIOD_OUT_OF_TRIP(
             HttpStatus.BAD_REQUEST,
             "숙소 기간은 여행 기간 안에 있어야 합니다."
