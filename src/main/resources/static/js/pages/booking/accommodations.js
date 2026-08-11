@@ -312,7 +312,7 @@
       state.loading = false;
       render();
     } catch (requestError) {
-      showError("숙소 정보를 불러오지 못했어요. 잠시 후 다시 시도해 주세요.");
+      showError("숙소 정보를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.");
     } finally {
       $("hotelSearchButton").disabled = false;
     }

@@ -99,11 +99,13 @@ public class TourApiAccommodationSearchProvider implements AccommodationSearchPr
             // 예외 메시지에는 서비스키가 포함된 요청 URL이 들어갈 수 있어 상태 코드만 남긴다.
             log.warn("TourAPI 숙소 조회 HTTP 오류 status={} destination={}",
                     exception.getStatusCode().value(), query.destination());
-            return List.of();
+            throw unavailable("HTTP_" + exception.getStatusCode().value(), exception);
+        } catch (AccommodationProviderException exception) {
+            throw exception;
         } catch (RuntimeException exception) {
             log.warn("TourAPI 숙소 조회 실패 type={} destination={}",
                     exception.getClass().getSimpleName(), query.destination());
-            return List.of();
+            throw unavailable(exception.getClass().getSimpleName(), exception);
         }
     }
 
@@ -175,11 +177,11 @@ public class TourApiAccommodationSearchProvider implements AccommodationSearchPr
 
     private List<JsonNode> items(String body) {
         if (body == null || body.isBlank()) {
-            return List.of();
+            throw unavailable("EMPTY_RESPONSE", null);
         }
         if (body.stripLeading().startsWith("<")) {
             log.warn("TourAPI가 JSON 대신 XML 오류 응답을 반환했습니다.");
-            return List.of();
+            throw unavailable("XML_ERROR_RESPONSE", null);
         }
 
         try {
@@ -190,7 +192,7 @@ public class TourApiAccommodationSearchProvider implements AccommodationSearchPr
                     && !LEGACY_NORMAL_RESULT_CODE.equals(resultCode)) {
                 log.warn("TourAPI 오류 응답 resultCode={} resultMsg={}", resultCode,
                         response.path("header").path("resultMsg").asText());
-                return List.of();
+                throw unavailable("RESULT_CODE_" + resultCode, null);
             }
 
             JsonNode item = response.path("body").path("items").path("item");
@@ -200,11 +202,17 @@ public class TourApiAccommodationSearchProvider implements AccommodationSearchPr
                 return result;
             }
             return item.isObject() ? List.of(item) : List.of();
+        } catch (AccommodationProviderException exception) {
+            throw exception;
         } catch (Exception exception) {
             log.warn("TourAPI 숙소 응답 JSON 해석 실패 type={}",
                     exception.getClass().getSimpleName());
-            return List.of();
+            throw unavailable("INVALID_JSON", exception);
         }
+    }
+
+    private AccommodationProviderException unavailable(String reason, Throwable cause) {
+        return new AccommodationProviderException(NAME, reason, cause);
     }
 
     private Optional<AccommodationOffer> toOffer(JsonNode item, AccommodationSearchQuery query) {
