@@ -46,7 +46,7 @@ Content-Type: application/json
 { "question": "부산에서 하루 동안 갈 만한 곳을 추천해줘", "tripId": 12 }
 ```
 
-성공 응답은 `ApiResponse<AiGuideResponse>` 형식이며 `answer`, `days`, `externalLinks`, `sources`를 반환합니다. Gemini에는 질문 기반 일정 JSON만 반환하도록 요청하고, 파싱 실패·모델 호출 실패·SDK HTTP 25초 시간 초과는 내부 상세를 노출하지 않는 `502 AI_GENERATION_FAILED` 응답으로 처리합니다. Google GenAI SDK의 `HttpOptions.timeout`을 사용하므로 시간 초과 시 HTTP 요청이 SDK 수준에서 종료되며, 별도 virtual thread 작업을 남기지 않습니다.
+성공 응답은 `ApiResponse<AiGuideResponse>` 형식이며 `answer`, `days`, `externalLinks`, `sources`를 반환합니다. 일정 항목은 기본 `time`, `name`, `reason` 외에 실제 카카오/RAG 장소와 정확히 일치한 경우에만 `placeId`, `placeCategory`, `placeAddress`, `placeUrl`을 포함합니다. 화면은 이 메타데이터가 있는 항목에만 지도 보기와 일정 추가 기능을 표시합니다.
 
 ## 로컬 실행
 

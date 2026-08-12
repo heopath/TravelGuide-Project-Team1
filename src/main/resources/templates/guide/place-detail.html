@@ -15,63 +15,156 @@
     <div class="app">
       <div th:replace="~{fragments/header :: header('guide')}"></div>
       <main id="page-content">
-        <section class="page-shell">
-      
-    <section class="page-heading">
-      <div>
-        <button type="button" class="detail-back" data-route="/guide">← 추천 장소</button>
-        <h1><span>03 </span><b data-place-name>장소 상세</b></h1>
-        <p data-place-summary>장소 정보를 불러오는 중입니다.</p>
-        <i>✦</i>
-      </div>
-      
-    </section>
-  
-      <div class="detail-state white-panel" data-detail-state aria-live="polite">
-        장소 정보를 불러오는 중입니다.
-      </div>
-      <div class="detail-layout" data-detail-content hidden>
-        <div>
-          <div class="detail-hero">
-            <img data-place-image alt="" />
-            <div class="detail-hero-overlay">
-              <span data-place-location></span>
-              <strong data-place-category></strong>
-            </div>
-          </div>
-          <div class="detail-facts">
-            <div><span>평점</span><strong data-place-rating></strong></div>
-            <div><span>지역</span><strong data-place-region></strong></div>
-            <div><span>카테고리</span><strong data-place-category-fact></strong></div>
-          </div>
-          <section class="white-panel text-panel">
-            <h2>장소 소개</h2>
-            <p data-place-description></p>
-            <div class="style-chips" data-place-styles></div>
-          </section>
-        </div>
-        <aside class="white-panel booking-aside">
-          <span>PLACE INFORMATION</span>
-          <h2>방문 정보</h2>
-          <dl class="place-contact">
-            <div data-address-row><dt>주소</dt><dd data-place-address></dd></div>
-            <div data-phone-row><dt>전화</dt><dd data-place-phone></dd></div>
-          </dl>
-          <button type="button" class="favorite-button wide" data-favorite-toggle
-                  aria-pressed="false">
-            <span aria-hidden="true">♡</span>
-            <strong>찜하기</strong>
+        <section class="page-shell place-detail-shell">
+          <button type="button" class="detail-back" data-route="/guide">
+            <span aria-hidden="true">←</span> 추천 장소로 돌아가기
           </button>
-          <a class="outline-button wide place-website" data-place-website
-             target="_blank" rel="noopener noreferrer">공식 웹사이트</a>
-        </aside>
-      </div>
-    </section>
+
+          <div class="detail-state" data-detail-state aria-live="polite">
+            장소 정보를 불러오는 중입니다.
+          </div>
+
+          <article class="place-detail" data-detail-content hidden>
+            <div class="detail-hero" data-place-image-wrap>
+              <img data-place-image alt="" />
+              <span class="detail-image-label">PLACE DETAIL</span>
+            </div>
+
+            <header class="place-intro">
+              <div class="place-intro-meta">
+                <span class="category-badge" data-place-category></span>
+                <span class="rating-badge"><i aria-hidden="true">★</i><b data-place-rating></b></span>
+              </div>
+              <h1 data-place-name>장소 상세</h1>
+              <p class="place-location-summary" data-place-location></p>
+              <p class="place-description" data-place-description></p>
+            </header>
+
+            <div class="detail-content-grid">
+              <section class="location-panel" aria-labelledby="location-title">
+                <div class="section-title-row">
+                  <div>
+                    <span class="section-eyebrow">LOCATION</span>
+                    <h2 id="location-title">위치 정보</h2>
+                  </div>
+                </div>
+
+                <div class="address-box">
+                  <div>
+                    <span>장소 주소</span>
+                    <strong data-place-address>주소 정보가 없습니다.</strong>
+                  </div>
+                  <button type="button" class="utility-button" data-address-copy>장소 주소 복사</button>
+                </div>
+
+                <div class="place-map" data-place-map>
+                  <p data-map-message>지도를 불러오는 중입니다.</p>
+                </div>
+
+                <div class="map-actions">
+                  <a class="kakao-map-button" data-kakao-map target="_blank" rel="noopener noreferrer">
+                    카카오맵에서 보기
+                  </a>
+                  <a class="route-button" data-kakao-route target="_blank" rel="noopener noreferrer">
+                    길찾기
+                  </a>
+                </div>
+              </section>
+
+              <aside class="detail-side">
+                <section class="favorite-panel">
+                  <span class="section-eyebrow">SAVE PLACE</span>
+                  <h2>다음 여행에 담아두세요</h2>
+                  <p>찜한 장소는 여행 일정을 만들 때 편하게 불러올 수 있습니다.</p>
+                  <button type="button" class="favorite-button" data-favorite-toggle aria-pressed="false">
+                    <span class="favorite-heart" aria-hidden="true"></span>
+                    <strong>찜하기</strong>
+                  </button>
+                  <p class="favorite-status" data-favorite-status aria-live="polite"></p>
+                </section>
+
+                <section class="utility-panel" aria-label="장소 편의 기능">
+                  <button type="button" data-share-place>페이지 링크 공유</button>
+                </section>
+              </aside>
+            </div>
+
+            <section class="reviews-section" aria-labelledby="reviews-title">
+              <div class="reviews-heading">
+                <div>
+                  <span class="section-eyebrow">PLACE REVIEWS</span>
+                  <h2 id="reviews-title">방문자 후기</h2>
+                  <p>이 장소를 방문한 여행자들의 솔직한 경험을 확인해 보세요.</p>
+                </div>
+                <button type="button" class="review-write-button" data-review-open>후기 작성하기</button>
+              </div>
+
+              <div class="review-summary-card">
+                <div class="review-average">
+                  <strong data-review-average>0.0</strong>
+                  <div>
+                    <span class="review-stars" data-review-average-stars aria-label="평균 평점 0점">☆☆☆☆☆</span>
+                    <small><b data-review-count>0</b>개의 후기</small>
+                  </div>
+                </div>
+                <div class="rating-distribution" aria-label="평점 분포">
+                  <div data-rating-row="5"><span>5점</span><i><b></b></i><em>0</em></div>
+                  <div data-rating-row="4"><span>4점</span><i><b></b></i><em>0</em></div>
+                  <div data-rating-row="3"><span>3점</span><i><b></b></i><em>0</em></div>
+                  <div data-rating-row="2"><span>2점</span><i><b></b></i><em>0</em></div>
+                  <div data-rating-row="1"><span>1점</span><i><b></b></i><em>0</em></div>
+                </div>
+              </div>
+
+              <div class="review-state" data-review-state aria-live="polite">후기를 불러오는 중입니다.</div>
+              <div class="review-list" data-review-list hidden></div>
+              <button type="button" class="review-more-button" data-review-more hidden>후기 더 보기</button>
+            </section>
+          </article>
+
+          <div class="review-modal" data-review-modal hidden aria-hidden="true">
+            <button type="button" class="review-modal-backdrop" data-review-close aria-label="후기 작성 닫기"></button>
+            <section class="review-modal-panel" role="dialog" aria-modal="true" aria-labelledby="review-modal-title">
+              <button type="button" class="review-modal-close" data-review-close aria-label="닫기">×</button>
+              <span class="section-eyebrow">WRITE A REVIEW</span>
+              <h2 id="review-modal-title" data-review-modal-title>후기 작성하기</h2>
+              <p data-review-place-name></p>
+              <form data-review-form data-no-global-loading>
+                <fieldset class="review-rating-field">
+                  <legend>별점</legend>
+                  <div class="review-rating-buttons" data-review-rating role="radiogroup" aria-label="장소 별점">
+                    <button type="button" data-rating="1" role="radio" aria-checked="false" aria-label="1점">★</button>
+                    <button type="button" data-rating="2" role="radio" aria-checked="false" aria-label="2점">★</button>
+                    <button type="button" data-rating="3" role="radio" aria-checked="false" aria-label="3점">★</button>
+                    <button type="button" data-rating="4" role="radio" aria-checked="false" aria-label="4점">★</button>
+                    <button type="button" data-rating="5" role="radio" aria-checked="false" aria-label="5점">★</button>
+                  </div>
+                </fieldset>
+                <label class="review-content-field" for="place-review-content">
+                  <span>후기 내용</span>
+                  <textarea id="place-review-content" data-review-content maxlength="1000"
+                            placeholder="장소에서 좋았던 점과 여행 팁을 남겨주세요." required></textarea>
+                  <small><b data-review-length>0</b> / 1000</small>
+                </label>
+                <p class="review-form-error" data-review-error aria-live="polite"></p>
+                <div class="review-form-actions">
+                  <button type="button" data-review-close>취소</button>
+                  <button type="submit" class="review-submit-button" data-review-submit>등록하기</button>
+                </div>
+              </form>
+            </section>
+          </div>
+        </section>
       </main>
       <div th:replace="~{fragments/modals :: modalRoots}"><div id="directory-root"></div><div id="modal-root"></div><div id="toast-root" aria-live="polite"></div></div>
       <div th:replace="~{fragments/footer :: footer}"></div>
     </div>
     <div th:replace="~{fragments/scripts :: appScripts}"></div>
+    <script
+      th:if="${kakaoJavascriptKey != null and !kakaoJavascriptKey.isBlank()}"
+      th:src="|https://dapi.kakao.com/v2/maps/sdk.js?appkey=${kakaoJavascriptKey}&amp;autoload=false|"
+    ></script>
     <script th:src="@{/js/pages/guide/place-detail.js}" src="../../static/js/pages/guide/place-detail.js"></script>
+    <script th:src="@{/js/pages/guide/place-reviews.js}" src="../../static/js/pages/guide/place-reviews.js"></script>
   </body>
 </html>

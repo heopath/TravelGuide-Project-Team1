@@ -425,12 +425,314 @@ body.page-mypage main#page-content > .page-shell {
 
 .page-mypage .mypage-trips-view,
 .page-mypage .mypage-favorites-view,
+.page-mypage .mypage-reviews-view,
+.page-mypage .mypage-support-view,
 .page-mypage .mypage-settings-view {
   width: 100%;
   min-height: 690px;
   padding: 28px;
   box-sizing: border-box;
   scroll-margin-top: 100px;
+}
+
+/* =========================================================
+   SUPPORT CENTER
+   ========================================================= */
+
+.page-mypage .support-tabs {
+  display: flex;
+  gap: 8px;
+  margin-top: 22px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #e8ecf3;
+}
+
+.page-mypage .support-tabs button,
+.page-mypage .support-faq-categories button {
+  min-height: 38px;
+  padding: 0 15px;
+  border: 1px solid #dce2ec;
+  border-radius: 10px;
+  color: #536078;
+  background: #ffffff;
+  font-size: 12px;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.page-mypage .support-tabs button.is-current,
+.page-mypage .support-faq-categories button.is-current {
+  border-color: #5365ff;
+  color: #ffffff;
+  background: #5365ff;
+}
+
+.page-mypage .support-panel {
+  margin-top: 22px;
+}
+
+.page-mypage .support-intro {
+  padding: 30px;
+  border-radius: 18px;
+  background: linear-gradient(135deg, #f0f3ff 0%, #f8f5ff 100%);
+  text-align: center;
+}
+
+.page-mypage .support-intro > span {
+  color: #6574dc;
+  font-size: 10px;
+  font-weight: 850;
+  letter-spacing: 1.5px;
+}
+
+.page-mypage .support-intro h3,
+.page-mypage .support-section-title h3 {
+  margin: 8px 0 0;
+  color: #101828;
+  font-size: 21px;
+  font-weight: 850;
+}
+
+.page-mypage .support-intro p,
+.page-mypage .support-section-title p {
+  margin: 7px 0 0;
+  color: #667085;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.page-mypage .support-search {
+  display: block;
+  width: min(560px, 100%);
+  margin: 20px auto 0;
+}
+
+.page-mypage .support-search input {
+  width: 100%;
+  height: 46px;
+  padding: 0 16px;
+  border: 1px solid #d6dced;
+  border-radius: 12px;
+  color: #101828;
+  background: #ffffff;
+  font-size: 13px;
+  box-sizing: border-box;
+}
+
+.page-mypage .support-search input:focus,
+.page-mypage .support-form input:focus,
+.page-mypage .support-form select:focus,
+.page-mypage .support-form textarea:focus {
+  border-color: #5365ff;
+  outline: 3px solid rgb(83 101 255 / 10%);
+}
+
+.page-mypage .support-faq-categories {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 20px;
+}
+
+.page-mypage .support-faq-list {
+  margin-top: 14px;
+  border-top: 1px solid #e8ecf3;
+}
+
+.page-mypage .support-faq-item {
+  border-bottom: 1px solid #e8ecf3;
+}
+
+.page-mypage .support-faq-item > button {
+  display: flex;
+  width: 100%;
+  min-height: 58px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 0 4px;
+  border: 0;
+  color: #202a44;
+  background: transparent;
+  font-size: 13px;
+  font-weight: 750;
+  text-align: left;
+  cursor: pointer;
+}
+
+.page-mypage .support-faq-item > button i {
+  color: #6574dc;
+  font-size: 18px;
+  font-style: normal;
+}
+
+.page-mypage .support-faq-item > p {
+  margin: 0 0 18px;
+  padding: 15px 18px;
+  border-radius: 10px;
+  color: #536078;
+  background: #f7f8fb;
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+.page-mypage .support-section-title-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.page-mypage .support-form {
+  display: grid;
+  gap: 18px;
+  max-width: 720px;
+  margin-top: 24px;
+}
+
+.page-mypage .support-form label {
+  display: grid;
+  gap: 8px;
+}
+
+.page-mypage .support-form label > span {
+  color: #344054;
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.page-mypage .support-form input,
+.page-mypage .support-form select,
+.page-mypage .support-form textarea {
+  width: 100%;
+  border: 1px solid #d7deea;
+  border-radius: 11px;
+  color: #101828;
+  background: #ffffff;
+  font: inherit;
+  font-size: 13px;
+  box-sizing: border-box;
+}
+
+.page-mypage .support-form input,
+.page-mypage .support-form select {
+  height: 44px;
+  padding: 0 13px;
+}
+
+.page-mypage .support-form textarea {
+  min-height: 190px;
+  padding: 13px;
+  line-height: 1.7;
+  resize: vertical;
+}
+
+.page-mypage .support-form small {
+  justify-self: end;
+  color: #98a2b3;
+  font-size: 10px;
+}
+
+.page-mypage .support-form-message {
+  min-height: 18px;
+  margin: 0;
+  color: #d92d20;
+  font-size: 12px;
+}
+
+.page-mypage .support-submit {
+  width: fit-content;
+  min-width: 130px;
+  height: 42px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: 10px;
+  color: #ffffff;
+  background: #5365ff;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.page-mypage .support-submit:disabled {
+  opacity: 0.55;
+  cursor: wait;
+}
+
+.page-mypage .support-inquiry-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 22px;
+}
+
+.page-mypage .support-inquiry-item {
+  display: grid;
+  width: 100%;
+  gap: 8px;
+  padding: 17px 18px;
+  border: 1px solid #e0e5ee;
+  border-radius: 13px;
+  color: inherit;
+  background: #ffffff;
+  text-align: left;
+  cursor: pointer;
+}
+
+.page-mypage .support-inquiry-item:hover {
+  border-color: #bfc8ff;
+  background: #fbfbff;
+}
+
+.page-mypage .support-inquiry-item > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.page-mypage .support-inquiry-item span,
+.page-mypage .support-inquiry-item em {
+  font-size: 10px;
+  font-style: normal;
+  font-weight: 800;
+}
+
+.page-mypage .support-inquiry-item span { color: #6574dc; }
+.page-mypage .support-inquiry-item em { padding: 4px 8px; border-radius: 999px; color: #7a5d00; background: #fff5d6; }
+.page-mypage .support-inquiry-item em.status-answered { color: #277454; background: #e9f7f0; }
+.page-mypage .support-inquiry-item em.status-closed { color: #667085; background: #f0f2f5; }
+.page-mypage .support-inquiry-item strong { color: #202a44; font-size: 14px; }
+.page-mypage .support-inquiry-item small { color: #98a2b3; font-size: 11px; }
+
+.page-mypage .support-detail {
+  position: fixed;
+  z-index: 1300;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+}
+
+.page-mypage .support-detail[hidden] { display: none; }
+.page-mypage .support-detail-backdrop { position: absolute; inset: 0; border: 0; background: rgb(15 23 42 / 55%); }
+.page-mypage .support-detail-panel { position: relative; width: min(620px, 100%); max-height: min(760px, calc(100vh - 48px)); overflow: auto; padding: 28px; border-radius: 18px; background: #ffffff; box-sizing: border-box; }
+.page-mypage .support-detail-close { position: absolute; top: 14px; right: 14px; width: 34px; height: 34px; border: 0; border-radius: 50%; color: #667085; background: #f2f4f7; font-size: 21px; cursor: pointer; }
+.page-mypage .support-detail-heading > span { color: #5365ff; font-size: 11px; font-weight: 800; }
+.page-mypage .support-detail-heading h3 { margin: 8px 40px 5px 0; color: #101828; font-size: 20px; }
+.page-mypage .support-detail-heading small { color: #98a2b3; font-size: 11px; }
+.page-mypage .support-detail-question { margin: 22px 0 0; padding: 18px; border-radius: 12px; color: #475467; background: #f7f8fb; font-size: 13px; line-height: 1.75; white-space: pre-wrap; }
+.page-mypage .support-detail-replies { margin-top: 22px; padding-top: 20px; border-top: 1px solid #e7ebf2; }
+.page-mypage .support-detail-replies h4 { margin: 0 0 12px; color: #26334b; font-size: 14px; }
+.page-mypage .support-detail-replies article { margin-top: 10px; padding: 14px 16px; border-radius: 12px; background: #f4f6fc; }
+.page-mypage .support-detail-replies article small { color: #6f7a8f; }
+.page-mypage .support-detail-replies article p { margin: 8px 0 0; color: #384359; line-height: 1.65; white-space: pre-wrap; }
+.page-mypage .support-detail-waiting { margin: 0; padding: 14px 16px; border-radius: 12px; background: #f7f8fb; color: #7b8495; font-size: 13px; line-height: 1.55; }
+@media (max-width: 760px) {
+  .page-mypage .support-tabs { overflow-x: auto; }
+  .page-mypage .support-tabs button { flex: none; }
+  .page-mypage .support-intro { padding: 24px 18px; }
+  .page-mypage .support-detail { padding: 12px; }
+  .page-mypage .support-detail-panel { max-height: calc(100vh - 24px); padding: 22px 18px; }
 }
 
 .page-mypage .mypage-view-head {
@@ -1567,4 +1869,191 @@ body.page-mypage main#page-content > .page-shell {
   border: 0;
   clip: rect(0 0 0 0);
   white-space: nowrap;
+}
+
+/* =========================================================
+   MY PLACE REVIEWS
+   ========================================================= */
+
+.page-mypage .mypage-review-list {
+  display: grid;
+  gap: 14px;
+  margin-top: 24px;
+}
+
+.page-mypage .mypage-review-card {
+  display: grid;
+  grid-template-columns: 168px minmax(0, 1fr);
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid #e0e5ee;
+  border-radius: 16px;
+  background: #ffffff;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.page-mypage .mypage-review-card:hover {
+  border-color: #c8cffb;
+  box-shadow: 0 10px 24px rgb(65 85 160 / 7%);
+}
+
+.page-mypage .mypage-review-image {
+  min-height: 168px;
+  overflow: hidden;
+  background: #eef1f7;
+}
+
+.page-mypage .mypage-review-image img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.page-mypage .mypage-review-image span {
+  display: grid;
+  width: 100%;
+  height: 100%;
+  min-height: 168px;
+  place-items: center;
+  color: #7a8499;
+  font-size: 13px;
+  font-weight: 750;
+}
+
+.page-mypage .mypage-review-body {
+  min-width: 0;
+  padding: 20px 22px;
+}
+
+.page-mypage .mypage-review-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.page-mypage .mypage-review-category {
+  color: #6574dc;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.page-mypage .mypage-review-head h3 {
+  margin: 5px 0 0;
+  color: #101828;
+  font-size: 17px;
+  font-weight: 800;
+}
+
+.page-mypage .mypage-review-head time {
+  flex: none;
+  color: #98a2b3;
+  font-size: 12px;
+}
+
+.page-mypage .mypage-review-meta {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-top: 11px;
+}
+
+.page-mypage .mypage-review-stars {
+  color: #f2a71b;
+  font-size: 15px;
+  letter-spacing: 1px;
+}
+
+.page-mypage .mypage-review-verified {
+  padding: 4px 8px;
+  border-radius: 999px;
+  color: #2f6d55;
+  background: #eaf7f1;
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.page-mypage .mypage-review-content {
+  display: -webkit-box;
+  overflow: hidden;
+  margin: 13px 0 0;
+  color: #475467;
+  font-size: 13px;
+  line-height: 1.7;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.page-mypage .mypage-review-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 14px;
+}
+
+.page-mypage .mypage-review-foot > span {
+  overflow: hidden;
+  color: #98a2b3;
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.page-mypage .mypage-review-foot a {
+  flex: none;
+  color: #5365ff;
+  font-size: 12px;
+  font-weight: 750;
+  text-decoration: none;
+}
+
+.page-mypage .mypage-review-empty {
+  display: flex;
+  min-height: 360px;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  text-align: center;
+}
+
+.page-mypage .mypage-review-empty strong {
+  color: #202a44;
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.page-mypage .mypage-review-empty p {
+  margin: 9px 0 18px;
+  color: #7a8499;
+  font-size: 13px;
+}
+
+.page-mypage .mypage-review-empty a {
+  padding: 11px 16px;
+  border-radius: 10px;
+  color: #ffffff;
+  background: #5365ff;
+  font-size: 12px;
+  font-weight: 750;
+  text-decoration: none;
+}
+
+@media (max-width: 760px) {
+  .page-mypage .mypage-review-card {
+    grid-template-columns: 1fr;
+  }
+
+  .page-mypage .mypage-review-image,
+  .page-mypage .mypage-review-image span {
+    min-height: 190px;
+  }
+
+  .page-mypage .mypage-review-head,
+  .page-mypage .mypage-review-foot {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 8px;
+  }
 }

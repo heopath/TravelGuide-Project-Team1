@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.example.all_my_trip_project.domain.support.mapper.SupportMapper">
+    <sql id="inquiryColumns">
+        si.support_inquiry_id, si.user_id, u.nickname AS user_nickname,
+        u.email AS user_email, si.category, si.title, si.content, si.status,
+        si.created_at, si.updated_at
+    </sql>
+
+    <insert id="insertInquiry" useGeneratedKeys="true" keyProperty="supportInquiryId">
+        INSERT INTO support_inquiries (user_id, category, title, content, status)
+        VALUES (#{userId}, #{category}, #{title}, #{content}, 'OPEN')
+    </insert>
+
+    <select id="findInquiry" resultType="org.example.all_my_trip_project.domain.support.dto.SupportInquiryDTO">
+        SELECT <include refid="inquiryColumns"/>
+        FROM support_inquiries si
+        JOIN users u ON u.user_id = si.user_id
+        WHERE si.support_inquiry_id = #{inquiryId}
+    </select>
+
+    <select id="findMyPage" resultType="org.example.all_my_trip_project.domain.support.dto.SupportInquiryDTO">
+        SELECT <include refid="inquiryColumns"/>
+        FROM support_inquiries si
+        JOIN users u ON u.user_id = si.user_id
+        WHERE si.user_id = #{userId}
+        ORDER BY si.updated_at DESC, si.support_inquiry_id DESC
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+    <select id="countMine" resultType="long">
+        SELECT COUNT(*) FROM support_inquiries WHERE user_id = #{userId}
+    </select>
+
+    <select id="findReplies" resultType="org.example.all_my_trip_project.domain.support.dto.SupportReplyDTO">
+        SELECT sr.support_reply_id, sr.support_inquiry_id, sr.admin_user_id,
+               u.nickname AS admin_nickname, sr.content, sr.created_at
+        FROM support_replies sr
+        LEFT JOIN users u ON u.user_id = sr.admin_user_id
+        WHERE sr.support_inquiry_id = #{inquiryId}
+        ORDER BY sr.created_at, sr.support_reply_id
+    </select>
+
+</mapper>

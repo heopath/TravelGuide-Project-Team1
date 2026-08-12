@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.example.all_my_trip_project.domain.support.mapper.AdminSupportMapper">
+    <sql id="inquiryColumns">
+        si.support_inquiry_id, si.user_id, u.nickname AS user_nickname,
+        u.email AS user_email, si.category, si.title, si.content, si.status,
+        si.created_at, si.updated_at
+    </sql>
+
+    <select id="findPage" resultType="org.example.all_my_trip_project.domain.support.dto.SupportInquiryDTO">
+        SELECT <include refid="inquiryColumns"/>
+        FROM support_inquiries si
+        JOIN users u ON u.user_id = si.user_id
+        <if test="status != null and status != ''">
+            WHERE si.status = #{status}
+        </if>
+        ORDER BY
+            CASE si.status WHEN 'OPEN' THEN 0 WHEN 'IN_PROGRESS' THEN 1 WHEN 'ANSWERED' THEN 2 ELSE 3 END,
+            si.updated_at DESC, si.support_inquiry_id DESC
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+    <select id="count" resultType="long">
+        SELECT COUNT(*) FROM support_inquiries
+        <if test="status != null and status != ''">
+            WHERE status = #{status}
+        </if>
+    </select>
+
+    <select id="findInquiry" resultType="org.example.all_my_trip_project.domain.support.dto.SupportInquiryDTO">
+        SELECT <include refid="inquiryColumns"/>
+        FROM support_inquiries si
+        JOIN users u ON u.user_id = si.user_id
+        WHERE si.support_inquiry_id = #{inquiryId}
+    </select>
+
+    <select id="findReplies" resultType="org.example.all_my_trip_project.domain.support.dto.SupportReplyDTO">
+        SELECT sr.support_reply_id, sr.support_inquiry_id, sr.admin_user_id,
+               u.nickname AS admin_nickname, sr.content, sr.created_at
+        FROM support_replies sr
+        LEFT JOIN users u ON u.user_id = sr.admin_user_id
+        WHERE sr.support_inquiry_id = #{inquiryId}
+        ORDER BY sr.created_at, sr.support_reply_id
+    </select>
+
+    <insert id="insertReply" useGeneratedKeys="true" keyProperty="supportReplyId">
+        INSERT INTO support_replies (support_inquiry_id, admin_user_id, content)
+        VALUES (#{supportInquiryId}, #{adminUserId}, #{content})
+    </insert>
+
+    <update id="updateStatus">
+        UPDATE support_inquiries
+        SET status = #{status}
+        WHERE support_inquiry_id = #{inquiryId}
+    </update>
+</mapper>

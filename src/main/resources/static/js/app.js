@@ -18,19 +18,66 @@
       }).then(function (response) {
         if (!response.ok) throw new Error("CSRF 토큰을 발급받지 못했습니다.");
         return response.json();
-      }).then(function (payload) { return payload.token; });
+      }).then(function (payload) { return payload.token; })
+        .catch(function (error) {
+          // 토큰 발급 자체가 실패한 거부 프로미스를 캐시하면 새로고침 전까지
+          // 이후 모든 쓰기 요청이 같은 거부 프로미스를 받아 계속 막힌다.
+          // 캐시를 비워 다음 요청이 다시 시도할 수 있게 한다.
+          csrfTokenPromise = undefined;
+          throw error;
+        });
     }
     return csrfTokenPromise;
   }
 
-  window.fetch = async function csrfAwareFetch(input, options) {
-    if (!isUnsafeSameOriginRequest(input, options)) return nativeFetch(input, options);
+  async function sendWithToken(input, options) {
     const token = await csrfToken();
     const requestOptions = { ...(options || {}) };
     requestOptions.credentials = requestOptions.credentials || "same-origin";
-    requestOptions.headers = new Headers(requestOptions.headers || {});
+    // input이 Request면 그 안에 담긴 헤더(Content-Type 등)가 기본값이 되어야 한다.
+    // options.headers가 없다고 해서 비워버리면 Request에 실려 있던 헤더가 사라진다.
+    requestOptions.headers = new Headers(input instanceof Request ? input.headers : undefined);
+    if (options && options.headers) {
+      new Headers(options.headers).forEach(function (value, key) {
+        requestOptions.headers.set(key, value);
+      });
+    }
     requestOptions.headers.set("X-CSRF-TOKEN", token);
     return nativeFetch(input, requestOptions);
+  }
+
+  window.fetch = async function csrfAwareFetch(input, options) {
+    if (!isUnsafeSameOriginRequest(input, options)) return nativeFetch(input, options);
+
+    // input이 Request면 첫 전송에서 body가 소모된다. 재시도가 필요할 경우를 대비해
+    // 아직 아무것도 읽지 않은 지금 시점에 clone을 떠서 재시도 전용으로 남겨둔다.
+    const retryInput = input instanceof Request ? input.clone() : input;
+
+    const response = await sendWithToken(input, options);
+    if (response.status !== 403) return response;
+
+    // 403은 CSRF 토큰 실패(ACCESS_DENIED)와 권한 부족(FORBIDDEN 등)을 모두 포함한다.
+    // 둘을 구분하려면 응답 본문의 code를 봐야 하는데, Response.body는 한 번 읽으면
+    // 소모되므로 clone()으로 읽어 재시도하지 않을 때 호출자에게 넘길 원본은 그대로 둔다.
+    let code;
+    try {
+      code = (await response.clone().json())?.code;
+    } catch (error) {
+      code = undefined;
+    }
+    if (code !== "ACCESS_DENIED") return response;
+
+    // 토큰이 어긋난 것으로 보고 캐시를 버리고 새로 받은 토큰으로 딱 한 번만 재시도한다.
+    // 재시도 후에도 403이면 그대로 호출자에게 넘겨 무한 재시도를 막는다(서버가 계속
+    // 거부하는 경우 대비). ACCESS_DENIED가 앞으로도 CSRF 전용이라는 보장은 없어서
+    // (권한 규칙이 늘면 그쪽도 ACCESS_DENIED일 수 있음) 이 1회 제한이 안전망 역할도 한다.
+    //
+    // 주의: options.body가 문자열(JSON.stringify 등)이면 재전송해도 안전하지만,
+    // FormData나 스트림이면 두 번째 요청에서 바디가 비어버릴 수 있다. 지금은 모든
+    // 쓰기 요청이 JSON 문자열 바디라 문제없지만, 파일 업로드처럼 스트림 바디를 쓰게
+    // 되면 재시도 전에 바디를 미리 복제해두는 처리가 필요하다.
+    csrfTokenPromise = undefined;
+    return sendWithToken(retryInput, options);
   };
 })();
 
@@ -61,7 +108,7 @@ const ALL_MY_TRIPS_TEMPLATE_ROUTES = {
   "/trips/new/style": "trips/style",
   "/guide": "guide/guide",
   "/guide/places/haeundae": "guide/place-detail",
-  "/trips/busan/schedule": "trips/schedule",
+  "/trips/schedule": "trips/schedule",
   "/trips/busan/map": "trips/map",
   "/ai-trip-plan": "guide/ai-trip-plan",
   "/ai-guide": "guide/ai-guide",
@@ -73,14 +120,17 @@ const ALL_MY_TRIPS_TEMPLATE_ROUTES = {
   "/booking/flights": "booking/flights",
   "/booking/queue": "booking/queue",
   "/mypage": "mypage/mypage",
-  "/trips/busan/record": "trips/record",
-  "/admin": "admin/admin"
+  "/trips/1/record": "trips/record",
+  "/admin": "admin/admin",
+  "/admin/places": "admin/places"
 };
 
 function navigateTo(route) {
   let destination = route || "/home";
   if (window.location.protocol === "file:") {
-    const template = ALL_MY_TRIPS_TEMPLATE_ROUTES[route || "/home"];
+    /* 탭·패널은 ?tab= / ?panel= 로 구분한다. 템플릿 맵은 경로만 들고 있으므로 쿼리를 뗀다.
+       정적 파일로 열 때는 탭이 미리 선택되지 않는다. 파일에는 서버가 없어 어쩔 수 없다. */
+    const template = ALL_MY_TRIPS_TEMPLATE_ROUTES[(route || "/home").split("?")[0]];
     if (template) {
       destination = new URL("../" + template + ".html", window.location.href).href;
     }
@@ -134,6 +184,14 @@ document.addEventListener("submit", function (event) {
 });
 
 
+/*
+ * 전체 화면 목록. 각 항목은 [경로, 이름, 그룹] 세 칸이다.
+ *
+ * 경로는 실제로 열리는 주소여야 한다. 예전에는 여행 관련 화면이 전부 `/trips/busan/...`
+ * 이었는데, map·optimize는 컨트롤러가 slug(String)를 받아 열리지만
+ * schedule·record는 tripId(Long)를 받아 400이 났다. 목록에서 눌러 확인할 수 없는
+ * 화면이 두 개 있었던 셈이다.
+ */
 const ALL_MY_TRIPS_SCREENS = [
   [
     "/home",
@@ -176,7 +234,8 @@ const ALL_MY_TRIPS_SCREENS = [
     "guide"
   ],
   [
-    "/trips/busan/schedule",
+    /* tripId 없이 여는 진입점. schedule.js가 사용자의 여행 목록에서 첫 번째를 잡는다. */
+    "/trips/schedule",
     "여행 일정 편집",
     "trips"
   ],
@@ -205,9 +264,31 @@ const ALL_MY_TRIPS_SCREENS = [
     "테마 여행",
     "guide"
   ],
+  /*
+   * 예약은 주소 하나에 탭 넷이다. 사용자가 보는 것이 탭마다 완전히 다르므로 각각 한 화면으로 센다.
+   * flights.js가 ?tab= 을 읽어 해당 탭을 열어준다(flight/hotel/ticket/mine).
+   *
+   * /booking 과 /booking/hotels 는 목록에서 뺐다. 둘 다 여기로 오는 리다이렉트라
+   * 남겨두면 같은 화면이 세 번 등장한다. 이미 공유된 주소가 있어 라우트 자체는 남긴다.
+   */
   [
-    "/booking",
-    "예약 허브",
+    "/booking/flights?tab=flight",
+    "예약 · 항공편 검색",
+    "booking"
+  ],
+  [
+    "/booking/flights?tab=hotel",
+    "예약 · 숙소 검색",
+    "booking"
+  ],
+  [
+    "/booking/flights?tab=ticket",
+    "예약 · 티켓·액티비티",
+    "booking"
+  ],
+  [
+    "/booking/flights?tab=mine",
+    "예약 · 내 예약",
     "booking"
   ],
   [
@@ -216,33 +297,103 @@ const ALL_MY_TRIPS_SCREENS = [
     "booking"
   ],
   [
-    "/booking/hotels",
-    "숙소 검색",
-    "booking"
-  ],
-  [
-    "/booking/flights",
-    "항공편 검색",
-    "booking"
-  ],
-  [
     "/booking/queue",
     "예약 대기열",
     "booking"
   ],
+  /*
+   * 마이페이지도 주소 하나에 사이드바로 고르는 패널이다. 예약·관리자와 같은 이유로 각각 센다.
+   * mypage.js가 ?view= 를 읽는다(trips/favorites/reviews/support/settings, 없으면 대시보드).
+   *
+   * `예약 내역`과 `알림`은 사이드바에서 disabled라 열 수 없다. 목록에도 넣지 않는다.
+   */
   [
     "/mypage",
     "마이 페이지",
     "mypage"
   ],
   [
-    "/trips/busan/record",
+    "/mypage?view=trips",
+    "마이페이지 · 내 여행",
+    "mypage"
+  ],
+  [
+    "/mypage?view=favorites",
+    "마이페이지 · 찜한 여행지",
+    "mypage"
+  ],
+  [
+    "/mypage?view=reviews",
+    "마이페이지 · 리뷰 & 후기",
+    "mypage"
+  ],
+  [
+    "/mypage?view=support",
+    "마이페이지 · 고객센터 문의",
+    "mypage"
+  ],
+  [
+    "/mypage?view=settings",
+    "마이페이지 · 계정 설정",
+    "mypage"
+  ],
+  [
+    /*
+     * 기록 화면은 schedule과 달리 tripId 없이 여는 경로가 없고, record.js도
+     * 여행 목록에서 대신 골라주지 않는다(없으면 "잘못된 여행 정보입니다"를 띄운다).
+     * 그래서 실제 번호로 둔다. 여행이 하나도 없는 환경에서는 안내 문구가 보인다.
+     */
+    "/trips/1/record",
     "여행 기록",
     "trips"
   ],
+  /*
+   * 관리자도 주소 하나에 사이드바로 고르는 패널 일곱이다. 예약과 같은 이유로 각각 센다.
+   * admin.js가 ?panel= 을 읽는다. 없으면 신고 관리가 열린다.
+   */
   [
-    "/admin",
-    "관리자 대시보드",
+    "/admin?panel=reports",
+    "관리자 · 신고 관리",
+    "admin"
+  ],
+  [
+    "/admin/places",
+    "관리자 · 추천 장소 관리",
+    "admin"
+  ],
+  [
+    "/admin?panel=metrics",
+    "관리자 · 운영 지표",
+    "admin"
+  ],
+  [
+    "/admin?panel=products",
+    "관리자 · 예약 상품·재고",
+    "admin"
+  ],
+  [
+    "/admin?panel=theme",
+    "관리자 · 테마 여행 등록",
+    "admin"
+  ],
+  [
+    "/admin?panel=reservations",
+    "관리자 · 예약 모니터링",
+    "admin"
+  ],
+  [
+    "/admin?panel=performance",
+    "관리자 · 성능 모니터링",
+    "admin"
+  ],
+  [
+    "/admin?panel=chat",
+    "관리자 · 상담 채팅",
+    "admin"
+  ],
+  [
+    "/admin?panel=support",
+    "관리자 · 1:1 문의 관리",
     "admin"
   ]
 ];

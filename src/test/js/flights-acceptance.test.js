@@ -60,13 +60,19 @@ function offer(offerId, carrierCode, carrierName, flightNumber, dep, arr, perAdu
 }
 
 const PAX = 2;
-const HOTEL = 290000;
-const ACTIVITY = 56000;
 const won = (n) => Math.round(n).toLocaleString("ko-KR") + "원";
 
-async function boot() {
+/**
+ * @param options.query 주소 뒤에 붙일 쿼리스트링. `?tripId=`를 붙이면 저장 경로가 켜진다.
+ * @param options.trip  { days, items } 여행 일정 응답. 없으면 일정 API는 빈 응답을 준다.
+ */
+async function boot(options = {}) {
+  const trip = options.trip || null;
+  let summary = options.summary || null;
+  const urls = [];
+  const calls = [];
   const dom = new JSDOM(fs.readFileSync(HTML, "utf8"), {
-    url: "http://localhost/booking/flights",
+    url: "http://localhost/booking/flights" + (options.query || ""),
     runScripts: "outside-only"
   });
   const w = dom.window;
@@ -76,7 +82,10 @@ async function boot() {
   Object.defineProperty(d, "visibilityState", { value: "visible", configurable: true });
 
   w.open = () => null;
-  w.fetch = async (url) => {
+  w.confirm = () => true;
+  w.fetch = async (url, request = {}) => {
+    urls.push(url);
+    calls.push(`${request.method || "GET"} ${url}`);
     if (url.startsWith("/api/v1/csrf")) {
       return json({ headerName: "X-CSRF-TOKEN", token: "test-token" });
     }
@@ -84,6 +93,26 @@ async function boot() {
       // 오는 편은 출발지와 도착지가 뒤집혀 조회된다.
       const inbound = url.includes("destination=GMP");
       return json({ success: true, data: { offers: inbound ? OFFERS.inbound : OFFERS.outbound, meta: META } });
+    }
+    if (/^\/api\/v1\/trips\/\d+\/booking-summary$/.test(url) && summary) {
+      return json({ success: true, data: summary });
+    }
+    if (/^\/api\/v1\/ticket-reservations\/\d+$/.test(url) && request.method === "DELETE") {
+      const id = url.split("/").pop();
+      summary = {
+        ...summary,
+        items: summary.items.map((item) => String(item.referenceId) === id
+          ? { ...item, status: "CANCELLED", statusLabel: "취소됨", includedInEstimate: false }
+          : item)
+      };
+      return json({ success: true, data: { reservationId: Number(id), status: "CANCELLED" } });
+    }
+    if (trip) {
+      if (/^\/api\/v1\/trips\/\d+\/days$/.test(url)) {
+        return json({ success: true, data: trip.days });
+      }
+      const items = /^\/api\/v1\/trip-days\/(\d+)\/items$/.exec(url);
+      if (items) return json({ success: true, data: trip.items[items[1]] || [] });
     }
     return json({ success: true, data: null });
   };
@@ -101,7 +130,7 @@ async function boot() {
   }
   await until(() => d.body.dataset.pageReady === "true");
 
-  return { w, d, staticTotal, api: w.__flightBooking };
+  return { w, d, staticTotal, api: w.__flightBooking, urls, calls };
 }
 
 function json(body) {
@@ -159,8 +188,8 @@ async function run() {
       !$("srcnote").hidden && $("srcnote").textContent.includes("공시운임 기준"));
 
     /* ────────── 계산 ────────── */
-    const initial = 89000 * PAX + 94000 * PAX + HOTEL + ACTIVITY;
-    T("초기 예상 총액 = 구간0 추천가 + 구간1 추천가 + 숙소 + 티켓",
+    const initial = 89000 * PAX + 94000 * PAX;
+    T("초기 예상 총액 = 구간0 추천가 + 구간1 추천가 (숙소·티켓 미선택)",
       $("cTot").textContent === won(initial));
     T("1인 금액 = 총액 / 인원 (반올림)",
       $("cPer").textContent === "1인 " + won(Math.round(initial / PAX)));
@@ -170,7 +199,7 @@ async function run() {
     // 다른 항공편 선택 시 총액 즉시 반영 (7C101 76,000원)
     w.__flightBooking.openOut("mock:7c101");
     T("다른 항공편 선택 시 총액이 즉시 반영된다",
-      $("cTot").textContent === won(76000 * PAX + 94000 * PAX + HOTEL + ACTIVITY));
+      $("cTot").textContent === won(76000 * PAX + 94000 * PAX));
 
     // 정렬을 바꿔도 선택이 유지되어야 한다 (offerId 기준)
     d.querySelectorAll(".sc")[1].click();
@@ -179,6 +208,69 @@ async function run() {
     T("정렬을 바꿔도 선택된 카드가 유지된다 (id 기준)",
       d.querySelector(".fl.sel")?.dataset.offer === "mock:7c101");
     d.querySelectorAll(".sc")[0].click();
+
+    w.dispatchEvent(new w.CustomEvent("allmytrips:ticket-reserved", { detail: { reservation: {
+      productName: "제주 아쿠아리움 입장권", totalAmount: 40000, status: "PENDING"
+    } } }));
+    T("티켓 모의 예약 금액이 예상 총액에 반영된다",
+      $("cTot").textContent === won(76000 * PAX + 94000 * PAX + 40000));
+    T("티켓 모의 예약이 진행률과 출처 안내에 반영된다",
+      $("dn").textContent === "1" && $("fill").style.width === "33%"
+        && $("costNote").textContent.includes("티켓 모의 예약가")
+        && $("rows").textContent.includes("실제 결제 아님"));
+
+    w.dispatchEvent(new w.CustomEvent("allmytrips:accommodation-selected", { detail: { offer: {
+      name: "제주 테스트 호텔", totalPrice: null, currency: "KRW",
+      priceSource: "UNAVAILABLE", nightsLabel: "2박"
+    } } }));
+    d.querySelector('[data-tab="mine"]').click();
+    T("내 예약 탭에 항공·숙소·티켓 세 종류를 함께 표시한다",
+      d.querySelectorAll("#mineList .mine-group").length === 3
+        && $("mineList").textContent.includes("제주 테스트 호텔")
+        && $("mineList").textContent.includes("제주 아쿠아리움 입장권"));
+    T("숙박 요금 미제공과 티켓 모의 예약을 실제 결제액처럼 표시하지 않는다",
+      $("mineList").textContent.includes("요금 미제공")
+        && $("mineList").textContent.includes("실제 결제 아님"));
+    d.querySelector('[data-mine-tab="hotel"]').click();
+    T("내 예약에서 숙소 확인 버튼을 누르면 숙소 탭으로 이동한다",
+      !$("panel-hotel").hidden && $("panel-mine").hidden);
+  }
+
+  /* ────────── 통합 내 예약 조회와 티켓 취소 ────────── */
+  {
+    const summary = {
+      items: [
+        { type: "ACCOMMODATION", referenceId: "20", title: "제주 호텔", detail: "2026-08-17 → 2026-08-19",
+          status: "SELECTED", statusLabel: "선택 완료", amount: null, currency: "KRW",
+          amountSource: "UNAVAILABLE", includedInEstimate: false, practice: false },
+        { type: "TICKET", referenceId: "30", title: "아쿠아리움", detail: "성인",
+          status: "PENDING", statusLabel: "모의 예약", amount: 40000, currency: "KRW",
+          amountSource: "INTERNAL_MOCK", includedInEstimate: true, practice: true,
+          usageDate: "2026-08-18", quantity: 2 }
+      ],
+      money: { estimatedTotal: 40000, practiceTotal: 40000, currency: "KRW", actualPaymentConfirmed: false },
+      progress: { done: 1, total: 3 },
+      errors: [{ section: "FLIGHT", message: "항공 예약 정보를 불러오지 못했습니다." }]
+    };
+    const { d, calls } = await boot({ query: "?tripId=10&tab=mine", summary });
+    await until(() => d.querySelector("[data-mine-ticket-cancel]"));
+
+    T("통합 조회 일부가 실패해도 숙소와 티켓은 표시한다",
+      d.getElementById("mineList").textContent.includes("항공 예약 정보를 불러오지 못했습니다")
+        && d.getElementById("mineList").textContent.includes("제주 호텔")
+        && d.getElementById("mineList").textContent.includes("아쿠아리움"));
+    T("통합 조회가 숙소 요금 미제공과 티켓 실습 금액을 구분한다",
+      d.getElementById("mineList").textContent.includes("요금 미제공")
+        && d.getElementById("mineList").textContent.includes("실제 결제 아님"));
+
+    d.querySelector("[data-mine-ticket-cancel]").click();
+    await until(() => calls.includes("DELETE /api/v1/ticket-reservations/30"));
+    await until(() => d.getElementById("mineList").textContent.includes("취소됨"));
+    T("내 예약에서 티켓 모의 예약 취소 API를 호출한다",
+      calls.includes("DELETE /api/v1/ticket-reservations/30"));
+    T("취소한 티켓은 취소됨으로 바뀌고 취소 버튼이 사라진다",
+      !d.querySelector("[data-mine-ticket-cancel]")
+        && d.getElementById("mineList").textContent.includes("취소됨"));
   }
 
   /* ────────── 플로우: 예약함 → 확정 → 왕복 완료 ────────── */
@@ -214,7 +306,7 @@ async function run() {
     $("refInput").value = "";
     await api.closeModal3();
 
-    const total = 89000 * PAX + 94000 * PAX + HOTEL + ACTIVITY;
+    const total = 89000 * PAX + 94000 * PAX;
     T("왕복 모두 표시 완료 시 총액이 유지된다", $("cTot").textContent === won(total));
     T("왕복 완료 시에만 진행 카운트 1", $("dn").textContent === "1");
     T("진행바 33%", $("fill").style.width === "33%");
@@ -247,7 +339,7 @@ async function run() {
     const { w, d } = await boot();
     const $ = (id) => d.getElementById(id);
     const api = w.__flightBooking;
-    const initial = won(89000 * PAX + 94000 * PAX + HOTEL + ACTIVITY);
+    const initial = won(89000 * PAX + 94000 * PAX);
 
     api.openOut("mock:7c101");
     await api.goOut();
@@ -263,6 +355,60 @@ async function run() {
     T("`나중에 확인할게요` → 선택은 유지된다", !!d.querySelector(".fl.sel"));
     T("`나중에 확인할게요` → 예약 표시는 되지 않는다", !$("list").innerHTML.includes("직접 표시"));
     T("`나중에 확인할게요` → 카운트 0", $("tabCount").textContent === "0");
+  }
+
+  /* ────────── 일정 연동 (#133) ────────── */
+  {
+    /* 1일차 활동은 일부러 시간순이 아니게 넣는다. sortOrder가 아니라 값으로 골라야 한다.
+       마지막날에는 종료 시각이 없는 항목을 섞어 그 항목이 최대값을 가리지 않는지 본다. */
+    const trip = {
+      days: [
+        { tripDayId: 41, dayNumber: 1, tripDate: "2026-08-15" },
+        { tripDayId: 42, dayNumber: 2, tripDate: "2026-08-16" },
+        { tripDayId: 43, dayNumber: 3, tripDate: "2026-08-17" }
+      ],
+      items: {
+        41: [
+          { startTime: "13:00:00", endTime: "14:30:00" },
+          { startTime: "09:30:00", endTime: "11:00:00" }
+        ],
+        43: [
+          { startTime: "10:00:00", endTime: "11:00:00" },
+          { startTime: "19:00:00", endTime: "20:45:00" },
+          { startTime: "21:00:00", endTime: null }
+        ]
+      }
+    };
+
+    const { urls } = await boot({ query: "?tripId=7", trip });
+    const searches = urls.filter((u) => u.startsWith("/api/v1/flights/search"));
+    const outbound = searches.find((u) => !u.includes("destination=GMP")) || "";
+    const inbound = searches.find((u) => u.includes("destination=GMP")) || "";
+
+    T("가는 편에 1일차 첫 활동 시작 시각이 실린다",
+      outbound.includes("firstPlanStartAt=2026-08-15T09%3A30%3A00"));
+    T("오는 편에 마지막날 마지막 활동 종료 시각이 실린다",
+      inbound.includes("lastPlanEndAt=2026-08-17T20%3A45%3A00"));
+    T("가는 편에는 마지막 일정 기준을 넘기지 않는다", !outbound.includes("lastPlanEndAt"));
+    T("오는 편에는 첫 일정 기준을 넘기지 않는다", !inbound.includes("firstPlanStartAt"));
+    T("중간 날짜의 일정은 읽지 않는다", !urls.includes("/api/v1/trip-days/42/items"));
+  }
+
+  /* ────────── 일정이 없을 때 ────────── */
+  {
+    // 1일차에 활동이 없으면 기준 삼을 것이 없다. 임의의 시각을 만들면 없는 충돌을 만든다.
+    const trip = { days: [{ tripDayId: 51, dayNumber: 1, tripDate: "2026-08-15" }], items: { 51: [] } };
+    const { urls } = await boot({ query: "?tripId=8", trip });
+    const searches = urls.filter((u) => u.startsWith("/api/v1/flights/search"));
+
+    T("활동이 없으면 기준 시각을 넘기지 않는다",
+      searches.length > 0 && searches.every((u) => !u.includes("PlanStartAt") && !u.includes("PlanEndAt")));
+  }
+
+  {
+    // tripId 없이 들어온 비교 전용 화면. 일정 API를 부르면 안 된다.
+    const { urls } = await boot();
+    T("tripId가 없으면 일정을 조회하지 않는다", !urls.some((u) => u.includes("/days") || u.includes("/items")));
   }
 
   console.log(`\n${passed} passed, ${failed} failed`);

@@ -56,10 +56,16 @@ public class ApiSecurityConfig {
 
                 .authorizeHttpRequests(authorize -> authorize
 
+                        .requestMatchers("/api/v1/admin/**")
+                        .hasRole("ADMIN")
+
                         .requestMatchers(
                                 "/api/v1/members/me",
                                 "/api/v1/members/me/**"
                         )
+                        .authenticated()
+
+                        .requestMatchers("/api/v1/support/**")
                         .authenticated()
 
                         .requestMatchers(
@@ -77,6 +83,24 @@ public class ApiSecurityConfig {
                         .requestMatchers(
                                 HttpMethod.POST,
                                 "/api/v1/places"
+                        )
+                        .hasRole("ADMIN")
+
+                        .requestMatchers(
+                                HttpMethod.POST,
+                                "/api/v1/places/*/reviews"
+                        )
+                        .authenticated()
+
+                        .requestMatchers(
+                                HttpMethod.PATCH,
+                                "/api/v1/place-reviews/*"
+                        )
+                        .authenticated()
+
+                        .requestMatchers(
+                                HttpMethod.DELETE,
+                                "/api/v1/place-reviews/*"
                         )
                         .authenticated()
 

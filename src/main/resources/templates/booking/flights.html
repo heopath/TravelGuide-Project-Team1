@@ -122,10 +122,76 @@
               </div>
 
               <div class="panel" id="panel-hotel" hidden>
-                <p class="empty">숙소 비교는 아직 준비 중이에요.</p>
+                <div class="hotel-head">
+                  <div>
+                    <span class="hotel-kicker" id="hotelListingSource">숙소 정보 출처 확인 중</span>
+                    <h2>여행지 숙소 찾기</h2>
+                    <p>숙소 정보부터 비교하고 선택해 두세요. 실시간 요금은 다음 단계에서 연결합니다.</p>
+                  </div>
+                  <span class="hotel-price-ready" id="hotelPriceMode">가격 정보 확인 중</span>
+                </div>
+
+                <!-- 복귀 감지를 놓친 이탈 건을 다시 물어보는 자리. 항공의 recall과 같은 역할이다. -->
+                <div class="recall" id="hotelRecall" hidden>
+                  <span class="ei" aria-hidden="true">?</span>
+                  <div id="hotelRecallText">이 숙소, 예약하셨나요?</div>
+                  <button type="button" class="rc-yes" id="hotelRecallYes">네, 예약했어요</button>
+                  <button type="button" class="rc-no" id="hotelRecallNo">아니요</button>
+                </div>
+
+                <form class="hotel-form" id="hotelSearchForm">
+                  <label class="hotel-field wide">
+                    <span>여행지</span>
+                    <input id="h-destination" name="destination" placeholder="예: 제주, 부산 해운대" autocomplete="off" required />
+                  </label>
+                  <label class="hotel-field">
+                    <span>체크인</span>
+                    <input id="h-checkin" name="checkIn" type="date" required />
+                  </label>
+                  <label class="hotel-field">
+                    <span>체크아웃</span>
+                    <input id="h-checkout" name="checkOut" type="date" required />
+                  </label>
+                  <label class="hotel-field compact">
+                    <span>성인</span>
+                    <input id="h-adults" name="adults" type="number" min="1" max="9" value="2" required />
+                  </label>
+                  <label class="hotel-field compact">
+                    <span>객실</span>
+                    <input id="h-rooms" name="rooms" type="number" min="1" max="9" value="1" required />
+                  </label>
+                  <button type="submit" class="hotel-go" id="hotelSearchButton">숙소 검색</button>
+                </form>
+
+                <div class="hotel-toolbar">
+                  <div class="hotel-sort" aria-label="숙소 정렬">
+                    <button type="button" class="hotel-sort-button on" data-hotel-sort="recommended">추천순</button>
+                    <button type="button" class="hotel-sort-button" data-hotel-sort="price">최저가순</button>
+                    <button type="button" class="hotel-sort-button" data-hotel-sort="name">이름순</button>
+                    <button type="button" class="hotel-sort-button" data-hotel-sort="type">숙소 유형순</button>
+                  </div>
+                  <span class="hotel-count" id="hotelCount">검색 전</span>
+                </div>
+
+                <div class="hotel-status" id="hotelStatus" role="status" aria-live="polite">
+                  숙소 탭을 열면 여행 일정에 맞춰 자동으로 검색합니다.
+                </div>
+                <div class="hotel-list" id="hotelList"></div>
+                <p class="srcnote" id="hotelSourceNote" hidden></p>
               </div>
               <div class="panel" id="panel-ticket" hidden>
-                <p class="empty">티켓·액티비티 비교는 아직 준비 중이에요.</p>
+                <div class="ticket-head">
+                  <div>
+                    <span class="ticket-kicker">내부 실습 상품</span>
+                    <h2>티켓·액티비티 찾기</h2>
+                    <p>여행 기간에 이용할 수 있는 상품의 옵션과 남은 수량을 확인하세요.</p>
+                  </div>
+                  <span class="ticket-practice">모의 예약 · 실제 결제 아님</span>
+                </div>
+                <div class="ticket-status" id="ticketStatus" role="status" aria-live="polite">
+                  티켓 탭을 열면 여행 일정에 맞춰 자동으로 조회합니다.
+                </div>
+                <div class="ticket-list" id="ticketList"></div>
               </div>
               <div class="panel" id="panel-mine" hidden>
                 <p class="mine-help">
@@ -249,6 +315,95 @@
         </div>
       </div>
 
+      <!-- 숙소 모달1: 외부 이동 안내 -->
+      <div class="ov" id="hv1" role="dialog" aria-modal="true" aria-labelledby="h1title">
+        <div class="md">
+          <div class="mh">
+            <div class="mi" aria-hidden="true">↗</div>
+            <h3 id="h1title">예약 사이트로 이동합니다</h3>
+            <p class="mp">
+              저희는 숙소를 판매하지 않아요. 결제는 <b>외부 예약 사이트</b>에서 진행돼요.<br />
+              완료 후 이 창으로 돌아오시면 일정에 반영해 드립니다.
+            </p>
+          </div>
+          <div class="mb">
+            <div class="r1">
+              <div class="lg2" id="h1tp">숙소</div>
+              <div>
+                <div class="n1" id="h1nm">-</div>
+                <div class="n2" id="h1dt">-</div>
+              </div>
+              <div class="pz"><b id="h1pr">-</b><div id="h1px">총액</div></div>
+            </div>
+          </div>
+          <div class="ma">
+            <button type="button" class="mbtn p" id="h1go">예약 사이트로 이동 ↗</button>
+            <button type="button" class="mbtn s" id="h1back">다시 볼게요</button>
+          </div>
+          <div class="mnote">새 탭에서 검색 결과가 열립니다 · 표시 요금과 최종 결제 금액이 다를 수 있어요</div>
+        </div>
+      </div>
+
+      <!-- 숙소 모달2: 복귀 확인 (자가 신고) -->
+      <div class="ov" id="hv2" role="dialog" aria-modal="true" aria-labelledby="h2title">
+        <div class="md">
+          <div class="mh">
+            <div class="mi q" aria-hidden="true">?</div>
+            <h3 id="h2title">예약을 완료하셨나요?</h3>
+            <p class="mp">
+              외부 사이트의 결제 결과는 저희가 확인할 수 없어요.<br />
+              알려주시면 <b>직접 표시한 예약</b>으로 일정에 반영해 드릴게요.
+            </p>
+          </div>
+          <div class="mb">
+            <div class="r1">
+              <div class="lg2" id="h2tp">숙소</div>
+              <div>
+                <div class="n1" id="h2nm">-</div>
+                <div class="n2" id="h2dt">-</div>
+              </div>
+              <div class="pz"><b id="h2pr">-</b><div id="h2px">총액</div></div>
+            </div>
+          </div>
+          <div class="ma">
+            <button type="button" class="mbtn p" id="h2yes">네, 예약했어요</button>
+            <button type="button" class="mbtn s" id="h2no">아니요, 다시 볼게요</button>
+            <button type="button" class="mbtn t" id="h2later">나중에 확인할게요</button>
+          </div>
+          <div class="mnote">예약번호를 입력하면 <b>확정</b>으로 바뀝니다 · 나중에 입력해도 돼요</div>
+        </div>
+      </div>
+
+      <!-- 숙소 모달3: 반영 완료 + 예약번호 입력 -->
+      <div class="ov" id="hv3" role="dialog" aria-modal="true" aria-labelledby="h3title">
+        <div class="md">
+          <div class="mh">
+            <div class="mi d" aria-hidden="true">✓</div>
+            <h3 id="h3title">일정에 반영했어요</h3>
+            <p class="mp">숙소를 <b>예약함 (직접 표시)</b>으로 기록했어요.</p>
+          </div>
+          <div class="mb">
+            <div class="r1">
+              <div class="lg2" id="h3tp">숙소</div>
+              <div>
+                <div class="n1" id="h3nm">-</div>
+                <div class="n2" id="h3st">예약함 · 직접 표시</div>
+              </div>
+              <div class="pz"><b id="h3pr">-</b><div id="h3px">총액</div></div>
+            </div>
+          </div>
+          <div class="refbox">
+            <label for="hotelRefInput">예약번호 (선택)</label>
+            <input id="hotelRefInput" placeholder="예: ABC123" maxlength="32" autocomplete="off" />
+            <div class="hint">입력하시면 <b>확정</b> 상태로 바뀌고, 체크인·변경 안내를 보내드릴 수 있어요.</div>
+          </div>
+          <div class="ma">
+            <button type="button" class="mbtn p" id="h3save">저장하고 닫기</button>
+            <button type="button" class="mbtn t" id="h3later">나중에</button>
+          </div>
+        </div>
+      </div>
+
       <div th:replace="~{fragments/modals :: modalRoots}">
         <div id="directory-root"></div>
         <div id="modal-root"></div>
@@ -259,5 +414,7 @@
 
     <div th:replace="~{fragments/scripts :: appScripts}"></div>
     <script th:src="@{/js/pages/booking/flights.js}" src="../../static/js/pages/booking/flights.js"></script>
+    <script th:src="@{/js/pages/booking/accommodations.js}" src="../../static/js/pages/booking/accommodations.js"></script>
+    <script th:src="@{/js/pages/booking/tickets.js}" src="../../static/js/pages/booking/tickets.js"></script>
   </body>
 </html>

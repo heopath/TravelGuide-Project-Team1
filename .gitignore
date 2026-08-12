@@ -3,6 +3,12 @@ HELP.md
 .gradle-user-home/
 .gradle-ai03/
 build/
+
+# 로컬 전용 설정. Spring Boot가 자동으로 읽는 자리라 외부 API 키를 여기에 둔다.
+# application-local.properties는 저장소에 커밋되므로 키를 절대 넣지 않는다.
+#
+# 앞의 /가 없으면 src/main/java/.../global/config 처럼 이름이 같은 소스 디렉터리까지 무시된다.
+/config/
 !gradle/wrapper/gradle-wrapper.jar
 !**/src/main/**/build/
 !**/src/test/**/build/
@@ -37,3 +43,7 @@ out/
 
 ### VS Code ###
 .vscode/
+
+### Node ###
+# 프론트 수용 기준 테스트(src/test/js)만 npm을 쓴다. Gradle 빌드와는 분리되어 있다.
+node_modules/

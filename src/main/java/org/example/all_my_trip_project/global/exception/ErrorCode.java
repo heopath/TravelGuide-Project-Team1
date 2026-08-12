@@ -119,6 +119,11 @@ public enum ErrorCode {
             "하루 일정은 최대 5개까지 추가할 수 있습니다."
     ),
 
+    ITINERARY_PLACE_ALREADY_ADDED(
+            HttpStatus.CONFLICT,
+            "같은 DAY에 이미 추가된 장소입니다."
+    ),
+
     INVALID_FLIGHT_LEG(
             HttpStatus.BAD_REQUEST,
             "항공 구간은 가는 편(0) 또는 오는 편(1)만 지정할 수 있습니다."
@@ -127,6 +132,126 @@ public enum ErrorCode {
     FLIGHT_BOOKING_NOT_FOUND(
             HttpStatus.NOT_FOUND,
             "선택한 항공편을 찾을 수 없습니다."
+    ),
+
+    FORBIDDEN(
+            HttpStatus.FORBIDDEN,
+            "권한이 없습니다."
+    ),
+
+    INVALID_RECORD_REQUEST(
+            HttpStatus.BAD_REQUEST,
+            "여행 기록 요청값이 올바르지 않습니다."
+    ),
+
+    TRIP_NOT_COMPLETED(
+            HttpStatus.BAD_REQUEST,
+            "완료된 여행만 기록을 작성할 수 있습니다."
+    ),
+
+    RECORD_ALREADY_EXISTS(
+            HttpStatus.CONFLICT,
+            "이미 이 여행에 대한 기록이 존재합니다."
+    ),
+
+    RECORD_NOT_FOUND(
+            HttpStatus.NOT_FOUND,
+            "여행 기록을 찾을 수 없습니다."
+    ),
+
+    PLACE_REVIEW_ALREADY_EXISTS(
+            HttpStatus.CONFLICT,
+            "이미 이 장소에 작성한 후기가 있습니다."
+    ),
+
+    PLACE_REVIEW_NOT_FOUND(
+            HttpStatus.NOT_FOUND,
+            "장소 후기를 찾을 수 없습니다."
+    ),
+
+    PLACE_NOT_FOUND(
+            HttpStatus.NOT_FOUND,
+            "추천 장소를 찾을 수 없습니다."
+    ),
+
+    INVALID_PLACE_REQUEST(
+            HttpStatus.BAD_REQUEST,
+            "추천 장소 입력값을 확인해 주세요."
+    ),
+
+    REPORT_ALREADY_PENDING(
+            HttpStatus.CONFLICT,
+            "이미 처리 대기 중인 신고가 있습니다."
+    ),
+
+    REPORT_NOT_FOUND(
+            HttpStatus.NOT_FOUND,
+            "신고 내역을 찾을 수 없습니다."
+    ),
+
+    INVALID_REPORT_STATUS_TRANSITION(
+            HttpStatus.BAD_REQUEST,
+            "처리할 수 없는 신고 상태입니다."
+    ),
+
+    INVALID_ACCOMMODATION_PERIOD(
+            HttpStatus.BAD_REQUEST,
+            "체크아웃 날짜는 체크인 다음 날부터 최대 30박까지 지정할 수 있습니다."
+    ),
+
+    INVALID_ACCOMMODATION_DESTINATION(
+            HttpStatus.BAD_REQUEST,
+            "숙소를 검색할 지역을 입력해 주세요."
+    ),
+
+    ACCOMMODATION_PROVIDER_UNAVAILABLE(
+            HttpStatus.SERVICE_UNAVAILABLE,
+            "숙소 정보를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요."
+    ),
+
+    ACCOMMODATION_PERIOD_OUT_OF_TRIP(
+            HttpStatus.BAD_REQUEST,
+            "숙소 기간은 여행 기간 안에 있어야 합니다."
+    ),
+
+    ACCOMMODATION_PERIOD_OVERLAP(
+            HttpStatus.CONFLICT,
+            "같은 기간에 이미 담아둔 숙소가 있습니다."
+    ),
+
+    ACCOMMODATION_BOOKING_NOT_FOUND(
+            HttpStatus.NOT_FOUND,
+            "담아둔 숙소를 찾을 수 없습니다."
+    ),
+
+    TICKET_NOT_FOUND(
+            HttpStatus.NOT_FOUND,
+            "선택한 티켓 상품이나 시간대를 찾을 수 없습니다."
+    ),
+
+    TICKET_NOT_AVAILABLE(
+            HttpStatus.CONFLICT,
+            "선택한 티켓의 남은 수량이 부족합니다."
+    ),
+
+    TICKET_RESERVATION_NOT_FOUND(
+            HttpStatus.NOT_FOUND,
+            "티켓 예약을 찾을 수 없습니다."
+    ),
+
+    TICKET_CANCEL_NOT_ALLOWED(
+            HttpStatus.CONFLICT,
+            "현재 상태에서는 티켓 예약을 취소할 수 없습니다."
+    ),
+
+    INVALID_TICKET_REQUEST(
+            HttpStatus.BAD_REQUEST,
+            "티켓 사용일, 수량 또는 여행 정보가 올바르지 않습니다."
+    ),
+
+    SUPPORT_INQUIRY_NOT_FOUND(
+            HttpStatus.NOT_FOUND,
+            "고객센터 문의를 찾을 수 없습니다."
     );
 
     private final HttpStatus status;
