@@ -23,6 +23,8 @@ document.addEventListener("DOMContentLoaded", function () {
   let currentConditions = null;
   let activeDayIndex = 0;
   let savingPlan = false;
+  const kakaoSearchCache = new Map();
+  const MAX_PLACES_PER_DAY = 5;
 
   function setPanelVisible(panel, visible) {
     panel.hidden = !visible;
@@ -151,27 +153,80 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   function keywordSearch(query) {
-    return new Promise(function (resolve) {
+    const normalizedQuery = String(query || "").trim();
+    if (!normalizedQuery) return Promise.resolve([]);
+    if (kakaoSearchCache.has(normalizedQuery)) return kakaoSearchCache.get(normalizedQuery);
+    const request = new Promise(function (resolve) {
       kakaoPlaces.keywordSearch(query, function (data, status) {
         if (status === window.kakao.maps.services.Status.OK && data.length) {
-          resolve(data[0]);
+          resolve(data);
           return;
         }
-        resolve(null);
+        resolve([]);
       });
     });
+    kakaoSearchCache.set(normalizedQuery, request);
+    return request;
+  }
+
+  function normalizePlaceText(value) {
+    return String(value || "").toLowerCase().replace(/[^0-9a-z가-힣]/g, "");
+  }
+
+  function destinationKeyword() {
+    return destinationText
+      .replace(/(특별자치도|특별자치시|특별시|광역시|도|시|군|구)$/u, "")
+      .trim() || destinationText;
+  }
+
+  function categoryKeyword(place) {
+    const text = normalizePlaceText((place?.category || "") + " " + (place?.name || ""));
+    if (/(숙박|숙소|호텔|리조트)/u.test(text)) return "호텔";
+    if (/(음식|식사|맛집|점심|저녁|아침)/u.test(text)) return "맛집";
+    if (/(카페|커피|휴식)/u.test(text)) return "카페";
+    if (/(교통|역|터미널|공항|귀가)/u.test(text)) return "역";
+    return "관광명소";
+  }
+
+  function candidateScore(place, candidate, resultIndex) {
+    const targetName = normalizePlaceText(place?.name);
+    const candidateName = normalizePlaceText(candidate?.place_name);
+    const candidateAddress = normalizePlaceText(
+      (candidate?.road_address_name || "") + " " + (candidate?.address_name || "")
+    );
+    const candidateCategory = normalizePlaceText(candidate?.category_name);
+    const region = normalizePlaceText(destinationKeyword());
+    const category = normalizePlaceText(categoryKeyword(place));
+    let score = Math.max(0, 15 - resultIndex);
+    if (candidateName === targetName) score += 120;
+    else if (candidateName.includes(targetName) || targetName.includes(candidateName)) score += 70;
+    if (region && candidateAddress.includes(region)) score += 45;
+    if (category && candidateCategory.includes(category)) score += 30;
+    if (Number.isFinite(Number(candidate?.x)) && Number.isFinite(Number(candidate?.y))) score += 5;
+    return score;
   }
 
   async function findRecommendedPlace(place) {
-    const withDestination = await keywordSearch(destinationText + " " + place.name);
-    if (withDestination) return { ...place, kakaoPlace: withDestination };
-    const byName = await keywordSearch(place.name);
-    if (byName) return { ...place, kakaoPlace: byName };
-    if (place.category === "숙소") {
-      const accommodation = await keywordSearch(destinationText + " 호텔");
-      if (accommodation) return { ...place, kakaoPlace: accommodation };
+    const region = destinationKeyword();
+    const queries = [
+      region + " " + place.name,
+      place.name,
+      region + " " + categoryKeyword(place),
+    ];
+    const candidateMap = new Map();
+    for (const query of queries) {
+      const candidates = await keywordSearch(query);
+      candidates.forEach(function (candidate, index) {
+        const key = String(candidate.id || candidate.place_url || candidate.place_name);
+        const score = candidateScore(place, candidate, index);
+        const previous = candidateMap.get(key);
+        if (!previous || score > previous.score) candidateMap.set(key, { candidate: candidate, score: score });
+      });
     }
-    return null;
+    const best = Array.from(candidateMap.values()).sort(function (left, right) {
+      return right.score - left.score;
+    })[0];
+    return best ? { ...place, kakaoPlace: best.candidate } : null;
   }
 
   async function renderKakaoMap(places) {
@@ -282,11 +337,27 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   async function resolveAllPlanPlaces() {
-    if (!await ensureKakaoPlaces()) return [];
+    if (!await ensureKakaoPlaces()) {
+      throw new Error("카카오 지도를 불러오지 못해 AI 추천 장소를 확인할 수 없습니다.");
+    }
     const resolvedPlaces = [];
     for (const day of currentPlan?.days || []) {
-      const foundPlaces = await Promise.all((day.places || []).map(findRecommendedPlace));
-      foundPlaces.filter(Boolean).forEach(function (found) {
+      const schedules = day.items || [];
+      const recommendations = day.places || [];
+      if (recommendations.length < 1 || recommendations.length > MAX_PLACES_PER_DAY) {
+        throw new Error("AI 추천 일정은 하루 1개부터 " + MAX_PLACES_PER_DAY + "개 장소까지 저장할 수 있습니다.");
+      }
+      if (schedules.length !== recommendations.length) {
+        throw new Error("AI 일정의 모든 항목에 장소 정보가 필요합니다. 일정을 다시 생성해 주세요.");
+      }
+      const foundPlaces = await Promise.all(recommendations.map(findRecommendedPlace));
+      const unresolvedNames = recommendations.filter(function (_, index) {
+        return !foundPlaces[index];
+      }).map(function (place) { return place.name; });
+      if (unresolvedNames.length) {
+        throw new Error("카카오 장소를 찾지 못했습니다: " + unresolvedNames.join(", ") + ". 일정을 다시 생성해 주세요.");
+      }
+      foundPlaces.forEach(function (found) {
         const kakaoPlace = found.kakaoPlace;
         resolvedPlaces.push({
           day: day.day,

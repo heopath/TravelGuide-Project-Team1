@@ -65,13 +65,27 @@ class ItineraryItemServiceTest {
     }
 
     @Test
+    void createAllowsFifthItem() {
+        TripDayDTO day = TripDayDTO.builder().tripDayId(10L).tripId(11L).build();
+        TripDTO trip = TripDTO.builder().tripId(11L).userId(42L).build();
+        ItineraryItemDTO item = itineraryItem();
+        when(tripDayDAO.findById(10L)).thenReturn(Optional.of(day));
+        when(tripDAO.findById(11L)).thenReturn(Optional.of(trip));
+        when(itemDAO.countByTripDayId(10L)).thenReturn(4);
+
+        itineraryItemService.create(42L, item);
+
+        verify(itemDAO).insert(item);
+    }
+
+    @Test
     void createRejectsWhenDayAlreadyHasMaximumItems() {
         TripDayDTO day = TripDayDTO.builder().tripDayId(20L).tripId(10L).build();
         TripDTO trip = TripDTO.builder().tripId(10L).userId(42L).build();
         ItineraryItemDTO item = ItineraryItemDTO.builder().tripDayId(20L).title("해운대 산책").build();
         when(tripDayDAO.findById(20L)).thenReturn(Optional.of(day));
         when(tripDAO.findById(10L)).thenReturn(Optional.of(trip));
-        when(itemDAO.countByTripDayId(20L)).thenReturn(100);
+        when(itemDAO.countByTripDayId(20L)).thenReturn(5);
 
         assertThatThrownBy(() -> itineraryItemService.create(42L, item))
                 .isInstanceOf(BusinessException.class)
@@ -113,5 +127,12 @@ class ItineraryItemServiceTest {
                 .isEqualTo(ErrorCode.TRIP_NOT_FOUND);
 
         verify(itemDAO, never()).insert(item);
+    }
+
+    private ItineraryItemDTO itineraryItem() {
+        return ItineraryItemDTO.builder()
+                .tripDayId(10L)
+                .title("해운대해수욕장")
+                .build();
     }
 }
