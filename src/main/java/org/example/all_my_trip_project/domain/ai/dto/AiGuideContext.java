@@ -27,7 +27,7 @@ public record AiGuideContext(Trip trip, List<Preference> preferences) {
         }
     }
 
-    public record Item(String title, LocalTime startTime, LocalTime endTime,
+    public record Item(Long placeId, String title, LocalTime startTime, LocalTime endTime,
                        String itemType, String memo) {
     }
 

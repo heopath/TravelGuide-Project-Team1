@@ -75,6 +75,12 @@ public class ApiSecurityConfig {
                         .authenticated()
 
                         .requestMatchers(
+                                HttpMethod.DELETE,
+                                "/api/v1/ai-guides/conversation"
+                        )
+                        .authenticated()
+
+                        .requestMatchers(
                                 HttpMethod.POST,
                                 "/api/v1/ai-trip-plans/save"
                         )

@@ -69,10 +69,15 @@ class AiConversationPersistenceServiceTest {
     }
 
     @Test
-    void deletesOnlyTheRequestedUsersActiveConversation() {
-        service.delete(1L, 12L);
+    void archivesOnlyTheRequestedUsersActiveConversation() {
+        AiChatSessionEntity session = AiChatSessionEntity.active(1L, 12L);
+        when(sessionRepository.findActiveForUpdate(1L, 12L, AiChatSessionEntity.ACTIVE))
+                .thenReturn(Optional.of(session));
 
-        verify(sessionRepository).deleteByUserIdAndTripIdAndStatus(1L, 12L, AiChatSessionEntity.ACTIVE);
+        service.archiveActiveSession(1L, 12L);
+
+        assertThat(session.getStatus()).isEqualTo(AiChatSessionEntity.ARCHIVED);
+        verify(sessionRepository).findActiveForUpdate(1L, 12L, AiChatSessionEntity.ACTIVE);
     }
 
     @Test

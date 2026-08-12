@@ -33,6 +33,7 @@ import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -134,5 +135,14 @@ class AiGuideControllerTest {
                 .andExpect(status().isBadGateway())
                 .andExpect(jsonPath("$.code").value("AI_GENERATION_FAILED"))
                 .andExpect(jsonPath("$.message").value(not(containsString("Gemini request timed out"))));
+    }
+
+    @Test
+    void resetConversationResetsOnlyTheAuthenticatedUsersRequestedTrip() throws Exception {
+        mockMvc.perform(delete("/api/v1/ai-guides/conversation").param("tripId", "1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true));
+
+        verify(aiGuideService).resetConversation(isNull(), eq(1L));
     }
 }

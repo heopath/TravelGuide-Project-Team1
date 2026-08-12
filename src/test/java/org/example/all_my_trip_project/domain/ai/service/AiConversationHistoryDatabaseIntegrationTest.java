@@ -46,7 +46,13 @@ class AiConversationHistoryDatabaseIntegrationTest {
     @AfterEach
     void tearDown() {
         if (userId != null && tripId != null) {
-            persistenceService.delete(userId, tripId);
+            jdbcTemplate.update("""
+                    delete from ai_chat_messages
+                    where ai_chat_session_id in (
+                        select ai_chat_session_id from ai_chat_sessions where user_id = ? and trip_id = ?
+                    )
+                    """, userId, tripId);
+            jdbcTemplate.update("delete from ai_chat_sessions where user_id = ? and trip_id = ?", userId, tripId);
             jdbcTemplate.update("delete from trips where trip_id = ?", tripId);
         }
         if (userId != null) {
