@@ -90,7 +90,10 @@ public class AiTripPlanService {
                 throw new IllegalStateException("Gemini가 여행 초안을 반환하지 않았습니다.");
             }
             GeminiTripPlan generated = objectMapper.readValue(generatedJson, GeminiTripPlan.class);
-            validateGeneratedPlan(generated, totalDays);
+            if (generated.days() == null || generated.days().size() != totalDays
+                    || generated.recommendedPlaces() == null || generated.recommendedPlaces().size() < 4) {
+                throw new IllegalStateException("Gemini 응답의 일정 형식이 올바르지 않습니다.");
+            }
             return toResponse(generated);
         } catch (RestClientResponseException exception) {
             log.warn("Gemini API 응답 오류: status={}, body={}",
@@ -110,35 +113,6 @@ public class AiTripPlanService {
             case 429 -> "Gemini API 사용 한도에 도달했습니다. 잠시 후 다시 시도하거나 AI Studio 할당량을 확인해 주세요.";
             default -> "AI 여행 초안을 생성하지 못했습니다. 잠시 후 다시 시도해 주세요.";
         };
-    }
-
-    private void validateGeneratedPlan(GeminiTripPlan generated, int totalDays) {
-        if (generated == null
-                || generated.days() == null || generated.days().size() != totalDays
-                || generated.recommendedPlaces() == null || generated.recommendedPlaces().size() != 4) {
-            throw new IllegalStateException("Gemini 응답의 일정 형식이 올바르지 않습니다.");
-        }
-        for (int index = 0; index < generated.days().size(); index++) {
-            GeminiDay day = generated.days().get(index);
-            int expectedItems = index == generated.days().size() - 1 ? 3 : 4;
-            if (day == null
-                    || day.items() == null || day.items().size() != expectedItems
-                    || day.places() == null || day.places().size() != expectedItems) {
-                throw new IllegalStateException("Gemini 응답의 일정과 장소 형식이 일치하지 않습니다.");
-            }
-            for (int itemIndex = 0; itemIndex < expectedItems; itemIndex++) {
-                GeminiItem item = day.items().get(itemIndex);
-                GeminiPlace place = day.places().get(itemIndex);
-                if (item == null || isBlank(item.time()) || isBlank(item.title())
-                        || place == null || isBlank(place.category()) || isBlank(place.name())) {
-                    throw new IllegalStateException("Gemini 응답에 검색 가능한 장소 정보가 없습니다.");
-                }
-            }
-        }
-    }
-
-    private boolean isBlank(String value) {
-        return value == null || value.isBlank();
     }
 
     private String buildGeminiPrompt(AiTripPlanRequest request, int totalDays) {
@@ -162,11 +136,10 @@ public class AiTripPlanService {
                 - 각 장소에는 category, name, description을 넣습니다. name은 카카오 장소 검색으로 찾을 수 있는 구체적인 장소명으로 씁니다.
                 - 숙소의 name도 권역이나 지역명이 아닌 실제 호텔, 리조트, 게스트하우스 등 구체적인 숙박시설명으로 씁니다.
                 - days는 정확히 %d개이며, 각 day에는 title, items, places를 넣습니다.
-                - 각 day의 items와 places는 개수와 순서가 반드시 같아야 하며, 같은 순번의 item과 place는 동일한 실제 장소를 가리켜야 합니다.
-                - 마지막 날을 제외한 각 day의 items와 places에는 추천 명소, 식사 장소, 추천 명소, 숙소 순서로 정확히 4개를 넣습니다.
-                - 마지막 날의 items와 places는 추천 명소, 식사 장소, 귀가 교통 거점 순서로 정확히 3개만 넣습니다.
-                - 마지막 날의 마지막 item title은 "귀가"로 작성하고, 같은 순번의 place에는 실제 역, 터미널 또는 공항의 구체적인 장소명을 넣습니다.
-                - 일반 명칭이나 설명형 문구가 아니라 카카오 장소 검색으로 찾을 수 있는 실제 상호명·시설명만 장소 name에 사용합니다.
+                - 각 item에는 time(HH:mm), title, description을 넣고 하루에 3~5개를 제안합니다.
+                - 마지막 날을 제외한 각 day의 places에는 지도에 표시할 장소를 추천 명소, 식사 장소, 추천 명소, 숙소 순서로 정확히 4개 넣습니다.
+                - 마지막 날의 places는 추천 명소, 식사 장소, 추천 명소 순서로 정확히 3개만 넣고 숙소는 넣지 않습니다.
+                - 마지막 날 일정의 마지막 item은 숙소가 아니라 귀가 일정으로 작성합니다.
                 - 실제 영업시간, 가격, 예약 가능 여부를 확정적으로 말하지 않습니다.
                 - 마크다운, 코드 블록, JSON 이외의 문장은 절대 넣지 않습니다.
                 """.formatted(
@@ -226,7 +199,7 @@ public class AiTripPlanService {
         LocalDate date = request.startDate().plusDays(index);
         String companionDescription = companionDescription(request.companion());
         String budgetDescription = budgetDescription(request.budgetAmount());
-        List<AiTripPlanItemResponse> items = new ArrayList<>(List.of(
+        List<AiTripPlanItemResponse> items = List.of(
                 new AiTripPlanItemResponse(
                         times.get(0),
                         request.destination() + " " + themePlan.first(),
@@ -239,20 +212,18 @@ public class AiTripPlanService {
                 ),
                 new AiTripPlanItemResponse(
                         times.get(2),
-                        index == totalDays - 1 ? "귀가" : themePlan.third(),
+                        themePlan.third(),
+                        request.transportPreference() + " 이동을 기준으로 동선을 줄이고 "
+                                + request.pace() + " 둘러볼 수 있도록 구성했어요."
+                ),
+                new AiTripPlanItemResponse(
+                        times.get(3),
+                        index == totalDays - 1 ? "귀가" : "하루를 마무리하는 저녁 시간",
                         index == totalDays - 1
                                 ? "짐을 챙기고 교통편 시간을 확인한 뒤 안전하게 귀가하세요."
-                                : request.transportPreference() + " 이동을 기준으로 동선을 줄이고 "
-                                + request.pace() + " 둘러볼 수 있도록 구성했어요."
+                                : "숙소 주변 또는 야경 명소에서 여행의 여운을 즐겨 보세요."
                 )
-        ));
-        if (index < totalDays - 1) {
-            items.add(new AiTripPlanItemResponse(
-                    times.get(3),
-                    "하루를 마무리하는 저녁 시간",
-                    "숙소 주변 또는 야경 명소에서 여행의 여운을 즐겨 보세요."
-            ));
-        }
+        );
         return new AiTripPlanDayResponse(
                 index + 1,
                 "DAY " + (index + 1) + " · " + date.format(DAY_FORMATTER),
@@ -273,18 +244,8 @@ public class AiTripPlanService {
                         day + "일차 오전에 들르기 좋은 추천 명소예요.", 0, 0),
                 new AiTripPlanPlaceResponse(2, "식사 장소", request.destination() + " " + themePlan.second(),
                         request.foodPreference() + " 선호와 총 예산에 맞춘 식사 장소예요.", 0, 0),
-                new AiTripPlanPlaceResponse(
-                        3,
-                        day == totalDays ? "교통" : "추천 명소",
-                        day == totalDays
-                                ? request.destination() + " 종합버스터미널"
-                                : request.destination() + " " + themePlan.third(),
-                        day == totalDays
-                                ? "마지막 일정 후 귀가 교통편을 이용할 수 있는 교통 거점이에요."
-                                : day + "일차 오후 동선에 맞춘 추천 명소예요.",
-                        0,
-                        0
-                )
+                new AiTripPlanPlaceResponse(3, "추천 명소", request.destination() + " " + themePlan.third(),
+                        day + "일차 오후 동선에 맞춘 추천 명소예요.", 0, 0)
         ));
         if (day < totalDays) {
             places.add(new AiTripPlanPlaceResponse(4, "숙소",

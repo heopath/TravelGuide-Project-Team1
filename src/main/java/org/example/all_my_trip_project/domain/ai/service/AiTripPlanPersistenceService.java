@@ -17,7 +17,6 @@ import org.example.all_my_trip_project.domain.trip.dao.TripDayDAO;
 import org.example.all_my_trip_project.domain.trip.dto.ItineraryItemDTO;
 import org.example.all_my_trip_project.domain.trip.dto.TripDTO;
 import org.example.all_my_trip_project.domain.trip.dto.TripDayDTO;
-import org.example.all_my_trip_project.domain.trip.policy.TripPolicy;
 import org.example.all_my_trip_project.domain.user.service.ActiveMemberGuard;
 import org.example.all_my_trip_project.global.exception.BusinessException;
 import org.example.all_my_trip_project.global.exception.ErrorCode;
@@ -37,6 +36,7 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class AiTripPlanPersistenceService {
     private static final int MAX_DAYS = 30;
+    private static final int MAX_ITEMS_PER_DAY = 10;
 
     private final TripDAO tripDAO;
     private final TripDayDAO tripDayDAO;
@@ -59,7 +59,6 @@ public class AiTripPlanPersistenceService {
                         Function.identity(),
                         (first, ignored) -> first
                 ));
-        validateResolvedPlaces(plan, resolvedPlaces);
 
         TripDTO trip = TripDTO.builder()
                 .userId(userId)
@@ -112,9 +111,8 @@ public class AiTripPlanPersistenceService {
         List<AiTripPlanItemResponse> schedules = day.items() == null ? List.of() : day.items();
         List<AiTripPlanPlaceResponse> places = day.places() == null ? List.of() : day.places();
         int itemCount = Math.max(schedules.size(), places.size());
-        if (itemCount < 1 || itemCount > TripPolicy.MAX_ITINERARY_ITEMS_PER_DAY) {
-            throw new IllegalArgumentException("하루 일정은 1개부터 "
-                    + TripPolicy.MAX_ITINERARY_ITEMS_PER_DAY + "개까지 저장할 수 있습니다.");
+        if (itemCount < 1 || itemCount > MAX_ITEMS_PER_DAY) {
+            throw new IllegalArgumentException("하루 일정은 1개부터 10개까지 저장할 수 있습니다.");
         }
         for (int index = 0; index < itemCount; index++) {
             AiTripPlanItemResponse schedule = index < schedules.size() ? schedules.get(index) : null;
@@ -147,7 +145,7 @@ public class AiTripPlanPersistenceService {
 
     private Long savePlace(AiTripPlanResolvedPlace resolved, AiTripPlanPlaceResponse recommendation) {
         if (resolved == null || resolved.externalPlaceId() == null || resolved.externalPlaceId().isBlank()) {
-            throw new IllegalArgumentException("AI 추천 장소가 카카오 장소와 연결되지 않았습니다.");
+            return null;
         }
         return placeDAO.upsert(PlaceDTO.builder()
                 .externalProvider("KAKAO")
@@ -163,31 +161,6 @@ public class AiTripPlanPersistenceService {
                 .websiteUrl(resolved.websiteUrl())
                 .active(true)
                 .build());
-    }
-
-    private void validateResolvedPlaces(AiTripPlanResponse plan,
-                                        Map<String, AiTripPlanResolvedPlace> resolvedPlaces) {
-        for (AiTripPlanDayResponse day : plan.days()) {
-            List<AiTripPlanItemResponse> schedules = day.items() == null ? List.of() : day.items();
-            List<AiTripPlanPlaceResponse> places = day.places() == null ? List.of() : day.places();
-            if (places.size() < 1 || places.size() > TripPolicy.MAX_ITINERARY_ITEMS_PER_DAY) {
-                throw new IllegalArgumentException("하루 일정은 1개부터 "
-                        + TripPolicy.MAX_ITINERARY_ITEMS_PER_DAY + "개까지 저장할 수 있습니다.");
-            }
-            if (schedules.size() != places.size()) {
-                throw new IllegalArgumentException("AI 일정의 모든 항목에 장소 정보가 필요합니다.");
-            }
-            for (AiTripPlanPlaceResponse place : places) {
-                AiTripPlanResolvedPlace resolved = resolvedPlaces.get(day.day() + ":" + place.number());
-                if (resolved == null
-                        || resolved.externalPlaceId() == null || resolved.externalPlaceId().isBlank()
-                        || resolved.name() == null || resolved.name().isBlank()
-                        || resolved.latitude() == null || resolved.longitude() == null) {
-                    throw new IllegalArgumentException("AI 추천 장소를 카카오 장소와 연결하지 못했습니다: "
-                            + place.name());
-                }
-            }
-        }
     }
 
     private String placeCategory(String kakaoCategory, String recommendationCategory) {
