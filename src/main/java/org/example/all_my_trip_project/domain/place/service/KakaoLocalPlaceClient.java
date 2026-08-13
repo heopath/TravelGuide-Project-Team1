@@ -103,6 +103,11 @@ public class KakaoLocalPlaceClient {
      */
     public List<PlaceDTO> searchByCategory(String categoryGroupCode, BigDecimal longitude, BigDecimal latitude,
                                            Duration requestTimeout) {
+        return searchByCategory(categoryGroupCode, longitude, latitude, 2_000, requestTimeout);
+    }
+
+    public List<PlaceDTO> searchByCategory(String categoryGroupCode, BigDecimal longitude, BigDecimal latitude,
+                                           int radiusMeters, Duration requestTimeout) {
         if (restApiKey == null || restApiKey.isBlank() || categoryGroupCode == null || categoryGroupCode.isBlank()
                 || longitude == null || latitude == null) {
             return List.of();
@@ -113,7 +118,7 @@ public class KakaoLocalPlaceClient {
                 .queryParam("category_group_code", categoryGroupCode.trim())
                 .queryParam("x", longitude)
                 .queryParam("y", latitude)
-                .queryParam("radius", 1500)
+                .queryParam("radius", Math.max(1, Math.min(radiusMeters, 20_000)))
                 .queryParam("size", MAX_SIZE)
                 .build()
                 .encode()

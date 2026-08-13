@@ -33,6 +33,9 @@ public class KakaoPlaceDiscoveryService {
     private static final int MAX_PLACES_PER_SEARCH = 3;
     private static final int MAX_DISCOVERED_PLACES = 24;
     private static final long DEFAULT_TOTAL_SEARCH_TIMEOUT_MILLIS = 7000L;
+    private static final int WALKING_RADIUS_METERS = 2_000;
+    private static final int DEFAULT_NEARBY_RADIUS_METERS = 2_000;
+    private static final int VEHICLE_RADIUS_METERS = 5_000;
 
     private static final Pattern RECOMMENDATION_PHRASE = Pattern.compile(
             "(추천해?\s*줘|추천\s*해\s*줘|추천\s*해주세요|추천|알려\s*줘|알려\s*주세요|찾아\s*줘|찾아\s*주세요|해\s*줘|해주세요|좀)"
@@ -97,7 +100,7 @@ public class KakaoPlaceDiscoveryService {
         long timeoutMillis = Math.max(1L, totalSearchTimeoutMillis);
         long deadline = System.nanoTime() + Duration.ofMillis(timeoutMillis).toNanos();
         List<PlaceDTO> discovered = new ArrayList<>();
-        boolean nearbyRequest = !extractNearbyAnchor(question).isBlank();
+        boolean nearbyRequest = scheduledPlaceId != null || !extractNearbyAnchor(question).isBlank();
         int searchCount = addNearbyCategoryCandidates(discovered, question, destination, scheduledPlaceId, deadline);
         // "기준 장소 근처" 요청은 기준점 주변 카테고리 검색만 근거로 사용한다.
         // 일반 키워드 검색까지 섞으면 다른 지역의 동명/기존 후보가 함께 들어올 수 있다.
@@ -130,7 +133,7 @@ public class KakaoPlaceDiscoveryService {
                                             Long scheduledPlaceId, long deadline) {
         String anchor = extractNearbyAnchor(question);
         List<String> categoryCodes = extractNearbyCategoryCodes(question);
-        if (anchor.isBlank() || categoryCodes.isEmpty()) {
+        if (categoryCodes.isEmpty() || (anchor.isBlank() && scheduledPlaceId == null)) {
             return 0;
         }
 
@@ -153,18 +156,67 @@ public class KakaoPlaceDiscoveryService {
             if (remainingNanos <= 0) {
                 break;
             }
-            List<PlaceDTO> nearbyPlaces = kakaoLocalPlaceClient.searchByCategory(
-                    categoryCode,
-                    anchorPlace.get().getLongitude(),
-                    anchorPlace.get().getLatitude(),
-                    Duration.ofNanos(remainingNanos)
-            );
-            if (nearbyPlaces != null) {
+            PlaceDTO anchorPoint = anchorPlace.get();
+            int requestedRadius = nearbyRadiusMeters(question);
+            List<PlaceDTO> nearbyPlaces = searchNearbyCandidates(
+                    categoryCode, anchorPoint, requestedRadius, Duration.ofNanos(remainingNanos));
+            if (nearbyPlaces.isEmpty() && requestedRadius < VEHICLE_RADIUS_METERS) {
+                remainingNanos = deadline - System.nanoTime();
+                if (remainingNanos > 0) {
+                    nearbyPlaces = searchNearbyCandidates(
+                            categoryCode, anchorPoint, VEHICLE_RADIUS_METERS, Duration.ofNanos(remainingNanos));
+                }
+            }
+            if (!nearbyPlaces.isEmpty()) {
                 discovered.addAll(nearbyPlaces.stream().limit(MAX_PLACES_PER_SEARCH).toList());
             }
             searchCount++;
         }
         return searchCount;
+    }
+
+    private List<PlaceDTO> searchNearbyCandidates(String categoryCode, PlaceDTO anchor, int radiusMeters,
+                                                   Duration timeout) {
+        List<PlaceDTO> results = radiusMeters == DEFAULT_NEARBY_RADIUS_METERS
+                ? kakaoLocalPlaceClient.searchByCategory(
+                        categoryCode, anchor.getLongitude(), anchor.getLatitude(), timeout)
+                : kakaoLocalPlaceClient.searchByCategory(
+                        categoryCode, anchor.getLongitude(), anchor.getLatitude(), radiusMeters, timeout);
+        if (results == null) {
+            return List.of();
+        }
+        return results.stream()
+                .map(place -> new NearbyPlace(place, hasCoordinates(place) ? distanceMeters(anchor, place) : Double.MAX_VALUE))
+                .filter(candidate -> candidate.distanceMeters() == Double.MAX_VALUE || candidate.distanceMeters() <= radiusMeters)
+                .sorted(java.util.Comparator.comparingDouble(NearbyPlace::distanceMeters))
+                .map(NearbyPlace::place)
+                .toList();
+    }
+
+    private int nearbyRadiusMeters(String question) {
+        String value = question == null ? "" : question;
+        if (value.contains("\uB3C4\uBCF4") || value.contains("\uAC78\uC5B4") || value.contains("\uB3C4\uBCF4 10\uBD84")) {
+            return WALKING_RADIUS_METERS;
+        }
+        if (value.contains("\uC790\uB3D9\uCC28") || value.contains("\uD0DD\uC2DC") || value.contains("\uC6B4\uC804")) {
+            return VEHICLE_RADIUS_METERS;
+        }
+        return DEFAULT_NEARBY_RADIUS_METERS;
+    }
+
+    private double distanceMeters(PlaceDTO from, PlaceDTO to) {
+        double earthRadiusMeters = 6_371_000d;
+        double latitudeDifference = Math.toRadians(to.getLatitude().doubleValue() - from.getLatitude().doubleValue());
+        double longitudeDifference = Math.toRadians(to.getLongitude().doubleValue() - from.getLongitude().doubleValue());
+        double startLatitude = Math.toRadians(from.getLatitude().doubleValue());
+        double endLatitude = Math.toRadians(to.getLatitude().doubleValue());
+        double haversine = Math.sin(latitudeDifference / 2) * Math.sin(latitudeDifference / 2)
+                + Math.cos(startLatitude) * Math.cos(endLatitude)
+                * Math.sin(longitudeDifference / 2) * Math.sin(longitudeDifference / 2);
+        return 2 * earthRadiusMeters * Math.asin(Math.sqrt(haversine));
+    }
+
+    private record NearbyPlace(PlaceDTO place, double distanceMeters) {
     }
 
     private Optional<PlaceDTO> findAnchorPlace(String anchor, String destination, Long scheduledPlaceId, Duration timeout) {
@@ -210,6 +262,16 @@ public class KakaoPlaceDiscoveryService {
         if (question == null || question.isBlank()) {
             return "";
         }
+        int nearbyIndex = question.indexOf("\uadfc\ucc98");
+        if (nearbyIndex > 0) {
+            String anchor = question.substring(0, nearbyIndex).trim()
+                    .replaceFirst("^\\s*[0-9]+\uC77C\uCC28\uC5D0\\s*", "")
+                    .replaceFirst("(?:\uC744|\uB97C)\\s*(?:\uBA39\uACE0|\uBA39\uC740\\s*\uD6C4|\uBC29\uBB38\uD558\uACE0)\\s*$", "")
+                    .trim();
+            if (!anchor.isBlank() && anchor.length() <= 40) {
+                return anchor;
+            }
+        }
         var matcher = NEARBY_ANCHOR.matcher(question.trim());
         if (!matcher.find()) {
             return "";
@@ -227,6 +289,17 @@ public class KakaoPlaceDiscoveryService {
     private static List<String> extractNearbyCategoryCodes(String question) {
         String value = question == null ? "" : question;
         LinkedHashSet<String> categoryCodes = new LinkedHashSet<>();
+        if (value.contains("\uCE74\uD398") || value.contains("\uCEE4\uD53C")) {
+            categoryCodes.add("CE7");
+        }
+        if (value.contains("\uB9DB\uC9D1") || value.contains("\uC2DD\uB2F9") || value.contains("\uC810\uC2EC")
+                || value.contains("\uC800\uB141") || value.contains("\uBC25")) {
+            categoryCodes.add("FD6");
+        }
+        if (value.contains("\uAD00\uAD11") || value.contains("\uAD6C\uACBD") || value.contains("\uC0B0\uCC45")
+                || value.contains("\uC1FC\uD551") || value.contains("\uD328\uC158") || value.contains("\uD3B8\uC9D1\uC0F5")) {
+            categoryCodes.add("AT4");
+        }
         if (value.contains("카페") || value.contains("커피")) {
             categoryCodes.add("CE7");
         }

@@ -135,6 +135,33 @@ class KakaoPlaceDiscoveryServiceTest {
     }
 
     @Test
+    void usesWalkingRadiusAndSortsNearbyCandidatesByDistance() {
+        PlaceDTO anchor = PlaceDTO.builder().placeId(77L).name("Anchor")
+                .longitude(new BigDecimal("129.0300")).latitude(new BigDecimal("35.1010")).build();
+        PlaceDTO fartherCafe = PlaceDTO.builder().externalProvider("KAKAO").externalPlaceId("far")
+                .name("Far cafe").longitude(new BigDecimal("129.0350")).latitude(new BigDecimal("35.1010")).build();
+        PlaceDTO nearerCafe = PlaceDTO.builder().externalProvider("KAKAO").externalPlaceId("near")
+                .name("Near cafe").longitude(new BigDecimal("129.0310")).latitude(new BigDecimal("35.1010")).build();
+        PlaceDTO savedNearerCafe = PlaceDTO.builder().placeId(1L).externalProvider("KAKAO").externalPlaceId("near")
+                .name("Near cafe").build();
+        PlaceDTO savedFartherCafe = PlaceDTO.builder().placeId(2L).externalProvider("KAKAO").externalPlaceId("far")
+                .name("Far cafe").build();
+        when(placeDAO.findById(77L)).thenReturn(Optional.of(anchor));
+        when(kakaoClient.searchByCategory(eq("CE7"), eq(anchor.getLongitude()), eq(anchor.getLatitude()), any()))
+                .thenReturn(List.of(fartherCafe, nearerCafe));
+        when(placeDAO.upsert(nearerCafe)).thenReturn(1L);
+        when(placeDAO.upsert(fartherCafe)).thenReturn(2L);
+        when(placeDAO.findById(1L)).thenReturn(Optional.of(savedNearerCafe));
+        when(placeDAO.findById(2L)).thenReturn(Optional.of(savedFartherCafe));
+        when(placeRagServiceProvider.getIfAvailable()).thenReturn(placeRagService);
+
+        service.discoverAndIndex("Anchor \uadfc\ucc98 \ub3c4\ubcf4 10\ubd84 \uc774\ub0b4 \uce74\ud398 \ucd94\ucc9c", "Busan", 77L);
+
+        verify(kakaoClient).searchByCategory(eq("CE7"), eq(anchor.getLongitude()), eq(anchor.getLatitude()), any());
+        verify(placeRagService).indexPlaces(List.of(savedNearerCafe, savedFartherCafe));
+    }
+
+    @Test
     void extractsNamedPlaceBeforeNearbyExpressionAsAnchor() {
         assertThat(KakaoPlaceDiscoveryService.extractNearbyAnchor("이재모피자 본점 근처에 유명 카페 추천해줘"))
                 .isEqualTo("이재모피자 본점");

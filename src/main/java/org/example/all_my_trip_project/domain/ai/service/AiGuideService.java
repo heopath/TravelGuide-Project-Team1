@@ -58,11 +58,31 @@ public class AiGuideService {
         }
         for (int index = history.size() - 1; index >= 0; index--) {
             String previousQuestion = history.get(index).question();
-            if (!KakaoPlaceDiscoveryService.extractNearbyAnchor(previousQuestion).isBlank()) {
+            String anchor = KakaoPlaceDiscoveryService.extractNearbyAnchor(previousQuestion);
+            if (!anchor.isBlank()) {
+                if (containsVenueCondition(question)) {
+                    return anchor + " 근처 " + question;
+                }
                 return previousQuestion;
             }
         }
         return question;
+    }
+
+    /**
+     * "다른 곳" 요청은 직전 장소를 기준으로 다시 찾되, 사용자가 카페·식당처럼
+     * 업종을 새로 지정했다면 그 조건을 우선 적용한다.
+     */
+    private boolean containsVenueCondition(String question) {
+        String value = question == null ? "" : question.toLowerCase(Locale.ROOT);
+        if (value.contains("\uCE74\uD398") || value.contains("\uCEE4\uD53C") || value.contains("\uC2DD\uB2F9")
+                || value.contains("\uB9DB\uC9D1") || value.contains("\uC220\uC9D1") || value.contains("\uBC14")
+                || value.contains("\uC1FC\uD551") || value.contains("\uD3B8\uC9D1\uC0F5") || value.contains("\uAD00\uAD11")) {
+            return true;
+        }
+        return value.contains("카페") || value.contains("커피") || value.contains("식당")
+                || value.contains("맛집") || value.contains("술집") || value.contains("바")
+                || value.contains("쇼핑") || value.contains("편집샵") || value.contains("관광");
     }
 
     private List<RagSearchResult> excludePreviouslySuggestedPlaces(List<RagSearchResult> places,
@@ -87,6 +107,11 @@ public class AiGuideService {
 
     private boolean isAlternativeRequest(String question) {
         String normalized = normalizePlaceName(question);
+        String raw = question == null ? "" : question;
+        if (raw.contains("\uB2E4\uB978") || raw.contains("\uB9D0\uACE0")
+                || raw.contains("\uC7AC\uCD94\uCC9C") || raw.contains("\uB2E4\uC2DC\uCD94\uCC9C")) {
+            return true;
+        }
         return normalized.contains("다른곳") || normalized.contains("다른데")
                 || normalized.contains("말고") || normalized.contains("또추천") || normalized.contains("다시추천");
     }
@@ -126,7 +151,7 @@ public class AiGuideService {
                                 usedPlaceIds.add(fallbackPlace.placeId());
                             }
                             return toVerifiedItem(item, fallbackPlace,
-                                    exactPlace == null && fallbackPlace != null && isGenericPlaceItem(item));
+                                    exactPlace == null && fallbackPlace != null && isFallbackEligibleItem(item));
                         })
                         .toList()))
                 .toList();
@@ -135,15 +160,44 @@ public class AiGuideService {
 
     private RagSearchResult findVerifiedFallback(AiGuideItemResponse item, String question,
                                                   List<RagSearchResult> places, HashSet<Long> usedPlaceIds) {
-        if (!isGenericPlaceItem(item)) {
+        if (!isFallbackEligibleItem(item)) {
             return null;
         }
-        String expectedCategory = expectedCategory(item, question);
+        String expectedCategory = expectedCategoryForFallback(item, question);
         return places.stream()
                 .filter(place -> !usedPlaceIds.contains(place.placeId()))
                 .filter(place -> expectedCategory == null || expectedCategory.equals(place.category()))
                 .findFirst()
                 .orElse(null);
+    }
+
+    private boolean isFallbackEligibleItem(AiGuideItemResponse item) {
+        String name = normalizePlaceName(item.name());
+        return isGenericPlaceItem(item)
+                || name.contains("\uCE74\uD398\uD0D0\uBC29") || name.contains("\uB9DB\uC9D1\uD0D0\uBC29")
+                || name.contains("\uC810\uC2EC\uC2DD\uC0AC") || name.contains("\uC800\uB141\uC2DD\uC0AC")
+                || name.contains("\uC1FC\uD551") || name.contains("\uD328\uC158\uAC70\uB9AC")
+                || name.contains("\uAD00\uAD11") || name.contains("\uC0B0\uCC45")
+                || name.contains("\uB3C4\uBCF4\uD0D0\uBC29") || name.contains("\uAD6C\uACBD")
+                || name.equals("\uCE74\uD398") || name.equals("\uB9DB\uC9D1") || name.equals("\uC2DD\uB2F9");
+    }
+
+    private String expectedCategoryForFallback(AiGuideItemResponse item, String question) {
+        String value = (String.valueOf(item.name()) + " " + String.valueOf(item.reason()) + " "
+                + String.valueOf(question)).toLowerCase(Locale.ROOT);
+        if (value.contains("\uCE74\uD398") || value.contains("\uCEE4\uD53C")) {
+            return "CAFE";
+        }
+        if (value.contains("\uB9DB\uC9D1") || value.contains("\uC2DD\uB2F9") || value.contains("\uC810\uC2EC")
+                || value.contains("\uC800\uB141") || value.contains("\uC74C\uC2DD")) {
+            return "RESTAURANT";
+        }
+        if (value.contains("\uC1FC\uD551") || value.contains("\uD328\uC158") || value.contains("\uD3B8\uC9D1\uC0F5")
+                || value.contains("\uAD00\uAD11") || value.contains("\uC0B0\uCC45") || value.contains("\uB3C4\uBCF4")
+                || value.contains("\uAD6C\uACBD")) {
+            return "ATTRACTION";
+        }
+        return expectedCategory(item, question);
     }
 
     private boolean isGenericPlaceItem(AiGuideItemResponse item) {
@@ -196,7 +250,10 @@ public class AiGuideService {
 
         // 기준 장소 "근처" 추천은 방금 카카오에서 찾은 주변 장소만 사용한다.
         // 이전 검색으로 색인된 다른 지역 후보가 섞이면 잘못된 상호명이 추천될 수 있다.
-        if (!KakaoPlaceDiscoveryService.extractNearbyAnchor(question).isBlank()) {
+        // An existing itinerary place is an equally reliable local-search anchor even when
+        // the user says "after visiting X" instead of explicitly saying "near X".
+        // In that case, never merge stale RAG candidates from unrelated regions.
+        if (scheduledAnchorPlaceId != null || !KakaoPlaceDiscoveryService.extractNearbyAnchor(question).isBlank()) {
             return discoveredResults;
         }
 
