@@ -51,7 +51,7 @@ public class AiGuideContextService {
     }
 
     private AiGuideContext.Item toItem(ItineraryItemDTO item) {
-        return new AiGuideContext.Item(item.getTitle(), item.getStartTime(), item.getEndTime(),
+        return new AiGuideContext.Item(item.getPlaceId(), item.getTitle(), item.getStartTime(), item.getEndTime(),
                 item.getItemType(), item.getMemo());
     }
 

@@ -16,6 +16,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.regex.Pattern;
 
 /**
@@ -37,6 +38,9 @@ public class KakaoPlaceDiscoveryService {
             "(추천해?\s*줘|추천\s*해\s*줘|추천\s*해주세요|추천|알려\s*줘|알려\s*주세요|찾아\s*줘|찾아\s*주세요|해\s*줘|해주세요|좀)"
     );
     private static final Pattern TRAILING_PARTICLE = Pattern.compile("(을|를|은|는|이|가|에|에서|으로|로)$");
+    private static final Pattern NEARBY_ANCHOR = Pattern.compile("^(.+?)(?:\\s*(?:근처|주변))");
+    private static final Pattern DAY_PREFIX = Pattern.compile("^(?:[1-9]\\s*일차|첫\\s*날|둘째\\s*날|셋째\\s*날|넷째\\s*날)(?:에|은|는)?\\s*");
+    private static final Pattern VISIT_ACTION = Pattern.compile("^(.+?)(?:을|를)\\s*(?:먹고|먹은|방문(?:하고|한)?|들르고|간 뒤|간후|간 후)");
 
     private final KakaoLocalPlaceClient kakaoLocalPlaceClient;
     private final PlaceDAO placeDAO;
@@ -46,7 +50,11 @@ public class KakaoPlaceDiscoveryService {
     private long totalSearchTimeoutMillis = DEFAULT_TOTAL_SEARCH_TIMEOUT_MILLIS;
 
     public List<RagSearchResult> discoverAndIndex(String question, String destination) {
-        List<PlaceDTO> discovered = searchWithinBudget(question, destination).stream()
+        return discoverAndIndex(question, destination, null);
+    }
+
+    public List<RagSearchResult> discoverAndIndex(String question, String destination, Long scheduledPlaceId) {
+        List<PlaceDTO> discovered = searchWithinBudget(question, destination, scheduledPlaceId).stream()
                 .collect(java.util.stream.Collectors.toMap(
                         PlaceDTO::getExternalPlaceId,
                         place -> place,
@@ -85,11 +93,21 @@ public class KakaoPlaceDiscoveryService {
         return saved.stream().map(placeRagService::toSearchResult).toList();
     }
 
-    private List<PlaceDTO> searchWithinBudget(String question, String destination) {
+    private List<PlaceDTO> searchWithinBudget(String question, String destination, Long scheduledPlaceId) {
         long timeoutMillis = Math.max(1L, totalSearchTimeoutMillis);
         long deadline = System.nanoTime() + Duration.ofMillis(timeoutMillis).toNanos();
         List<PlaceDTO> discovered = new ArrayList<>();
+        boolean nearbyRequest = !extractNearbyAnchor(question).isBlank();
+        int searchCount = addNearbyCategoryCandidates(discovered, question, destination, scheduledPlaceId, deadline);
+        // "기준 장소 근처" 요청은 기준점 주변 카테고리 검색만 근거로 사용한다.
+        // 일반 키워드 검색까지 섞으면 다른 지역의 동명/기존 후보가 함께 들어올 수 있다.
+        if (nearbyRequest) {
+            return discovered;
+        }
         for (String keyword : searchKeywords(question, destination)) {
+            if (searchCount >= MAX_KAKAO_SEARCHES_PER_QUESTION) {
+                break;
+            }
             long remainingNanos = deadline - System.nanoTime();
             if (remainingNanos <= 0) {
                 log.warn("Kakao Local search budget exhausted. timeoutMillis={}", timeoutMillis);
@@ -103,8 +121,120 @@ public class KakaoPlaceDiscoveryService {
                         .limit(MAX_PLACES_PER_SEARCH)
                         .toList());
             }
+            searchCount++;
         }
         return discovered;
+    }
+
+    private int addNearbyCategoryCandidates(List<PlaceDTO> discovered, String question, String destination,
+                                            Long scheduledPlaceId, long deadline) {
+        String anchor = extractNearbyAnchor(question);
+        List<String> categoryCodes = extractNearbyCategoryCodes(question);
+        if (anchor.isBlank() || categoryCodes.isEmpty()) {
+            return 0;
+        }
+
+        long remainingNanos = deadline - System.nanoTime();
+        if (remainingNanos <= 0) {
+            return 0;
+        }
+        Optional<PlaceDTO> anchorPlace = findAnchorPlace(anchor, destination, scheduledPlaceId,
+                Duration.ofNanos(remainingNanos));
+        if (anchorPlace.isEmpty()) {
+            return 1;
+        }
+
+        int searchCount = 1;
+        for (String categoryCode : categoryCodes) {
+            if (searchCount >= MAX_KAKAO_SEARCHES_PER_QUESTION) {
+                break;
+            }
+            remainingNanos = deadline - System.nanoTime();
+            if (remainingNanos <= 0) {
+                break;
+            }
+            List<PlaceDTO> nearbyPlaces = kakaoLocalPlaceClient.searchByCategory(
+                    categoryCode,
+                    anchorPlace.get().getLongitude(),
+                    anchorPlace.get().getLatitude(),
+                    Duration.ofNanos(remainingNanos)
+            );
+            if (nearbyPlaces != null) {
+                discovered.addAll(nearbyPlaces.stream().limit(MAX_PLACES_PER_SEARCH).toList());
+            }
+            searchCount++;
+        }
+        return searchCount;
+    }
+
+    private Optional<PlaceDTO> findAnchorPlace(String anchor, String destination, Long scheduledPlaceId, Duration timeout) {
+        if (scheduledPlaceId != null) {
+            Optional<PlaceDTO> scheduledPlace = placeDAO.findById(scheduledPlaceId)
+                    .filter(this::hasCoordinates);
+            if (scheduledPlace.isPresent()) {
+                return scheduledPlace;
+            }
+        }
+        String trimmedDestination = destination == null ? "" : destination.trim();
+        List<PlaceDTO> candidates = trimmedDestination.isBlank()
+                ? kakaoLocalPlaceClient.search(anchor, timeout)
+                : kakaoLocalPlaceClient.search(trimmedDestination + " " + anchor, timeout);
+
+        Optional<PlaceDTO> destinationMatch = candidates.stream()
+                .filter(place -> hasCoordinates(place) && matchesDestination(place, trimmedDestination))
+                .findFirst();
+        if (destinationMatch.isPresent() || trimmedDestination.isBlank()) {
+            return destinationMatch;
+        }
+
+        return kakaoLocalPlaceClient.search(anchor, timeout).stream()
+                .filter(place -> hasCoordinates(place) && matchesDestination(place, trimmedDestination))
+                .findFirst();
+    }
+
+    private boolean hasCoordinates(PlaceDTO place) {
+        return place.getLongitude() != null && place.getLatitude() != null;
+    }
+
+    private boolean matchesDestination(PlaceDTO place, String destination) {
+        if (destination.isBlank()) {
+            return true;
+        }
+        String normalizedDestination = destination.replaceAll("(특별시|광역시|특별자치시|특별자치도)$", "");
+        String address = (String.valueOf(place.getAddress()) + " " + String.valueOf(place.getRegion())
+                + " " + String.valueOf(place.getCity())).replaceAll("\\s+", "");
+        return address.contains(destination) || address.contains(normalizedDestination);
+    }
+
+    public static String extractNearbyAnchor(String question) {
+        if (question == null || question.isBlank()) {
+            return "";
+        }
+        var matcher = NEARBY_ANCHOR.matcher(question.trim());
+        if (!matcher.find()) {
+            return "";
+        }
+        String anchor = matcher.group(1).trim();
+        anchor = DAY_PREFIX.matcher(anchor).replaceFirst("").trim();
+        var actionMatcher = VISIT_ACTION.matcher(anchor);
+        if (actionMatcher.find()) {
+            anchor = actionMatcher.group(1).trim();
+        }
+        anchor = anchor.replaceFirst("(?:에서|에|의)$", "").trim();
+        return anchor.length() <= 40 ? anchor : "";
+    }
+
+    private static List<String> extractNearbyCategoryCodes(String question) {
+        String value = question == null ? "" : question;
+        LinkedHashSet<String> categoryCodes = new LinkedHashSet<>();
+        if (value.contains("카페") || value.contains("커피")) {
+            categoryCodes.add("CE7");
+        }
+        if (value.contains("맛집") || value.contains("밥집") || value.contains("식당")
+                || value.contains("점심") || value.contains("저녁") || value.contains("음식")) {
+            categoryCodes.add("FD6");
+        }
+        return List.copyOf(categoryCodes);
     }
 
     private PlaceDTO upsertAndLoad(PlaceDTO place) {

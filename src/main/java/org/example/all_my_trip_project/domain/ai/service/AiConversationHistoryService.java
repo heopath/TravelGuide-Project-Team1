@@ -96,7 +96,7 @@ public class AiConversationHistoryService {
         }
     }
 
-    public void delete(Long userId, Long tripId) {
+    public void reset(Long userId, Long tripId) {
         if (userId == null) {
             return;
         }
@@ -112,9 +112,10 @@ public class AiConversationHistoryService {
         AiConversationPersistenceService persistenceService = persistenceServiceProvider.getIfAvailable();
         if (persistenceService != null) {
             try {
-                persistenceService.delete(userId, tripId);
+                persistenceService.archiveActiveSession(userId, tripId);
             } catch (Exception exception) {
-                log.warn("Failed to delete AI conversation from database. userId={}", userId, exception);
+                log.warn("Failed to archive AI conversation in database. userId={}, tripId={}",
+                        userId, tripId, exception);
             }
         }
     }

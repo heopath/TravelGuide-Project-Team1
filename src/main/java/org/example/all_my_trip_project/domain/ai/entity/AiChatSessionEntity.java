@@ -20,6 +20,7 @@ import java.time.ZoneOffset;
 public class AiChatSessionEntity {
 
     public static final String ACTIVE = "ACTIVE";
+    public static final String ARCHIVED = "ARCHIVED";
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -62,5 +63,10 @@ public class AiChatSessionEntity {
         }
         this.updatedAt = now;
         this.lastMessageAt = now;
+    }
+
+    public void archive() {
+        this.status = ARCHIVED;
+        this.updatedAt = OffsetDateTime.now(ZoneOffset.UTC);
     }
 }

@@ -14,6 +14,7 @@ import org.example.all_my_trip_project.domain.rag.service.PlaceRagService;
 import org.example.all_my_trip_project.domain.place.service.KakaoPlaceDiscoveryService;
 
 import java.util.List;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
@@ -37,15 +38,61 @@ public class AiGuideService {
         }
         List<AiConversationTurn> history = conversationHistoryService.load(userId, request.tripId());
         var context = contextService.load(userId, request);
-        List<RagSearchResult> ragResults = loadRagResults(request.question(), context);
+        String placeSearchQuestion = resolvePlaceSearchQuestion(request.question(), history);
+        List<RagSearchResult> ragResults = loadRagResults(placeSearchQuestion, context);
+        ragResults = excludePreviouslySuggestedPlaces(ragResults, history, request.question());
         AiGuideResponse response = aiModelClient.generate(
                 request, history, context, ragResults);
-        response = enrichVerifiedPlaces(response, ragResults);
+        response = enrichVerifiedPlaces(response, ragResults, request.question());
         conversationHistoryService.append(userId, request.tripId(), request.question(), response.answer());
         return response;
     }
 
-    private AiGuideResponse enrichVerifiedPlaces(AiGuideResponse response, List<RagSearchResult> ragResults) {
+    public void resetConversation(Long userId, Long tripId) {
+        conversationHistoryService.reset(userId, tripId);
+    }
+
+    private String resolvePlaceSearchQuestion(String question, List<AiConversationTurn> history) {
+        if (!isAlternativeRequest(question) || history == null || history.isEmpty()) {
+            return question;
+        }
+        for (int index = history.size() - 1; index >= 0; index--) {
+            String previousQuestion = history.get(index).question();
+            if (!KakaoPlaceDiscoveryService.extractNearbyAnchor(previousQuestion).isBlank()) {
+                return previousQuestion;
+            }
+        }
+        return question;
+    }
+
+    private List<RagSearchResult> excludePreviouslySuggestedPlaces(List<RagSearchResult> places,
+                                                                     List<AiConversationTurn> history,
+                                                                     String question) {
+        if (!isAlternativeRequest(question) || places == null || places.isEmpty() || history == null) {
+            return places;
+        }
+        String previousAnswers = history.stream()
+                .map(AiConversationTurn::answer)
+                .filter(answer -> answer != null)
+                .map(this::normalizePlaceName)
+                .collect(java.util.stream.Collectors.joining(" "));
+        if (previousAnswers.isBlank()) {
+            return places;
+        }
+        return places.stream()
+                .filter(place -> place.placeName() == null
+                        || !previousAnswers.contains(normalizePlaceName(place.placeName())))
+                .toList();
+    }
+
+    private boolean isAlternativeRequest(String question) {
+        String normalized = normalizePlaceName(question);
+        return normalized.contains("다른곳") || normalized.contains("다른데")
+                || normalized.contains("말고") || normalized.contains("또추천") || normalized.contains("다시추천");
+    }
+
+    private AiGuideResponse enrichVerifiedPlaces(AiGuideResponse response, List<RagSearchResult> ragResults,
+                                                 String question) {
         if (response == null || response.days() == null || ragResults == null || ragResults.isEmpty()) {
             return response;
         }
@@ -64,19 +111,66 @@ public class AiGuideService {
                         (first, ignored) -> first,
                         LinkedHashMap::new
                 ));
+        List<RagSearchResult> verifiedPlaces = ragResults.stream()
+                .filter(result -> result.placeId() != null && result.placeName() != null && !result.placeName().isBlank())
+                .toList();
+        HashSet<Long> usedPlaceIds = new HashSet<>();
         List<AiGuideDayResponse> days = response.days().stream()
                 .map(day -> new AiGuideDayResponse(day.day(), day.title(), day.items().stream()
-                        .map(item -> toVerifiedItem(item, uniquePlacesByName.get(normalizePlaceName(item.name()))))
+                        .map(item -> {
+                            RagSearchResult exactPlace = uniquePlacesByName.get(normalizePlaceName(item.name()));
+                            RagSearchResult fallbackPlace = exactPlace == null
+                                    ? findVerifiedFallback(item, question, verifiedPlaces, usedPlaceIds)
+                                    : exactPlace;
+                            if (fallbackPlace != null && fallbackPlace.placeId() != null) {
+                                usedPlaceIds.add(fallbackPlace.placeId());
+                            }
+                            return toVerifiedItem(item, fallbackPlace,
+                                    exactPlace == null && fallbackPlace != null && isGenericPlaceItem(item));
+                        })
                         .toList()))
                 .toList();
         return new AiGuideResponse(response.answer(), days, response.externalLinks(), response.sources());
     }
 
-    private AiGuideItemResponse toVerifiedItem(AiGuideItemResponse item, RagSearchResult place) {
+    private RagSearchResult findVerifiedFallback(AiGuideItemResponse item, String question,
+                                                  List<RagSearchResult> places, HashSet<Long> usedPlaceIds) {
+        if (!isGenericPlaceItem(item)) {
+            return null;
+        }
+        String expectedCategory = expectedCategory(item, question);
+        return places.stream()
+                .filter(place -> !usedPlaceIds.contains(place.placeId()))
+                .filter(place -> expectedCategory == null || expectedCategory.equals(place.category()))
+                .findFirst()
+                .orElse(null);
+    }
+
+    private boolean isGenericPlaceItem(AiGuideItemResponse item) {
+        String name = normalizePlaceName(item.name());
+        return name.contains("카페탐방") || name.contains("맛집탐방") || name.contains("점심식사")
+                || name.contains("저녁식사") || name.equals("카페") || name.equals("맛집") || name.equals("식당");
+    }
+
+    private String expectedCategory(AiGuideItemResponse item, String question) {
+        String value = (String.valueOf(item.name()) + " " + String.valueOf(item.reason()) + " "
+                + String.valueOf(question)).toLowerCase(Locale.ROOT);
+        if (value.contains("카페") || value.contains("커피")) {
+            return "CAFE";
+        }
+        if (value.contains("맛집") || value.contains("식당") || value.contains("점심") || value.contains("저녁")
+                || value.contains("음식")) {
+            return "RESTAURANT";
+        }
+        return null;
+    }
+
+    private AiGuideItemResponse toVerifiedItem(AiGuideItemResponse item, RagSearchResult place, boolean replaceGenericName) {
         if (place == null) {
             return new AiGuideItemResponse(item.time(), item.name(), item.reason());
         }
-        return new AiGuideItemResponse(item.time(), item.name(), item.reason(), place.placeId(),
+        String name = replaceGenericName ? place.placeName() : item.name();
+        return new AiGuideItemResponse(item.time(), name, item.reason(), place.placeId(),
                 place.category(), place.address(), place.placeUrl());
     }
 
@@ -95,7 +189,16 @@ public class AiGuideService {
             return indexedResults;
         }
         String destination = context == null || context.trip() == null ? null : context.trip().destinationName();
-        List<RagSearchResult> discoveredResults = discoveryService.discoverAndIndex(question, destination);
+        Long scheduledAnchorPlaceId = findScheduledAnchorPlaceId(question, context);
+        List<RagSearchResult> discoveredResults = scheduledAnchorPlaceId == null
+                ? discoveryService.discoverAndIndex(question, destination)
+                : discoveryService.discoverAndIndex(question, destination, scheduledAnchorPlaceId);
+
+        // 기준 장소 "근처" 추천은 방금 카카오에서 찾은 주변 장소만 사용한다.
+        // 이전 검색으로 색인된 다른 지역 후보가 섞이면 잘못된 상호명이 추천될 수 있다.
+        if (!KakaoPlaceDiscoveryService.extractNearbyAnchor(question).isBlank()) {
+            return discoveredResults;
+        }
 
         // A previous cafe search must not prevent a later restaurant/place search.
         // Prefer the fresh Kakao candidates, then supplement them with indexed candidates.
@@ -108,5 +211,28 @@ public class AiGuideService {
                 ))
                 .values().stream()
                 .toList();
+    }
+
+    private Long findScheduledAnchorPlaceId(String question, org.example.all_my_trip_project.domain.ai.dto.AiGuideContext context) {
+        if (question == null || context == null || context.trip() == null) {
+            return null;
+        }
+        String normalizedQuestion = normalizePlaceName(question);
+        return context.trip().days().stream()
+                .flatMap(day -> day.items().stream())
+                .filter(item -> item.placeId() != null && item.title() != null && !item.title().isBlank())
+                .filter(item -> matchesQuestionPlace(normalizedQuestion, normalizePlaceName(item.title())))
+                .map(org.example.all_my_trip_project.domain.ai.dto.AiGuideContext.Item::placeId)
+                .findFirst()
+                .orElse(null);
+    }
+
+    private boolean matchesQuestionPlace(String normalizedQuestion, String normalizedTitle) {
+        if (normalizedTitle.isBlank()) {
+            return false;
+        }
+        String withoutBranchSuffix = normalizedTitle.replaceAll("(본점|점)$", "");
+        return normalizedQuestion.contains(normalizedTitle)
+                || (!withoutBranchSuffix.isBlank() && normalizedQuestion.contains(withoutBranchSuffix));
     }
 }
