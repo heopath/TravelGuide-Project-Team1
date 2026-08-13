@@ -85,7 +85,7 @@ async function run() {
     const markup = fs.readFileSync(HTML, "utf8").replace(/<!--[\s\S]*?-->/g, "");
     const section = markup.slice(
       markup.indexOf('data-admin-section="products"'),
-      markup.indexOf('data-admin-section="theme"')
+      markup.indexOf('data-admin-section="reservations"')
     );
 
     T("예약 상품 패널은 실연동으로 표시된다",

@@ -290,10 +290,6 @@ body.page-admin #page-content {
   line-height: 1.5;
 }
 
-.page-admin .theme-form .field input:disabled {
-  background: #f7f9fc;
-  color: #a5aec1;
-}
 .page-admin .primary-button:disabled { opacity: 0.55; }
 
 .page-admin .admin-perf > div {

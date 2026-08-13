@@ -54,9 +54,6 @@
                 <button type="button" data-admin-panel="products">
                   <span aria-hidden="true">▤</span><span>예약 상품·재고</span><em class="live">실연동</em>
                 </button>
-                <button type="button" data-admin-panel="theme">
-                  <span aria-hidden="true">✦</span><span>테마 여행 등록</span><em>연동 전</em>
-                </button>
                 <button type="button" data-admin-panel="reservations">
                   <span aria-hidden="true">◈</span><span>예약 모니터링</span><em class="live">실연동</em>
                 </button>
@@ -242,33 +239,14 @@
                 </div>
               </section>
 
-              <!-- 테마 등록. 저장 API가 없어 제출을 막아둔다. 누르면 아무 일도 없는 버튼이 더 나쁘다. -->
-              <section class="admin-section" data-admin-section="theme" aria-labelledby="themeTitle" hidden>
-                <div class="admin-section-head">
-                  <h2 id="themeTitle">테마 여행 등록</h2>
-                  <span class="admin-tag" data-admin-state="theme">연동 전</span>
-                </div>
-                <form class="white-panel admin-panel theme-form" id="themeForm">
-                  <label class="field">
-                    <span>테마명</span>
-                    <input id="themeName" name="themeName" autocomplete="off" disabled />
-                  </label>
-                  <label class="field">
-                    <span>대표 지역</span>
-                    <input id="themeArea" name="themeArea" autocomplete="off" disabled />
-                  </label>
-                  <label class="field">
-                    <span>예산 범위</span>
-                    <input id="themeBudget" name="themeBudget" autocomplete="off" disabled />
-                  </label>
-                  <label class="field">
-                    <span>추천 태그</span>
-                    <input id="themeTags" name="themeTags" autocomplete="off" disabled />
-                  </label>
-                  <button type="submit" class="primary-button wide" id="themeSubmit" disabled>테마 등록</button>
-                  <p class="admin-hint">테마 저장 API 연동 후 사용할 수 있어요.</p>
-                </form>
-              </section>
+              <!--
+                테마 여행 등록 패널은 제거했다. `연동 전`은 앞으로 붙일 것이라는 뜻인데,
+                이 화면은 구현 범위에서 빼기로 확정해 앞으로도 붙지 않는다. 막아둔 폼을
+                남겨두면 다음 사람이 연동만 하면 되는 줄로 읽는다.
+
+                사용자 화면 `/guide/themes`는 그대로 둔다. 카드가 고정 샘플이라도 선택하면
+                여행 기본 정보로 값이 채워져 넘어가는 동작은 실제로 쓰인다.
+              -->
 
               <!--
                 예약 모니터링 (피그마 No 21-21 · 5번)

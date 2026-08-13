@@ -95,7 +95,7 @@ async function run() {
 
     T("운영 지표 블록이 있다", headings.includes("운영 지표"));
     T("예약 상품·재고 블록이 있다", headings.includes("예약 상품·재고 관리"));
-    T("테마 등록 블록이 있다", headings.includes("테마 여행 등록"));
+    T("구현 범위에서 뺀 테마 등록 블록은 없다", !headings.includes("테마 여행 등록"));
     T("예약 모니터링 블록이 있다", headings.includes("예약 모니터링"));
     T("성능 모니터링 블록이 있다", headings.includes("성능 모니터링"));
     T("신고 관리 블록이 있다", headings.includes("신고 관리"));
@@ -120,9 +120,14 @@ async function run() {
         .every((tag) => tag.textContent.trim() === "연동 전"));
     T("아직 연동되지 않은 패널이 남아 있다",
       d.querySelectorAll(".admin-tag:not(.live)").length > 0);
-    T("저장 API가 없는 테마 폼은 제출을 막아둔다",
-      d.getElementById("themeSubmit").disabled
-        && [...d.querySelectorAll("#themeForm input")].every((input) => input.disabled));
+    /*
+     * 테마 여행 등록은 구현 범위에서 뺐다. `연동 전`으로 남겨두면 앞으로 붙일 것으로 읽히므로
+     * 패널째 지웠다. 되살아나면 다시 "곧 붙는 화면"으로 오해되므로 없는 것을 확인한다.
+     */
+    T("테마 여행 등록 패널은 남아 있지 않다",
+      d.querySelector('[data-admin-panel="theme"]') === null
+        && d.querySelector('[data-admin-section="theme"]') === null
+        && d.getElementById("themeForm") === null);
 
     /* ── 상담 채팅: 방 목록 + 대화. 연동 전이라 비어 있고 입력이 막혀 있어야 한다 ── */
     T("상담 채팅 블록이 있다", headings.includes("상담 채팅"));
@@ -153,8 +158,9 @@ async function run() {
       .filter((section) => !section.hidden)
       .map((section) => section.dataset.adminSection);
 
-    T("사이드바에 여덟 화면이 모두 있다",
-      d.querySelectorAll("[data-admin-panel]").length === 8);
+    /* 추천 장소 관리는 별도 주소라 data-admin-panel이 아닌 data-route를 쓴다. 그래서 7이다. */
+    T("사이드바에 일곱 패널이 모두 있다",
+      d.querySelectorAll("[data-admin-panel]").length === 7);
     T("1:1 문의 관리 패널이 있다",
       d.querySelector('[data-admin-panel="support"]') !== null
         && d.querySelector('[data-admin-section="support"]') !== null);
