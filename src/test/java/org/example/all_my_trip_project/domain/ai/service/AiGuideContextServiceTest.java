@@ -38,7 +38,7 @@ class AiGuideContextServiceTest {
                 .foodPreference("SEAFOOD").build();
         TripDayDTO day = TripDayDTO.builder().tripDayId(101L).dayNumber(1)
                 .tripDate(LocalDate.of(2026, 8, 10)).title("Arrival").build();
-        ItineraryItemDTO item = ItineraryItemDTO.builder().tripDayId(101L).title("Gwangalli dinner")
+        ItineraryItemDTO item = ItineraryItemDTO.builder().tripDayId(101L).placeId(55L).title("Gwangalli dinner")
                 .startTime(LocalTime.of(18, 0)).itemType("FOOD").memo("Seafood restaurant").build();
         when(tripServiceProvider.getIfAvailable()).thenReturn(tripService);
         when(memberServiceProvider.getIfAvailable()).thenReturn(memberService);
@@ -55,6 +55,8 @@ class AiGuideContextServiceTest {
         assertThat(context.trip().days()).extracting(AiGuideContext.Day::title).containsExactly("Arrival");
         assertThat(context.trip().days().getFirst().items()).extracting(AiGuideContext.Item::title)
                 .containsExactly("Gwangalli dinner");
+        assertThat(context.trip().days().getFirst().items()).extracting(AiGuideContext.Item::placeId)
+                .containsExactly(55L);
         assertThat(context.preferences()).extracting(AiGuideContext.Preference::name).containsExactly("Food travel");
         verify(tripService).get(1L, 12L);
         verify(tripService).getDays(1L, 12L);

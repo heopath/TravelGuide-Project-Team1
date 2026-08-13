@@ -17,6 +17,8 @@ import org.example.all_my_trip_project.domain.trip.dao.TripDayDAO;
 import org.example.all_my_trip_project.domain.trip.dto.ItineraryItemDTO;
 import org.example.all_my_trip_project.domain.trip.dto.TripDTO;
 import org.example.all_my_trip_project.domain.trip.dto.TripDayDTO;
+import org.example.all_my_trip_project.domain.trip.policy.TripPolicy;
+import org.example.all_my_trip_project.domain.trip.service.ItineraryItemValidator;
 import org.example.all_my_trip_project.domain.user.service.ActiveMemberGuard;
 import org.example.all_my_trip_project.global.exception.BusinessException;
 import org.example.all_my_trip_project.global.exception.ErrorCode;
@@ -26,8 +28,10 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalTime;
 import java.time.temporal.ChronoUnit;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.List;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -36,13 +40,13 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class AiTripPlanPersistenceService {
     private static final int MAX_DAYS = 30;
-    private static final int MAX_ITEMS_PER_DAY = 10;
 
     private final TripDAO tripDAO;
     private final TripDayDAO tripDayDAO;
     private final ItineraryItemDAO itineraryItemDAO;
     private final PlaceDAO placeDAO;
     private final ActiveMemberGuard activeMemberGuard;
+    private final ItineraryItemValidator itineraryItemValidator;
 
     @Transactional
     public AiTripPlanSaveResult save(Long userId, AiTripPlanSaveRequest saveRequest) {
@@ -59,6 +63,7 @@ public class AiTripPlanPersistenceService {
                         Function.identity(),
                         (first, ignored) -> first
                 ));
+        validatePlaceLinks(plan, resolvedPlaces);
 
         TripDTO trip = TripDTO.builder()
                 .userId(userId)
@@ -106,47 +111,65 @@ public class AiTripPlanPersistenceService {
         return new AiTripPlanSaveResult(trip.getTripId(), expectedDays, savedItems);
     }
 
+    // AI 일정은 자유 텍스트 장소명을 카카오 장소와 매칭해야 한다. 매칭에 실패한 장소를
+    // place_id=null로 저장하면 스케줄 페이지의 지도·이동수단 기능이 동작하지 않으므로,
+    // 여행을 insert하기 전에 모든 장소 연결을 먼저 확인하고 하나라도 실패하면 저장을 중단한다.
+    private void validatePlaceLinks(AiTripPlanResponse plan,
+                                    Map<String, AiTripPlanResolvedPlace> resolvedPlaces) {
+        for (AiTripPlanDayResponse day : plan.days()) {
+            List<AiTripPlanItemResponse> schedules = day.items() == null ? List.of() : day.items();
+            List<AiTripPlanPlaceResponse> places = day.places() == null ? List.of() : day.places();
+            if (schedules.size() != places.size()) {
+                throw new IllegalArgumentException("DAY " + day.day() + "의 일정과 장소 개수가 일치하지 않습니다.");
+            }
+            if (places.isEmpty() || places.size() > TripPolicy.MAX_ITINERARY_ITEMS_PER_DAY) {
+                throw new IllegalArgumentException(
+                        "하루 일정은 1개부터 " + TripPolicy.MAX_ITINERARY_ITEMS_PER_DAY + "개까지 저장할 수 있습니다.");
+            }
+            // 수동 일정 추가와 동일하게 같은 DAY에 동일한 장소가 중복 연결되는 것을 막는다.
+            Set<String> usedExternalIds = new HashSet<>();
+            for (AiTripPlanPlaceResponse place : places) {
+                AiTripPlanResolvedPlace resolved = resolvedPlaces.get(day.day() + ":" + place.number());
+                if (resolved == null || resolved.externalPlaceId() == null || resolved.externalPlaceId().isBlank()
+                        || resolved.latitude() == null || resolved.longitude() == null) {
+                    throw new IllegalArgumentException(
+                            "카카오 장소를 찾지 못했습니다: " + place.name() + ". 일정을 다시 생성해 주세요.");
+                }
+                if (!usedExternalIds.add(resolved.externalPlaceId())) {
+                    throw new BusinessException(ErrorCode.ITINERARY_PLACE_ALREADY_ADDED);
+                }
+            }
+        }
+    }
+
     private int saveItems(Long tripDayId, AiTripPlanDayResponse day,
                           Map<String, AiTripPlanResolvedPlace> resolvedPlaces) {
-        List<AiTripPlanItemResponse> schedules = day.items() == null ? List.of() : day.items();
-        List<AiTripPlanPlaceResponse> places = day.places() == null ? List.of() : day.places();
-        int itemCount = Math.max(schedules.size(), places.size());
-        if (itemCount < 1 || itemCount > MAX_ITEMS_PER_DAY) {
-            throw new IllegalArgumentException("하루 일정은 1개부터 10개까지 저장할 수 있습니다.");
-        }
-        for (int index = 0; index < itemCount; index++) {
-            AiTripPlanItemResponse schedule = index < schedules.size() ? schedules.get(index) : null;
-            AiTripPlanPlaceResponse place = index < places.size() ? places.get(index) : null;
-            AiTripPlanResolvedPlace resolved = place == null
-                    ? null
-                    : resolvedPlaces.get(day.day() + ":" + place.number());
-            String title = place != null ? place.name() : schedule.title();
-            String memo = joinDescriptions(
-                    place == null ? null : place.description(),
-                    schedule == null ? null : schedule.description()
-            );
+        List<AiTripPlanItemResponse> schedules = day.items();
+        List<AiTripPlanPlaceResponse> places = day.places();
+        for (int index = 0; index < places.size(); index++) {
+            AiTripPlanItemResponse schedule = schedules.get(index);
+            AiTripPlanPlaceResponse place = places.get(index);
+            AiTripPlanResolvedPlace resolved = resolvedPlaces.get(day.day() + ":" + place.number());
             ItineraryItemDTO item = ItineraryItemDTO.builder()
                     .tripDayId(tripDayId)
                     .placeId(savePlace(resolved, place))
                     .itemType(itemType(place, schedule))
-                    .title(requiredText(title, "일정 제목", 150))
-                    .startTime(parseTime(schedule == null ? null : schedule.time()))
+                    .title(requiredText(place.name(), "일정 제목", 150))
+                    .startTime(parseTime(schedule.time()))
                     .sortOrder(index + 1)
-                    .memo(memo)
+                    .memo(joinDescriptions(place.description(), schedule.description()))
                     .currencyCode("KRW")
                     .source("AI")
                     .build();
+            itineraryItemValidator.validate(item);
             if (itineraryItemDAO.insert(item) != 1) {
                 throw new BusinessException(ErrorCode.TRIP_CREATE_FAILED);
             }
         }
-        return itemCount;
+        return places.size();
     }
 
     private Long savePlace(AiTripPlanResolvedPlace resolved, AiTripPlanPlaceResponse recommendation) {
-        if (resolved == null || resolved.externalPlaceId() == null || resolved.externalPlaceId().isBlank()) {
-            return null;
-        }
         return placeDAO.upsert(PlaceDTO.builder()
                 .externalProvider("KAKAO")
                 .externalPlaceId(resolved.externalPlaceId())

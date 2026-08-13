@@ -6,7 +6,7 @@ import org.springframework.stereotype.Component;
 
 @Component
 @Profile("!ui")
-final class ItineraryItemValidator {
+public final class ItineraryItemValidator {
     public void validate(ItineraryItemDTO item) {
         if (item.getTitle() == null || item.getTitle().isBlank()) {
             throw new IllegalArgumentException("일정 제목은 필수입니다.");

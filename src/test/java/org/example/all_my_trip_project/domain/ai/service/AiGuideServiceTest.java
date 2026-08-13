@@ -154,6 +154,111 @@ class AiGuideServiceTest {
     }
 
     @Test
+    void replacesGenericCafeItemWithAnUnusedVerifiedCafe() {
+        AiGuideRequest request = new AiGuideRequest("이재모피자 근처 카페 추천", 12L);
+        AiGuideContext context = new AiGuideContext(null, List.of());
+        RagSearchResult verifiedCafe = new RagSearchResult("place:41", "verified", 41L,
+                "실제 카페", "CAFE", "부산 중구 광복중앙로", "https://place.map.kakao.com/41");
+        AiGuideResponse response = new AiGuideResponse("추천", List.of(new AiGuideDayResponse(1, "DAY 1",
+                List.of(new AiGuideItemResponse("14:00", "카페 탐방", "근처 카페를 둘러보세요")))), List.of(), List.of());
+        org.example.all_my_trip_project.domain.rag.service.PlaceRagService ragService = mock(org.example.all_my_trip_project.domain.rag.service.PlaceRagService.class);
+
+        when(conversationHistoryService.load(1L, 12L)).thenReturn(List.of());
+        when(contextService.load(1L, request)).thenReturn(context);
+        when(ragServiceProvider.getIfAvailable()).thenReturn(ragService);
+        when(ragService.search(request.question())).thenReturn(List.of(verifiedCafe));
+        when(aiModelClient.generate(request, List.of(), context, List.of(verifiedCafe))).thenReturn(response);
+
+        AiGuideItemResponse actual = service.generate(request, false, 1L).days().getFirst().items().getFirst();
+
+        assertThat(actual.name()).isEqualTo("실제 카페");
+        assertThat(actual.placeId()).isEqualTo(41L);
+        assertThat(actual.placeAddress()).isEqualTo("부산 중구 광복중앙로");
+    }
+
+    @Test
+    void usesOnlyFreshNearbyCandidatesSoOldRagCandidatesDoNotLeakIntoTheRecommendation() {
+        AiGuideRequest request = new AiGuideRequest("이재모피자 근처 카페 추천", 12L);
+        AiGuideContext context = new AiGuideContext(null, List.of());
+        RagSearchResult oldIndexedPlace = new RagSearchResult("place:1", "old", 1L,
+                "서울 카페", "CAFE", "서울", "https://place.map.kakao.com/1");
+        RagSearchResult nearbyPlace = new RagSearchResult("place:2", "nearby", 2L,
+                "부산 카페", "CAFE", "부산 중구", "https://place.map.kakao.com/2");
+        AiGuideResponse response = new AiGuideResponse("추천", List.of(), List.of(), List.of());
+        org.example.all_my_trip_project.domain.rag.service.PlaceRagService ragService = mock(org.example.all_my_trip_project.domain.rag.service.PlaceRagService.class);
+        KakaoPlaceDiscoveryService discoveryService = mock(KakaoPlaceDiscoveryService.class);
+
+        when(conversationHistoryService.load(1L, 12L)).thenReturn(List.of());
+        when(contextService.load(1L, request)).thenReturn(context);
+        when(ragServiceProvider.getIfAvailable()).thenReturn(ragService);
+        when(ragService.search(request.question())).thenReturn(List.of(oldIndexedPlace));
+        when(kakaoPlaceDiscoveryServiceProvider.getIfAvailable()).thenReturn(discoveryService);
+        when(discoveryService.discoverAndIndex(request.question(), null)).thenReturn(List.of(nearbyPlace));
+        when(aiModelClient.generate(request, List.of(), context, List.of(nearbyPlace))).thenReturn(response);
+
+        service.generate(request, false, 1L);
+
+        verify(aiModelClient).generate(request, List.of(), context, List.of(nearbyPlace));
+    }
+
+    @Test
+    void usesTheScheduledPlacesIdAsTheNearbySearchAnchor() {
+        AiGuideRequest request = new AiGuideRequest("이재모피자 본점 근처 카페 추천", 12L);
+        AiGuideContext.Item scheduledItem = new AiGuideContext.Item(77L, "이재모피자 본점", null, null, "FOOD", null);
+        AiGuideContext context = new AiGuideContext(
+                new AiGuideContext.Trip(12L, "부산 여행", "부산", null, null,
+                        null, null, null, null, null, null, null, null, null,
+                        List.of(new AiGuideContext.Day(1, null, "DAY 1", null, List.of(scheduledItem)))),
+                List.of());
+        AiGuideResponse response = new AiGuideResponse("추천", List.of(), List.of(), List.of());
+        org.example.all_my_trip_project.domain.rag.service.PlaceRagService ragService = mock(org.example.all_my_trip_project.domain.rag.service.PlaceRagService.class);
+        KakaoPlaceDiscoveryService discoveryService = mock(KakaoPlaceDiscoveryService.class);
+        RagSearchResult nearbyCafe = new RagSearchResult("place:88", "nearby", 88L,
+                "부산 카페", "CAFE", "부산 중구", "https://place.map.kakao.com/88");
+
+        when(conversationHistoryService.load(1L, 12L)).thenReturn(List.of());
+        when(contextService.load(1L, request)).thenReturn(context);
+        when(ragServiceProvider.getIfAvailable()).thenReturn(ragService);
+        when(ragService.search(request.question())).thenReturn(List.of());
+        when(kakaoPlaceDiscoveryServiceProvider.getIfAvailable()).thenReturn(discoveryService);
+        when(discoveryService.discoverAndIndex(request.question(), "부산", 77L)).thenReturn(List.of(nearbyCafe));
+        when(aiModelClient.generate(request, List.of(), context, List.of(nearbyCafe))).thenReturn(response);
+
+        service.generate(request, false, 1L);
+
+        verify(discoveryService).discoverAndIndex(request.question(), "부산", 77L);
+    }
+
+    @Test
+    void searchesAgainFromThePreviousNearbyQuestionAndExcludesAlreadySuggestedPlaces() {
+        AiGuideRequest request = new AiGuideRequest("다른 곳 추천해줘", 12L);
+        AiConversationTurn previousTurn = new AiConversationTurn(
+                "이재모피자 본점 근처 카페 추천해줘", "레드버튼 남포점을 추천합니다.");
+        AiGuideContext context = new AiGuideContext(null, List.of());
+        RagSearchResult redButton = new RagSearchResult("place:1", "candidate", 1L,
+                "레드버튼 남포점", "CAFE", "부산", "https://place.map.kakao.com/1");
+        RagSearchResult anotherCafe = new RagSearchResult("place:2", "candidate", 2L,
+                "다른 부산 카페", "CAFE", "부산", "https://place.map.kakao.com/2");
+        AiGuideResponse response = new AiGuideResponse("다른 카페", List.of(), List.of(), List.of());
+        org.example.all_my_trip_project.domain.rag.service.PlaceRagService ragService = mock(org.example.all_my_trip_project.domain.rag.service.PlaceRagService.class);
+        KakaoPlaceDiscoveryService discoveryService = mock(KakaoPlaceDiscoveryService.class);
+
+        when(conversationHistoryService.load(1L, 12L)).thenReturn(List.of(previousTurn));
+        when(contextService.load(1L, request)).thenReturn(context);
+        when(ragServiceProvider.getIfAvailable()).thenReturn(ragService);
+        when(ragService.search(previousTurn.question())).thenReturn(List.of());
+        when(kakaoPlaceDiscoveryServiceProvider.getIfAvailable()).thenReturn(discoveryService);
+        when(discoveryService.discoverAndIndex(previousTurn.question(), null))
+                .thenReturn(List.of(redButton, anotherCafe));
+        when(aiModelClient.generate(request, List.of(previousTurn), context, List.of(anotherCafe))).thenReturn(response);
+
+        service.generate(request, false, 1L);
+
+        verify(discoveryService).discoverAndIndex(previousTurn.question(), null);
+        verify(aiModelClient).generate(request, List.of(previousTurn), context, List.of(anotherCafe));
+    }
+
+    @Test
     void doesNotAttachPlaceMetadataWhenSeveralVerifiedPlacesHaveTheSameName() {
         AiGuideRequest request = new AiGuideRequest("스타벅스 추천", 12L);
         AiGuideContext context = new AiGuideContext(null, List.of());

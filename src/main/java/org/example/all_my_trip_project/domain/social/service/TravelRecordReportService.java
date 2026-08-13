@@ -1,6 +1,7 @@
 package org.example.all_my_trip_project.domain.social.service;
 
 import lombok.RequiredArgsConstructor;
+import org.example.all_my_trip_project.domain.admin.service.AdminAuditService;
 import org.example.all_my_trip_project.domain.social.dto.ProcessReportRequest;
 import org.example.all_my_trip_project.domain.social.dto.ReportRecordRequest;
 import org.example.all_my_trip_project.domain.social.dto.TravelRecordReportResponse;
@@ -14,6 +15,7 @@ import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Map;
 import java.util.List;
 
 /**
@@ -32,6 +34,7 @@ public class TravelRecordReportService {
     private final ReportCreator creator;
     private final ReportReader reader;
     private final ReportProcessor processor;
+    private final AdminAuditService adminAuditService;
 
     @Transactional
     public TravelRecordReportResponse report(Long reporterUserId, Long travelRecordId, ReportRecordRequest request) {
@@ -50,8 +53,13 @@ public class TravelRecordReportService {
         validateUserId(adminUserId);
         validator.validateTargetStatus(request.status());
         TravelRecordReportEntity report = reader.findById(reportId);
+        String previousStatus = report.getStatus();
         String resolutionNote = normalizeResolutionNote(request.resolutionNote());
         processor.process(report, adminUserId, request.status(), resolutionNote);
+        adminAuditService.record("REPORT_PROCESS", "TRAVEL_RECORD_REPORT", reportId,
+                AdminAuditService.payload("status", previousStatus),
+                AdminAuditService.payload("status", report.getStatus(),
+                        "travelRecordId", report.getTravelRecordId()));
         return toResponse(report);
     }
 

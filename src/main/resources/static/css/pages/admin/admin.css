@@ -182,8 +182,135 @@ body.page-admin #page-content {
 .page-admin .admin-table-body > div:last-child { border-bottom: 0; }
 
 .page-admin .admin-report-row { grid-template-columns: 90px 100px 1fr 90px 110px; }
-.page-admin .admin-product-row { grid-template-columns: 1fr 80px 90px 60px; }
-.page-admin .admin-monitor-row { grid-template-columns: 1fr 90px 120px; }
+/* 판매 상태가 select라 96px으로는 라벨이 잘린다. 재고는 "남은 / 전체" 두 값을 한 칸에 쓴다. */
+.page-admin .admin-product-row { grid-template-columns: 1fr 104px 112px 128px; }
+/* 상태 칸에 `만료 시각 지남`이 배지 아래로 붙어서 90px으로는 줄바꿈이 지저분해진다. */
+.page-admin .admin-monitor-row { grid-template-columns: 1fr 116px 120px; }
+
+/* 예약번호 아래에 상품·회원을 붙여 한 칸에 담는다. 상품 이름은 길어서 별도 칸으로 빼기 어렵다. */
+.page-admin .admin-monitor-row strong { display: block; }
+.page-admin .admin-monitor-row small {
+  display: block;
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 11px;
+}
+.page-admin .admin-monitor-row .admin-status { display: inline-block; }
+/* 방치된 건은 상태 배지만으로 구분되지 않는다. 색으로 한 번 더 드러낸다. */
+.page-admin .admin-monitor-row [data-expired-pending] { color: #b4451f; font-weight: 700; }
+
+/* 상품명 아래에 장소를 붙여 한 칸에 담는다. 장소를 별도 칸으로 빼면 좁은 화면에서 먼저 잘린다. */
+.page-admin .admin-product-row strong { display: block; }
+.page-admin .admin-product-row small {
+  display: block;
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 11px;
+}
+.page-admin .admin-product-row select {
+  width: 100%;
+  padding: 5px 6px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #fff;
+  font-size: 12px;
+}
+.page-admin .admin-product-row [data-product-note] {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+/* 관리 버튼이 들어가면서 4번째 칸이 넓어져야 한다. */
+.page-admin .admin-row-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+.page-admin .admin-row-actions .admin-chip { padding: 4px 8px; font-size: 11px; }
+
+.page-admin .admin-panel-actions {
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.page-admin .admin-panel-actions .admin-search { flex: 1; margin-bottom: 0; }
+.page-admin .admin-panel-actions .primary-button { min-height: 38px; padding: 0 16px; font-size: 13px; }
+
+.page-admin .admin-product-form {
+  margin-bottom: 16px;
+  padding: 16px 18px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: #fbfcff;
+}
+.page-admin .admin-product-form[hidden] { display: none; }
+.page-admin .admin-product-form h3 { grid-column: 1 / -1; margin: 0; font-size: 15px; color: var(--navy); }
+.page-admin .admin-product-form label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; font-weight: 700; color: #475467; }
+.page-admin .admin-product-form label.wide { grid-column: 1 / -1; }
+.page-admin .admin-product-form input,
+.page-admin .admin-product-form select,
+.page-admin .admin-product-form textarea {
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: #fff;
+  font-size: 13px;
+  font-weight: 500;
+}
+.page-admin .admin-product-form .admin-hint { grid-column: 1 / -1; margin: 0; }
+.page-admin .admin-form-buttons {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.page-admin .admin-slot-panel { margin-top: 16px; }
+.page-admin .admin-slot-panel[hidden] { display: none; }
+.page-admin .admin-slot-row { grid-template-columns: 1fr 70px 110px 76px; }
+.page-admin .admin-slot-row strong { display: block; }
+.page-admin .admin-slot-row small { display: block; margin-top: 2px; color: var(--muted); font-size: 11px; }
+.page-admin .admin-slot-row [data-slot-closed] { color: #b4451f; font-weight: 700; }
+.page-admin .admin-slot-row [data-slot-message][data-slot-error="true"] { color: #b42318; font-weight: 700; }
+.page-admin .admin-slot-row input {
+  width: 100%;
+  padding: 5px 8px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 12px;
+}
+
+.page-admin .admin-search { display: block; margin-bottom: 12px; }
+.page-admin .admin-search input {
+  width: 100%;
+  padding: 9px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font-size: 13px;
+}
+
+.page-admin .admin-pagination {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: center;
+  margin-top: 14px;
+}
+.page-admin .admin-pagination:empty { display: none; }
+.page-admin .admin-pagination button {
+  min-width: 32px;
+  padding: 6px 9px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+.page-admin .admin-pagination button.is-current {
+  border-color: var(--brand, #2f6fed);
+  color: var(--brand, #2f6fed);
+}
 
 /* 상세 사유는 길어질 수 있어 한 줄로 자른다. 표가 행마다 들쭉날쭉해지면 훑기 어렵다. */
 .page-admin .admin-clamp {
@@ -223,10 +350,6 @@ body.page-admin #page-content {
   line-height: 1.5;
 }
 
-.page-admin .theme-form .field input:disabled {
-  background: #f7f9fc;
-  color: #a5aec1;
-}
 .page-admin .primary-button:disabled { opacity: 0.55; }
 
 .page-admin .admin-perf > div {
@@ -424,8 +547,8 @@ body.page-admin #page-content {
     아직 연동 전이라 어떤 칸을 버릴지 정할 수 없으므로, 칸을 지우는 대신 패널 안에서 굴린다.
   */
   .page-admin .admin-panel { overflow-x: auto; }
-  .page-admin .admin-product-row { min-width: 360px; }
-  .page-admin .admin-monitor-row { min-width: 330px; }
+  .page-admin .admin-product-row { min-width: 440px; }
+  .page-admin .admin-monitor-row { min-width: 400px; }
 
   .page-admin .admin-filter { margin-left: 0; }
 }

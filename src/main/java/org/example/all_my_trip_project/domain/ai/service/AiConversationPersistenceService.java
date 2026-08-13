@@ -67,11 +67,12 @@ public class AiConversationPersistenceService {
     }
 
     @Transactional
-    public void delete(Long userId, Long tripId) {
+    public void archiveActiveSession(Long userId, Long tripId) {
         if (userId == null || tripId == null) {
             return;
         }
-        sessionRepository.deleteByUserIdAndTripIdAndStatus(userId, tripId, AiChatSessionEntity.ACTIVE);
+        sessionRepository.findActiveForUpdate(userId, tripId, AiChatSessionEntity.ACTIVE)
+                .ifPresent(AiChatSessionEntity::archive);
     }
 
     private List<AiConversationTurn> loadTurns(AiChatSessionEntity session) {

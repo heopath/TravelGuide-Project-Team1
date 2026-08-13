@@ -1,6 +1,7 @@
 package org.example.all_my_trip_project.domain.place.service;
 
 import lombok.RequiredArgsConstructor;
+import org.example.all_my_trip_project.domain.admin.service.AdminAuditService;
 import org.example.all_my_trip_project.domain.place.dao.PlaceDAO;
 import org.example.all_my_trip_project.domain.place.dto.AdminPlacePage;
 import org.example.all_my_trip_project.domain.place.dto.AdminPlaceRequest;
@@ -14,6 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.net.URI;
 import java.util.Locale;
+import java.util.Map;
 
 @Service
 @Profile("!ui")
@@ -23,6 +25,7 @@ public class AdminPlaceService {
 
     private static final int MAX_PAGE_SIZE = 100;
     private final PlaceDAO placeDAO;
+    private final AdminAuditService adminAuditService;
 
     public AdminPlacePage list(int page, int size, String keyword, String category, Boolean active) {
         if (page < 0 || size < 1 || size > MAX_PAGE_SIZE) {
@@ -52,6 +55,8 @@ public class AdminPlaceService {
             throw new IllegalStateException("추천 장소를 등록하지 못했습니다.");
         }
         savePrimaryImage(place.getPlaceId(), place.getName(), request.primaryImageUrl());
+        adminAuditService.record("PLACE_CREATE", "PLACE", place.getPlaceId(),
+                null, AdminAuditService.payload("name", place.getName(), "category", place.getCategory()));
         return requirePlace(place.getPlaceId());
     }
 
@@ -62,16 +67,21 @@ public class AdminPlaceService {
         PlaceDTO place = apply(requirePlace(placeId), request);
         if (placeDAO.update(place) != 1) throw new BusinessException(ErrorCode.PLACE_NOT_FOUND);
         savePrimaryImage(placeId, place.getName(), request.primaryImageUrl());
+        adminAuditService.record("PLACE_UPDATE", "PLACE", placeId,
+                null, AdminAuditService.payload("name", place.getName(), "category", place.getCategory()));
         return requirePlace(placeId);
     }
 
     @Transactional
     @CacheEvict(cacheNames = "placeDetail", key = "#placeId")
     public PlaceDTO setVisibility(Long placeId, boolean active) {
-        requirePlace(placeId);
+        PlaceDTO current = requirePlace(placeId);
         if (placeDAO.updateActive(placeId, active) != 1) {
             throw new BusinessException(ErrorCode.PLACE_NOT_FOUND);
         }
+        adminAuditService.record("PLACE_VISIBILITY_CHANGE", "PLACE", placeId,
+                AdminAuditService.payload("active", current.getActive()),
+                AdminAuditService.payload("active", active, "name", current.getName()));
         return requirePlace(placeId);
     }
 

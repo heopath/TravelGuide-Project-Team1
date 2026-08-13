@@ -27,6 +27,7 @@ import java.util.List;
 public class KakaoLocalPlaceClient {
 
     private static final URI KEYWORD_SEARCH_URI = URI.create("https://dapi.kakao.com/v2/local/search/keyword.json");
+    private static final URI CATEGORY_SEARCH_URI = URI.create("https://dapi.kakao.com/v2/local/search/category.json");
     private static final int MAX_SIZE = 10;
 
     private final HttpClient httpClient;
@@ -94,6 +95,57 @@ public class KakaoLocalPlaceClient {
             log.warn("Kakao Local place search failed.", exception);
             return List.of();
         }
+    }
+
+    /**
+     * 기준 장소의 좌표 주변에서 카카오 카테고리로 실제 장소를 찾는다.
+     * 예: "이재모피자 본점 근처 카페" 요청은 기준 장소를 먼저 찾은 뒤 CE7 카테고리를 조회한다.
+     */
+    public List<PlaceDTO> searchByCategory(String categoryGroupCode, BigDecimal longitude, BigDecimal latitude,
+                                           Duration requestTimeout) {
+        if (restApiKey == null || restApiKey.isBlank() || categoryGroupCode == null || categoryGroupCode.isBlank()
+                || longitude == null || latitude == null) {
+            return List.of();
+        }
+
+        Duration effectiveTimeout = effectiveTimeout(requestTimeout);
+        URI uri = UriComponentsBuilder.fromUri(CATEGORY_SEARCH_URI)
+                .queryParam("category_group_code", categoryGroupCode.trim())
+                .queryParam("x", longitude)
+                .queryParam("y", latitude)
+                .queryParam("radius", 1500)
+                .queryParam("size", MAX_SIZE)
+                .build()
+                .encode()
+                .toUri();
+        HttpRequest request = HttpRequest.newBuilder(uri)
+                .timeout(effectiveTimeout)
+                .header("Authorization", "KakaoAK " + restApiKey)
+                .GET()
+                .build();
+
+        try {
+            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+            if (response.statusCode() < 200 || response.statusCode() >= 300) {
+                log.warn("Kakao Local category search failed. status={}, response={}",
+                        response.statusCode(), abbreviate(response.body()));
+                return List.of();
+            }
+            return parsePlaces(objectMapper.readTree(response.body()));
+        } catch (InterruptedException exception) {
+            Thread.currentThread().interrupt();
+            log.warn("Kakao Local category search was interrupted.", exception);
+            return List.of();
+        } catch (IOException | RuntimeException exception) {
+            log.warn("Kakao Local category search failed.", exception);
+            return List.of();
+        }
+    }
+
+    private Duration effectiveTimeout(Duration requestTimeout) {
+        return requestTimeout == null || requestTimeout.isNegative() || requestTimeout.isZero()
+                ? timeout
+                : requestTimeout.compareTo(timeout) < 0 ? requestTimeout : timeout;
     }
 
     static List<PlaceDTO> parsePlaces(JsonNode root) {

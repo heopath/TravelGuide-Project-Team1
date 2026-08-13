@@ -46,6 +46,18 @@
       }
     },
     {
+      "name": "Reset current trip AI conversation",
+      "description": "Archives the active DB conversation while removing only the current user/trip Redis history. Login and a CSRF token are required.",
+      "request": {
+        "method": "DELETE",
+        "header": [
+          { "key": "Accept", "value": "application/json" },
+          { "key": "{{csrfHeaderName}}", "value": "{{csrfToken}}" }
+        ],
+        "url": { "raw": "{{baseUrl}}/api/v1/ai-guides/conversation?tripId={{tripId}}", "host": ["{{baseUrl}}"], "path": ["api", "v1", "ai-guides", "conversation"], "query": [{ "key": "tripId", "value": "{{tripId}}" }] }
+      }
+    },
+    {
       "name": "Validation error - missing tripId",
       "request": {
         "method": "POST",

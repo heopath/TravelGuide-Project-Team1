@@ -44,7 +44,7 @@ class GeminiAiModelClientTest {
                         LocalDate.of(2026, 8, 11), "FRIENDS", 2, "FOOD", null, "KRW", "SUBWAY",
                         "SEAFOOD", "RELAXED", "HOTEL", List.of(new AiGuideContext.Day(1,
                         LocalDate.of(2026, 8, 10), "Arrival", "Near Gwangalli", List.of(
-                        new AiGuideContext.Item("Gwangalli dinner", null, null, "FOOD", "Seafood"))))),
+                        new AiGuideContext.Item(null, "Gwangalli dinner", null, null, "FOOD", "Seafood"))))),
                 List.of(new AiGuideContext.Preference("FOOD", "Food travel", (short) 5))
         );
 

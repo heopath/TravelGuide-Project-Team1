@@ -20,9 +20,11 @@ import java.util.List;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.verify;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(AiGuideController.class)
@@ -73,6 +75,24 @@ class AiGuideSecurityTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(AI_GUIDE_JSON))
                 .andExpect(status().isOk());
+    }
+
+    @Test
+    void resetConversationRequiresAuthenticationAndCsrfToken() throws Exception {
+        mockMvc.perform(delete("/api/v1/ai-guides/conversation").param("tripId", "1")
+                        .with(csrf().asHeader()))
+                .andExpect(status().isUnauthorized());
+
+        mockMvc.perform(delete("/api/v1/ai-guides/conversation").param("tripId", "1")
+                        .with(authentication(authenticatedUser())))
+                .andExpect(status().isForbidden());
+
+        mockMvc.perform(delete("/api/v1/ai-guides/conversation").param("tripId", "1")
+                        .with(authentication(authenticatedUser()))
+                        .with(csrf().asHeader()))
+                .andExpect(status().isOk());
+
+        verify(aiGuideService).resetConversation(1L, 1L);
     }
 
     private UsernamePasswordAuthenticationToken authenticatedUser() {

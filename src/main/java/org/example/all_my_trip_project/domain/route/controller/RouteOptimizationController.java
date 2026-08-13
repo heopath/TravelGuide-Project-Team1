@@ -11,8 +11,10 @@ import org.example.all_my_trip_project.global.response.ApiResponse;
 import org.example.all_my_trip_project.global.security.AuthenticatedUser;
 import org.springframework.context.annotation.Profile;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.bind.annotation.RequestBody;
 
@@ -27,19 +29,42 @@ public class RouteOptimizationController {
     @PostMapping("/api/v1/routes/transit")
     public ApiResponse<TransitRouteResponse> searchTransitRoute(
             @AuthenticationPrincipal AuthenticatedUser principal,
-            @RequestBody TransitRouteRequest request) {
+            @Valid @RequestBody TransitRouteRequest request) {
         if (principal == null) throw new BusinessException(ErrorCode.UNAUTHORIZED);
         return ApiResponse.success("대중교통 경로를 조회했습니다.",
                 routeOptimizationService.searchTransitRoute(request));
     }
 
+    @PostMapping("/api/v1/routes/walk")
+    public ApiResponse<TransitRouteResponse> searchWalkingRoute(
+            @AuthenticationPrincipal AuthenticatedUser principal,
+            @Valid @RequestBody TransitRouteRequest request) {
+        if (principal == null) throw new BusinessException(ErrorCode.UNAUTHORIZED);
+        return ApiResponse.success("도보 경로를 조회했습니다.",
+                routeOptimizationService.searchWalkingRoute(request));
+    }
+
+    @PostMapping("/api/v1/routes/car")
+    public ApiResponse<TransitRouteResponse> searchDrivingRoute(
+            @AuthenticationPrincipal AuthenticatedUser principal,
+            @Valid @RequestBody TransitRouteRequest request) {
+        if (principal == null) throw new BusinessException(ErrorCode.UNAUTHORIZED);
+        return ApiResponse.success("자동차 경로를 조회했습니다.",
+                routeOptimizationService.searchDrivingRoute(request));
+    }
+
     @PostMapping("/api/v1/trip-days/{tripDayId}/optimize-route")
     public ApiResponse<RouteOptimizationResponse> optimize(
             @AuthenticationPrincipal AuthenticatedUser principal,
-            @PathVariable Long tripDayId) {
+            @PathVariable Long tripDayId,
+            @RequestParam(defaultValue = "TIME") String criterion) {
         if (principal == null) throw new BusinessException(ErrorCode.UNAUTHORIZED);
-        return ApiResponse.success("이동시간 기준으로 동선을 최적화했습니다.",
-                routeOptimizationService.optimize(principal.userId(), tripDayId));
+        String normalizedCriterion = criterion == null ? "TIME" : criterion.trim().toUpperCase();
+        String message = "DISTANCE".equals(normalizedCriterion)
+                ? "이동거리 우선으로 동선을 최적화했습니다."
+                : "이동시간 우선으로 동선을 최적화했습니다.";
+        return ApiResponse.success(message,
+                routeOptimizationService.optimize(principal.userId(), tripDayId, normalizedCriterion));
     }
 
     @PostMapping("/api/v1/trip-days/{tripDayId}/items/reorder")

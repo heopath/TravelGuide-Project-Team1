@@ -210,8 +210,7 @@
       });
     });
 
-    /* 저장 API가 없어 입력과 버튼을 막아뒀지만, 엔터 제출까지는 막지 못한다. */
-    $("themeForm").addEventListener("submit", (event) => event.preventDefault());
+    /* 입력과 버튼을 막아뒀지만 엔터 제출까지는 막지 못한다. */
     $("chatComposer").addEventListener("submit", (event) => event.preventDefault());
 
     /*

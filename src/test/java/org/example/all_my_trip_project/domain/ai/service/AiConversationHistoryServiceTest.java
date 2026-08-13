@@ -28,6 +28,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.doThrow;
 
 @ExtendWith(MockitoExtension.class)
 class AiConversationHistoryServiceTest {
@@ -134,13 +135,30 @@ class AiConversationHistoryServiceTest {
     }
 
     @Test
-    void deletesRedisAndDatabaseHistoryForTheRequestedTrip() {
+    void resetsRedisAndArchivesDatabaseHistoryForTheRequestedTrip() {
         AiConversationPersistenceService persistenceService = mock(AiConversationPersistenceService.class);
         when(persistenceServiceProvider.getIfAvailable()).thenReturn(persistenceService);
 
-        historyService.delete(1L, 11L);
+        historyService.reset(1L, 11L);
 
         verify(redisTemplate).delete("ai:guide:conversation:1:trip:11");
-        verify(persistenceService).delete(1L, 11L);
+        verify(persistenceService).archiveActiveSession(1L, 11L);
+    }
+
+    @Test
+    void continuesWhenRedisAndDatabaseResetFail() {
+        AiConversationPersistenceService persistenceService = mock(AiConversationPersistenceService.class);
+        when(persistenceServiceProvider.getIfAvailable()).thenReturn(persistenceService);
+        doThrow(new IllegalStateException("Redis unavailable"))
+                .when(redisTemplate).delete("ai:guide:conversation:1:trip:11");
+        doThrow(new IllegalStateException("Database unavailable"))
+                .when(persistenceService).archiveActiveSession(1L, 11L);
+
+        historyService.reset(1L, 11L);
+
+        historyService.append(1L, 11L, "new question", "new answer");
+        assertThat(historyService.load(1L, 11L))
+                .extracting(AiConversationTurn::question)
+                .contains("new question");
     }
 }

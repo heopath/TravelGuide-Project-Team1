@@ -11,9 +11,11 @@ import org.example.all_my_trip_project.global.response.ApiResponse;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestHeader;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -38,5 +40,14 @@ public class AiGuideController {
         } finally {
             requestGuard.release();
         }
+    }
+
+    @DeleteMapping("/conversation")
+    public ResponseEntity<ApiResponse<Void>> resetConversation(
+            @RequestParam Long tripId,
+            @AuthenticationPrincipal AuthenticatedUser principal
+    ) {
+        aiGuideService.resetConversation(principal.userId(), tripId);
+        return ResponseEntity.ok(ApiResponse.success("AI conversation has been reset.", null));
     }
 }

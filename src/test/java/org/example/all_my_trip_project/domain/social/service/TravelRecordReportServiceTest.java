@@ -1,5 +1,6 @@
 package org.example.all_my_trip_project.domain.social.service;
 
+import org.example.all_my_trip_project.domain.admin.service.AdminAuditService;
 import org.example.all_my_trip_project.domain.social.dto.ProcessReportRequest;
 import org.example.all_my_trip_project.domain.social.dto.ReportRecordRequest;
 import org.example.all_my_trip_project.domain.social.entity.TravelRecordReportEntity;
@@ -38,11 +39,14 @@ class TravelRecordReportServiceTest {
     @Mock
     private ReportProcessor processor;
 
+    @Mock
+    private AdminAuditService adminAuditService;
+
     private TravelRecordReportService reportService;
 
     @BeforeEach
     void setUp() {
-        reportService = new TravelRecordReportService(activeMemberGuard, validator, creator, reader, processor);
+        reportService = new TravelRecordReportService(activeMemberGuard, validator, creator, reader, processor, adminAuditService);
     }
 
     @Test

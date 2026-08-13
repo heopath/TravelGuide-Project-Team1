@@ -8,6 +8,7 @@ document.addEventListener("DOMContentLoaded", function () {
   const errorBox = document.querySelector("[data-schedule-ai-error]");
   const errorMessage = document.querySelector("[data-schedule-ai-error-message]");
   const retryButton = document.querySelector("[data-schedule-ai-retry]");
+  const resetButton = document.querySelector("[data-schedule-ai-reset]");
   if (!modal || !dialog || !openButtons.length || !form || !input || !messages) return;
 
   let csrfToken;
@@ -252,6 +253,37 @@ document.addEventListener("DOMContentLoaded", function () {
     return payload;
   }
 
+  async function resetConversation() {
+    const tripId = currentTripId();
+    if (!tripId) throw new Error("현재 여행을 불러온 뒤 새 대화를 시작해 주세요.");
+
+    if (!csrfToken) {
+      const csrfResponse = await fetch("/api/v1/csrf", {
+        headers: { Accept: "application/json" },
+        credentials: "same-origin",
+        allMyTripsLoading: false
+      });
+      const csrfPayload = await csrfResponse.json().catch(function () { return null; });
+      if (!csrfResponse.ok || !csrfPayload?.headerName || !csrfPayload?.token) {
+        throw new Error("보안 토큰을 준비하지 못했습니다.");
+      }
+      csrfToken = csrfPayload;
+    }
+
+    const headers = { Accept: "application/json" };
+    headers[csrfToken.headerName] = csrfToken.token;
+    const response = await fetch("/api/v1/ai-guides/conversation?tripId=" + encodeURIComponent(tripId), {
+      method: "DELETE",
+      credentials: "same-origin",
+      allMyTripsLoading: false,
+      headers
+    });
+    const payload = await response.json().catch(function () { return null; });
+    if (!response.ok || !payload?.success) {
+      throw new Error(payload?.message || "대화 초기화에 실패했습니다.");
+    }
+  }
+
   function showError(message) {
     errorMessage.textContent = message;
     errorBox.hidden = false;
@@ -326,6 +358,25 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   });
   retryButton.addEventListener("click", function () { submit(lastQuestion); });
+  resetButton?.addEventListener("click", async function () {
+    if (submitting) return;
+    resetButton.disabled = true;
+    try {
+      await resetConversation();
+      messages.replaceChildren();
+      dayControls.length = 0;
+      errorBox.hidden = true;
+      lastQuestion = "";
+      appendMessage("schedule-ai-assistant", function (message) {
+        message.append(create("p", "새 대화를 시작했어요. 현재 여행 일정에 대해 편하게 물어보세요."));
+      });
+    } catch (error) {
+      showError(error.message || "대화 초기화에 실패했습니다.");
+    } finally {
+      resetButton.disabled = false;
+      input.focus();
+    }
+  });
   document.addEventListener("keydown", function (event) {
     if (event.key === "Escape" && !modal.hidden) closeModal();
   });
