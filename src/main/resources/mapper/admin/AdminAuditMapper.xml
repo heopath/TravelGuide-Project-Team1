@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.example.all_my_trip_project.domain.admin.mapper.AdminAuditMapper">
+
+    <!--
+      before_data/after_data는 JSONB, ip_address는 INET이다. MyBatis가 문자열로 넘기므로
+      명시적으로 캐스팅한다. 캐스팅을 빼면 "column is of type jsonb but expression is of
+      type character varying"으로 실패한다.
+
+      값이 없을 수 있어 CAST 대신 ::를 쓰되 NULL도 그대로 통과하도록 둔다.
+      NULL::jsonb 와 NULL::inet 은 모두 NULL이다.
+    -->
+    <insert id="insert" useGeneratedKeys="true"
+            keyProperty="adminAuditLogId" keyColumn="admin_audit_log_id">
+        INSERT INTO admin_audit_logs (
+            admin_user_id, action_type, target_type, target_id,
+            before_data, after_data, request_id, ip_address, user_agent
+        ) VALUES (
+            #{adminUserId}, #{actionType}, #{targetType}, #{targetId},
+            #{beforeData}::jsonb, #{afterData}::jsonb,
+            #{requestId}, #{ipAddress}::inet, #{userAgent}
+        )
+    </insert>
+
+    <!-- 대상별 최근 이력. idx_admin_audit_logs_target 인덱스를 그대로 탄다. -->
+    <select id="findRecent" resultType="org.example.all_my_trip_project.domain.admin.dto.AdminAuditLogDTO">
+        SELECT
+            admin_audit_log_id, admin_user_id, action_type, target_type, target_id,
+            before_data::text AS before_data, after_data::text AS after_data,
+            request_id, host(ip_address) AS ip_address, user_agent, occurred_at
+        FROM admin_audit_logs
+        <where>
+            <if test="targetType != null and targetType != ''">
+                AND target_type = #{targetType}
+            </if>
+            <if test="targetId != null and targetId != ''">
+                AND target_id = #{targetId}
+            </if>
+        </where>
+        ORDER BY occurred_at DESC, admin_audit_log_id DESC
+        LIMIT #{limit}
+    </select>
+
+</mapper>
