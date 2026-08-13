@@ -52,7 +52,7 @@
                   <span aria-hidden="true">▦</span><span>운영 지표</span><em>연동 전</em>
                 </button>
                 <button type="button" data-admin-panel="products">
-                  <span aria-hidden="true">▤</span><span>예약 상품·재고</span><em>연동 전</em>
+                  <span aria-hidden="true">▤</span><span>예약 상품·재고</span><em class="live">실연동</em>
                 </button>
                 <button type="button" data-admin-panel="theme">
                   <span aria-hidden="true">✦</span><span>테마 여행 등록</span><em>연동 전</em>
@@ -197,20 +197,40 @@
                 </div>
               </section>
 
-              <!-- 예약 상품·재고. 재고는 별도 화면이 아니라 상품 행의 수량·품절 처리로 다룬다. -->
+              <!--
+                예약 상품·재고. 재고는 별도 화면이 아니라 상품 행의 수량·품절 처리로 다룬다.
+
+                수량을 직접 고치는 입력은 두지 않았다. 재고는 시간대(slot)마다 따로 있고
+                예약이 걸린 시간대의 수량을 목록에서 일괄로 줄이면 reserved > total 이 되는
+                순간이 생긴다. 목록은 합계만 보여주고, 수량 조정은 시간대 단위로 따로 다룬다.
+              -->
               <section class="admin-section" data-admin-section="products" aria-labelledby="productsTitle" hidden>
                 <div class="admin-section-head">
                   <h2 id="productsTitle">예약 상품·재고 관리</h2>
-                  <span class="admin-tag" data-admin-state="products">연동 전</span>
+                  <span class="admin-tag live" data-admin-state="products">실연동</span>
+                  <div class="admin-filter" role="group" aria-label="판매 상태 필터" data-product-filter>
+                    <button type="button" class="admin-chip on" data-product-status="">전체</button>
+                    <button type="button" class="admin-chip" data-product-status="DRAFT">작성 중</button>
+                    <button type="button" class="admin-chip" data-product-status="ON_SALE">판매 중</button>
+                    <button type="button" class="admin-chip" data-product-status="SOLD_OUT">품절</button>
+                    <button type="button" class="admin-chip" data-product-status="ENDED">종료</button>
+                    <button type="button" class="admin-chip" data-product-status="CANCELLED">취소</button>
+                  </div>
                 </div>
                 <div class="white-panel admin-panel">
+                  <label class="admin-search">
+                    <span class="sr-only">상품 검색</span>
+                    <input type="search" data-product-search autocomplete="off"
+                           placeholder="상품명·장소·지역 검색 후 Enter" />
+                  </label>
                   <div class="admin-table-head admin-product-row">
-                    <span>상품</span><span>재고</span><span>판매 상태</span><span></span>
+                    <span>상품</span><span>재고(남은/전체)</span><span>판매 상태</span><span></span>
                   </div>
                   <div id="productList" class="admin-table-body"></div>
                   <p class="admin-empty" id="productEmpty" role="status">
-                    상품 관리 API가 붙으면 등록된 상품이 표시돼요.
+                    상품 목록을 불러오는 중이에요.
                   </p>
+                  <div class="admin-pagination" data-product-pagination></div>
                 </div>
               </section>
 
@@ -347,5 +367,6 @@
     <!-- 공통 스크립트 프래그먼트는 페이지 JS를 포함하지 않는다. 다른 페이지와 같이 직접 건다. -->
     <script th:src="@{/js/pages/admin/admin.js}" src="../../static/js/pages/admin/admin.js"></script>
     <script th:src="@{/js/pages/admin/admin-support.js}" src="../../static/js/pages/admin/admin-support.js"></script>
+    <script th:src="@{/js/pages/admin/admin-products.js}" src="../../static/js/pages/admin/admin-products.js"></script>
   </body>
 </html>
