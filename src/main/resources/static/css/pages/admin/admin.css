@@ -182,8 +182,62 @@ body.page-admin #page-content {
 .page-admin .admin-table-body > div:last-child { border-bottom: 0; }
 
 .page-admin .admin-report-row { grid-template-columns: 90px 100px 1fr 90px 110px; }
-.page-admin .admin-product-row { grid-template-columns: 1fr 80px 90px 60px; }
+/* 판매 상태가 select라 96px으로는 라벨이 잘린다. 재고는 "남은 / 전체" 두 값을 한 칸에 쓴다. */
+.page-admin .admin-product-row { grid-template-columns: 1fr 110px 116px 72px; }
 .page-admin .admin-monitor-row { grid-template-columns: 1fr 90px 120px; }
+
+/* 상품명 아래에 장소를 붙여 한 칸에 담는다. 장소를 별도 칸으로 빼면 좁은 화면에서 먼저 잘린다. */
+.page-admin .admin-product-row strong { display: block; }
+.page-admin .admin-product-row small {
+  display: block;
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 11px;
+}
+.page-admin .admin-product-row select {
+  width: 100%;
+  padding: 5px 6px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #fff;
+  font-size: 12px;
+}
+.page-admin .admin-product-row [data-product-note] {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.page-admin .admin-search { display: block; margin-bottom: 12px; }
+.page-admin .admin-search input {
+  width: 100%;
+  padding: 9px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font-size: 13px;
+}
+
+.page-admin .admin-pagination {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: center;
+  margin-top: 14px;
+}
+.page-admin .admin-pagination:empty { display: none; }
+.page-admin .admin-pagination button {
+  min-width: 32px;
+  padding: 6px 9px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+.page-admin .admin-pagination button.is-current {
+  border-color: var(--brand, #2f6fed);
+  color: var(--brand, #2f6fed);
+}
 
 /* 상세 사유는 길어질 수 있어 한 줄로 자른다. 표가 행마다 들쭉날쭉해지면 훑기 어렵다. */
 .page-admin .admin-clamp {
@@ -424,7 +478,7 @@ body.page-admin #page-content {
     아직 연동 전이라 어떤 칸을 버릴지 정할 수 없으므로, 칸을 지우는 대신 패널 안에서 굴린다.
   */
   .page-admin .admin-panel { overflow-x: auto; }
-  .page-admin .admin-product-row { min-width: 360px; }
+  .page-admin .admin-product-row { min-width: 440px; }
   .page-admin .admin-monitor-row { min-width: 330px; }
 
   .page-admin .admin-filter { margin-left: 0; }

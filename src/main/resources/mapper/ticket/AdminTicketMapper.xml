@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.example.all_my_trip_project.domain.ticket.mapper.AdminTicketMapper">
+
+    <!--
+      재고 합계를 JOIN으로 붙이면 옵션 × 시간대만큼 행이 불어나 상품 컬럼이 중복 집계된다.
+      상품당 한 행을 유지하려고 스칼라 서브쿼리로 뽑는다.
+
+      관리자 목록은 places.is_active를 보지 않는다. 숨긴 장소의 상품이 목록에서 사라지면
+      판매 상태를 되돌릴 방법이 없어진다.
+    -->
+    <sql id="adminColumns">
+        tp.ticket_product_id, tp.place_id, tp.name, tp.status,
+        tp.sale_start_at, tp.sale_end_at, tp.usage_start_date, tp.usage_end_date,
+        p.name AS place_name, p.region, p.city,
+        (SELECT COUNT(*) FROM ticket_product_options o
+          WHERE o.ticket_product_id = tp.ticket_product_id AND o.is_active = TRUE) AS option_count,
+        (SELECT COUNT(*) FROM ticket_product_options o
+            JOIN ticket_time_slots s ON s.ticket_product_option_id = o.ticket_product_option_id
+          WHERE o.ticket_product_id = tp.ticket_product_id
+            AND o.is_active = TRUE AND s.status = 'OPEN') AS slot_count,
+        COALESCE((SELECT SUM(i.total_quantity) FROM ticket_product_options o
+            JOIN ticket_time_slots s ON s.ticket_product_option_id = o.ticket_product_option_id
+            JOIN ticket_inventory i ON i.ticket_time_slot_id = s.ticket_time_slot_id
+          WHERE o.ticket_product_id = tp.ticket_product_id
+            AND o.is_active = TRUE AND s.status = 'OPEN'), 0) AS total_quantity,
+        COALESCE((SELECT SUM(i.reserved_quantity) FROM ticket_product_options o
+            JOIN ticket_time_slots s ON s.ticket_product_option_id = o.ticket_product_option_id
+            JOIN ticket_inventory i ON i.ticket_time_slot_id = s.ticket_time_slot_id
+          WHERE o.ticket_product_id = tp.ticket_product_id
+            AND o.is_active = TRUE AND s.status = 'OPEN'), 0) AS reserved_quantity,
+        COALESCE((SELECT SUM(i.total_quantity - i.reserved_quantity) FROM ticket_product_options o
+            JOIN ticket_time_slots s ON s.ticket_product_option_id = o.ticket_product_option_id
+            JOIN ticket_inventory i ON i.ticket_time_slot_id = s.ticket_time_slot_id
+          WHERE o.ticket_product_id = tp.ticket_product_id
+            AND o.is_active = TRUE AND s.status = 'OPEN'), 0) AS remaining_quantity,
+        (SELECT MIN(o.unit_price) FROM ticket_product_options o
+          WHERE o.ticket_product_id = tp.ticket_product_id AND o.is_active = TRUE) AS min_unit_price,
+        (SELECT MIN(o.currency_code) FROM ticket_product_options o
+          WHERE o.ticket_product_id = tp.ticket_product_id AND o.is_active = TRUE) AS currency
+    </sql>
+
+    <sql id="adminFilter">
+        <if test="status != null and status != ''">
+            AND tp.status = #{status}
+        </if>
+        <if test="keyword != null and keyword != ''">
+            AND CONCAT_WS(' ', tp.name, p.name, p.region, p.city) ILIKE '%' || #{keyword} || '%'
+        </if>
+    </sql>
+
+    <select id="findAdminPage"
+            resultType="org.example.all_my_trip_project.domain.ticket.dto.AdminTicketProductDTO">
+        SELECT <include refid="adminColumns"/>
+        FROM ticket_products tp
+        JOIN places p ON p.place_id = tp.place_id
+        WHERE 1 = 1
+        <include refid="adminFilter"/>
+        ORDER BY tp.sale_start_at DESC, tp.ticket_product_id DESC
+        LIMIT #{size} OFFSET #{offset}
+    </select>
+
+    <select id="countAdmin" resultType="long">
+        SELECT COUNT(*)
+        FROM ticket_products tp
+        JOIN places p ON p.place_id = tp.place_id
+        WHERE 1 = 1
+        <include refid="adminFilter"/>
+    </select>
+
+    <select id="findAdminById"
+            resultType="org.example.all_my_trip_project.domain.ticket.dto.AdminTicketProductDTO">
+        SELECT <include refid="adminColumns"/>
+        FROM ticket_products tp
+        JOIN places p ON p.place_id = tp.place_id
+        WHERE tp.ticket_product_id = #{ticketProductId}
+    </select>
+
+    <update id="updateStatus">
+        UPDATE ticket_products
+        SET status = #{status}
+        WHERE ticket_product_id = #{ticketProductId}
+    </update>
+
+</mapper>
