@@ -102,8 +102,23 @@ async function run() {
 
     T("연동 전 지표는 값 자리를 비워 둔다",
       [...d.querySelectorAll(".admin-metric strong")].every((el) => el.textContent.trim() === "—"));
+    /*
+     * 연동된 패널이 늘어날 때마다 개수를 고쳐야 하는 단정은 두지 않는다. 숫자를 낮추는 것으로
+     * 통과시키게 되어 무엇을 지키려던 것인지 잊힌다. 지켜야 할 것은 두 가지다.
+     *   1. 사이드바 배지와 패널 태그가 같은 말을 한다
+     *   2. 연동 전 태그에는 다른 문구를 넣지 않는다
+     */
+    const mismatched = [...d.querySelectorAll("[data-admin-panel]")].filter((button) => {
+      const tag = d.querySelector(`[data-admin-state="${button.dataset.adminPanel}"]`);
+      if (!tag) return false;
+      return Boolean(button.querySelector("em.live")) !== tag.classList.contains("live");
+    });
+    T("사이드바 배지와 패널 표시가 어긋나지 않는다", mismatched.length === 0);
     T("연동 전 블록에는 연동 전 표시가 붙는다",
-      d.querySelectorAll('.admin-tag:not(.live)').length >= 5);
+      [...d.querySelectorAll(".admin-tag:not(.live)")]
+        .every((tag) => tag.textContent.trim() === "연동 전"));
+    T("아직 연동되지 않은 패널이 남아 있다",
+      d.querySelectorAll(".admin-tag:not(.live)").length > 0);
     T("저장 API가 없는 테마 폼은 제출을 막아둔다",
       d.getElementById("themeSubmit").disabled
         && [...d.querySelectorAll("#themeForm input")].every((input) => input.disabled));
