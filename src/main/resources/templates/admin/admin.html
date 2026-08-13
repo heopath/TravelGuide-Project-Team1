@@ -61,7 +61,7 @@
                   <span aria-hidden="true">◈</span><span>예약 모니터링</span><em>연동 전</em>
                 </button>
                 <button type="button" data-admin-panel="performance">
-                  <span aria-hidden="true">◐</span><span>성능 모니터링</span><em>연동 전</em>
+                  <span aria-hidden="true">◐</span><span>성능 모니터링</span><em class="live">실연동</em>
                 </button>
                 <button type="button" data-admin-panel="chat">
                   <span aria-hidden="true">✉</span><span>상담 채팅</span><em>연동 전</em>
@@ -279,18 +279,27 @@
                 </div>
               </section>
 
-              <!-- 성능 모니터링 (피그마 No 21-21 · 6번) -->
+              <!--
+                성능 모니터링 (피그마 No 21-21 · 6번)
+
+                Actuator 엔드포인트를 웹에 열지 않는다. 서버가 MeterRegistry를 직접 읽어
+                이 세 값만 내려준다. 엔드포인트를 열면 노출 범위를 두 곳에서 관리하게 된다.
+
+                값은 기동 후 누적이라 구간 평균이 아니다. 오래 떠 있을수록 최근 변화가 묻히므로
+                표본 수와 가동 시간을 함께 적어 무엇을 보고 있는지 드러낸다.
+              -->
               <section class="admin-section" data-admin-section="performance" aria-labelledby="perfTitle" hidden>
                 <div class="admin-section-head">
                   <h2 id="perfTitle">성능 모니터링</h2>
-                  <span class="admin-tag" data-admin-state="performance">연동 전</span>
+                  <span class="admin-tag live" data-admin-state="performance">실연동</span>
+                  <button type="button" class="admin-chip" data-performance-refresh>새로고침</button>
                 </div>
                 <div class="white-panel admin-panel admin-perf">
                   <div><span>TPS</span><strong data-metric="tps">—</strong></div>
                   <div><span>평균 응답시간</span><strong data-metric="latency">—</strong></div>
                   <div><span>오류율</span><strong data-metric="failureRate">—</strong></div>
-                  <p class="admin-hint">
-                    어떤 지표를 어디까지 노출할지 정한 뒤 연동해요. 운영 정보라 공개 범위를 먼저 정해야 해요.
+                  <p class="admin-hint" data-performance-note role="status">
+                    성능 지표를 불러오는 중이에요.
                   </p>
                 </div>
               </section>
@@ -368,5 +377,6 @@
     <script th:src="@{/js/pages/admin/admin.js}" src="../../static/js/pages/admin/admin.js"></script>
     <script th:src="@{/js/pages/admin/admin-support.js}" src="../../static/js/pages/admin/admin-support.js"></script>
     <script th:src="@{/js/pages/admin/admin-products.js}" src="../../static/js/pages/admin/admin-products.js"></script>
+    <script th:src="@{/js/pages/admin/admin-performance.js}" src="../../static/js/pages/admin/admin-performance.js"></script>
   </body>
 </html>
