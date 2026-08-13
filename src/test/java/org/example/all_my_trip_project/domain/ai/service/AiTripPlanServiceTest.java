@@ -37,8 +37,11 @@ class AiTripPlanServiceTest {
                 .containsExactly("추천 명소", "식사 장소", "추천 명소", "숙소");
         assertThat(response.days().getLast().places())
                 .extracting(place -> place.category())
-                .containsExactly("추천 명소", "식사 장소", "추천 명소");
+                .containsExactly("추천 명소", "식사 장소", "교통");
+        assertThat(response.days().getLast().places().getLast().name()).contains("종합버스터미널");
         assertThat(response.days().getLast().items().getLast().title()).isEqualTo("귀가");
+        assertThat(response.days())
+                .allSatisfy(day -> assertThat(day.items()).hasSameSizeAs(day.places()));
         assertThat(response.recommendedPlaces())
                 .extracting(place -> place.category())
                 .containsExactly("추천 명소", "식사 장소", "추천 명소", "숙소");
