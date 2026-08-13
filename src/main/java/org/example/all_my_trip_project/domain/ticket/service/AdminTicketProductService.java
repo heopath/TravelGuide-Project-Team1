@@ -1,6 +1,7 @@
 package org.example.all_my_trip_project.domain.ticket.service;
 
 import lombok.RequiredArgsConstructor;
+import org.example.all_my_trip_project.domain.admin.service.AdminAuditService;
 import org.example.all_my_trip_project.domain.ticket.dao.AdminTicketDAO;
 import org.example.all_my_trip_project.domain.ticket.dto.AdminTicketProductDTO;
 import org.example.all_my_trip_project.domain.ticket.dto.AdminTicketProductPage;
@@ -11,6 +12,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 
 @Service
@@ -26,6 +28,7 @@ public class AdminTicketProductService {
             Set.of("DRAFT", "ON_SALE", "SOLD_OUT", "ENDED", "CANCELLED");
 
     private final AdminTicketDAO adminTicketDAO;
+    private final AdminAuditService adminAuditService;
 
     public AdminTicketProductPage list(int page, int size, String keyword, String status) {
         if (page < 0 || size < 1 || size > MAX_PAGE_SIZE) {
@@ -72,6 +75,9 @@ public class AdminTicketProductService {
         if (adminTicketDAO.updateStatus(ticketProductId, normalized) != 1) {
             throw new BusinessException(ErrorCode.TICKET_NOT_FOUND);
         }
+        adminAuditService.record("TICKET_PRODUCT_STATUS_CHANGE", "TICKET_PRODUCT", ticketProductId,
+                AdminAuditService.payload("status", product.getStatus()),
+                AdminAuditService.payload("status", normalized, "name", product.getName()));
         return requireProduct(ticketProductId);
     }
 

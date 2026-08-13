@@ -1,5 +1,6 @@
 package org.example.all_my_trip_project.domain.support.service;
 
+import org.example.all_my_trip_project.domain.admin.service.AdminAuditService;
 import org.example.all_my_trip_project.domain.support.dao.AdminSupportDAO;
 import org.example.all_my_trip_project.domain.support.dto.AdminSupportInquiryDetail;
 import org.example.all_my_trip_project.domain.support.dto.SupportInquiryDTO;
@@ -22,6 +23,8 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class AdminSupportServiceTest {
     @Mock private AdminSupportDAO dao;
+    /* 감사 기록은 이 테스트의 관심사가 아니지만 @InjectMocks가 채우려면 선언돼 있어야 한다. */
+    @Mock private AdminAuditService adminAuditService;
     @InjectMocks private AdminSupportService service;
 
     @Test

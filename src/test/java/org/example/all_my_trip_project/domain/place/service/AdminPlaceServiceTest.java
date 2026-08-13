@@ -1,5 +1,6 @@
 package org.example.all_my_trip_project.domain.place.service;
 
+import org.example.all_my_trip_project.domain.admin.service.AdminAuditService;
 import org.example.all_my_trip_project.domain.place.dao.PlaceDAO;
 import org.example.all_my_trip_project.domain.place.dto.AdminPlaceRequest;
 import org.example.all_my_trip_project.domain.place.dto.PlaceDTO;
@@ -28,7 +29,8 @@ class AdminPlaceServiceTest {
     @BeforeEach
     void setUp() {
         placeDAO = mock(PlaceDAO.class);
-        service = new AdminPlaceService(placeDAO);
+        /* 감사 기록은 이 테스트의 관심사가 아니다. 기록 실패가 동작을 막지 않는지는 별도 테스트에서 본다. */
+        service = new AdminPlaceService(placeDAO, mock(AdminAuditService.class));
     }
 
     @Test
