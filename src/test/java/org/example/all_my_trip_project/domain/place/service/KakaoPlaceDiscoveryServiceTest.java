@@ -162,6 +162,49 @@ class KakaoPlaceDiscoveryServiceTest {
     }
 
     @Test
+    void doesNotExpandWalkingSearchBeyondTwoKilometersWhenNearbySearchIsEmpty() {
+        PlaceDTO anchor = PlaceDTO.builder().placeId(77L).name("Anchor")
+                .longitude(new BigDecimal("129.0300")).latitude(new BigDecimal("35.1010")).build();
+        when(placeDAO.findById(77L)).thenReturn(Optional.of(anchor));
+        when(kakaoClient.searchByCategory(eq("CE7"), eq(anchor.getLongitude()), eq(anchor.getLatitude()), any()))
+                .thenReturn(List.of());
+
+        service.discoverAndIndex("Anchor \uadfc\ucc98 \ub3c4\ubcf4 \uce74\ud398 \ucd94\ucc9c", "Busan", 77L);
+
+        verify(kakaoClient).searchByCategory(eq("CE7"), eq(anchor.getLongitude()), eq(anchor.getLatitude()), any());
+        verify(kakaoClient, org.mockito.Mockito.never()).searchByCategory(
+                eq("CE7"), eq(anchor.getLongitude()), eq(anchor.getLatitude()), eq(5_000), any());
+    }
+
+    @Test
+    void searchesShoppingByKeywordAroundTheAnchorInsteadOfUsingAttractionCategory() {
+        PlaceDTO anchor = PlaceDTO.builder().placeId(77L).name("Anchor")
+                .longitude(new BigDecimal("129.0300")).latitude(new BigDecimal("35.1010")).build();
+        PlaceDTO shoppingPlace = PlaceDTO.builder().externalProvider("KAKAO").externalPlaceId("shop-1")
+                .name("Verified shop").longitude(new BigDecimal("129.0310")).latitude(new BigDecimal("35.1010")).build();
+        PlaceDTO savedShoppingPlace = PlaceDTO.builder().placeId(91L).externalProvider("KAKAO")
+                .externalPlaceId("shop-1").name("Verified shop").build();
+        when(placeDAO.findById(77L)).thenReturn(Optional.of(anchor));
+        when(kakaoClient.searchNearby(eq("\uC1FC\uD551"), eq(anchor.getLongitude()), eq(anchor.getLatitude()), eq(2_000), any()))
+                .thenReturn(List.of(shoppingPlace));
+        when(placeDAO.upsert(shoppingPlace)).thenReturn(91L);
+        when(placeDAO.findById(91L)).thenReturn(Optional.of(savedShoppingPlace));
+        when(placeRagServiceProvider.getIfAvailable()).thenReturn(placeRagService);
+
+        service.discoverAndIndex("Anchor \uadfc\ucc98 \uC1FC\uD551 \ucd94\ucc9c", "Busan", 77L);
+
+        verify(kakaoClient).searchNearby(eq("\uC1FC\uD551"), eq(anchor.getLongitude()), eq(anchor.getLatitude()), eq(2_000), any());
+        verify(kakaoClient, org.mockito.Mockito.never()).searchByCategory(
+                eq("AT4"), eq(anchor.getLongitude()), eq(anchor.getLatitude()), any());
+    }
+
+    @Test
+    void removesLocationParticleFromNearbyAnchor() {
+        assertThat(KakaoPlaceDiscoveryService.extractNearbyAnchor("\uC774\uC7AC\uBAA8\uD53C\uC790\uC5D0\uC11C \uADFC\uCC98 \uCE74\uD398 \uCD94\uCC9C"))
+                .isEqualTo("\uC774\uC7AC\uBAA8\uD53C\uC790");
+    }
+
+    @Test
     void extractsNamedPlaceBeforeNearbyExpressionAsAnchor() {
         assertThat(KakaoPlaceDiscoveryService.extractNearbyAnchor("이재모피자 본점 근처에 유명 카페 추천해줘"))
                 .isEqualTo("이재모피자 본점");

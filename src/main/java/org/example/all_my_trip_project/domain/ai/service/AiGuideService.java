@@ -253,7 +253,8 @@ public class AiGuideService {
         // An existing itinerary place is an equally reliable local-search anchor even when
         // the user says "after visiting X" instead of explicitly saying "near X".
         // In that case, never merge stale RAG candidates from unrelated regions.
-        if (scheduledAnchorPlaceId != null || !KakaoPlaceDiscoveryService.extractNearbyAnchor(question).isBlank()) {
+        if ((scheduledAnchorPlaceId != null || !KakaoPlaceDiscoveryService.extractNearbyAnchor(question).isBlank())
+                && !discoveredResults.isEmpty()) {
             return discoveredResults;
         }
 

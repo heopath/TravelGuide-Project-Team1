@@ -133,7 +133,9 @@ public class KakaoPlaceDiscoveryService {
                                             Long scheduledPlaceId, long deadline) {
         String anchor = extractNearbyAnchor(question);
         List<String> categoryCodes = extractNearbyCategoryCodes(question);
-        if (categoryCodes.isEmpty() || (anchor.isBlank() && scheduledPlaceId == null)) {
+        List<String> nearbyKeywordTerms = extractNearbyKeywordTerms(question);
+        if ((categoryCodes.isEmpty() && nearbyKeywordTerms.isEmpty())
+                || (anchor.isBlank() && scheduledPlaceId == null)) {
             return 0;
         }
 
@@ -160,11 +162,35 @@ public class KakaoPlaceDiscoveryService {
             int requestedRadius = nearbyRadiusMeters(question);
             List<PlaceDTO> nearbyPlaces = searchNearbyCandidates(
                     categoryCode, anchorPoint, requestedRadius, Duration.ofNanos(remainingNanos));
-            if (nearbyPlaces.isEmpty() && requestedRadius < VEHICLE_RADIUS_METERS) {
+            if (nearbyPlaces.isEmpty() && allowsVehicleRadiusFallback(question)) {
                 remainingNanos = deadline - System.nanoTime();
                 if (remainingNanos > 0) {
                     nearbyPlaces = searchNearbyCandidates(
                             categoryCode, anchorPoint, VEHICLE_RADIUS_METERS, Duration.ofNanos(remainingNanos));
+                }
+            }
+            if (!nearbyPlaces.isEmpty()) {
+                discovered.addAll(nearbyPlaces.stream().limit(MAX_PLACES_PER_SEARCH).toList());
+            }
+            searchCount++;
+        }
+        for (String keyword : nearbyKeywordTerms) {
+            if (searchCount >= MAX_KAKAO_SEARCHES_PER_QUESTION) {
+                break;
+            }
+            remainingNanos = deadline - System.nanoTime();
+            if (remainingNanos <= 0) {
+                break;
+            }
+            PlaceDTO anchorPoint = anchorPlace.get();
+            int requestedRadius = nearbyRadiusMeters(question);
+            List<PlaceDTO> nearbyPlaces = searchNearbyKeywordCandidates(
+                    keyword, anchorPoint, requestedRadius, Duration.ofNanos(remainingNanos));
+            if (nearbyPlaces.isEmpty() && allowsVehicleRadiusFallback(question)) {
+                remainingNanos = deadline - System.nanoTime();
+                if (remainingNanos > 0) {
+                    nearbyPlaces = searchNearbyKeywordCandidates(
+                            keyword, anchorPoint, VEHICLE_RADIUS_METERS, Duration.ofNanos(remainingNanos));
                 }
             }
             if (!nearbyPlaces.isEmpty()) {
@@ -193,6 +219,21 @@ public class KakaoPlaceDiscoveryService {
                 .toList();
     }
 
+    private List<PlaceDTO> searchNearbyKeywordCandidates(String keyword, PlaceDTO anchor, int radiusMeters,
+                                                          Duration timeout) {
+        List<PlaceDTO> results = kakaoLocalPlaceClient.searchNearby(
+                keyword, anchor.getLongitude(), anchor.getLatitude(), radiusMeters, timeout);
+        if (results == null) {
+            return List.of();
+        }
+        return results.stream()
+                .map(place -> new NearbyPlace(place, hasCoordinates(place) ? distanceMeters(anchor, place) : Double.MAX_VALUE))
+                .filter(candidate -> candidate.distanceMeters() == Double.MAX_VALUE || candidate.distanceMeters() <= radiusMeters)
+                .sorted(java.util.Comparator.comparingDouble(NearbyPlace::distanceMeters))
+                .map(NearbyPlace::place)
+                .toList();
+    }
+
     private int nearbyRadiusMeters(String question) {
         String value = question == null ? "" : question;
         if (value.contains("\uB3C4\uBCF4") || value.contains("\uAC78\uC5B4") || value.contains("\uB3C4\uBCF4 10\uBD84")) {
@@ -202,6 +243,11 @@ public class KakaoPlaceDiscoveryService {
             return VEHICLE_RADIUS_METERS;
         }
         return DEFAULT_NEARBY_RADIUS_METERS;
+    }
+
+    private boolean allowsVehicleRadiusFallback(String question) {
+        String value = question == null ? "" : question;
+        return !(value.contains("\uB3C4\uBCF4") || value.contains("\uAC78\uC5B4") || value.contains("\uB3C4\uBCF4 10\uBD84"));
     }
 
     private double distanceMeters(PlaceDTO from, PlaceDTO to) {
@@ -264,10 +310,7 @@ public class KakaoPlaceDiscoveryService {
         }
         int nearbyIndex = question.indexOf("\uadfc\ucc98");
         if (nearbyIndex > 0) {
-            String anchor = question.substring(0, nearbyIndex).trim()
-                    .replaceFirst("^\\s*[0-9]+\uC77C\uCC28\uC5D0\\s*", "")
-                    .replaceFirst("(?:\uC744|\uB97C)\\s*(?:\uBA39\uACE0|\uBA39\uC740\\s*\uD6C4|\uBC29\uBB38\uD558\uACE0)\\s*$", "")
-                    .trim();
+            String anchor = cleanNearbyAnchor(question.substring(0, nearbyIndex));
             if (!anchor.isBlank() && anchor.length() <= 40) {
                 return anchor;
             }
@@ -283,7 +326,20 @@ public class KakaoPlaceDiscoveryService {
             anchor = actionMatcher.group(1).trim();
         }
         anchor = anchor.replaceFirst("(?:에서|에|의)$", "").trim();
+        anchor = cleanNearbyAnchor(anchor);
         return anchor.length() <= 40 ? anchor : "";
+    }
+
+    private static String cleanNearbyAnchor(String value) {
+        String anchor = value == null ? "" : value.trim();
+        anchor = anchor.replaceFirst("^\\s*[0-9]+\uC77C\uCC28\uC5D0\\s*", "");
+        anchor = DAY_PREFIX.matcher(anchor).replaceFirst("").trim();
+        anchor = anchor.replaceFirst("(?:\uC744|\uB97C)\\s*(?:\uBA39\uACE0|\uBA39\uC740\\s*\uD6C4|\uBC29\uBB38\uD558\uACE0|\uBC29\uBB38\uD55C\\s*\uD6C4)\\s*$", "").trim();
+        var actionMatcher = VISIT_ACTION.matcher(anchor);
+        if (actionMatcher.find()) {
+            anchor = actionMatcher.group(1).trim();
+        }
+        return anchor.replaceFirst("(?:\uC5D0\uC11C|\uC5D0\uAC8C\uC11C|\uC740|\uB294|\uC744|\uB97C)$", "").trim();
     }
 
     private static List<String> extractNearbyCategoryCodes(String question) {
@@ -296,8 +352,7 @@ public class KakaoPlaceDiscoveryService {
                 || value.contains("\uC800\uB141") || value.contains("\uBC25")) {
             categoryCodes.add("FD6");
         }
-        if (value.contains("\uAD00\uAD11") || value.contains("\uAD6C\uACBD") || value.contains("\uC0B0\uCC45")
-                || value.contains("\uC1FC\uD551") || value.contains("\uD328\uC158") || value.contains("\uD3B8\uC9D1\uC0F5")) {
+        if (value.contains("\uAD00\uAD11") || value.contains("\uAD6C\uACBD") || value.contains("\uC0B0\uCC45")) {
             categoryCodes.add("AT4");
         }
         if (value.contains("카페") || value.contains("커피")) {
@@ -308,6 +363,21 @@ public class KakaoPlaceDiscoveryService {
             categoryCodes.add("FD6");
         }
         return List.copyOf(categoryCodes);
+    }
+
+    private static List<String> extractNearbyKeywordTerms(String question) {
+        String value = question == null ? "" : question;
+        LinkedHashSet<String> keywords = new LinkedHashSet<>();
+        if (value.contains("\uC1FC\uD551")) {
+            keywords.add("\uC1FC\uD551");
+        }
+        if (value.contains("\uD328\uC158")) {
+            keywords.add("\uD328\uC158");
+        }
+        if (value.contains("\uD3B8\uC9D1\uC0F5")) {
+            keywords.add("\uD3B8\uC9D1\uC0F5");
+        }
+        return List.copyOf(keywords);
     }
 
     private PlaceDTO upsertAndLoad(PlaceDTO place) {

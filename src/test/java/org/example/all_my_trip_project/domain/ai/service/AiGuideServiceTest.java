@@ -253,6 +253,34 @@ class AiGuideServiceTest {
     }
 
     @Test
+    void keepsIndexedCandidatesWhenScheduledAnchorDiscoveryFindsNoFreshPlace() {
+        AiGuideRequest request = new AiGuideRequest("\uC774\uC7AC\uBAA8\uD53C\uC790 \uB2E4\uC74C \uCF54\uC2A4 \uCD94\uCC9C", 12L);
+        AiGuideContext.Item scheduledItem = new AiGuideContext.Item(77L, "\uC774\uC7AC\uBAA8\uD53C\uC790", null, null, "FOOD", null);
+        AiGuideContext context = new AiGuideContext(
+                new AiGuideContext.Trip(12L, "\uBD80\uC0B0 \uC5EC\uD589", "\uBD80\uC0B0", null, null,
+                        null, null, null, null, null, null, null, null, null,
+                        List.of(new AiGuideContext.Day(1, null, "DAY 1", null, List.of(scheduledItem)))),
+                List.of());
+        RagSearchResult indexed = new RagSearchResult("place:88", "indexed", 88L,
+                "\uADFC\uCC98 \uCE74\uD398", "CAFE", "\uBD80\uC0B0 \uC911\uAD6C", "https://place.map.kakao.com/88");
+        AiGuideResponse response = new AiGuideResponse("\uCD94\uCC9C", List.of(), List.of(), List.of());
+        org.example.all_my_trip_project.domain.rag.service.PlaceRagService ragService = mock(org.example.all_my_trip_project.domain.rag.service.PlaceRagService.class);
+        KakaoPlaceDiscoveryService discoveryService = mock(KakaoPlaceDiscoveryService.class);
+
+        when(conversationHistoryService.load(1L, 12L)).thenReturn(List.of());
+        when(contextService.load(1L, request)).thenReturn(context);
+        when(ragServiceProvider.getIfAvailable()).thenReturn(ragService);
+        when(ragService.search(request.question())).thenReturn(List.of(indexed));
+        when(kakaoPlaceDiscoveryServiceProvider.getIfAvailable()).thenReturn(discoveryService);
+        when(discoveryService.discoverAndIndex(request.question(), "\uBD80\uC0B0", 77L)).thenReturn(List.of());
+        when(aiModelClient.generate(request, List.of(), context, List.of(indexed))).thenReturn(response);
+
+        service.generate(request, false, 1L);
+
+        verify(aiModelClient).generate(request, List.of(), context, List.of(indexed));
+    }
+
+    @Test
     void usesOnlyScheduledAnchorCandidatesEvenWithoutNearbyWording() {
         AiGuideRequest request = new AiGuideRequest("1일차에 그리다부부에서 커피를 마신 후 구경할 수 있는 곳을 추천해줘", 12L);
         AiGuideContext.Item scheduledItem = new AiGuideContext.Item(77L, "그리다부부", null, null, "CAFE", null);
