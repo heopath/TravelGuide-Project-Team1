@@ -2,6 +2,8 @@ package org.example.all_my_trip_project.domain.ticket.dao;
 
 import lombok.RequiredArgsConstructor;
 import org.example.all_my_trip_project.domain.ticket.dto.AdminTicketProductDTO;
+import org.example.all_my_trip_project.domain.ticket.dto.AdminTicketProductRequest;
+import org.example.all_my_trip_project.domain.ticket.dto.AdminTicketSlotDTO;
 import org.example.all_my_trip_project.domain.ticket.mapper.AdminTicketMapper;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Repository;
@@ -30,5 +32,29 @@ public class AdminTicketDAO {
 
     public int updateStatus(Long ticketProductId, String status) {
         return adminTicketMapper.updateStatus(ticketProductId, status);
+    }
+
+    public Long insertProduct(AdminTicketProductRequest request) {
+        return adminTicketMapper.insertProduct(request);
+    }
+
+    public int updateProduct(Long ticketProductId, AdminTicketProductRequest request) {
+        return adminTicketMapper.updateProduct(ticketProductId, request);
+    }
+
+    public boolean existsPlace(Long placeId) {
+        return adminTicketMapper.existsPlace(placeId);
+    }
+
+    public List<AdminTicketSlotDTO> findSlots(Long ticketProductId) {
+        return adminTicketMapper.findSlots(ticketProductId);
+    }
+
+    public Optional<AdminTicketSlotDTO> findSlotForUpdate(Long slotId) {
+        return adminTicketMapper.findSlotForUpdate(slotId);
+    }
+
+    public int updateInventory(Long slotId, int totalQuantity) {
+        return adminTicketMapper.updateInventory(slotId, totalQuantity);
     }
 }

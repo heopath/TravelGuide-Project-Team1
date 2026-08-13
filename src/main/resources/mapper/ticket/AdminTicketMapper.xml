@@ -82,4 +82,91 @@
         WHERE ticket_product_id = #{ticketProductId}
     </update>
 
+    <!--
+      새 상품은 항상 DRAFT로 만든다. 등록과 동시에 판매를 열면 옵션·시간대가 없는 상태로
+      노출되고, 예약 화면에는 뜨지 않으면서 목록에서는 판매 중으로 보이는 어긋남이 생긴다.
+    -->
+    <!--
+      RETURNING으로 새 id를 받는다. 요청 DTO가 record라 useGeneratedKeys의 keyProperty로
+      돌려받을 자리가 없고, 등록 직후 목록에서 되찾는 방식은 판매 시작일이 더 늦은 다른
+      DRAFT 상품이 있으면 엉뚱한 행을 집는다.
+    -->
+    <select id="insertProduct" resultType="long">
+        INSERT INTO ticket_products (
+            place_id, name, description,
+            sale_start_at, sale_end_at, usage_start_date, usage_end_date, status
+        ) VALUES (
+            #{placeId}, #{name}, #{description},
+            #{saleStartAt}, #{saleEndAt}, #{usageStartDate}, #{usageEndDate}, 'DRAFT'
+        )
+        RETURNING ticket_product_id
+    </select>
+
+    <!-- 판매 상태는 여기서 건드리지 않는다. 상태 변경은 updateStatus가 담당한다. -->
+    <update id="updateProduct">
+        UPDATE ticket_products
+        SET place_id = #{request.placeId},
+            name = #{request.name},
+            description = #{request.description},
+            sale_start_at = #{request.saleStartAt},
+            sale_end_at = #{request.saleEndAt},
+            usage_start_date = #{request.usageStartDate},
+            usage_end_date = #{request.usageEndDate}
+        WHERE ticket_product_id = #{ticketProductId}
+    </update>
+
+    <select id="existsPlace" resultType="boolean">
+        SELECT EXISTS (SELECT 1 FROM places WHERE place_id = #{placeId})
+    </select>
+
+    <sql id="slotColumns">
+        s.ticket_time_slot_id, o.ticket_product_option_id, o.name AS option_name,
+        o.unit_price, o.currency_code AS currency, o.is_active AS option_active,
+        s.usage_date, s.start_time, s.end_time, s.status,
+        i.total_quantity, i.reserved_quantity,
+        (i.total_quantity - i.reserved_quantity) AS remaining_quantity
+    </sql>
+
+    <!--
+      비활성 옵션과 닫힌 시간대도 보여준다. 관리자 화면에서 감추면 왜 예약 화면에
+      안 뜨는지 확인할 방법이 없어진다.
+    -->
+    <select id="findSlots" resultType="org.example.all_my_trip_project.domain.ticket.dto.AdminTicketSlotDTO">
+        SELECT <include refid="slotColumns"/>
+        FROM ticket_time_slots s
+            JOIN ticket_product_options o
+              ON o.ticket_product_option_id = s.ticket_product_option_id
+            JOIN ticket_inventory i
+              ON i.ticket_time_slot_id = s.ticket_time_slot_id
+        WHERE o.ticket_product_id = #{ticketProductId}
+        ORDER BY s.usage_date, s.start_time NULLS FIRST, o.sort_order
+    </select>
+
+    <!--
+      FOR UPDATE OF i 로 재고 행만 잠근다. 두 관리자가 같은 시간대를 동시에 조정하면
+      나중 값이 앞선 값을 덮어써 예약 수와 어긋날 수 있다.
+    -->
+    <select id="findSlotForUpdate" resultType="org.example.all_my_trip_project.domain.ticket.dto.AdminTicketSlotDTO">
+        SELECT <include refid="slotColumns"/>
+        FROM ticket_time_slots s
+            JOIN ticket_product_options o
+              ON o.ticket_product_option_id = s.ticket_product_option_id
+            JOIN ticket_inventory i
+              ON i.ticket_time_slot_id = s.ticket_time_slot_id
+        WHERE s.ticket_time_slot_id = #{slotId}
+        FOR UPDATE OF i
+    </select>
+
+    <!--
+      reserved_quantity는 손대지 않는다. 예약 흐름이 관리하는 값이다.
+      WHERE 절의 조건은 서비스 검증을 통과한 뒤에도 남겨둔다. 잠금과 갱신 사이에 예약이
+      들어오면 조건이 깨질 수 있고, 그때는 0행 갱신으로 드러나는 편이 안전하다.
+    -->
+    <update id="updateInventory">
+        UPDATE ticket_inventory
+        SET total_quantity = #{totalQuantity}, version = version + 1
+        WHERE ticket_time_slot_id = #{slotId}
+          AND #{totalQuantity} &gt;= reserved_quantity
+    </update>
+
 </mapper>

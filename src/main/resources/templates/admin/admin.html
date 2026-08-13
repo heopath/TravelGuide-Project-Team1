@@ -223,19 +223,73 @@
                   </div>
                 </div>
                 <div class="white-panel admin-panel">
-                  <label class="admin-search">
-                    <span class="sr-only">상품 검색</span>
-                    <input type="search" data-product-search autocomplete="off"
-                           placeholder="상품명·장소·지역 검색 후 Enter" />
-                  </label>
+                  <div class="admin-panel-actions">
+                    <label class="admin-search">
+                      <span class="sr-only">상품 검색</span>
+                      <input type="search" data-product-search autocomplete="off"
+                             placeholder="상품명·장소·지역 검색 후 Enter" />
+                    </label>
+                    <button type="button" class="primary-button" data-product-new>새 상품</button>
+                  </div>
+
+                  <!--
+                    등록·수정 폼. 목록 위에 펼친다. 별도 화면으로 빼면 관리자 화면이 하나 늘고
+                    스토리보드까지 따라 바뀐다. 지금은 목록과 같은 자리에서 처리한다.
+                  -->
+                  <form class="admin-product-form" data-product-form hidden>
+                    <h3 data-form-title>새 상품 등록</h3>
+                    <label><span>장소</span>
+                      <select data-field="placeId" required></select>
+                    </label>
+                    <label><span>상품명</span>
+                      <input data-field="name" maxlength="150" required />
+                    </label>
+                    <label class="wide"><span>설명</span>
+                      <textarea data-field="description" rows="2"></textarea>
+                    </label>
+                    <label><span>판매 시작</span>
+                      <input type="datetime-local" data-field="saleStartAt" required />
+                    </label>
+                    <label><span>판매 종료</span>
+                      <input type="datetime-local" data-field="saleEndAt" required />
+                    </label>
+                    <label><span>이용 시작일</span>
+                      <input type="date" data-field="usageStartDate" required />
+                    </label>
+                    <label><span>이용 종료일</span>
+                      <input type="date" data-field="usageEndDate" required />
+                    </label>
+                    <p class="admin-hint" data-form-message role="status"></p>
+                    <div class="admin-form-buttons">
+                      <button type="button" class="text-button" data-product-cancel>취소</button>
+                      <button type="submit" class="primary-button" data-product-submit>저장</button>
+                    </div>
+                  </form>
+
                   <div class="admin-table-head admin-product-row">
-                    <span>상품</span><span>재고(남은/전체)</span><span>판매 상태</span><span></span>
+                    <span>상품</span><span>재고(남은/전체)</span><span>판매 상태</span><span>관리</span>
                   </div>
                   <div id="productList" class="admin-table-body"></div>
                   <p class="admin-empty" id="productEmpty" role="status">
                     상품 목록을 불러오는 중이에요.
                   </p>
                   <div class="admin-pagination" data-product-pagination></div>
+                </div>
+
+                <!--
+                  시간대 재고. 상품 단위 합계로는 어느 시간대가 모자란지 알 수 없어 펼쳐서 다룬다.
+                  예약 수량(reserved)은 예약 흐름이 관리하므로 여기서 고치지 않는다.
+                -->
+                <div class="white-panel admin-panel admin-slot-panel" data-slot-panel hidden>
+                  <div class="admin-section-head">
+                    <h3 data-slot-title>시간대 재고</h3>
+                    <button type="button" class="text-button" data-slot-close>닫기</button>
+                  </div>
+                  <div class="admin-table-head admin-slot-row">
+                    <span>옵션 · 이용일</span><span>예약</span><span>전체 수량</span><span></span>
+                  </div>
+                  <div data-slot-list class="admin-table-body"></div>
+                  <p class="admin-empty" data-slot-empty role="status"></p>
                 </div>
               </section>
 
