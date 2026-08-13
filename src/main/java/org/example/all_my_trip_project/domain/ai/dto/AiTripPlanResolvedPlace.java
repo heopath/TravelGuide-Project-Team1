@@ -19,7 +19,9 @@ public record AiTripPlanResolvedPlace(
         @DecimalMin("-180") @DecimalMax("180") BigDecimal longitude,
         @Size(max = 50) String phone,
         @Size(max = 500) String websiteUrl,
-        @Size(max = 30) String category,
+        // 카카오 category_name의 전체 경로("서비스,산업 > 여행,관광 > 관광,명소 > 유원지")가 들어온다.
+        // places.category(VARCHAR 30)에는 이 값을 매핑한 enum만 저장하므로 컬럼 길이와 무관하다.
+        @Size(max = 255) String category,
         String description
 ) {
 }
