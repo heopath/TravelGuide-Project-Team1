@@ -22,4 +22,17 @@ public class AdminAuditDAO {
     public List<AdminAuditLogDTO> findRecent(String targetType, String targetId, int limit) {
         return adminAuditMapper.findRecent(targetType, targetId, limit);
     }
+
+    public List<AdminAuditLogDTO> findView(String actionType, String targetType, String targetId,
+                                           Long adminUserId, int offset, int size) {
+        return adminAuditMapper.findView(actionType, targetType, targetId, adminUserId, offset, size);
+    }
+
+    public long countView(String actionType, String targetType, String targetId, Long adminUserId) {
+        return adminAuditMapper.countView(actionType, targetType, targetId, adminUserId);
+    }
+
+    public List<String> findActionTypes() {
+        return adminAuditMapper.findActionTypes();
+    }
 }

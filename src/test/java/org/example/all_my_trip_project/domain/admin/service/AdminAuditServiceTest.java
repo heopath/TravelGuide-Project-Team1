@@ -2,6 +2,9 @@ package org.example.all_my_trip_project.domain.admin.service;
 
 import org.example.all_my_trip_project.domain.admin.dao.AdminAuditDAO;
 import org.example.all_my_trip_project.domain.admin.dto.AdminAuditLogDTO;
+import org.example.all_my_trip_project.domain.admin.dto.AdminAuditLogPage;
+import org.example.all_my_trip_project.global.exception.BusinessException;
+import org.example.all_my_trip_project.global.exception.ErrorCode;
 import org.example.all_my_trip_project.global.security.AuthenticatedUser;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -19,6 +22,7 @@ import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
@@ -156,5 +160,53 @@ class AdminAuditServiceTest {
         assertThat(log.getIpAddress()).isNull();
         assertThat(log.getUserAgent()).isNull();
         assertThat(log.getAdminUserId()).isEqualTo(7L);
+    }
+
+    /* ── 조회 ── */
+
+    @Test
+    @DisplayName("빈 필터는 null로 넘겨 조건에서 빠지게 한다")
+    void passesBlankFiltersAsNull() {
+        service.list(0, 30, "  ", "", "  ", null);
+
+        verify(adminAuditDAO).countView(null, null, null, null);
+        verify(adminAuditDAO).findView(null, null, null, null, 0, 30);
+    }
+
+    @Test
+    @DisplayName("페이지 크기가 상한을 넘으면 거부한다")
+    void rejectsTooLargePageSize() {
+        assertThatThrownBy(() -> service.list(0, 500, null, null, null, null))
+                .isInstanceOf(BusinessException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.INVALID_ADMIN_REQUEST);
+    }
+
+    @Test
+    @DisplayName("음수 페이지는 거부한다")
+    void rejectsNegativePage() {
+        assertThatThrownBy(() -> service.list(-1, 30, null, null, null, null))
+                .isInstanceOf(BusinessException.class);
+    }
+
+    @Test
+    @DisplayName("전체 건수가 0이면 페이지 수도 0이다")
+    void reportsZeroPagesWhenEmpty() {
+        given(adminAuditDAO.countView(any(), any(), any(), any())).willReturn(0L);
+
+        AdminAuditLogPage result = service.list(0, 30, null, null, null, null);
+
+        assertThat(result.total()).isZero();
+        assertThat(result.totalPages()).isZero();
+    }
+
+    @Test
+    @DisplayName("실제로 쌓인 동작 종류를 함께 내려보낸다")
+    void exposesRecordedActionTypes() {
+        given(adminAuditDAO.countView(any(), any(), any(), any())).willReturn(2L);
+        given(adminAuditDAO.findActionTypes()).willReturn(List.of("PLACE_UPDATE", "REPORT_PROCESS"));
+
+        AdminAuditLogPage result = service.list(0, 30, null, null, null, null);
+
+        assertThat(result.actionTypes()).containsExactly("PLACE_UPDATE", "REPORT_PROCESS");
     }
 }
