@@ -184,7 +184,20 @@ body.page-admin #page-content {
 .page-admin .admin-report-row { grid-template-columns: 90px 100px 1fr 90px 110px; }
 /* 판매 상태가 select라 96px으로는 라벨이 잘린다. 재고는 "남은 / 전체" 두 값을 한 칸에 쓴다. */
 .page-admin .admin-product-row { grid-template-columns: 1fr 110px 116px 72px; }
-.page-admin .admin-monitor-row { grid-template-columns: 1fr 90px 120px; }
+/* 상태 칸에 `만료 시각 지남`이 배지 아래로 붙어서 90px으로는 줄바꿈이 지저분해진다. */
+.page-admin .admin-monitor-row { grid-template-columns: 1fr 116px 120px; }
+
+/* 예약번호 아래에 상품·회원을 붙여 한 칸에 담는다. 상품 이름은 길어서 별도 칸으로 빼기 어렵다. */
+.page-admin .admin-monitor-row strong { display: block; }
+.page-admin .admin-monitor-row small {
+  display: block;
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 11px;
+}
+.page-admin .admin-monitor-row .admin-status { display: inline-block; }
+/* 방치된 건은 상태 배지만으로 구분되지 않는다. 색으로 한 번 더 드러낸다. */
+.page-admin .admin-monitor-row [data-expired-pending] { color: #b4451f; font-weight: 700; }
 
 /* 상품명 아래에 장소를 붙여 한 칸에 담는다. 장소를 별도 칸으로 빼면 좁은 화면에서 먼저 잘린다. */
 .page-admin .admin-product-row strong { display: block; }
@@ -479,7 +492,7 @@ body.page-admin #page-content {
   */
   .page-admin .admin-panel { overflow-x: auto; }
   .page-admin .admin-product-row { min-width: 440px; }
-  .page-admin .admin-monitor-row { min-width: 330px; }
+  .page-admin .admin-monitor-row { min-width: 400px; }
 
   .page-admin .admin-filter { margin-left: 0; }
 }

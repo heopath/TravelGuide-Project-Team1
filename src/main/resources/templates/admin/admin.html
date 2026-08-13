@@ -58,7 +58,7 @@
                   <span aria-hidden="true">✦</span><span>테마 여행 등록</span><em>연동 전</em>
                 </button>
                 <button type="button" data-admin-panel="reservations">
-                  <span aria-hidden="true">◈</span><span>예약 모니터링</span><em>연동 전</em>
+                  <span aria-hidden="true">◈</span><span>예약 모니터링</span><em class="live">실연동</em>
                 </button>
                 <button type="button" data-admin-panel="performance">
                   <span aria-hidden="true">◐</span><span>성능 모니터링</span><em class="live">실연동</em>
@@ -270,20 +270,44 @@
                 </form>
               </section>
 
-              <!-- 예약 모니터링 (피그마 No 21-21 · 5번) -->
+              <!--
+                예약 모니터링 (피그마 No 21-21 · 5번)
+
+                조회만 둔다. 상태 변경은 재고(ticket_inventory.reserved_quantity)와 함께
+                움직여야 하는데, 목록에서 개별 행의 상태만 바꾸면 재고를 되돌리는 경로가 빠진다.
+
+                `만료 방치`는 상태값이 아니라 파생 조건이다. expires_at을 지나면 EXPIRED로
+                바꾸는 처리가 아직 없어서, status만 보면 정상 대기처럼 보이는 행이 실제로는
+                재고를 잡은 채 남아 있다. 상태를 대신 바꾸지 않고 드러내기만 한다.
+              -->
               <section class="admin-section" data-admin-section="reservations" aria-labelledby="monitorTitle" hidden>
                 <div class="admin-section-head">
                   <h2 id="monitorTitle">예약 모니터링</h2>
-                  <span class="admin-tag" data-admin-state="reservations">연동 전</span>
+                  <span class="admin-tag live" data-admin-state="reservations">실연동</span>
+                  <div class="admin-filter" role="group" aria-label="예약 상태 필터" data-reservation-filter>
+                    <button type="button" class="admin-chip on" data-reservation-status="">전체</button>
+                    <button type="button" class="admin-chip" data-reservation-status="PENDING">대기</button>
+                    <button type="button" class="admin-chip" data-reservation-status="CONFIRMED">확정</button>
+                    <button type="button" class="admin-chip" data-reservation-status="CANCELLED">취소</button>
+                    <button type="button" class="admin-chip" data-reservation-status="USED">사용 완료</button>
+                    <button type="button" class="admin-chip" data-reservation-status="EXPIRED_PENDING">만료 방치</button>
+                  </div>
                 </div>
+                <p class="admin-notice" data-reservation-alert role="status" hidden></p>
                 <div class="white-panel admin-panel">
+                  <label class="admin-search">
+                    <span class="sr-only">예약 검색</span>
+                    <input type="search" data-reservation-search autocomplete="off"
+                           placeholder="예약번호·닉네임 검색 후 Enter" />
+                  </label>
                   <div class="admin-table-head admin-monitor-row">
                     <span>예약</span><span>상태</span><span>변경 시각</span>
                   </div>
                   <div id="reservationList" class="admin-table-body"></div>
                   <p class="admin-empty" id="reservationEmpty" role="status">
-                    취소·환불·Lock 상태를 여기서 확인할 수 있게 연동할 예정이에요.
+                    예약 목록을 불러오는 중이에요.
                   </p>
+                  <div class="admin-pagination" data-reservation-pagination></div>
                 </div>
               </section>
 
@@ -387,5 +411,6 @@
     <script th:src="@{/js/pages/admin/admin-products.js}" src="../../static/js/pages/admin/admin-products.js"></script>
     <script th:src="@{/js/pages/admin/admin-performance.js}" src="../../static/js/pages/admin/admin-performance.js"></script>
     <script th:src="@{/js/pages/admin/admin-metrics.js}" src="../../static/js/pages/admin/admin-metrics.js"></script>
+    <script th:src="@{/js/pages/admin/admin-reservations.js}" src="../../static/js/pages/admin/admin-reservations.js"></script>
   </body>
 </html>
