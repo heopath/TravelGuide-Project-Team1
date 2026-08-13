@@ -1,0 +1,118 @@
+package org.example.all_my_trip_project.domain.booking.service;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.example.all_my_trip_project.domain.booking.dto.BookingQueueState;
+import org.example.all_my_trip_project.domain.booking.dto.BookingQueueStatusResponse;
+import org.example.all_my_trip_project.domain.ticket.dto.CreateTicketReservationRequest;
+import org.example.all_my_trip_project.domain.ticket.dto.TicketReservationDTO;
+import org.example.all_my_trip_project.domain.ticket.service.TicketService;
+import org.example.all_my_trip_project.global.exception.BusinessException;
+import org.example.all_my_trip_project.global.exception.ErrorCode;
+import org.springframework.context.annotation.Profile;
+import org.springframework.stereotype.Service;
+
+import java.time.Clock;
+import java.time.Instant;
+import java.util.UUID;
+
+@Service
+@Profile("!ui")
+@RequiredArgsConstructor
+@Slf4j
+public class BookingQueueService {
+
+    private final BookingQueueStore store;
+    private final TicketService ticketService;
+    private final ObjectMapper objectMapper;
+    private final Clock clock = Clock.systemUTC();
+
+    public BookingQueueStatusResponse enqueue(Long userId, CreateTicketReservationRequest request) {
+        requireUser(userId);
+        String token = UUID.randomUUID().toString().replace("-", "");
+        return store.enqueue(userId, request, token, Instant.now(clock));
+    }
+
+    public BookingQueueStatusResponse status(Long userId, String token) {
+        requireUser(userId);
+        return store.status(userId, requireToken(token), Instant.now(clock));
+    }
+
+    public TicketReservationDTO complete(Long userId, String token) {
+        requireUser(userId);
+        String normalizedToken = requireToken(token);
+        BookingQueueClaim claim = store.claim(userId, normalizedToken, Instant.now(clock));
+        if (claim.state() == BookingQueueState.COMPLETED) {
+            return completedReservation(claim.completedReservationJson());
+        }
+        if (!claim.claimed()) {
+            ErrorCode errorCode = claim.state() == BookingQueueState.PROCESSING
+                    ? ErrorCode.BOOKING_QUEUE_PROCESSING
+                    : ErrorCode.BOOKING_QUEUE_NOT_READY;
+            throw new BusinessException(errorCode);
+        }
+
+        TicketReservationDTO reservation;
+        try {
+            reservation = ticketService.reserve(userId, claim.request());
+        } catch (BusinessException exception) {
+            cancelAfterFailure(userId, normalizedToken);
+            throw exception;
+        } catch (RuntimeException exception) {
+            releaseAfterFailure(userId, normalizedToken);
+            throw exception;
+        }
+
+        try {
+            store.complete(userId, normalizedToken, reservation, Instant.now(clock));
+        } catch (RuntimeException exception) {
+            // DB 예약은 이미 커밋될 수 있다. Redis 완료 표시에 실패했다고 사용자에게
+            // 예약 실패로 답하면 재시도를 유발하므로, 예약 결과는 성공으로 돌려준다.
+            log.warn("Ticket reservation succeeded but queue completion state was not saved. token={}",
+                    normalizedToken, exception);
+        }
+        return reservation;
+    }
+
+    public void cancel(Long userId, String token) {
+        requireUser(userId);
+        store.cancel(userId, requireToken(token));
+    }
+
+    private TicketReservationDTO completedReservation(String json) {
+        try {
+            return objectMapper.readValue(json, TicketReservationDTO.class);
+        } catch (Exception exception) {
+            throw new BusinessException(ErrorCode.BOOKING_QUEUE_UNAVAILABLE);
+        }
+    }
+
+    private void cancelAfterFailure(Long userId, String token) {
+        try {
+            store.cancel(userId, token);
+        } catch (RuntimeException cleanupFailure) {
+            log.warn("Failed to remove rejected booking queue entry. token={}", token, cleanupFailure);
+        }
+    }
+
+    private void releaseAfterFailure(Long userId, String token) {
+        try {
+            store.release(userId, token, Instant.now(clock));
+        } catch (RuntimeException cleanupFailure) {
+            log.warn("Failed to release booking queue claim. token={}", token, cleanupFailure);
+        }
+    }
+
+    private void requireUser(Long userId) {
+        if (userId == null || userId < 1) throw new BusinessException(ErrorCode.UNAUTHORIZED);
+    }
+
+    private String requireToken(String token) {
+        String normalized = token == null ? "" : token.trim();
+        if (!normalized.matches("[a-f0-9]{32}")) {
+            throw new BusinessException(ErrorCode.BOOKING_QUEUE_EXPIRED);
+        }
+        return normalized;
+    }
+}

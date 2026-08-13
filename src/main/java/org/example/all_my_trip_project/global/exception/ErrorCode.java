@@ -249,6 +249,26 @@ public enum ErrorCode {
             "티켓 사용일, 수량 또는 여행 정보가 올바르지 않습니다."
     ),
 
+    BOOKING_QUEUE_UNAVAILABLE(
+            HttpStatus.SERVICE_UNAVAILABLE,
+            "예약 대기열에 연결하지 못했습니다. 잠시 후 다시 시도해 주세요."
+    ),
+
+    BOOKING_QUEUE_EXPIRED(
+            HttpStatus.GONE,
+            "예약 대기 순번이 만료되었습니다. 다시 시도해 주세요."
+    ),
+
+    BOOKING_QUEUE_NOT_READY(
+            HttpStatus.CONFLICT,
+            "아직 예약 차례가 아닙니다. 현재 순번을 다시 확인해 주세요."
+    ),
+
+    BOOKING_QUEUE_PROCESSING(
+            HttpStatus.CONFLICT,
+            "티켓 예약을 처리하고 있습니다. 잠시만 기다려 주세요."
+    ),
+
     /*
      * 이미 예약된 수보다 재고를 적게 줄이려는 경우. ck_ticket_inventory_quantities가
      * 어차피 막지만, DB 제약 위반은 화면에 이유가 드러나지 않아 관리자가 원인을 알 수 없다.
