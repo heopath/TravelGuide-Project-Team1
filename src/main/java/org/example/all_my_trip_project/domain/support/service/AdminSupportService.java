@@ -1,6 +1,7 @@
 package org.example.all_my_trip_project.domain.support.service;
 
 import lombok.RequiredArgsConstructor;
+import org.example.all_my_trip_project.domain.admin.service.AdminAuditService;
 import org.example.all_my_trip_project.domain.support.dao.AdminSupportDAO;
 import org.example.all_my_trip_project.domain.support.dto.AdminSupportInquiryDetail;
 import org.example.all_my_trip_project.domain.support.dto.SupportInquiryDTO;
@@ -13,6 +14,7 @@ import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Map;
 import java.util.Set;
 
 @Service
@@ -23,6 +25,7 @@ public class AdminSupportService {
     private static final int MAX_PAGE_SIZE = 50;
     private static final Set<String> STATUSES = Set.of("OPEN", "IN_PROGRESS", "ANSWERED", "CLOSED");
     private final AdminSupportDAO dao;
+    private final AdminAuditService adminAuditService;
 
     public SupportInquiryPage getPage(String status, int page, int size) {
         validatePage(page, size);
@@ -52,16 +55,23 @@ public class AdminSupportService {
                 .build();
         if (dao.insertReply(reply) != 1) throw new IllegalStateException("문의 답변을 저장하지 못했습니다.");
         if (dao.updateStatus(inquiryId, "ANSWERED") != 1) throw new IllegalStateException("문의 상태를 변경하지 못했습니다.");
+        /* 답변 본문은 남기지 않는다. 회원 문의 내용이 감사 로그로 번지면 열람 범위가 넓어진다. */
+        adminAuditService.record("SUPPORT_REPLY", "SUPPORT_INQUIRY", inquiryId,
+                AdminAuditService.payload("status", inquiry.getStatus()),
+                AdminAuditService.payload("status", "ANSWERED", "replyLength", reply.getContent().length()));
         return getDetail(inquiryId);
     }
 
     @Transactional
     public AdminSupportInquiryDetail updateStatus(Long inquiryId, String status) {
-        requireInquiry(inquiryId);
+        SupportInquiryDTO inquiry = requireInquiry(inquiryId);
         String normalized = normalizeStatus(status, false);
         if (dao.updateStatus(inquiryId, normalized) != 1) {
             throw new IllegalStateException("문의 상태를 변경하지 못했습니다.");
         }
+        adminAuditService.record("SUPPORT_STATUS_CHANGE", "SUPPORT_INQUIRY", inquiryId,
+                AdminAuditService.payload("status", inquiry.getStatus()),
+                AdminAuditService.payload("status", normalized));
         return getDetail(inquiryId);
     }
 

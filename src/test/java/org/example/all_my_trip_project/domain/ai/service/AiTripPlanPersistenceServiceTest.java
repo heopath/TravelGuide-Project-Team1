@@ -16,6 +16,7 @@ import org.example.all_my_trip_project.domain.trip.dao.TripDayDAO;
 import org.example.all_my_trip_project.domain.trip.dto.ItineraryItemDTO;
 import org.example.all_my_trip_project.domain.trip.dto.TripDTO;
 import org.example.all_my_trip_project.domain.trip.dto.TripDayDTO;
+import org.example.all_my_trip_project.domain.trip.service.ItineraryItemValidator;
 import org.example.all_my_trip_project.domain.user.service.ActiveMemberGuard;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -30,12 +31,14 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
+@org.mockito.junit.jupiter.MockitoSettings(strictness = org.mockito.quality.Strictness.LENIENT)
 class AiTripPlanPersistenceServiceTest {
     @Mock TripDAO tripDAO;
     @Mock TripDayDAO tripDayDAO;
@@ -47,7 +50,8 @@ class AiTripPlanPersistenceServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new AiTripPlanPersistenceService(tripDAO, tripDayDAO, itineraryItemDAO, placeDAO, activeMemberGuard);
+        service = new AiTripPlanPersistenceService(
+                tripDAO, tripDayDAO, itineraryItemDAO, placeDAO, activeMemberGuard, new ItineraryItemValidator());
         doAnswer(invocation -> {
             ((TripDTO) invocation.getArgument(0)).setTripId(100L);
             return 1;
@@ -58,14 +62,15 @@ class AiTripPlanPersistenceServiceTest {
             return 1;
         }).when(tripDayDAO).insert(any(TripDayDTO.class));
         when(itineraryItemDAO.insert(any(ItineraryItemDTO.class))).thenReturn(1);
-        when(placeDAO.upsert(any(PlaceDTO.class))).thenReturn(300L);
+        AtomicLong placeIds = new AtomicLong(300L);
+        when(placeDAO.upsert(any(PlaceDTO.class))).thenAnswer(invocation -> placeIds.getAndIncrement());
     }
 
     @Test
     void savesConditionsDaysAndAiItemsTogether() {
         AiTripPlanSaveResult result = service.save(42L, request());
 
-        assertThat(result).isEqualTo(new AiTripPlanSaveResult(100L, 2, 8));
+        assertThat(result).isEqualTo(new AiTripPlanSaveResult(100L, 2, 7));
 
         ArgumentCaptor<TripDTO> tripCaptor = ArgumentCaptor.forClass(TripDTO.class);
         verify(tripDAO).insert(tripCaptor.capture());
@@ -80,21 +85,76 @@ class AiTripPlanPersistenceServiceTest {
         assertThat(trip.getAccommodationStyle()).isEqualTo("호텔");
 
         ArgumentCaptor<ItineraryItemDTO> itemCaptor = ArgumentCaptor.forClass(ItineraryItemDTO.class);
-        verify(itineraryItemDAO, org.mockito.Mockito.times(8)).insert(itemCaptor.capture());
+        verify(itineraryItemDAO, org.mockito.Mockito.times(7)).insert(itemCaptor.capture());
         assertThat(itemCaptor.getAllValues()).extracting(ItineraryItemDTO::getSource).containsOnly("AI");
         assertThat(itemCaptor.getAllValues()).extracting(ItineraryItemDTO::getItemType)
                 .contains("PLACE", "MEAL", "ACCOMMODATION", "TRANSPORT");
         assertThat(itemCaptor.getAllValues()).extracting(ItineraryItemDTO::getTitle)
-                .contains("해운대", "돼지국밥", "부산 호텔", "귀가");
+                .contains("해운대", "돼지국밥", "부산 호텔", "부산역");
         assertThat(itemCaptor.getAllValues()).extracting(ItineraryItemDTO::getSortOrder)
                 .containsOnly(1, 2, 3, 4);
         assertThat(itemCaptor.getAllValues()).extracting(ItineraryItemDTO::getPlaceId)
-                .contains(300L)
-                .containsNull();
+                .doesNotContainNull();
         verify(placeDAO, org.mockito.Mockito.times(7)).upsert(any(PlaceDTO.class));
     }
 
+    @Test
+    void rejectsSaveWhenAnyPlaceIsNotMatchedToKakao() {
+        AiTripPlanSaveRequest request = requestWithResolvedPlaces(List.of(
+                resolved(1, 1, "101", "해운대"), resolved(1, 2, "102", "돼지국밥"),
+                resolved(1, 3, "103", "광안리"), resolved(1, 4, "104", "부산 호텔"),
+                resolved(2, 1, "105", "감천문화마을"), resolved(2, 2, "106", "밀면")
+        ));
+
+        assertThatThrownBy(() -> service.save(42L, request))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("카카오 장소를 찾지 못했습니다");
+        verify(tripDAO, org.mockito.Mockito.never()).insert(any(TripDTO.class));
+        verify(itineraryItemDAO, org.mockito.Mockito.never()).insert(any(ItineraryItemDTO.class));
+    }
+
+    @Test
+    void rejectsSaveWhenDayExceedsSharedItemLimit() {
+        List<AiTripPlanItemResponse> items = List.of(
+                item("09:00", "1"), item("10:00", "2"), item("11:00", "3"),
+                item("12:00", "4"), item("13:00", "5"), item("14:00", "6")
+        );
+        List<AiTripPlanPlaceResponse> places = List.of(
+                place(1, "추천 명소", "a"), place(2, "추천 명소", "b"), place(3, "추천 명소", "c"),
+                place(4, "추천 명소", "d"), place(5, "추천 명소", "e"), place(6, "추천 명소", "f")
+        );
+        AiTripPlanResponse plan = new AiTripPlanResponse(
+                "부산 1일 여행", "부산 추천 일정", places,
+                List.of(new AiTripPlanDayResponse(1, "DAY 1", items, places)),
+                "GEMINI"
+        );
+        AiTripPlanSaveRequest request = new AiTripPlanSaveRequest(
+                "여름 부산 여행",
+                new AiTripPlanRequest(
+                        "부산", LocalDate.of(2026, 8, 10), LocalDate.of(2026, 8, 10), 2,
+                        "커플", "관광", "알찬", "대중교통", "로컬 맛집", "호텔", new BigDecimal("800000")
+                ),
+                plan,
+                List.of()
+        );
+
+        assertThatThrownBy(() -> service.save(42L, request))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("하루 일정은 1개부터 5개까지");
+        verify(tripDAO, org.mockito.Mockito.never()).insert(any(TripDTO.class));
+        verify(itineraryItemDAO, org.mockito.Mockito.never()).insert(any(ItineraryItemDTO.class));
+    }
+
     private AiTripPlanSaveRequest request() {
+        return requestWithResolvedPlaces(List.of(
+                resolved(1, 1, "101", "해운대"), resolved(1, 2, "102", "돼지국밥"),
+                resolved(1, 3, "103", "광안리"), resolved(1, 4, "104", "부산 호텔"),
+                resolved(2, 1, "105", "감천문화마을"), resolved(2, 2, "106", "밀면"),
+                resolved(2, 3, "107", "부산역")
+        ));
+    }
+
+    private AiTripPlanSaveRequest requestWithResolvedPlaces(List<AiTripPlanResolvedPlace> resolvedPlaces) {
         AiTripPlanRequest conditions = new AiTripPlanRequest(
                 "부산", LocalDate.of(2026, 8, 10), LocalDate.of(2026, 8, 11), 2,
                 "커플", "관광, 맛집", "알찬", "대중교통", "로컬 맛집", "호텔",
@@ -109,12 +169,11 @@ class AiTripPlanPersistenceServiceTest {
                 place(3, "추천 명소", "광안리"), place(4, "숙소", "부산 호텔")
         );
         List<AiTripPlanItemResponse> lastItems = List.of(
-                item("09:00", "오전 명소"), item("12:00", "점심"),
-                item("15:00", "오후 명소"), item("18:00", "귀가")
+                item("09:00", "오전 명소"), item("12:00", "점심"), item("18:00", "귀가")
         );
         List<AiTripPlanPlaceResponse> lastPlaces = List.of(
                 place(1, "추천 명소", "감천문화마을"), place(2, "식사 장소", "밀면"),
-                place(3, "추천 명소", "부산역")
+                place(3, "교통", "부산역")
         );
         AiTripPlanResponse plan = new AiTripPlanResponse(
                 "부산 2일 여행", "부산 추천 일정", firstPlaces,
@@ -123,12 +182,6 @@ class AiTripPlanPersistenceServiceTest {
                         new AiTripPlanDayResponse(2, "DAY 2", lastItems, lastPlaces)
                 ),
                 "GEMINI"
-        );
-        List<AiTripPlanResolvedPlace> resolvedPlaces = List.of(
-                resolved(1, 1, "101", "해운대"), resolved(1, 2, "102", "돼지국밥"),
-                resolved(1, 3, "103", "광안리"), resolved(1, 4, "104", "부산 호텔"),
-                resolved(2, 1, "105", "감천문화마을"), resolved(2, 2, "106", "밀면"),
-                resolved(2, 3, "107", "부산역")
         );
         return new AiTripPlanSaveRequest("여름 부산 여행", conditions, plan, resolvedPlaces);
     }

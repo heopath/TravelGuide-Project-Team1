@@ -372,11 +372,6 @@ const ALL_MY_TRIPS_SCREENS = [
     "admin"
   ],
   [
-    "/admin?panel=theme",
-    "관리자 · 테마 여행 등록",
-    "admin"
-  ],
-  [
     "/admin?panel=reservations",
     "관리자 · 예약 모니터링",
     "admin"
@@ -394,6 +389,11 @@ const ALL_MY_TRIPS_SCREENS = [
   [
     "/admin?panel=support",
     "관리자 · 1:1 문의 관리",
+    "admin"
+  ],
+  [
+    "/admin?panel=audit",
+    "관리자 · 조작 이력",
     "admin"
   ]
 ];

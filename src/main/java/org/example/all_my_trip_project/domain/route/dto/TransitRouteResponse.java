@@ -6,6 +6,8 @@ public record TransitRouteResponse(
         int totalDurationSeconds,
         int totalDistanceMeters,
         int totalWalkMeters,
+        int transfers,
+        int fareWon,
         List<TransitSection> sections,
         List<RoutePoint> points
 ) {

@@ -95,18 +95,39 @@ async function run() {
 
     T("운영 지표 블록이 있다", headings.includes("운영 지표"));
     T("예약 상품·재고 블록이 있다", headings.includes("예약 상품·재고 관리"));
-    T("테마 등록 블록이 있다", headings.includes("테마 여행 등록"));
+    T("구현 범위에서 뺀 테마 등록 블록은 없다", !headings.includes("테마 여행 등록"));
     T("예약 모니터링 블록이 있다", headings.includes("예약 모니터링"));
     T("성능 모니터링 블록이 있다", headings.includes("성능 모니터링"));
     T("신고 관리 블록이 있다", headings.includes("신고 관리"));
 
-    T("연동 전 지표는 값 자리를 비워 둔다",
+    /* 연동 여부와 무관하게 지켜야 한다. 값을 마크업에 박으면 연동이 빠져도 아무도 모른다. */
+    T("지표 값은 마크업에 박아두지 않는다",
       [...d.querySelectorAll(".admin-metric strong")].every((el) => el.textContent.trim() === "—"));
+    /*
+     * 연동된 패널이 늘어날 때마다 개수를 고쳐야 하는 단정은 두지 않는다. 숫자를 낮추는 것으로
+     * 통과시키게 되어 무엇을 지키려던 것인지 잊힌다. 지켜야 할 것은 두 가지다.
+     *   1. 사이드바 배지와 패널 태그가 같은 말을 한다
+     *   2. 연동 전 태그에는 다른 문구를 넣지 않는다
+     */
+    const mismatched = [...d.querySelectorAll("[data-admin-panel]")].filter((button) => {
+      const tag = d.querySelector(`[data-admin-state="${button.dataset.adminPanel}"]`);
+      if (!tag) return false;
+      return Boolean(button.querySelector("em.live")) !== tag.classList.contains("live");
+    });
+    T("사이드바 배지와 패널 표시가 어긋나지 않는다", mismatched.length === 0);
     T("연동 전 블록에는 연동 전 표시가 붙는다",
-      d.querySelectorAll('.admin-tag:not(.live)').length >= 5);
-    T("저장 API가 없는 테마 폼은 제출을 막아둔다",
-      d.getElementById("themeSubmit").disabled
-        && [...d.querySelectorAll("#themeForm input")].every((input) => input.disabled));
+      [...d.querySelectorAll(".admin-tag:not(.live)")]
+        .every((tag) => tag.textContent.trim() === "연동 전"));
+    T("아직 연동되지 않은 패널이 남아 있다",
+      d.querySelectorAll(".admin-tag:not(.live)").length > 0);
+    /*
+     * 테마 여행 등록은 구현 범위에서 뺐다. `연동 전`으로 남겨두면 앞으로 붙일 것으로 읽히므로
+     * 패널째 지웠다. 되살아나면 다시 "곧 붙는 화면"으로 오해되므로 없는 것을 확인한다.
+     */
+    T("테마 여행 등록 패널은 남아 있지 않다",
+      d.querySelector('[data-admin-panel="theme"]') === null
+        && d.querySelector('[data-admin-section="theme"]') === null
+        && d.getElementById("themeForm") === null);
 
     /* ── 상담 채팅: 방 목록 + 대화. 연동 전이라 비어 있고 입력이 막혀 있어야 한다 ── */
     T("상담 채팅 블록이 있다", headings.includes("상담 채팅"));
@@ -137,8 +158,13 @@ async function run() {
       .filter((section) => !section.hidden)
       .map((section) => section.dataset.adminSection);
 
-    T("사이드바에 여덟 화면이 모두 있다",
-      d.querySelectorAll("[data-admin-panel]").length === 8);
+    /*
+     * 개수를 세는 대신 어떤 패널이 있어야 하는지를 적는다. 숫자만 두면 패널이 하나 사라져도
+     * 다른 하나가 늘어나면 통과한다. 추천 장소 관리는 별도 주소라 data-route를 쓰므로 빠진다.
+     */
+    T("사이드바에 패널이 빠짐없이 있다",
+      ["reports", "metrics", "products", "reservations", "performance", "chat", "support", "audit"]
+        .every((key) => d.querySelector(`[data-admin-panel="${key}"]`) !== null));
     T("1:1 문의 관리 패널이 있다",
       d.querySelector('[data-admin-panel="support"]') !== null
         && d.querySelector('[data-admin-section="support"]') !== null);

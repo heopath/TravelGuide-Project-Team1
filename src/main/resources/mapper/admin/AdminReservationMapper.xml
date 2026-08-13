@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.example.all_my_trip_project.domain.admin.mapper.AdminReservationMapper">
+
+    <!--
+      만료 시각이 지났는데 PENDING인 조건. 목록 표시·필터·집계 세 곳에서 같은 기준을 써야
+      화면의 배지와 건수가 어긋나지 않는다.
+
+      expires_at을 지나면 EXPIRED로 바꾸는 처리가 아직 없다. 그래서 status만 보면 정상 대기처럼
+      보이는 행이 실제로는 재고를 잡은 채 방치돼 있다. 여기서 상태를 바꾸지는 않고 드러내기만 한다.
+    -->
+    <sql id="expiredPendingCondition">
+        r.status = 'PENDING' AND r.expires_at IS NOT NULL AND r.expires_at &lt; CURRENT_TIMESTAMP
+    </sql>
+
+    <sql id="adminFilter">
+        <if test="status != null and status != ''">
+            AND r.status = #{status}
+        </if>
+        <if test="expiredPendingOnly">
+            AND <include refid="expiredPendingCondition"/>
+        </if>
+        <if test="keyword != null and keyword != ''">
+            AND CONCAT_WS(' ', r.reservation_number, u.nickname) ILIKE '%' || #{keyword} || '%'
+        </if>
+    </sql>
+
+    <select id="findAdminPage"
+            resultType="org.example.all_my_trip_project.domain.admin.dto.AdminReservationDTO">
+        SELECT
+            r.reservation_id, r.reservation_number, r.status,
+            r.total_amount, r.currency_code AS currency, r.trip_id,
+            r.created_at, r.updated_at, r.confirmed_at, r.cancelled_at, r.expires_at,
+            u.nickname,
+            (SELECT COUNT(*) FROM reservation_items ri
+              WHERE ri.reservation_id = r.reservation_id) AS item_count,
+            (SELECT ri.product_name FROM reservation_items ri
+              WHERE ri.reservation_id = r.reservation_id
+              ORDER BY ri.reservation_item_id LIMIT 1) AS product_name,
+            (<include refid="expiredPendingCondition"/>) AS expired_pending
+        FROM reservations r
+        JOIN users u ON u.user_id = r.user_id
+        WHERE 1 = 1
+        <include refid="adminFilter"/>
+        <!-- 방금 움직인 예약이 위로 온다. 모니터링에서 먼저 봐야 하는 것은 최근 변화다. -->
+        ORDER BY r.updated_at DESC, r.reservation_id DESC
+        LIMIT #{size} OFFSET #{offset}
+    </select>
+
+    <select id="countAdmin" resultType="long">
+        SELECT COUNT(*)
+        FROM reservations r
+        JOIN users u ON u.user_id = r.user_id
+        WHERE 1 = 1
+        <include refid="adminFilter"/>
+    </select>
+
+    <!-- 현재 필터와 무관한 전체 기준. 다른 상태를 보고 있어도 방치된 건수는 계속 보여야 한다. -->
+    <select id="countExpiredPending" resultType="long">
+        SELECT COUNT(*)
+        FROM reservations r
+        WHERE <include refid="expiredPendingCondition"/>
+    </select>
+
+</mapper>

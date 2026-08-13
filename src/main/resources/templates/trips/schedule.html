@@ -106,9 +106,29 @@
                 <button type="button" class="outline-button map-route-toggle" data-toggle-route-map>
                   경로선 ON
                 </button>
-                <button type="button" class="outline-button" data-optimize-route>
-                  ✨ 동선 최적화
-                </button>
+                <details class="route-optimization-picker" data-optimize-picker>
+                  <summary class="outline-button route-optimization-trigger" data-optimize-trigger>
+                    ✨ 동선 최적화
+                  </summary>
+                  <div class="route-optimization-options" role="menu" aria-label="동선 최적화 기준 선택">
+                    <button type="button" class="route-optimization-option"
+                            data-optimize-route data-optimize-criterion="TIME" role="menuitem">
+                      <span class="route-optimization-option-icon" aria-hidden="true">⏱</span>
+                      <span>
+                        <strong>이동시간 우선</strong>
+                        <small>자동차 이동시간이 짧은 순서</small>
+                      </span>
+                    </button>
+                    <button type="button" class="route-optimization-option"
+                            data-optimize-route data-optimize-criterion="DISTANCE" role="menuitem">
+                      <span class="route-optimization-option-icon" aria-hidden="true">↔</span>
+                      <span>
+                        <strong>이동거리 우선</strong>
+                        <small>도로 이동거리가 짧은 순서</small>
+                      </span>
+                    </button>
+                  </div>
+                </details>
                 <button type="button" class="map-expand-button">
                   ♧&nbsp; 지도 크게 보기
                 </button>

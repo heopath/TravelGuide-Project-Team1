@@ -79,6 +79,11 @@ public enum ErrorCode {
             "카카오 길찾기 API 호출에 실패했습니다. REST API 키와 허용 IP를 확인해주세요."
     ),
 
+    ROUTE_NOT_FOUND(
+            HttpStatus.NOT_FOUND,
+            "해당 구간에 이용 가능한 경로가 없습니다. 다른 이동수단을 선택해주세요."
+    ),
+
     INVALID_TRIP_REQUEST(
             HttpStatus.BAD_REQUEST,
             "여행 생성 요청값이 올바르지 않습니다."
@@ -111,7 +116,7 @@ public enum ErrorCode {
 
     ITINERARY_ITEM_LIMIT_EXCEEDED(
             HttpStatus.BAD_REQUEST,
-            "일차당 일정은 최대 100개까지 등록할 수 있습니다."
+            "하루 일정은 최대 5개까지 추가할 수 있습니다."
     ),
 
     ITINERARY_PLACE_ALREADY_ADDED(
@@ -244,9 +249,23 @@ public enum ErrorCode {
             "티켓 사용일, 수량 또는 여행 정보가 올바르지 않습니다."
     ),
 
+    /*
+     * 이미 예약된 수보다 재고를 적게 줄이려는 경우. ck_ticket_inventory_quantities가
+     * 어차피 막지만, DB 제약 위반은 화면에 이유가 드러나지 않아 관리자가 원인을 알 수 없다.
+     */
+    TICKET_INVENTORY_BELOW_RESERVED(
+            HttpStatus.CONFLICT,
+            "이미 예약된 수량보다 적게 줄일 수 없습니다."
+    ),
+
     SUPPORT_INQUIRY_NOT_FOUND(
             HttpStatus.NOT_FOUND,
             "고객센터 문의를 찾을 수 없습니다."
+    ),
+
+    INVALID_ADMIN_REQUEST(
+            HttpStatus.BAD_REQUEST,
+            "조회 조건이 올바르지 않습니다."
     );
 
     private final HttpStatus status;

@@ -150,28 +150,79 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   }
 
-  function keywordSearch(query) {
+  // 같은 검색어를 지도 렌더링과 저장 과정에서 반복 호출하지 않도록 재사용한다.
+  const kakaoSearchCache = new Map();
+
+  function keywordSearchAll(query) {
+    if (kakaoSearchCache.has(query)) return Promise.resolve(kakaoSearchCache.get(query));
     return new Promise(function (resolve) {
       kakaoPlaces.keywordSearch(query, function (data, status) {
-        if (status === window.kakao.maps.services.Status.OK && data.length) {
-          resolve(data[0]);
-          return;
-        }
-        resolve(null);
+        const results = status === window.kakao.maps.services.Status.OK && data ? data : [];
+        kakaoSearchCache.set(query, results);
+        resolve(results);
       });
     });
   }
 
+  // AI 추천 장소명과 카카오 검색 후보를 이름·주소·카테고리 기준으로 비교해 가장 적합한 후보를 고른다.
+  function scoreCandidate(place, candidate, rank) {
+    const name = String(candidate.place_name || "");
+    const address = String(candidate.road_address_name || candidate.address_name || "");
+    const category = String(candidate.category_name || "");
+    let score = 0;
+    if (name === place.name) score += 5;
+    else if (name.includes(place.name) || (place.name && place.name.includes(name))) score += 3;
+    if (destinationText && address.includes(destinationText)) score += 2;
+    if (place.category && category.includes(place.category)) score += 1;
+    if (candidate.y && candidate.x) score += 1;
+    score -= rank * 0.1;
+    return score;
+  }
+
+  function pickBestCandidate(place, candidates) {
+    if (!candidates || !candidates.length) return null;
+    let best = null;
+    let bestScore = -Infinity;
+    candidates.forEach(function (candidate, rank) {
+      const score = scoreCandidate(place, candidate, rank);
+      if (score > bestScore) {
+        bestScore = score;
+        best = candidate;
+      }
+    });
+    return best;
+  }
+
+  const CATEGORY_FALLBACK_QUERIES = [
+    { match: "숙소", query: "호텔" },
+    { match: "식사", query: "맛집" },
+    { match: "카페", query: "카페" },
+    { match: "교통", query: "터미널" },
+  ];
+
+  function fallbackQueryFor(place) {
+    const category = String(place.category || "");
+    const title = String(place.name || "");
+    const found = CATEGORY_FALLBACK_QUERIES.find(function (entry) {
+      return category.includes(entry.match) || title.includes(entry.match);
+    });
+    if (found) return found.query;
+    if (title.includes("귀가") || title.includes("역") || title.includes("공항")) return "역";
+    return "관광명소";
+  }
+
   async function findRecommendedPlace(place) {
-    const withDestination = await keywordSearch(destinationText + " " + place.name);
-    if (withDestination) return { ...place, kakaoPlace: withDestination };
-    const byName = await keywordSearch(place.name);
-    if (byName) return { ...place, kakaoPlace: byName };
-    if (place.category === "숙소") {
-      const accommodation = await keywordSearch(destinationText + " 호텔");
-      if (accommodation) return { ...place, kakaoPlace: accommodation };
+    const withDestination = await keywordSearchAll(destinationText + " " + place.name);
+    let best = pickBestCandidate(place, withDestination);
+    if (!best) {
+      const byName = await keywordSearchAll(place.name);
+      best = pickBestCandidate(place, byName);
     }
-    return null;
+    if (!best) {
+      const fallback = await keywordSearchAll(destinationText + " " + fallbackQueryFor(place));
+      best = pickBestCandidate(place, fallback);
+    }
+    return best ? { ...place, kakaoPlace: best } : null;
   }
 
   async function renderKakaoMap(places) {
@@ -306,6 +357,15 @@ document.addEventListener("DOMContentLoaded", function () {
     return resolvedPlaces;
   }
 
+  // 서버 검증 실패는 errors에만 필드별 사유가 담기므로 message만 보면 원인을 알 수 없다.
+  function saveErrorMessage(payload) {
+    const base = payload?.message || "AI 여행을 저장하지 못했습니다.";
+    const details = (payload?.errors || [])
+      .map(function (error) { return error.field + ": " + error.reason; })
+      .join("\n");
+    return details ? base + "\n" + details : base;
+  }
+
   async function savePlan() {
     const saveButton = document.querySelector("[data-plan-save]");
     if (savingPlan || !currentPlan || !currentConditions || !saveButton) return;
@@ -337,7 +397,7 @@ document.addEventListener("DOMContentLoaded", function () {
         return;
       }
       if (!response.ok || !payload?.success || !payload.data?.tripId) {
-        throw new Error(payload?.message || "AI 여행을 저장하지 못했습니다.");
+        throw new Error(saveErrorMessage(payload));
       }
       const savedDraft = readCurrentDraft();
       savedDraft.trip = {
