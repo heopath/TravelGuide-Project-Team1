@@ -49,7 +49,7 @@
                   <span aria-hidden="true">⌖</span><span>추천 장소 관리</span><em class="live">실연동</em>
                 </button>
                 <button type="button" data-admin-panel="metrics">
-                  <span aria-hidden="true">▦</span><span>운영 지표</span><em>연동 전</em>
+                  <span aria-hidden="true">▦</span><span>운영 지표</span><em class="live">실연동</em>
                 </button>
                 <button type="button" data-admin-panel="products">
                   <span aria-hidden="true">▤</span><span>예약 상품·재고</span><em class="live">실연동</em>
@@ -171,30 +171,38 @@
               <section class="admin-section" data-admin-section="metrics" aria-labelledby="metricsTitle" hidden>
                 <div class="admin-section-head">
                   <h2 id="metricsTitle">운영 지표</h2>
-                  <span class="admin-tag" data-admin-state="metrics">연동 전</span>
+                  <span class="admin-tag live" data-admin-state="metrics">실연동</span>
+                  <button type="button" class="admin-chip" data-metrics-refresh>새로고침</button>
                 </div>
                 <div class="admin-metric-row">
                   <div class="admin-metric">
                     <span>오늘 예약</span>
                     <strong data-metric="todayReservations">—</strong>
-                    <small>집계 API 연동 예정</small>
+                    <small>오늘 0시 이후 접수</small>
                   </div>
+                  <!--
+                    원래 자리는 `대기 사용자`였다. 예약 대기열(/booking/queue)이 화면만 있고
+                    서버 로직이 없어 셀 원본이 없다. 값을 지어내는 대신, 관리자가 지금 손댈 수 있고
+                    1:1 문의 관리 화면으로 바로 이어지는 미처리 문의로 바꿨다.
+                    대기열이 구현되면 칸을 되돌리거나 늘리면 된다.
+                  -->
                   <div class="admin-metric">
-                    <span>대기 사용자</span>
-                    <strong data-metric="waitingUsers">—</strong>
-                    <small>대기열 연동 예정</small>
+                    <span>미처리 문의</span>
+                    <strong data-metric="openInquiries">—</strong>
+                    <small>접수 · 처리 중</small>
                   </div>
                   <div class="admin-metric">
                     <span>티켓 재고 경고</span>
-                    <strong data-metric="stockAlerts">—</strong>
-                    <small>재고 임계값 연동 예정</small>
+                    <strong data-metric="lowStockSlots">—</strong>
+                    <small data-stock-caption>판매 중 상품 기준</small>
                   </div>
                   <div class="admin-metric">
                     <span>API 오류율</span>
                     <strong data-metric="errorRate">—</strong>
-                    <small>성능 모니터링 연동 예정</small>
+                    <small>기동 후 누적 5xx</small>
                   </div>
                 </div>
+                <p class="admin-hint" data-metrics-note role="status"></p>
               </section>
 
               <!--
@@ -378,5 +386,6 @@
     <script th:src="@{/js/pages/admin/admin-support.js}" src="../../static/js/pages/admin/admin-support.js"></script>
     <script th:src="@{/js/pages/admin/admin-products.js}" src="../../static/js/pages/admin/admin-products.js"></script>
     <script th:src="@{/js/pages/admin/admin-performance.js}" src="../../static/js/pages/admin/admin-performance.js"></script>
+    <script th:src="@{/js/pages/admin/admin-metrics.js}" src="../../static/js/pages/admin/admin-metrics.js"></script>
   </body>
 </html>

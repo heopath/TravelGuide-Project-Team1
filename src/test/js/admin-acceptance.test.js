@@ -100,7 +100,8 @@ async function run() {
     T("성능 모니터링 블록이 있다", headings.includes("성능 모니터링"));
     T("신고 관리 블록이 있다", headings.includes("신고 관리"));
 
-    T("연동 전 지표는 값 자리를 비워 둔다",
+    /* 연동 여부와 무관하게 지켜야 한다. 값을 마크업에 박으면 연동이 빠져도 아무도 모른다. */
+    T("지표 값은 마크업에 박아두지 않는다",
       [...d.querySelectorAll(".admin-metric strong")].every((el) => el.textContent.trim() === "—"));
     /*
      * 연동된 패널이 늘어날 때마다 개수를 고쳐야 하는 단정은 두지 않는다. 숫자를 낮추는 것으로

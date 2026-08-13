@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.example.all_my_trip_project.domain.admin.mapper.AdminMetricsMapper">
+
+    <!--
+      세 값을 한 번에 센다. 화면이 한 번에 그리는 값이라 왕복을 나눌 이유가 없고,
+      따로 조회하면 값들의 기준 시각이 서로 어긋난다.
+
+      today_reservations는 취소분을 빼지 않는다. "오늘 들어온 예약 요청"이 기준이고,
+      취소를 빼면 같은 날 취소가 늘어날 때 유입이 준 것처럼 보인다.
+
+      CURRENT_DATE는 세션 타임존의 오늘 0시다. created_at이 timestamptz라 비교 시점에
+      해당 타임존의 자정으로 맞춰진다. 서버 타임존이 바뀌면 경계도 함께 움직인다.
+    -->
+    <select id="countOperationMetrics"
+            resultType="org.example.all_my_trip_project.domain.admin.dto.AdminOperationCountsDTO">
+        SELECT
+            (SELECT COUNT(*) FROM reservations
+              WHERE created_at &gt;= CURRENT_DATE) AS today_reservations,
+
+            (SELECT COUNT(*) FROM support_inquiries
+              WHERE status IN ('OPEN', 'IN_PROGRESS')) AS open_inquiries,
+
+            <!--
+              재고 경고는 판매 중인 상품의 열린 시간대만 본다. DRAFT나 ENDED 상품의 재고가
+              적은 것은 정상이라, 함께 세면 경고가 늘 켜져 있어 아무도 보지 않게 된다.
+            -->
+            (SELECT COUNT(*) FROM ticket_time_slots s
+                JOIN ticket_product_options o
+                  ON o.ticket_product_option_id = s.ticket_product_option_id
+                JOIN ticket_products p
+                  ON p.ticket_product_id = o.ticket_product_id
+                JOIN ticket_inventory i
+                  ON i.ticket_time_slot_id = s.ticket_time_slot_id
+              WHERE p.status = 'ON_SALE'
+                AND o.is_active = TRUE
+                AND s.status = 'OPEN'
+                AND i.total_quantity - i.reserved_quantity &lt;= #{lowStockThreshold}) AS low_stock_slots
+    </select>
+
+</mapper>
