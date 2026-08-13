@@ -66,6 +66,9 @@
                 <button type="button" data-admin-panel="support">
                   <span aria-hidden="true">Q</span><span>1:1 문의 관리</span><em class="live">실연동</em>
                 </button>
+                <button type="button" data-admin-panel="audit">
+                  <span aria-hidden="true">⧉</span><span>조작 이력</span><em class="live">실연동</em>
+                </button>
               </nav>
             </aside>
 
@@ -303,6 +306,39 @@
               -->
 
               <!--
+                조작 이력. 읽기 전용이다.
+
+                수정·삭제 버튼을 두지 않는다. 고칠 수 있는 기록은 기록이 아니다.
+                필터 선택지는 화면에 박지 않고 서버가 실제로 쌓인 action_type을 내려준다.
+                새 동작이 늘어도 화면을 고칠 필요가 없다.
+              -->
+              <section class="admin-section" data-admin-section="audit" aria-labelledby="auditTitle" hidden>
+                <div class="admin-section-head">
+                  <h2 id="auditTitle">조작 이력</h2>
+                  <span class="admin-tag live" data-admin-state="audit">실연동</span>
+                  <div class="admin-filter" role="group" aria-label="동작 필터" data-audit-filter>
+                    <button type="button" class="admin-chip on" data-audit-action="">전체</button>
+                  </div>
+                </div>
+                <p class="admin-notice" data-audit-notice role="status" hidden></p>
+                <div class="white-panel admin-panel">
+                  <label class="admin-search">
+                    <span class="sr-only">대상 검색</span>
+                    <input type="search" data-audit-search autocomplete="off"
+                           placeholder="대상 번호로 검색 후 Enter (예: 20)" />
+                  </label>
+                  <div class="admin-table-head admin-audit-row">
+                    <span>시각</span><span>관리자</span><span>동작</span><span>변경 내용</span>
+                  </div>
+                  <div data-audit-list class="admin-table-body"></div>
+                  <p class="admin-empty" data-audit-empty role="status">
+                    조작 이력을 불러오는 중이에요.
+                  </p>
+                  <div class="admin-pagination" data-audit-pagination></div>
+                </div>
+              </section>
+
+              <!--
                 예약 모니터링 (피그마 No 21-21 · 5번)
 
                 조회만 둔다. 상태 변경은 재고(ticket_inventory.reserved_quantity)와 함께
@@ -444,5 +480,6 @@
     <script th:src="@{/js/pages/admin/admin-performance.js}" src="../../static/js/pages/admin/admin-performance.js"></script>
     <script th:src="@{/js/pages/admin/admin-metrics.js}" src="../../static/js/pages/admin/admin-metrics.js"></script>
     <script th:src="@{/js/pages/admin/admin-reservations.js}" src="../../static/js/pages/admin/admin-reservations.js"></script>
+    <script th:src="@{/js/pages/admin/admin-audit.js}" src="../../static/js/pages/admin/admin-audit.js"></script>
   </body>
 </html>

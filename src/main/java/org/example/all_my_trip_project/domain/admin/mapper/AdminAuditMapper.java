@@ -14,4 +14,18 @@ public interface AdminAuditMapper {
     List<AdminAuditLogDTO> findRecent(@Param("targetType") String targetType,
                                       @Param("targetId") String targetId,
                                       @Param("limit") int limit);
+
+    List<AdminAuditLogDTO> findView(@Param("actionType") String actionType,
+                                    @Param("targetType") String targetType,
+                                    @Param("targetId") String targetId,
+                                    @Param("adminUserId") Long adminUserId,
+                                    @Param("offset") int offset,
+                                    @Param("size") int size);
+
+    long countView(@Param("actionType") String actionType,
+                   @Param("targetType") String targetType,
+                   @Param("targetId") String targetId,
+                   @Param("adminUserId") Long adminUserId);
+
+    List<String> findActionTypes();
 }

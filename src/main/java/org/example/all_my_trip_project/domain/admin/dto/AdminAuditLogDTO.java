@@ -46,4 +46,12 @@ public class AdminAuditLogDTO {
     private String userAgent;
 
     private OffsetDateTime occurredAt;
+
+    /**
+     * 조작한 관리자의 닉네임. 조회할 때만 채워진다.
+     *
+     * <p>{@code admin_user_id}가 {@code ON DELETE SET NULL}이라 계정이 지워지면 비어 있다.
+     * 그때도 "무엇을 했다"는 남아야 하므로 화면에서 빈 값을 별도로 표시한다.
+     */
+    private String adminNickname;
 }

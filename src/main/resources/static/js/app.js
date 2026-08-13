@@ -390,6 +390,11 @@ const ALL_MY_TRIPS_SCREENS = [
     "/admin?panel=support",
     "관리자 · 1:1 문의 관리",
     "admin"
+  ],
+  [
+    "/admin?panel=audit",
+    "관리자 · 조작 이력",
+    "admin"
   ]
 ];
 
