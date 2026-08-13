@@ -5,12 +5,15 @@ import org.example.all_my_trip_project.domain.admin.service.AdminAuditService;
 import org.example.all_my_trip_project.domain.ticket.dao.AdminTicketDAO;
 import org.example.all_my_trip_project.domain.ticket.dto.AdminTicketProductDTO;
 import org.example.all_my_trip_project.domain.ticket.dto.AdminTicketProductPage;
+import org.example.all_my_trip_project.domain.ticket.dto.AdminTicketProductRequest;
+import org.example.all_my_trip_project.domain.ticket.dto.AdminTicketSlotDTO;
 import org.example.all_my_trip_project.global.exception.BusinessException;
 import org.example.all_my_trip_project.global.exception.ErrorCode;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
@@ -79,6 +82,83 @@ public class AdminTicketProductService {
                 AdminAuditService.payload("status", product.getStatus()),
                 AdminAuditService.payload("status", normalized, "name", product.getName()));
         return requireProduct(ticketProductId);
+    }
+
+    @Transactional
+    public AdminTicketProductDTO create(AdminTicketProductRequest request) {
+        validatePeriods(request);
+        requirePlace(request.placeId());
+        Long createdId = adminTicketDAO.insertProduct(request);
+        if (createdId == null) {
+            throw new IllegalStateException("예약 상품을 등록하지 못했습니다.");
+        }
+        adminAuditService.record("TICKET_PRODUCT_CREATE", "TICKET_PRODUCT", createdId,
+                null, AdminAuditService.payload("name", request.name(), "placeId", request.placeId()));
+        return requireProduct(createdId);
+    }
+
+    @Transactional
+    public AdminTicketProductDTO update(Long ticketProductId, AdminTicketProductRequest request) {
+        AdminTicketProductDTO current = requireProduct(ticketProductId);
+        validatePeriods(request);
+        requirePlace(request.placeId());
+        if (adminTicketDAO.updateProduct(ticketProductId, request) != 1) {
+            throw new BusinessException(ErrorCode.TICKET_NOT_FOUND);
+        }
+        adminAuditService.record("TICKET_PRODUCT_UPDATE", "TICKET_PRODUCT", ticketProductId,
+                AdminAuditService.payload("name", current.getName(), "placeId", current.getPlaceId()),
+                AdminAuditService.payload("name", request.name(), "placeId", request.placeId()));
+        return requireProduct(ticketProductId);
+    }
+
+    public List<AdminTicketSlotDTO> listSlots(Long ticketProductId) {
+        requireProduct(ticketProductId);
+        return adminTicketDAO.findSlots(ticketProductId);
+    }
+
+    /**
+     * 시간대 하나의 전체 수량을 바꾼다.
+     *
+     * <p>{@code reserved_quantity}는 건드리지 않는다. 예약 흐름이 관리하는 값이라 관리자가
+     * 직접 고치면 실제 예약 건수와 어긋나 남은 수량이 틀어진다.
+     *
+     * <p>이미 예약된 수보다 적게 줄이려 하면 거부한다. {@code ck_ticket_inventory_quantities}가
+     * 어차피 막지만, 제약 위반으로 터지면 화면에 이유가 드러나지 않는다.
+     */
+    @Transactional
+    public AdminTicketSlotDTO changeInventory(Long slotId, int totalQuantity) {
+        if (slotId == null || slotId < 1 || totalQuantity < 0) {
+            throw new BusinessException(ErrorCode.INVALID_TICKET_REQUEST);
+        }
+        AdminTicketSlotDTO slot = adminTicketDAO.findSlotForUpdate(slotId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.TICKET_NOT_FOUND));
+        int reserved = slot.getReservedQuantity() == null ? 0 : slot.getReservedQuantity();
+        if (totalQuantity < reserved) {
+            throw new BusinessException(ErrorCode.TICKET_INVENTORY_BELOW_RESERVED);
+        }
+        if (adminTicketDAO.updateInventory(slotId, totalQuantity) != 1) {
+            /* 잠금과 갱신 사이에 예약이 들어와 조건이 깨진 경우다. 조용히 넘기지 않는다. */
+            throw new BusinessException(ErrorCode.TICKET_INVENTORY_BELOW_RESERVED);
+        }
+        adminAuditService.record("TICKET_INVENTORY_CHANGE", "TICKET_TIME_SLOT", slotId,
+                AdminAuditService.payload("totalQuantity", slot.getTotalQuantity(),
+                        "reservedQuantity", reserved),
+                AdminAuditService.payload("totalQuantity", totalQuantity));
+        return adminTicketDAO.findSlotForUpdate(slotId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.TICKET_NOT_FOUND));
+    }
+
+    private void validatePeriods(AdminTicketProductRequest request) {
+        if (!request.saleEndAt().isAfter(request.saleStartAt())
+                || request.usageEndDate().isBefore(request.usageStartDate())) {
+            throw new BusinessException(ErrorCode.INVALID_TICKET_REQUEST);
+        }
+    }
+
+    private void requirePlace(Long placeId) {
+        if (!adminTicketDAO.existsPlace(placeId)) {
+            throw new BusinessException(ErrorCode.PLACE_NOT_FOUND);
+        }
     }
 
     private AdminTicketProductDTO requireProduct(Long ticketProductId) {

@@ -249,6 +249,15 @@ public enum ErrorCode {
             "티켓 사용일, 수량 또는 여행 정보가 올바르지 않습니다."
     ),
 
+    /*
+     * 이미 예약된 수보다 재고를 적게 줄이려는 경우. ck_ticket_inventory_quantities가
+     * 어차피 막지만, DB 제약 위반은 화면에 이유가 드러나지 않아 관리자가 원인을 알 수 없다.
+     */
+    TICKET_INVENTORY_BELOW_RESERVED(
+            HttpStatus.CONFLICT,
+            "이미 예약된 수량보다 적게 줄일 수 없습니다."
+    ),
+
     SUPPORT_INQUIRY_NOT_FOUND(
             HttpStatus.NOT_FOUND,
             "고객센터 문의를 찾을 수 없습니다."
