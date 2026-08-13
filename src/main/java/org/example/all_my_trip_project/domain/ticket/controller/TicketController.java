@@ -1,8 +1,6 @@
 package org.example.all_my_trip_project.domain.ticket.controller;
 
-import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.example.all_my_trip_project.domain.ticket.dto.CreateTicketReservationRequest;
 import org.example.all_my_trip_project.domain.ticket.dto.TicketOfferDTO;
 import org.example.all_my_trip_project.domain.ticket.dto.TicketReservationDTO;
 import org.example.all_my_trip_project.domain.ticket.service.TicketService;
@@ -16,8 +14,6 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -39,14 +35,6 @@ public class TicketController {
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
         return ApiResponse.success(ticketService.search(destination, from, to));
-    }
-
-    @PostMapping("/ticket-reservations")
-    public ApiResponse<TicketReservationDTO> reserve(
-            @AuthenticationPrincipal AuthenticatedUser principal,
-            @Valid @RequestBody CreateTicketReservationRequest request) {
-        return ApiResponse.success("실습용 티켓을 예약 목록에 담았습니다.",
-                ticketService.reserve(requireUserId(principal), request));
     }
 
     @GetMapping("/ticket-reservations")

@@ -3,7 +3,7 @@
   "private": true,
   "description": "화면 수용 기준 테스트. Gradle 빌드와 분리되어 있어 필요할 때만 실행한다.",
   "scripts": {
-    "test": "node flights-acceptance.test.js && node accommodations-acceptance.test.js && node tickets-acceptance.test.js && node admin-acceptance.test.js && node admin-places-acceptance.test.js && node admin-products-acceptance.test.js && node admin-product-crud-acceptance.test.js && node admin-performance-acceptance.test.js && node admin-metrics-acceptance.test.js && node admin-reservations-acceptance.test.js && node admin-audit-acceptance.test.js && node admin-support-acceptance.test.js && node place-reviews-acceptance.test.js && node mypage-reviews-acceptance.test.js && node mypage-support-acceptance.test.js && node app-csrf-acceptance.test.js"
+    "test": "node flights-acceptance.test.js && node accommodations-acceptance.test.js && node tickets-acceptance.test.js && node booking-queue-acceptance.test.js && node admin-acceptance.test.js && node admin-places-acceptance.test.js && node admin-products-acceptance.test.js && node admin-product-crud-acceptance.test.js && node admin-performance-acceptance.test.js && node admin-metrics-acceptance.test.js && node admin-reservations-acceptance.test.js && node admin-audit-acceptance.test.js && node admin-support-acceptance.test.js && node place-reviews-acceptance.test.js && node mypage-reviews-acceptance.test.js && node mypage-support-acceptance.test.js && node app-csrf-acceptance.test.js"
   },
   "devDependencies": {
     "jsdom": "^30.0.1"

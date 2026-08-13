@@ -1,6 +1,42 @@
-/* 예약 대기열 전용 스타일 */
 body.page-queue #page-content {
   min-height: calc(100vh - 78px);
+}
+
+.page-queue .queue-card {
+  position: relative;
+}
+
+.page-queue .progress {
+  height: 12px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #e8edf3;
+}
+
+.page-queue .progress i {
+  display: block;
+  width: 0;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--primary), #4f8cff);
+  transition: width 0.35s ease;
+}
+
+.page-queue .queue-expiry {
+  min-height: 24px;
+  margin: 14px 0 4px;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.page-queue .queue-error {
+  margin: 16px 0;
+  color: #c33b3b;
+  font-weight: 700;
+}
+
+.page-queue .queue-card > button {
+  margin-top: 12px;
 }
 
 @media (max-width: 760px) {
