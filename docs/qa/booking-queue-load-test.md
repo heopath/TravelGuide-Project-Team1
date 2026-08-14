@@ -62,16 +62,20 @@
 ```
 
 - k6 ([설치](https://k6.io/docs/get-started/installation/))
-- 부하용 계정. VU 수만큼 필요합니다
+- 부하용 계정·여행·티켓 시간대 → **`load-test/fixtures.sql`**
 
-```sql
--- 예: 30명. 비밀번호 해시는 실제 가입으로 하나 만든 뒤 복사해 씁니다.
-INSERT INTO users (email, password_hash, nickname, role)
-SELECT 'loadtest' || i || '@example.com', '<복사한 해시>', 'loadtest' || i, 'USER'
-FROM generate_series(1, 30) AS i;
-```
+### 데이터 준비
 
-- 부하 대상 티켓 시간대(`slotId`)와 각 계정의 여행(`tripId`)
+`load-test/fixtures.sql`을 순서대로 실행합니다. 계정 30개, 계정마다 여행 1개, 재고 10개짜리 전용 시간대를 만듭니다.
+
+**비밀번호 해시를 SQL에 적지 않습니다.** BCrypt라 손으로 만들 수 없고, 자기 계정 해시를 복사하면 그 비밀번호를 k6 스크립트에 적게 됩니다. 대신 이렇게 합니다.
+
+1. 화면에서 `loadtest1@example.com`으로 **회원가입**합니다. 비밀번호는 부하 테스트용으로만 쓸 값을 정합니다
+2. SQL을 실행하면 나머지 29개가 **1번 계정의 해시를 복사**해 같은 비밀번호로 만들어집니다
+
+**시드 데이터를 쓰지 않고 전용 상품을 새로 만듭니다.** 시드 상품에 부하를 걸면 재고가 실제로 깎여 다음 사람이 화면을 확인할 때 품절로 보입니다.
+
+파일 끝에 회차 사이 초기화 구문과 전체 정리 구문이 주석으로 들어 있습니다. **한 번 돌리면 재고가 소진되므로 다시 돌리기 전에 초기화가 필요합니다.** Redis에 남은 줄(`all-my-trips:booking-queue:*`)도 함께 비웁니다.
 
 ---
 

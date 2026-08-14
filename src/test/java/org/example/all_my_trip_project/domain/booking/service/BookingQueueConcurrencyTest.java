@@ -204,8 +204,11 @@ class BookingQueueConcurrencyTest {
          */
         tripIds = java.util.stream.IntStream.range(0, CONTENDERS)
                 .mapToObj(index -> jdbcTemplate.queryForObject("""
-                        insert into trips (user_id, title, destination_name, start_date, end_date, status)
-                        values (?, ?, '부하테스트', ?, ?, 'DRAFT') returning trip_id
+                        insert into trips
+                            (user_id, title, destination_name, start_date, end_date,
+                             companion_type, companion_count, status)
+                        values (?, ?, '부하테스트', ?, ?, 'SOLO', 1, 'DRAFT')
+                        returning trip_id
                         """, Long.class, userId, "부하테스트 여행 " + index,
                         LocalDate.now(), LocalDate.now().plusDays(30)))
                 .toList();
