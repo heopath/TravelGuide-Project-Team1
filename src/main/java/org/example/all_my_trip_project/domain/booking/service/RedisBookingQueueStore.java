@@ -60,13 +60,19 @@ class RedisBookingQueueStore implements BookingQueueStore {
               if admitted <= tonumber(ARGV[11]) then state = 'READY' end
             end
 
-            local expiresAt = tonumber(ARGV[8]) + tonumber(ARGV[10]) * 1000
+            -- 줄을 서지 않고 바로 입장한 사람은 그 순간이 이미 자기 차례다.
+            -- 대기 후 승급하는 경로(STATUS_SCRIPT)와 같게 admission-ttl을 준다.
+            -- entry-ttl을 주면 기본값 기준 2분이어야 할 자리 점유가 10분 유지된다.
+            local ttl = tonumber(ARGV[10])
+            if state == 'READY' then ttl = tonumber(ARGV[12]) end
+
+            local expiresAt = tonumber(ARGV[8]) + ttl * 1000
             redis.call('HSET', KEYS[2],
               'token', ARGV[1], 'state', state, 'userId', ARGV[3], 'slotId', ARGV[4],
               'tripId', ARGV[5], 'quantity', ARGV[6], 'requestKey', ARGV[7],
               'createdAt', ARGV[8], 'expiresAt', tostring(expiresAt))
-            redis.call('EXPIRE', KEYS[2], ARGV[10])
-            redis.call('SET', KEYS[3], ARGV[1], 'EX', ARGV[10])
+            redis.call('EXPIRE', KEYS[2], ttl)
+            redis.call('SET', KEYS[3], ARGV[1], 'EX', ttl)
 
             local position = 0
             if state == 'WAITING' then
@@ -213,7 +219,7 @@ class RedisBookingQueueStore implements BookingQueueStore {
                 token, ENTRY_PREFIX, userId, request.slotId(), request.tripId(), request.quantity(),
                 request.requestKey().trim(), nowMillis,
                 nowMillis - properties.getEntryTtl().toMillis(), properties.getEntryTtl().toSeconds(),
-                capacity());
+                capacity(), properties.getAdmissionTtl().toSeconds());
     }
 
     @Override

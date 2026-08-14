@@ -67,7 +67,9 @@ export const options = {
  * 전역 기본값을 좁게 두어 다른 요청의 409는 그대로 실패로 잡히게 한다.
  */
 http.setResponseCallback(http.expectedStatuses({ min: 200, max: 399 }));
-const COMPLETE_EXPECTED = http.expectedStatuses(200, 409);
+/* 대기표 만료(410)도 설계된 동작이다. 만료를 재려면 실패로 세지 않아야 한다. */
+const COMPLETE_EXPECTED_ALL = http.expectedStatuses(200, 409, 410);
+const STATUS_EXPECTED = http.expectedStatuses(200, 410);
 
 function api(path) {
   return `${BASE}${path}`;
@@ -138,7 +140,16 @@ export default function () {
     sleep(3);
     attempts += 1;
     const status = http.get(api(`/api/v1/booking-queue/entries/${token}`),
-      { headers, tags: { step: "status" } });
+      { headers, tags: { step: "status" }, responseCallback: STATUS_EXPECTED });
+    /*
+     * 만료는 본문의 status가 아니라 HTTP 410 + BOOKING_QUEUE_EXPIRED로 온다.
+     * (BookingQueueService가 예외를 던지므로 data가 없다.)
+     * 200만 보고 끊으면 만료가 "차례가 오지 않음"으로 잡혀 영영 0건이 된다.
+     */
+    if (status.status === 410) {
+      state = "EXPIRED";
+      break;
+    }
     if (status.status !== 200) break;
     state = status.json("data.status");
   }
@@ -157,7 +168,7 @@ export default function () {
   waitToReady.add(Date.now() - startedAt);
 
   const complete = http.post(api(`/api/v1/booking-queue/entries/${token}/reservation`),
-    null, { headers, tags: { step: "complete" }, responseCallback: COMPLETE_EXPECTED });
+    null, { headers, tags: { step: "complete" }, responseCallback: COMPLETE_EXPECTED_ALL });
 
   /*
    * 재고가 동나면 TICKET_NOT_AVAILABLE(409)가 돌아온다. 이건 정상 동작이다.
@@ -168,11 +179,15 @@ export default function () {
     reserved.add(1);
   } else if (code === "TICKET_NOT_AVAILABLE") {
     soldOut.add(1);
+  } else if (code === "BOOKING_QUEUE_EXPIRED") {
+    /* 차례를 받고도 admission-ttl 안에 예약을 못 마친 경우다. 이것도 정상 동작이다. */
+    expired.add(1);
   }
 
   check(complete, {
     "예약 완료가 5xx로 실패하지 않는다": (r) => r.status < 500,
-    "성공이거나 재고 소진이다": (r) => r.status === 200 || code === "TICKET_NOT_AVAILABLE",
+    "성공·재고 소진·대기표 만료 중 하나다": (r) =>
+      r.status === 200 || code === "TICKET_NOT_AVAILABLE" || code === "BOOKING_QUEUE_EXPIRED",
   });
 }
 
