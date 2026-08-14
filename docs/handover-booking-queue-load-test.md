@@ -58,8 +58,12 @@
 BOOKING_QUEUE_CONCURRENCY_TEST=true ./gradlew test --tests "*BookingQueueConcurrencyTest*"
 
 # ④ 부하
-k6 run -e VUS=30 -e SLOT_ID=<slot_id> -e TRIP_ID=<trip_id> load-test/booking-queue.js
+k6 run -e VUS=30 -e SLOT_ID=<slot_id> load-test/booking-queue.js
 ```
+
+여행은 넘기지 않습니다. 예약은 소유자만 할 수 있어 각 VU가 로그인 후 자기 여행을 찾습니다.
+
+1차 실행 결과는 `docs/qa/booking-queue-load-test-results.md`에 있습니다.
 
 ---
 
