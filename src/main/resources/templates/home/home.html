@@ -37,27 +37,7 @@
                   <h1>All My Trips</h1>
                   <p>마이티와 함께, 상상하던 여행 속으로.</p>
                 </div>
-                <form class="home-search" data-ai-trip-search novalidate>
-                  <label class="home-search-field" for="home-destination">
-                    <span aria-hidden="true">✈</span><b>어디로 가세요?</b>
-                    <input id="home-destination" name="destination" type="text" maxlength="80" autocomplete="off" placeholder="여행지를 입력하세요" required />
-                  </label>
-                  <label class="home-search-field" for="home-start-date">
-                    <span aria-hidden="true">▣</span><b>여행 기간</b>
-                    <span class="home-date-range">
-                      <input id="home-start-date" name="startDate" type="date" aria-label="여행 시작일" required />
-                      <i aria-hidden="true">~</i>
-                      <input id="home-end-date" name="endDate" type="date" aria-label="여행 종료일" required />
-                    </span>
-                  </label>
-                  <label class="home-search-field" for="home-travelers">
-                    <span aria-hidden="true">♙</span><b>여행 인원</b>
-                    <input id="home-travelers" name="travelers" type="number" min="1" max="20" value="1" inputmode="numeric" required />
-                  </label>
-                  <button class="search-submit" type="submit" aria-label="AI 여행계획 만들기" disabled>⌕</button>
-                </form>
-                <p class="home-search-error" data-ai-trip-search-error role="alert" hidden></p>
-                <p class="hero-caption">목적지, 날짜, 인원만 알려주면 마이티가 취향에 맞는 여행을 제안해요.</p>
+                <button class="home-start-button" type="button" data-world-start>여행 계획하기 <b>→</b></button>
               </div>
 
               <div class="home-world-finale" data-world-finale>
@@ -70,6 +50,7 @@
               <div class="home-scroll-hint" data-world-hint aria-hidden="true">
                 <span>SCROLL TO TRAVEL</span><i></i>
               </div>
+              <button class="home-world-skip" type="button" data-world-skip hidden>건너뛰기 <b>→</b></button>
             </div>
           </div>
         </section>
