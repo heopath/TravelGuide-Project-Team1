@@ -1,6 +1,5 @@
 package org.example.all_my_trip_project.domain.booking.service;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.example.all_my_trip_project.domain.booking.config.BookingQueueProperties;
 import org.example.all_my_trip_project.domain.booking.dto.BookingQueueState;
 import org.example.all_my_trip_project.domain.booking.dto.BookingQueueStatusResponse;
@@ -54,8 +53,7 @@ class RedisBookingQueueStoreIntegrationTest {
         properties.setCapacityPerSecond(2);
         properties.setEntryTtl(Duration.ofMinutes(10));
         properties.setAdmissionTtl(Duration.ofMinutes(2));
-        store = new RedisBookingQueueStore(redisTemplate,
-                new ObjectMapper().findAndRegisterModules(), properties);
+        store = new RedisBookingQueueStore(redisTemplate, properties);
         slotId = 9_000_000L + System.nanoTime() % 1_000_000L;
     }
 
