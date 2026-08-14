@@ -41,4 +41,54 @@
         LIMIT #{limit}
     </select>
 
+    <sql id="viewFilter">
+        <if test="actionType != null and actionType != ''">
+            AND l.action_type = #{actionType}
+        </if>
+        <if test="targetType != null and targetType != ''">
+            AND l.target_type = #{targetType}
+        </if>
+        <if test="adminUserId != null">
+            AND l.admin_user_id = #{adminUserId}
+        </if>
+        <!--
+          대상 id는 VARCHAR라 부분 일치가 아니라 정확히 맞춰야 한다. 상품 2를 찾을 때
+          20, 21이 딸려 나오면 추적이 아니라 방해가 된다.
+        -->
+        <if test="targetId != null and targetId != ''">
+            AND l.target_id = #{targetId}
+        </if>
+    </sql>
+
+    <!--
+      조작한 관리자의 닉네임을 함께 내린다. admin_user_id가 ON DELETE SET NULL이라 계정이
+      지워지면 비는데, 그때도 무엇을 했는지는 남아야 하므로 LEFT JOIN이다. INNER JOIN이면
+      탈퇴한 관리자의 이력이 목록에서 통째로 사라진다.
+    -->
+    <select id="findView" resultType="org.example.all_my_trip_project.domain.admin.dto.AdminAuditLogDTO">
+        SELECT
+            l.admin_audit_log_id, l.admin_user_id, u.nickname AS admin_nickname,
+            l.action_type, l.target_type, l.target_id,
+            l.before_data::text AS before_data, l.after_data::text AS after_data,
+            l.request_id, host(l.ip_address) AS ip_address, l.user_agent, l.occurred_at
+        FROM admin_audit_logs l
+        LEFT JOIN users u ON u.user_id = l.admin_user_id
+        WHERE 1 = 1
+        <include refid="viewFilter"/>
+        ORDER BY l.occurred_at DESC, l.admin_audit_log_id DESC
+        LIMIT #{size} OFFSET #{offset}
+    </select>
+
+    <select id="countView" resultType="long">
+        SELECT COUNT(*)
+        FROM admin_audit_logs l
+        WHERE 1 = 1
+        <include refid="viewFilter"/>
+    </select>
+
+    <!-- 필터 선택지를 코드에 박지 않고 실제 쌓인 값에서 뽑는다. 새 action_type이 늘어도 따라온다. -->
+    <select id="findActionTypes" resultType="string">
+        SELECT DISTINCT action_type FROM admin_audit_logs ORDER BY action_type
+    </select>
+
 </mapper>

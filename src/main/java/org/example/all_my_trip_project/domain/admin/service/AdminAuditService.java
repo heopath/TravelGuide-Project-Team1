@@ -6,6 +6,9 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.example.all_my_trip_project.domain.admin.dao.AdminAuditDAO;
 import org.example.all_my_trip_project.domain.admin.dto.AdminAuditLogDTO;
+import org.example.all_my_trip_project.domain.admin.dto.AdminAuditLogPage;
+import org.example.all_my_trip_project.global.exception.BusinessException;
+import org.example.all_my_trip_project.global.exception.ErrorCode;
 import org.example.all_my_trip_project.global.security.AuthenticatedUser;
 import org.springframework.context.annotation.Profile;
 import org.springframework.security.core.Authentication;
@@ -42,6 +45,9 @@ public class AdminAuditService {
     /** {@code admin_audit_logs.user_agent}가 VARCHAR(500)이다. 넘치면 잘라서라도 남긴다. */
     private static final int MAX_USER_AGENT = 500;
 
+    /** 감사 로그는 한 화면에 많이 띄울수록 훑기 좋지만, 본문 JSON이 있어 응답이 무거워진다. */
+    private static final int MAX_PAGE_SIZE = 100;
+
     private final AdminAuditDAO adminAuditDAO;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -66,6 +72,38 @@ public class AdminAuditService {
             data.put(String.valueOf(key), String.valueOf(value));
         }
         return data;
+    }
+
+    /**
+     * 기록을 조회한다. 이 화면은 읽기 전용이다.
+     *
+     * <p>감사 로그에는 수정·삭제를 두지 않는다. 고칠 수 있는 기록은 기록이 아니다.
+     */
+    public AdminAuditLogPage list(int page, int size, String actionType, String targetType,
+                                  String targetId, Long adminUserId) {
+        if (page < 0 || size < 1 || size > MAX_PAGE_SIZE) {
+            throw new BusinessException(ErrorCode.INVALID_ADMIN_REQUEST);
+        }
+        int offset;
+        try {
+            offset = Math.multiplyExact(page, size);
+        } catch (ArithmeticException exception) {
+            throw new BusinessException(ErrorCode.INVALID_ADMIN_REQUEST);
+        }
+        String action = text(actionType);
+        String target = text(targetType);
+        String id = text(targetId);
+
+        long total = adminAuditDAO.countView(action, target, id, adminUserId);
+        int totalPages = total == 0 ? 0 : (int) Math.ceil((double) total / size);
+        return new AdminAuditLogPage(
+                adminAuditDAO.findView(action, target, id, adminUserId, offset, size),
+                page, size, total, totalPages,
+                adminAuditDAO.findActionTypes());
+    }
+
+    private String text(String value) {
+        return value == null || value.isBlank() ? null : value.trim();
     }
 
     public void record(String actionType, String targetType, Object targetId,

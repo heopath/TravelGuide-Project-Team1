@@ -158,9 +158,13 @@ async function run() {
       .filter((section) => !section.hidden)
       .map((section) => section.dataset.adminSection);
 
-    /* 추천 장소 관리는 별도 주소라 data-admin-panel이 아닌 data-route를 쓴다. 그래서 7이다. */
-    T("사이드바에 일곱 패널이 모두 있다",
-      d.querySelectorAll("[data-admin-panel]").length === 7);
+    /*
+     * 개수를 세는 대신 어떤 패널이 있어야 하는지를 적는다. 숫자만 두면 패널이 하나 사라져도
+     * 다른 하나가 늘어나면 통과한다. 추천 장소 관리는 별도 주소라 data-route를 쓰므로 빠진다.
+     */
+    T("사이드바에 패널이 빠짐없이 있다",
+      ["reports", "metrics", "products", "reservations", "performance", "chat", "support", "audit"]
+        .every((key) => d.querySelector(`[data-admin-panel="${key}"]`) !== null));
     T("1:1 문의 관리 패널이 있다",
       d.querySelector('[data-admin-panel="support"]') !== null
         && d.querySelector('[data-admin-section="support"]') !== null);

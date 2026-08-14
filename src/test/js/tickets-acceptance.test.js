@@ -32,7 +32,10 @@ async function main() {
       maxQuantityPerUser: 4, remainingQuantity: 30
     }] });
     if (url.startsWith("/api/v1/ticket-reservations?")) return json({ success: true, data: [] });
-    if (url === "/api/v1/ticket-reservations") return json({ success: true, data: {
+    if (url === "/api/v1/booking-queue/entries") return json({ success: true, data: {
+      token: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", status: "READY", slotId: 31, tripId: 10
+    } });
+    if (url === "/api/v1/booking-queue/entries/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/reservation") return json({ success: true, data: {
       reservationId: 9, tripId: 10, status: "PENDING", productName: "제주 아쿠아리움 입장권",
       optionName: "성인 입장권", quantity: 2, totalAmount: 40000, currency: "KRW"
     } });
@@ -56,7 +59,9 @@ async function main() {
   d.querySelector("[data-ticket-quantity]").value = "2";
   d.querySelector("[data-ticket-reserve]").click();
   await until(() => selected !== null);
-  T("선택 수량으로 모의 예약 API를 호출한다", calls.includes("POST /api/v1/ticket-reservations"));
+  T("선택 수량으로 예약 대기열 진입 API를 호출한다", calls.includes("POST /api/v1/booking-queue/entries"));
+  T("혼잡하지 않으면 입장 토큰으로 즉시 모의 예약한다",
+    calls.includes("POST /api/v1/booking-queue/entries/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/reservation"));
   T("예약 결과를 오른쪽 현황이 받을 수 있도록 이벤트로 전달한다",
     selected.productName === "제주 아쿠아리움 입장권" && selected.totalAmount === 40000);
   T("예약 후에도 실제 결제가 아니라는 안내를 유지한다",

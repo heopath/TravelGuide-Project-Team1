@@ -94,6 +94,23 @@
     status(`${reservation.productName}을(를) 모의 예약에 담았습니다. 실제 결제는 이루어지지 않았습니다.`);
   }
 
+  async function jsonRequest(url, options = {}) {
+    const response = await fetch(url, {
+      credentials: "same-origin",
+      headers: { Accept: "application/json", ...(options.headers || {}) },
+      ...options
+    });
+    const payload = await response.json().catch(() => null);
+    if (!response.ok || !payload?.success) throw new Error(payload?.message || "TICKET_RESERVE_FAILED");
+    return payload.data;
+  }
+
+  async function completeQueuedReservation(token) {
+    return jsonRequest(`/api/v1/booking-queue/entries/${encodeURIComponent(token)}/reservation`, {
+      method: "POST"
+    });
+  }
+
   async function reserve(slotId, button) {
     const query = params();
     if (!query.tripId) return status("여행을 먼저 선택해야 티켓을 담을 수 있습니다.", true);
@@ -102,14 +119,17 @@
     button.disabled = true;
     try {
       const requestKey = crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${slotId}`;
-      const response = await fetch("/api/v1/ticket-reservations", {
-        method: "POST", credentials: "same-origin",
+      const request = { tripId: Number(query.tripId), slotId: Number(slotId), quantity, requestKey };
+      const queue = await jsonRequest("/api/v1/booking-queue/entries", {
+        method: "POST",
         headers: { "Content-Type": "application/json", Accept: "application/json" },
-        body: JSON.stringify({ tripId: Number(query.tripId), slotId: Number(slotId), quantity, requestKey })
+        body: JSON.stringify(request)
       });
-      const payload = await response.json().catch(() => null);
-      if (!response.ok || !payload?.success) throw new Error(payload?.message || "TICKET_RESERVE_FAILED");
-      selected(payload.data);
+      if (queue.status === "READY") {
+        selected(await completeQueuedReservation(queue.token));
+      } else {
+        location.href = `/booking/queue?token=${encodeURIComponent(queue.token)}`;
+      }
     } catch (error) {
       status(error.message === "TICKET_RESERVE_FAILED" ? "티켓을 담지 못했습니다." : error.message, true);
     } finally { button.disabled = false; }

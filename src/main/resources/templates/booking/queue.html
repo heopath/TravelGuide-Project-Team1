@@ -15,11 +15,34 @@
     <div class="app">
       <div th:replace="~{fragments/header :: header('booking')}"></div>
       <main id="page-content">
-        <section class="page-shell"><section class="queue-card white-panel"><div class="queue-icon">⌛</div><span class="section-eyebrow">18 예약 대기열</span><h1>예약 요청이 많아 순서대로 연결 중입니다.</h1><p>창을 닫아도 10분 동안 순번이 유지됩니다.</p><div class="queue-number"><span>현재 순번</span><strong>328</strong><small>예상 대기 4분</small></div><div class="progress"><i style="width:63%"></i></div><button type="button" class="primary-button" data-modal="payment">바로 결제 화면 보기</button><button type="button" class="text-button" data-modal="queue">만료 상태 확인</button><button class="text-button" data-route="/booking">다른 상품 보기</button></section></section>
+        <section class="page-shell">
+          <section class="queue-card white-panel" aria-live="polite">
+            <div class="queue-icon" aria-hidden="true">⌛</div>
+            <span class="section-eyebrow">티켓 예약 대기열</span>
+            <h1 id="queueTitle">예약 요청이 많아 순서대로 연결 중입니다.</h1>
+            <p id="queueDescription">창을 닫아도 10분 동안 순번이 유지됩니다.</p>
+
+            <div class="queue-number" id="queueNumber">
+              <span>현재 순번</span>
+              <strong id="queuePosition">-</strong>
+              <small id="queueEstimate">대기 정보를 확인하고 있습니다.</small>
+            </div>
+            <div class="progress" role="progressbar" aria-label="대기 진행률"
+                 aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+              <i id="queueProgress"></i>
+            </div>
+            <p class="queue-expiry" id="queueExpiry"></p>
+            <p class="queue-error" id="queueError" hidden></p>
+
+            <button type="button" class="primary-button" id="queueRetry" hidden>상태 다시 확인</button>
+            <button type="button" class="text-button" id="queueLeave">대기 취소하고 다른 상품 보기</button>
+          </section>
+        </section>
       </main>
       <div th:replace="~{fragments/modals :: modalRoots}"><div id="directory-root"></div><div id="modal-root"></div><div id="toast-root" aria-live="polite"></div></div>
       <div th:replace="~{fragments/footer :: footer}"></div>
     </div>
     <div th:replace="~{fragments/scripts :: appScripts}"></div>
+    <script th:src="@{/js/pages/booking/queue.js}" src="../../static/js/pages/booking/queue.js"></script>
   </body>
 </html>
