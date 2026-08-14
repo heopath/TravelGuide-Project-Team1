@@ -15,6 +15,8 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.dao.DataIntegrityViolationException;
 
+import java.time.LocalTime;
+import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -43,7 +45,8 @@ class ItineraryItemServiceTest {
     @BeforeEach
     void setUp() {
         TripOwnershipGuard ownershipGuard = new TripOwnershipGuard(tripDAO, tripDayDAO, itemDAO);
-        itineraryItemService = new ItineraryItemService(itemDAO, ownershipGuard, new ItineraryItemValidator());
+        itineraryItemService = new ItineraryItemService(
+                itemDAO, ownershipGuard, new ItineraryItemValidator(), new ItineraryItemTimeConflictValidator());
     }
 
     @Test
@@ -152,6 +155,52 @@ class ItineraryItemServiceTest {
                 .isInstanceOf(BusinessException.class)
                 .extracting(exception -> ((BusinessException) exception).getErrorCode())
                 .isEqualTo(ErrorCode.ITINERARY_PLACE_ALREADY_ADDED);
+    }
+
+    @Test
+    void createRejectsAiRecommendationWhenTimeOverlapsExistingItem() {
+        TripDayDTO day = TripDayDTO.builder().tripDayId(20L).tripId(10L).build();
+        TripDTO trip = TripDTO.builder().tripId(10L).userId(42L).build();
+        ItineraryItemDTO candidate = ItineraryItemDTO.builder()
+                .tripDayId(20L).placeId(101L).title("AI 추천 카페")
+                .startTime(LocalTime.of(11, 0)).source("AI").build();
+        ItineraryItemDTO existing = ItineraryItemDTO.builder()
+                .tripDayId(20L).title("기존 점심 일정")
+                .startTime(LocalTime.of(10, 0)).build();
+        when(tripDayDAO.findById(20L)).thenReturn(Optional.of(day));
+        when(tripDAO.findById(10L)).thenReturn(Optional.of(trip));
+        when(itemDAO.countByTripDayId(20L)).thenReturn(1);
+        when(itemDAO.existsByTripDayIdAndPlaceId(20L, 101L)).thenReturn(false);
+        when(itemDAO.findByTripDayId(20L)).thenReturn(List.of(existing));
+
+        assertThatThrownBy(() -> itineraryItemService.create(42L, candidate))
+                .isInstanceOf(BusinessException.class)
+                .extracting(exception -> ((BusinessException) exception).getErrorCode())
+                .isEqualTo(ErrorCode.ITINERARY_TIME_CONFLICT);
+
+        verify(itemDAO, never()).insert(candidate);
+    }
+
+    @Test
+    void createAllowsAiRecommendationWhenItStartsAtExistingItemEndTime() {
+        TripDayDTO day = TripDayDTO.builder().tripDayId(20L).tripId(10L).build();
+        TripDTO trip = TripDTO.builder().tripId(10L).userId(42L).build();
+        ItineraryItemDTO candidate = ItineraryItemDTO.builder()
+                .itineraryItemId(101L).tripDayId(20L).placeId(102L).title("AI 추천 카페")
+                .startTime(LocalTime.of(12, 0)).source("AI").build();
+        ItineraryItemDTO existing = ItineraryItemDTO.builder()
+                .tripDayId(20L).title("기존 점심 일정")
+                .startTime(LocalTime.of(10, 0)).build();
+        when(tripDayDAO.findById(20L)).thenReturn(Optional.of(day));
+        when(tripDAO.findById(10L)).thenReturn(Optional.of(trip));
+        when(itemDAO.countByTripDayId(20L)).thenReturn(1);
+        when(itemDAO.existsByTripDayIdAndPlaceId(20L, 102L)).thenReturn(false);
+        when(itemDAO.findByTripDayId(20L)).thenReturn(List.of(existing));
+        when(itemDAO.nextSortOrderByTripDayId(20L)).thenReturn(1);
+
+        assertThat(itineraryItemService.create(42L, candidate)).isEqualTo(101L);
+
+        verify(itemDAO).insert(candidate);
     }
 
     @Test

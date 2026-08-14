@@ -1475,6 +1475,33 @@ document.addEventListener("DOMContentLoaded", function () {
     return Number.isInteger(placeId) && placeId > 0 ? placeId : null;
   }
 
+  function toMinutes(value) {
+    if (!/^([01]\\d|2[0-3]):[0-5]\\d$/.test(value || "")) return null;
+    const parts = value.split(":");
+    return Number(parts[0]) * 60 + Number(parts[1]);
+  }
+
+  function overlapsAiRecommendation(recommendation, scheduledItem) {
+    const recommendationStart = toMinutes(recommendation?.time);
+    const existingStart = toMinutes(scheduledItem?.startTime);
+    if (recommendationStart === null || existingStart === null) return false;
+    const existingEnd = toMinutes(scheduledItem?.endTime) ?? existingStart + 120;
+    const recommendationEnd = recommendationStart + 120;
+    return recommendationStart < existingEnd && existingStart < recommendationEnd;
+  }
+
+  async function getAiRecommendationTimeConflicts(recommendations, recommendedDayNumber) {
+    const targetDay = findScheduleDay(recommendedDayNumber);
+    if (!targetDay?.tripDayId) return new Set();
+    const targetItems = await loadScheduleDayItems(targetDay);
+    return new Set((recommendations || [])
+      .filter(function (recommendation) {
+        return targetItems.some(function (item) { return overlapsAiRecommendation(recommendation, item); });
+      })
+      .map(verifiedRecommendationPlaceId)
+      .filter(Boolean));
+  }
+
   async function getAiRecommendationStates(recommendations, recommendedDayNumber) {
     const targetDay = findScheduleDay(recommendedDayNumber);
     if (!targetDay?.tripDayId) return new Set();
@@ -1496,7 +1523,8 @@ document.addEventListener("DOMContentLoaded", function () {
     const targetItems = await loadScheduleDayItems(targetDay);
     const storedPlaceIds = new Set(targetItems.map(function (item) { return Number(item.placeId); }));
     const handledPlaceIds = new Set();
-    const result = {added: 0, alreadyAdded: 0, failed: []};
+    const timeConflictPlaceIds = await getAiRecommendationTimeConflicts(recommendations, recommendedDayNumber);
+    const result = {added: 0, alreadyAdded: 0, timeConflicts: 0, failed: []};
     let nextSortOrder = targetItems.reduce(function (max, item) {
       return Math.max(max, Number(item.sortOrder) || 0);
     }, 0) + 1;
@@ -1509,6 +1537,11 @@ document.addEventListener("DOMContentLoaded", function () {
       }
       if (storedPlaceIds.has(placeId) || handledPlaceIds.has(placeId)) {
         result.alreadyAdded += 1;
+        handledPlaceIds.add(placeId);
+        continue;
+      }
+      if (timeConflictPlaceIds.has(placeId)) {
+        result.timeConflicts += 1;
         handledPlaceIds.add(placeId);
         continue;
       }
@@ -1542,6 +1575,11 @@ document.addEventListener("DOMContentLoaded", function () {
           result.alreadyAdded += 1;
           continue;
         }
+        if (error.code === "ITINERARY_TIME_CONFLICT") {
+          result.timeConflicts += 1;
+          handledPlaceIds.add(placeId);
+          continue;
+        }
         result.failed.push(recommendation.name || "알 수 없는 장소");
       }
     }
@@ -1558,6 +1596,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
   window.AllMyTripsSchedule = {
     getAiRecommendationStates,
+    getAiRecommendationTimeConflicts,
     addAiRecommendations,
     addAiRecommendation: async function (recommendation, recommendedDayNumber) {
       const placeId = verifiedRecommendationPlaceId(recommendation);
