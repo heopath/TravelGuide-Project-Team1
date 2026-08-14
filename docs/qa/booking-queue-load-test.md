@@ -101,7 +101,15 @@ BOOKING_QUEUE_CONCURRENCY_TEST=true ./gradlew test --tests "*BookingQueueConcurr
 
 ```bash
 k6 run load-test/booking-queue.js
-k6 run -e VUS=50 -e SLOT_ID=31 -e TRIP_ID=10 load-test/booking-queue.js
+k6 run -e VUS=50 -e SLOT_ID=31 load-test/booking-queue.js
+```
+
+k6를 설치하지 않았다면 도커 이미지로 돌려도 됩니다. 컨테이너에서 호스트를 부르므로 주소만 바꿉니다.
+
+```bash
+docker run --rm -i --add-host=host.docker.internal:host-gateway \
+  -e BASE_URL=http://host.docker.internal:8090 -e VUS=30 -e SLOT_ID=1 -e PASSWORD='...' \
+  grafana/k6 run - < load-test/booking-queue.js
 ```
 
 | 환경변수 | 기본값 | 설명 |
@@ -109,7 +117,8 @@ k6 run -e VUS=50 -e SLOT_ID=31 -e TRIP_ID=10 load-test/booking-queue.js
 | `BASE_URL` | `http://localhost:8080` | 대상 주소 |
 | `VUS` | `30` | 동시 사용자 수 |
 | `SLOT_ID` | `31` | 부하를 걸 티켓 시간대 |
-| `TRIP_ID` | `10` | 예약에 쓸 여행 |
+| `TRIP_ID` | (없음) | **평소에는 넘기지 않습니다.** 예약은 여행 소유자만 할 수 있어 모든 VU가 같은 여행을 쓰면 한 명만 성공합니다. 지정하지 않으면 각 VU가 자기 여행을 찾습니다. VU 하나로 디버깅할 때만 씁니다 |
+| `TRIP_DESTINATION` | `부하테스트` | VU가 자기 여행을 고를 때 쓰는 목적지명 |
 | `EMAIL_PREFIX` | `loadtest` | 계정 이메일 접두사 |
 | `PASSWORD` | `Test1234!` | 계정 공통 비밀번호 |
 

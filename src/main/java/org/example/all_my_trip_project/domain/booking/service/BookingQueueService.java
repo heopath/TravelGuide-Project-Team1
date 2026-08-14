@@ -25,7 +25,10 @@ public class BookingQueueService {
 
     private final BookingQueueStore store;
     private final TicketService ticketService;
-    private final ObjectMapper objectMapper;
+    // Spring Boot 4는 Jackson 3을 자동 구성하므로 Jackson 2의 ObjectMapper 빈이 없다.
+    // 주입받으면 ui 이외의 프로필에서 컨텍스트가 뜨지 않는다. 다른 서비스와 같이 직접 만든다.
+    // 예약 DTO에 LocalDate·LocalTime이 있어 모듈 등록 없이는 역직렬화가 실패한다.
+    private final ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules();
     private final Clock clock = Clock.systemUTC();
 
     public BookingQueueStatusResponse enqueue(Long userId, CreateTicketReservationRequest request) {

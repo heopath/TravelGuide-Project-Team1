@@ -32,13 +32,13 @@ class BookingQueueServiceTest {
     @Mock
     private TicketService ticketService;
 
-    private ObjectMapper objectMapper;
+    /* 서비스가 읽을 저장 JSON을 테스트에서 만들기 위한 것이며 서비스에 주입하지는 않는다. */
+    private final ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules();
     private BookingQueueService service;
 
     @BeforeEach
     void setUp() {
-        objectMapper = new ObjectMapper().findAndRegisterModules();
-        service = new BookingQueueService(store, ticketService, objectMapper);
+        service = new BookingQueueService(store, ticketService);
     }
 
     @Test

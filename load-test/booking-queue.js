@@ -24,7 +24,13 @@ import { Counter, Trend } from "k6/metrics";
 const BASE = __ENV.BASE_URL || "http://localhost:8080";
 const VUS = Number(__ENV.VUS || 30);
 const SLOT_ID = Number(__ENV.SLOT_ID || 31);
-const TRIP_ID = Number(__ENV.TRIP_ID || 10);
+/*
+ * 예약은 여행 소유자만 할 수 있다. 모든 VU가 같은 TRIP_ID를 쓰면 소유자 한 명만 성공하고
+ * 나머지는 전부 거부되어 측정값이 무의미해진다. 기본값은 로그인한 계정의 여행을 직접 찾는 것이고,
+ * TRIP_ID는 VU 한 개로 디버깅할 때만 쓴다.
+ */
+const TRIP_ID = Number(__ENV.TRIP_ID || 0);
+const TRIP_DESTINATION = __ENV.TRIP_DESTINATION || "부하테스트";
 const PASSWORD = __ENV.PASSWORD || "Test1234!";
 /* 계정은 부하용으로 미리 만들어 둔다. loadtest1@example.com ~ loadtestN@example.com */
 const EMAIL_PREFIX = __ENV.EMAIL_PREFIX || "loadtest";
@@ -55,35 +61,67 @@ export const options = {
   },
 };
 
+/*
+ * 재고 소진(409)은 대기열이 제대로 도는 증거이지 실패가 아니다.
+ * k6는 4xx를 기본으로 실패로 세므로, 예약 완료 호출에서만 409를 정상으로 인정한다.
+ * 전역 기본값을 좁게 두어 다른 요청의 409는 그대로 실패로 잡히게 한다.
+ */
+http.setResponseCallback(http.expectedStatuses({ min: 200, max: 399 }));
+const COMPLETE_EXPECTED = http.expectedStatuses(200, 409);
+
 function api(path) {
   return `${BASE}${path}`;
 }
 
-/** 로그인 → 세션 쿠키 확보 → CSRF 토큰 발급. k6는 VU마다 쿠키 항아리를 따로 갖는다. */
+/** CSRF 발급 → 로그인 → CSRF 재발급. k6는 VU마다 쿠키 항아리를 따로 갖는다. */
 function login(vu) {
   const email = `${EMAIL_PREFIX}${vu}@example.com`;
+
+  /* 로그인도 CSRF 보호 대상이라 토큰을 먼저 받아야 한다. 없이 보내면 403이 돌아온다. */
+  const pre = http.get(api("/api/v1/csrf"), { tags: { step: "csrf" } });
+  if (pre.status !== 200) fail(`CSRF 발급 실패: ${pre.status}`);
+  const preBody = pre.json();
+
   const res = http.post(api("/api/v1/auth/login"),
     JSON.stringify({ email, password: PASSWORD }),
-    { headers: { "Content-Type": "application/json" }, tags: { step: "login" } });
+    {
+      headers: { "Content-Type": "application/json", [preBody.headerName]: preBody.token },
+      tags: { step: "login" },
+    });
 
   if (res.status !== 200) {
     fail(`로그인 실패 (${email}): ${res.status} ${res.body}`);
   }
 
+  /* 인증되면 세션이 바뀌므로 토큰을 다시 받는다. */
   const csrf = http.get(api("/api/v1/csrf"), { tags: { step: "csrf" } });
   if (csrf.status !== 200) fail(`CSRF 발급 실패: ${csrf.status}`);
   const body = csrf.json();
   return { [body.headerName]: body.token, "Content-Type": "application/json" };
 }
 
+/** 로그인한 계정이 소유한 부하 테스트용 여행을 찾는다. */
+function resolveTripId(headers) {
+  if (TRIP_ID) return TRIP_ID;
+
+  const res = http.get(api("/api/v1/trips"), { headers, tags: { step: "trips" } });
+  if (res.status !== 200) fail(`여행 목록 조회 실패: ${res.status} ${res.body}`);
+
+  const trips = res.json("data") || [];
+  const target = trips.find((trip) => trip.destinationName === TRIP_DESTINATION) || trips[0];
+  if (!target) fail(`VU ${__VU}의 여행이 없습니다. fixtures.sql을 먼저 실행하세요.`);
+  return target.tripId;
+}
+
 export default function () {
   const headers = login(__VU);
+  const tripId = resolveTripId(headers);
 
   /* 요청 키는 VU마다 달라야 한다. 같으면 서버가 같은 요청으로 보고 기존 예약을 돌려준다. */
   const requestKey = `k6-${__VU}-${Date.now()}`;
 
   const enqueue = http.post(api("/api/v1/booking-queue/entries"),
-    JSON.stringify({ tripId: TRIP_ID, slotId: SLOT_ID, quantity: 1, requestKey }),
+    JSON.stringify({ tripId, slotId: SLOT_ID, quantity: 1, requestKey }),
     { headers, tags: { step: "enqueue" } });
 
   const ok = check(enqueue, { "대기열 진입 200": (r) => r.status === 200 });
@@ -119,7 +157,7 @@ export default function () {
   waitToReady.add(Date.now() - startedAt);
 
   const complete = http.post(api(`/api/v1/booking-queue/entries/${token}/reservation`),
-    null, { headers, tags: { step: "complete" } });
+    null, { headers, tags: { step: "complete" }, responseCallback: COMPLETE_EXPECTED });
 
   /*
    * 재고가 동나면 TICKET_NOT_AVAILABLE(409)가 돌아온다. 이건 정상 동작이다.
@@ -140,6 +178,9 @@ export default function () {
 
 export function handleSummary(data) {
   const line = (name) => data.metrics[name]?.values?.count ?? 0;
+  /* 이 값을 보고 capacity-per-second를 정하므로 대기 시간은 반드시 함께 출력한다. */
+  const wait = data.metrics["queue_wait_to_ready_ms"]?.values;
+  const ms = (value) => (value == null ? "-" : `${Math.round(value)}ms`);
   const summary = [
     "",
     "── 대기열 결과 ──",
@@ -147,6 +188,9 @@ export function handleSummary(data) {
     `예약 성공    : ${line("queue_reserved")}`,
     `재고 소진    : ${line("queue_sold_out")}`,
     `대기표 만료  : ${line("queue_expired")}`,
+    "",
+    "── READY까지 걸린 시간 ──",
+    `평균 ${ms(wait?.avg)} · 중앙 ${ms(wait?.med)} · p95 ${ms(wait?.["p(95)"])} · 최대 ${ms(wait?.max)}`,
     "",
     "예약 성공 수가 시간대 재고를 넘으면 대기열이 아니라 재고 처리에 문제가 있는 것이다.",
     "그 경우 BookingQueueConcurrencyTest로 좁혀서 확인한다.",

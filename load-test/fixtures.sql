@@ -98,10 +98,14 @@ SELECT ticket_time_slot_id, 10, 0 FROM new_slot;
 
 -- ── 4. k6에 넘길 값 확인 ────────────────────────────────────────────────────
 --
--- 아래 결과의 slot_id를 SLOT_ID로, trip_id 아무거나 하나를 TRIP_ID로 씁니다.
---   k6 run -e VUS=30 -e SLOT_ID=<slot_id> -e TRIP_ID=<trip_id> load-test/booking-queue.js
+-- 아래 결과의 slot_id를 SLOT_ID로 씁니다.
+--   k6 run -e VUS=30 -e SLOT_ID=<slot_id> load-test/booking-queue.js
 --
 -- k6 스크립트는 VU 번호로 계정을 고르므로(loadtest1 ~ loadtestN) 계정은 따로 넘기지 않습니다.
+--
+-- 여행은 넘기지 않습니다. 예약은 여행 소유자만 할 수 있어서 모든 VU가 같은 여행을 쓰면
+-- 소유자 한 명만 성공하고 나머지는 전부 거부됩니다. 각 VU가 로그인 후 자기 여행을 찾습니다.
+-- 아래 trip_id는 VU 하나로 디버깅할 때 -e TRIP_ID= 로 넘기는 용도입니다.
 SELECT
     s.ticket_time_slot_id AS slot_id,
     i.total_quantity      AS stock,
