@@ -151,11 +151,29 @@ docker run --rm -i --add-host=host.docker.internal:host-gateway \
 | --- | --- | --- |
 | 예약 성공 | **재고 수 이하** | 넘으면 대기열이 아니라 재고 처리 문제 → 3번 테스트로 좁힙니다 |
 | 재고 소진(409) | 정상입니다 | 실패가 아닙니다. 재고보다 사람이 많으면 당연히 나옵니다 |
-| 대기표 만료 | 0에 가깝게 | 많으면 `entry-ttl`이 짧거나 처리가 느립니다 |
+| 대기표 만료(410) | 0에 가깝게 | 많으면 `entry-ttl`·`admission-ttl`이 짧거나 처리가 느립니다 |
 | `http_req_failed` | 5% 미만 | 5xx가 섞이면 설계가 아니라 버그입니다 |
 | `queue_wait_to_ready_ms` | — | `capacity-per-second`를 바꿔가며 비교합니다 |
 
 **409는 실패가 아닙니다.** 재고가 동나면 나오는 정상 응답입니다. 5xx만 실패로 봅니다.
+
+**410(대기표 만료)도 실패가 아닙니다.** 만료는 응답 본문의 `status`가 아니라 **HTTP 410 + `BOOKING_QUEUE_EXPIRED`** 로 옵니다. 서버가 예외를 던지므로 `data`가 없습니다. 만료를 세려면 상태 코드로 판별해야 합니다.
+
+### 만료 경로를 확인하는 법
+
+기본값(`entry-ttl` 10분, `admission-ttl` 2분)으로는 부하 한 회차 안에 만료가 나오지 않습니다. 값을 짧게 주고 따로 확인합니다.
+
+```bash
+./gradlew bootRun --args='--spring.profiles.active=local --booking.queue.admission-ttl=8s'
+```
+
+차례가 온 뒤 8초를 넘기면 조회와 예약이 모두 410으로 바뀝니다. Redis에서 직접 볼 수도 있습니다.
+
+```bash
+docker compose exec redis redis-cli TTL "all-my-trips:booking-queue:entry:<토큰>"
+```
+
+**READY가 된 순간의 TTL이 `admission-ttl`과 같아야 합니다.** 줄을 서지 않고 바로 입장한 경우에도 마찬가지입니다. (이전에는 이 경우에만 `entry-ttl`이 적용돼 자리를 5배 오래 잡고 있었습니다.)
 
 ---
 
