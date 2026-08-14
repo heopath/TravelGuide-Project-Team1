@@ -196,6 +196,17 @@ export function handleSummary(data) {
   /* 이 값을 보고 capacity-per-second를 정하므로 대기 시간은 반드시 함께 출력한다. */
   const wait = data.metrics["queue_wait_to_ready_ms"]?.values;
   const ms = (value) => (value == null ? "-" : `${Math.round(value)}ms`);
+  const pct = (value) => (value == null ? "-" : `${(value * 100).toFixed(1)}%`);
+
+  /*
+   * 이 요약이 k6 기본 출력을 대체하므로, 임계값에 쓰는 지표를 여기서 직접 찍는다.
+   * 안 찍으면 통과했는지 여부를 종료 코드로만 알 수 있어 회차 기록에 남길 숫자가 없다.
+   */
+  const failed = data.metrics["http_req_failed"]?.values;
+  const checks = data.metrics["checks"]?.values;
+  const duration = data.metrics["http_req_duration"]?.values;
+  const mark = (ok) => (ok ? "OK" : "확인 필요");
+
   const summary = [
     "",
     "── 대기열 결과 ──",
@@ -206,6 +217,11 @@ export function handleSummary(data) {
     "",
     "── READY까지 걸린 시간 ──",
     `평균 ${ms(wait?.avg)} · 중앙 ${ms(wait?.med)} · p95 ${ms(wait?.["p(95)"])} · 최대 ${ms(wait?.max)}`,
+    "",
+    "── 임계값 ──",
+    `요청 실패율   : ${pct(failed?.rate)}  (기준 5% 미만, ${mark((failed?.rate ?? 0) < 0.05)})`,
+    `체크 통과율   : ${pct(checks?.rate)}  (기준 95% 초과, ${mark((checks?.rate ?? 0) > 0.95)})`,
+    `응답 시간 p95 : ${ms(duration?.["p(95)"])}`,
     "",
     "예약 성공 수가 시간대 재고를 넘으면 대기열이 아니라 재고 처리에 문제가 있는 것이다.",
     "그 경우 BookingQueueConcurrencyTest로 좁혀서 확인한다.",
