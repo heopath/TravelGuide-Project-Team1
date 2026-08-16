@@ -121,4 +121,36 @@
         WHERE r.trip_id = #{tripId}
         ORDER BY r.created_at DESC
     </select>
+
+    <!--
+      만료 정리 대상. 시각이 지났는데도 PENDING인 예약이다.
+
+      취소와 같은 방식으로 예약 행과 재고 행을 함께 잠근다. 정리가 두 번 돌거나 사용자가
+      같은 순간에 취소를 눌러도 수량이 두 번 반납되지 않아야 한다.
+
+      SKIP LOCKED를 쓰는 이유는 정리가 사용자 동작을 막지 않게 하기 위해서다. 지금 누군가
+      결제·취소 중인 예약은 이번 회차에서 건너뛰고 다음 회차에 가져간다. 정리는 급하지 않다.
+
+      한 번에 가져오는 수를 제한한다. 오래 방치돼 밀린 건이 많을 때 한 트랜잭션이 재고 행을
+      통째로 잠그면, 그동안 아무도 예약하지 못한다.
+    -->
+    <select id="findExpiredPendingReservations"
+            resultType="org.example.all_my_trip_project.domain.ticket.dto.TicketReservationDTO">
+        SELECT <include refid="reservationColumns"/>
+        FROM reservations r
+        JOIN reservation_items ri ON ri.reservation_id = r.reservation_id
+        JOIN ticket_inventory ti ON ti.ticket_time_slot_id = ri.ticket_time_slot_id
+        WHERE r.status = 'PENDING'
+          AND r.expires_at IS NOT NULL
+          AND r.expires_at &lt;= CURRENT_TIMESTAMP
+        ORDER BY r.expires_at
+        LIMIT #{limit}
+        FOR UPDATE OF r, ti SKIP LOCKED
+    </select>
+
+    <update id="expireReservation">
+        UPDATE reservations
+        SET status = 'EXPIRED'
+        WHERE reservation_id = #{reservationId} AND status = 'PENDING'
+    </update>
 </mapper>

@@ -25,4 +25,8 @@ public interface TicketMapper {
     int cancelReservation(@Param("reservationId") Long reservationId);
     int insertReservation(TicketReservationDTO reservation);
     int insertReservationItem(TicketReservationDTO reservation);
+
+    /** 만료 시각이 지났는데 아직 PENDING인 예약. 예약 행과 재고 행을 함께 잠근다. */
+    List<TicketReservationDTO> findExpiredPendingReservations(@Param("limit") int limit);
+    int expireReservation(@Param("reservationId") Long reservationId);
 }

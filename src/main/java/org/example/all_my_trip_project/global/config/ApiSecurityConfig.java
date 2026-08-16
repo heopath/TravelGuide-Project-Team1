@@ -133,6 +133,13 @@ public class ApiSecurityConfig {
                         )
                         .authenticated()
 
+                        // 결제와 발권. 남의 예약을 건드리지 못하게 서비스가 소유자를 다시 본다.
+                        .requestMatchers(
+                                "/api/v1/ticket-reservations/*/payment",
+                                "/api/v1/ticket-reservations/*/tickets"
+                        )
+                        .authenticated()
+
                         .anyRequest()
                         .permitAll()
                 )
