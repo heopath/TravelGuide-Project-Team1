@@ -316,6 +316,21 @@ public enum ErrorCode {
     MEMBER_NOT_ACTIVE(
             HttpStatus.BAD_REQUEST,
             "정지된 회원은 관리자로 올릴 수 없습니다."
+    ),
+
+    RESERVATION_NOT_PAYABLE(
+            HttpStatus.CONFLICT,
+            "결제할 수 없는 예약입니다. 예약 상태를 확인해 주세요."
+    ),
+
+    RESERVATION_EXPIRED(
+            HttpStatus.GONE,
+            "예약 시간이 지나 자리가 반납되었습니다. 다시 예약해 주세요."
+    ),
+
+    INVALID_PAYMENT_REQUEST(
+            HttpStatus.BAD_REQUEST,
+            "결제 요청이 올바르지 않습니다."
     );
 
     private final HttpStatus status;
