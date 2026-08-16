@@ -66,6 +66,9 @@
                 <button type="button" data-admin-panel="support">
                   <span aria-hidden="true">Q</span><span>1:1 문의 관리</span><em class="live">실연동</em>
                 </button>
+                <button type="button" data-admin-panel="members">
+                  <span aria-hidden="true">☖</span><span>회원 관리</span><em class="live">실연동</em>
+                </button>
                 <button type="button" data-admin-panel="audit">
                   <span aria-hidden="true">⧉</span><span>조작 이력</span><em class="live">실연동</em>
                 </button>
@@ -312,6 +315,49 @@
                 필터 선택지는 화면에 박지 않고 서버가 실제로 쌓인 action_type을 내려준다.
                 새 동작이 늘어도 화면을 고칠 필요가 없다.
               -->
+              <!--
+                회원 관리
+
+                정지와 관리자 승격은 이 서비스에서 가장 되돌리기 어려운 동작이다. 그래서
+                자기 자신과 마지막 관리자에게는 버튼을 잠근다. 서버도 같은 검사를 하며,
+                여기서 잠그는 것은 눌러 보고 나서 거부당하는 일을 줄이기 위한 것이다.
+
+                탈퇴 회원은 기본 목록에서 빠진다. 상태 필터로 직접 골라야 나온다.
+              -->
+              <section class="admin-section" data-admin-section="members" aria-labelledby="membersTitle" hidden>
+                <div class="admin-section-head">
+                  <h2 id="membersTitle">회원 관리</h2>
+                  <span class="admin-tag live" data-admin-state="members">실연동</span>
+                  <div class="admin-filter" role="group" aria-label="회원 상태 필터" data-member-filter>
+                    <button type="button" class="admin-chip on" data-member-status="">전체</button>
+                    <button type="button" class="admin-chip" data-member-status="ACTIVE">활동</button>
+                    <button type="button" class="admin-chip" data-member-status="SUSPENDED">정지</button>
+                    <button type="button" class="admin-chip" data-member-status="WITHDRAWN">탈퇴</button>
+                  </div>
+                  <div class="admin-filter" role="group" aria-label="회원 권한 필터" data-member-role-filter>
+                    <button type="button" class="admin-chip on" data-member-role="">권한 전체</button>
+                    <button type="button" class="admin-chip" data-member-role="ADMIN">관리자</button>
+                    <button type="button" class="admin-chip" data-member-role="USER">일반</button>
+                  </div>
+                </div>
+                <p class="admin-notice" data-member-notice role="status" hidden></p>
+                <div class="white-panel admin-panel">
+                  <label class="admin-search">
+                    <span class="sr-only">회원 검색</span>
+                    <input type="search" data-member-search autocomplete="off"
+                           placeholder="닉네임 또는 이메일로 검색 후 Enter" />
+                  </label>
+                  <div class="admin-table-head admin-member-row">
+                    <span>회원</span><span>권한</span><span>상태</span><span>마지막 로그인</span><span>관리</span>
+                  </div>
+                  <div data-member-list class="admin-table-body"></div>
+                  <p class="admin-empty" data-member-empty role="status">
+                    회원 목록을 불러오는 중이에요.
+                  </p>
+                  <div class="admin-pagination" data-member-pagination></div>
+                </div>
+              </section>
+
               <section class="admin-section" data-admin-section="audit" aria-labelledby="auditTitle" hidden>
                 <div class="admin-section-head">
                   <h2 id="auditTitle">조작 이력</h2>
@@ -480,6 +526,7 @@
     <script th:src="@{/js/pages/admin/admin-performance.js}" src="../../static/js/pages/admin/admin-performance.js"></script>
     <script th:src="@{/js/pages/admin/admin-metrics.js}" src="../../static/js/pages/admin/admin-metrics.js"></script>
     <script th:src="@{/js/pages/admin/admin-reservations.js}" src="../../static/js/pages/admin/admin-reservations.js"></script>
+    <script th:src="@{/js/pages/admin/admin-members.js}" src="../../static/js/pages/admin/admin-members.js"></script>
     <script th:src="@{/js/pages/admin/admin-audit.js}" src="../../static/js/pages/admin/admin-audit.js"></script>
   </body>
 </html>
