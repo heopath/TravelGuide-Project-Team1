@@ -286,6 +286,36 @@ public enum ErrorCode {
     INVALID_ADMIN_REQUEST(
             HttpStatus.BAD_REQUEST,
             "조회 조건이 올바르지 않습니다."
+    ),
+
+    MEMBER_NOT_FOUND(
+            HttpStatus.NOT_FOUND,
+            "회원을 찾을 수 없습니다."
+    ),
+
+    INVALID_MEMBER_REQUEST(
+            HttpStatus.BAD_REQUEST,
+            "회원 변경 요청이 올바르지 않습니다."
+    ),
+
+    MEMBER_SELF_CHANGE_DENIED(
+            HttpStatus.BAD_REQUEST,
+            "자기 자신의 권한과 상태는 변경할 수 없습니다."
+    ),
+
+    LAST_ADMIN_PROTECTED(
+            HttpStatus.BAD_REQUEST,
+            "마지막 관리자입니다. 다른 관리자를 먼저 지정해 주세요."
+    ),
+
+    MEMBER_WITHDRAWN_IMMUTABLE(
+            HttpStatus.BAD_REQUEST,
+            "탈퇴한 회원은 변경할 수 없습니다."
+    ),
+
+    MEMBER_NOT_ACTIVE(
+            HttpStatus.BAD_REQUEST,
+            "정지된 회원은 관리자로 올릴 수 없습니다."
     );
 
     private final HttpStatus status;

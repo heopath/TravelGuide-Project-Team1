@@ -54,7 +54,7 @@
 | 항공·숙소 검색 | 외부 검색 링크만 제공하므로 전용 예약 테이블 없음 |
 | 예약 대기열 | Redis 순번·입장 토큰·TTL 사용, PostgreSQL 테이블 없음 |
 | 마이페이지 | 회원·여행·즐겨찾기·기록·예약 도메인의 조회 API 조합 |
-| 관리자 | `travel_themes`, 장소 동기화·신고·티켓 운영 테이블, `admin_audit_logs` |
+| 관리자 | `travel_themes`, 장소 동기화·신고·티켓 운영 테이블, `admin_audit_logs`, 회원 관리의 `users` |
 
 날씨·교통은 실시간 외부 API 응답이며 영속 이력이 요구되기 전까지 PostgreSQL 테이블을 만들지 않는다.
 

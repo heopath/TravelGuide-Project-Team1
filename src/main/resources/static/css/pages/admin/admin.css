@@ -289,6 +289,39 @@ body.page-admin #page-content {
 .page-admin .admin-audit-row [data-audit-change] small { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
 .page-admin .admin-audit-row [data-audit-empty-payload] { color: var(--muted); font-size: 11px; }
 
+/*
+  관리 칸은 버튼 두 개(`정지`·`관리자 승격`)가 나란히 서야 해서 고정 폭이다. 1fr로 두면
+  긴 이메일이 들어올 때 회원 칸이 버튼을 밀어내고 버튼이 세로로 접힌다.
+*/
+.page-admin .admin-member-row {
+  grid-template-columns: minmax(0, 1fr) 64px 64px 116px 178px;
+  align-items: center;
+}
+.page-admin .admin-member-row > span { padding: 10px 0; min-width: 0; }
+.page-admin .admin-member-row strong { display: block; }
+/*
+  이메일은 길면 잘라낸다. 줄바꿈을 허용하면 회원 한 명이 두세 줄을 차지해 목록을 훑을 수 없다.
+  전체 값은 별도 화면 없이도 브라우저가 선택·복사로 꺼낼 수 있다.
+*/
+.page-admin .admin-member-row small {
+  display: block;
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 11px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.page-admin .admin-member-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+/*
+  잠긴 버튼도 지우지 않고 남긴다. 사라지면 "원래 못 하는 것"으로 읽히는데, 실제로는
+  조건이 바뀌면 할 수 있다. 왜 잠겼는지는 title에 붙어 있다.
+*/
+.page-admin .admin-member-actions .admin-chip:disabled {
+  opacity: .45;
+  cursor: not-allowed;
+}
+
 .page-admin .admin-search { display: block; margin-bottom: 12px; }
 .page-admin .admin-search input {
   width: 100%;
@@ -558,6 +591,17 @@ body.page-admin #page-content {
   .page-admin .admin-panel { overflow-x: auto; }
   .page-admin .admin-product-row { min-width: 440px; }
   .page-admin .admin-monitor-row { min-width: 400px; }
+
+  /*
+    회원 관리는 마지막 칸에 버튼 두 개가 들어가 눌러 담을 수 없다. 마지막 로그인을 숨겨
+    네 칸으로 줄이고, 그래도 남는 최소 폭은 패널 안에서 굴린다.
+    숨기는 칸 수와 남는 칸 수를 반드시 같이 고친다.
+  */
+  .page-admin .admin-member-row {
+    min-width: 392px;
+    grid-template-columns: minmax(0, 1fr) 56px 56px 160px;
+  }
+  .page-admin .admin-member-row > :nth-child(4) { display: none; }
 
   .page-admin .admin-filter { margin-left: 0; }
 }

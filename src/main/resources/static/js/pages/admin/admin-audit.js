@@ -21,6 +21,8 @@
     SUPPORT_REPLY: "문의 답변",
     SUPPORT_STATUS_CHANGE: "문의 상태 변경",
     REPORT_PROCESS: "신고 처리",
+    MEMBER_STATUS_CHANGE: "회원 상태 변경",
+    MEMBER_ROLE_CHANGE: "회원 권한 변경",
   };
   const targetLabels = {
     PLACE: "추천 장소",
@@ -28,6 +30,7 @@
     TICKET_TIME_SLOT: "시간대",
     SUPPORT_INQUIRY: "1:1 문의",
     TRAVEL_RECORD_REPORT: "신고",
+    USER: "회원",
   };
 
   const panel = document.querySelector('[data-admin-section="audit"]');
