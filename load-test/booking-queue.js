@@ -35,11 +35,43 @@ const PASSWORD = __ENV.PASSWORD || "Test1234!";
 /* 계정은 부하용으로 미리 만들어 둔다. loadtest1@example.com ~ loadtestN@example.com */
 const EMAIL_PREFIX = __ENV.EMAIL_PREFIX || "loadtest";
 
+/*
+ * 순번 확인 주기. 기본값 3초는 화면(queue.js)과 같다.
+ *
+ * 측정값은 서버 지연이 아니라 사용자 체감이라, 이 주기만큼 올림된다. capacity를 올려도
+ * 체감 대기가 주기 아래로 내려가지 않는다. 그 경계를 재려고 열어 둔다.
+ */
+const POLL_SECONDS = Number(__ENV.POLL_SECONDS || 3);
+/*
+ * 최대 대기 한도는 주기와 무관하게 고정한다.
+ *
+ * 재시도 횟수를 상수로 두면 주기를 바꿀 때 한도까지 같이 바뀐다(3초×40=120초 vs
+ * 1초×40=40초). 그러면 짧은 주기 회차만 일찍 포기하게 되어 "폴링 주기의 영향"이 아니라
+ * "한도의 영향"을 재게 된다. 회차 간 비교가 성립하려면 여기를 고정해야 한다.
+ */
+const MAX_WAIT_SECONDS = Number(__ENV.MAX_WAIT_SECONDS || 120);
+const MAX_ATTEMPTS = Math.max(1, Math.ceil(MAX_WAIT_SECONDS / POLL_SECONDS));
+
+/*
+ * 같은 토큰으로 예약 완료를 동시에 두 번 부른다. 사용자가 예약 버튼을 두 번 누르거나
+ * 클라이언트가 재시도하는 상황이다.
+ *
+ * processing-ttl은 예약 트랜잭션 동안 토큰을 잠그는 값이라, 30초를 기다려서 재는 것이
+ * 아니라 이렇게 겹쳐 불러야 경로를 지난다. 서버는 둘 중 하나로 답해야 한다.
+ *   - BOOKING_QUEUE_PROCESSING : 앞 요청이 처리 중
+ *   - 같은 예약을 그대로 반환   : 앞 요청이 이미 끝남(completed-ttl 안의 재생)
+ * 어느 쪽이든 예약이 두 건 생기면 안 된다.
+ */
+const DOUBLE_SUBMIT = String(__ENV.DOUBLE_SUBMIT || "false") === "true";
+
 const admitted = new Counter("queue_admitted");
 const reserved = new Counter("queue_reserved");
 const soldOut = new Counter("queue_sold_out");
 const expired = new Counter("queue_expired");
 const waitToReady = new Trend("queue_wait_to_ready_ms", true);
+/* DOUBLE_SUBMIT일 때만 쌓인다. 겹쳐 부른 두 번째 요청이 어떻게 처리됐는지 나눈다. */
+const processingRejected = new Counter("queue_processing_rejected");
+const completedReplayed = new Counter("queue_completed_replayed");
 
 export const options = {
   scenarios: {
@@ -134,10 +166,10 @@ export default function () {
   const startedAt = Date.now();
 
   let state = entry.status;
-  /* READY가 될 때까지 순번을 확인한다. 화면 폴링 주기와 같은 3초를 쓴다. */
+  /* READY가 될 때까지 순번을 확인한다. 기본값은 화면 폴링 주기와 같은 3초다. */
   let attempts = 0;
-  while (state === "WAITING" && attempts < 40) {
-    sleep(3);
+  while (state === "WAITING" && attempts < MAX_ATTEMPTS) {
+    sleep(POLL_SECONDS);
     attempts += 1;
     const status = http.get(api(`/api/v1/booking-queue/entries/${token}`),
       { headers, tags: { step: "status" }, responseCallback: STATUS_EXPECTED });
@@ -167,8 +199,49 @@ export default function () {
   admitted.add(1);
   waitToReady.add(Date.now() - startedAt);
 
-  const complete = http.post(api(`/api/v1/booking-queue/entries/${token}/reservation`),
-    null, { headers, tags: { step: "complete" }, responseCallback: COMPLETE_EXPECTED_ALL });
+  const completeUrl = api(`/api/v1/booking-queue/entries/${token}/reservation`);
+  const completeOptions = {
+    headers, tags: { step: "complete" }, responseCallback: COMPLETE_EXPECTED_ALL,
+  };
+
+  let complete;
+  if (DOUBLE_SUBMIT) {
+    /*
+     * http.batch는 두 요청을 동시에 보낸다. 순차로 보내면 앞 요청이 이미 끝나 있어
+     * PROCESSING 경로를 지나지 못하고 completed 재생만 확인하게 된다.
+     */
+    const [first, second] = http.batch([
+      ["POST", completeUrl, null, completeOptions],
+      ["POST", completeUrl, null, completeOptions],
+    ]);
+
+    /* 성공한 쪽을 대표 응답으로 삼는다. 둘 다 실패면 첫 응답을 쓴다. */
+    complete = first.status === 200 ? first : (second.status === 200 ? second : first);
+    const other = complete === first ? second : first;
+    const otherCode = other.json("code");
+
+    if (otherCode === "BOOKING_QUEUE_PROCESSING") {
+      processingRejected.add(1);
+    } else if (other.status === 200) {
+      completedReplayed.add(1);
+    }
+
+    check(other, {
+      /*
+       * 겹쳐 부른 쪽이 5xx면 잠금이 깨진 것이다.
+       * 200이면 같은 예약을 재생한 것이어야 하고, 새 예약이 생기면 안 된다.
+       * 재고가 두 번 깎였는지는 회차가 끝난 뒤 DB로 교차 확인한다.
+       */
+      "겹쳐 부른 완료 요청이 5xx로 실패하지 않는다": (r) => r.status < 500,
+      "겹쳐 부른 요청은 처리 중 거부이거나 같은 결과 재생이다": (r) =>
+        r.status === 200
+        || otherCode === "BOOKING_QUEUE_PROCESSING"
+        || otherCode === "TICKET_NOT_AVAILABLE"
+        || otherCode === "BOOKING_QUEUE_EXPIRED",
+    });
+  } else {
+    complete = http.post(completeUrl, null, completeOptions);
+  }
 
   /*
    * 재고가 동나면 TICKET_NOT_AVAILABLE(409)가 돌아온다. 이건 정상 동작이다.
@@ -217,7 +290,21 @@ export function handleSummary(data) {
     "",
     "── READY까지 걸린 시간 ──",
     `평균 ${ms(wait?.avg)} · 중앙 ${ms(wait?.med)} · p95 ${ms(wait?.["p(95)"])} · 최대 ${ms(wait?.max)}`,
+    /*
+     * 폴링 주기는 결과를 읽는 데 반드시 필요하다. 체감 대기가 이 주기만큼 올림되므로,
+     * 주기를 모르고 숫자만 보면 capacity 차이로 오해한다.
+     */
+    `순번 확인 주기 ${POLL_SECONDS}초 · 최대 대기 한도 ${MAX_WAIT_SECONDS}초`,
     "",
+    ...(DOUBLE_SUBMIT ? [
+      "── 같은 토큰으로 완료를 두 번 부른 결과 ──",
+      `처리 중 거부 : ${line("queue_processing_rejected")}  (processing-ttl 잠금이 동작)`,
+      `결과 재생    : ${line("queue_completed_replayed")}  (completed-ttl 안에서 같은 예약 반환)`,
+      "",
+      "둘의 합이 입장 수와 맞아야 한다. 모자라면 겹쳐 부른 요청이 다른 경로로 샜다는 뜻이다.",
+      "예약 성공 수는 DOUBLE_SUBMIT이 아닐 때와 같아야 한다. 늘었다면 이중 예약이다.",
+      "",
+    ] : []),
     "── 임계값 ──",
     `요청 실패율   : ${pct(failed?.rate)}  (기준 5% 미만, ${mark((failed?.rate ?? 0) < 0.05)})`,
     `체크 통과율   : ${pct(checks?.rate)}  (기준 95% 초과, ${mark((checks?.rate ?? 0) > 0.95)})`,
