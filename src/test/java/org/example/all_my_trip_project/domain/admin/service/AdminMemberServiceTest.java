@@ -145,6 +145,26 @@ class AdminMemberServiceTest {
         verify(adminAuditService).record(eq("MEMBER_ROLE_CHANGE"), eq("USER"), eq(9L), any(), any());
     }
 
+    /*
+     * 로컬 DB로 실제 호출해 보고 찾은 것이다. 활동 중인 관리자가 나 하나일 때 이미 정지된
+     * 관리자의 권한을 정리하려 하면 "마지막 관리자"로 막혔다. 그 관리자는 로그인을 못 하므로
+     * 강등해도 /admin에 들어갈 수 있는 사람이 줄지 않는다. 막아도 지켜지는 것이 없고
+     * 뒷정리만 못 하게 된다.
+     */
+    @Test
+    @DisplayName("이미 정지된 관리자는 활동 중인 관리자가 하나뿐이어도 강등할 수 있다")
+    void allowsDemotingSuspendedAdminEvenWhenOnlyOneActiveAdminRemains() {
+        when(adminMemberDAO.updateRole(9L, "USER")).thenReturn(1);
+        when(adminMemberDAO.findById(9L))
+                .thenReturn(Optional.of(member(9L, "ADMIN", "SUSPENDED")))
+                .thenReturn(Optional.of(member(9L, "USER", "SUSPENDED")));
+
+        AdminMemberDTO result = service.changeRole(9L, "USER", null);
+
+        assertThat(result.getRole()).isEqualTo("USER");
+        verify(adminMemberDAO, never()).lockAndCountActiveAdmins();
+    }
+
     @Test
     @DisplayName("일반 회원을 정지할 때는 관리자 수를 세지 않는다")
     void doesNotLockAdminsForOrdinaryMember() {

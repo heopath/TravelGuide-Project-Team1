@@ -184,6 +184,21 @@ async function run() {
     T("승격이 잠긴 이유를 붙인다", button(held, "promote").title.includes("정지된 회원"));
   }
 
+  /*
+   * 로컬 DB로 실제 호출해 보고 찾은 것이다. 이미 정지된 관리자는 로그인을 못 하므로
+   * 강등해도 /admin에 들어갈 수 있는 사람이 줄지 않는다. 활동 중인 관리자가 하나뿐이어도
+   * 잠그면 안 된다.
+   */
+  {
+    const { d } = await boot(() => ok(page([
+      member(15, { role: "ADMIN", status: "SUSPENDED" }),
+    ], 1)));
+    await until(() => rows(d).length === 1);
+
+    T("이미 정지된 관리자는 관리자 수와 무관하게 해제할 수 있다",
+      button(rows(d)[0], "demote").disabled === false);
+  }
+
   /* ── 정지 실행 ── */
   {
     let listed = 0;

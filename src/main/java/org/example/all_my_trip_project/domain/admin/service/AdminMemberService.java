@@ -123,7 +123,13 @@ public class AdminMemberService {
             if (!STATUS_ACTIVE.equals(member.getStatus())) {
                 throw new BusinessException(ErrorCode.MEMBER_NOT_ACTIVE);
             }
-        } else {
+        } else if (STATUS_ACTIVE.equals(member.getStatus())) {
+            /*
+             * 활동 중인 관리자를 강등할 때만 센다. 이미 정지된 관리자는 로그인을 못 하므로
+             * 권한을 내려도 /admin에 들어갈 수 있는 사람이 줄지 않는다. 여기서 조건 없이
+             * 세면, 활동 중인 관리자가 나 하나일 때 정지된 관리자의 권한을 정리하는 것까지
+             * 막힌다. 막아도 지켜지는 것이 없고 뒷정리만 못 하게 된다.
+             */
             requireAnotherActiveAdminRemains();
         }
 

@@ -72,8 +72,13 @@
     if (member.status === "WITHDRAWN") {
       return "탈퇴한 회원은 바꿀 수 없어요.";
     }
+    /*
+     * 활동 중인 관리자에게만 해당한다. 이미 정지된 관리자는 로그인을 못 하므로 정지하든
+     * 강등하든 /admin에 들어갈 수 있는 사람이 줄지 않는다.
+     */
     const losesAdmin = member.role === "ADMIN"
-      && (action === "demote" || (action === "suspend" && member.status === "ACTIVE"));
+      && member.status === "ACTIVE"
+      && (action === "demote" || action === "suspend");
     if (losesAdmin && activeAdminCount <= 1) {
       return "마지막 관리자예요. 다른 관리자를 먼저 지정해 주세요.";
     }
