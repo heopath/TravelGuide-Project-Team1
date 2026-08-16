@@ -121,6 +121,15 @@ docker run --rm -i --add-host=host.docker.internal:host-gateway \
 | `TRIP_DESTINATION` | `부하테스트` | VU가 자기 여행을 고를 때 쓰는 목적지명 |
 | `EMAIL_PREFIX` | `loadtest` | 계정 이메일 접두사 |
 | `PASSWORD` | `Test1234!` | 계정 공통 비밀번호 |
+| `POLL_SECONDS` | `3` | 순번 확인 주기. 기본값은 화면(`queue.js`)과 같습니다 |
+| `MAX_WAIT_SECONDS` | `120` | 차례를 포기하기까지의 한도. 주기를 바꿔도 이 값은 그대로 둡니다 |
+| `DOUBLE_SUBMIT` | `false` | 같은 토큰으로 예약 완료를 동시에 두 번 부릅니다 |
+
+#### `POLL_SECONDS`와 `MAX_WAIT_SECONDS`를 따로 둔 이유
+
+주기만 바꾸고 재시도 횟수를 상수로 두면 **총 대기 한도까지 같이 바뀝니다.** 3초×40회는 120초를 기다리지만 1초×40회는 40초만 기다리고 포기합니다. 그러면 짧은 주기 회차만 일찍 포기하게 되어 *폴링 주기의 영향*이 아니라 *한도의 영향*을 재게 됩니다.
+
+한도를 고정하고 주기만 바꿔야 회차 간 비교가 성립합니다.
 
 ### 시나리오를 `per-vu-iterations`로 둔 이유
 
@@ -131,11 +140,13 @@ docker run --rm -i --add-host=host.docker.internal:host-gateway \
 ```
 로그인 → CSRF 발급
   → POST /api/v1/booking-queue/entries        (줄 서기)
-  → GET  /api/v1/booking-queue/entries/{token} (3초마다 순번 확인)
+  → GET  /api/v1/booking-queue/entries/{token} (POLL_SECONDS마다 순번 확인)
   → POST /api/v1/booking-queue/entries/{token}/reservation  (차례가 오면 예약)
 ```
 
-폴링 주기 3초는 화면(`queue.js`)과 같은 값입니다. 다르게 주면 실제 사용자와 다른 부하를 만듭니다.
+기본 폴링 주기는 화면(`queue.js`의 `POLL_INTERVAL_MS`)과 맞춰 둡니다. 다르게 주면 실제 사용자와 다른 부하를 만듭니다.
+
+> **1~3차 기록을 읽을 때 주의합니다.** 그때는 이 문서와 스크립트가 *"3초는 화면과 같은 값"* 이라고 적고 있었지만 **실제 화면은 2초였습니다.** 3차에서 발견해 화면을 1.5초로 낮추면서 기본값도 맞췄습니다. 과거 회차와 비교하려면 `-e POLL_SECONDS=3`으로 명시해서 돌립니다.
 
 ### 결과 읽는 법
 
@@ -175,6 +186,31 @@ docker compose exec redis redis-cli TTL "all-my-trips:booking-queue:entry:<토�
 
 **READY가 된 순간의 TTL이 `admission-ttl`과 같아야 합니다.** 줄을 서지 않고 바로 입장한 경우에도 마찬가지입니다. (이전에는 이 경우에만 `entry-ttl`이 적용돼 자리를 5배 오래 잡고 있었습니다.)
 
+### `processing-ttl`을 확인하는 법
+
+`processing-ttl`(기본 30초)은 **예약 트랜잭션이 도는 동안 토큰을 잠그는 값**입니다. 시간을 기다려서 재는 값이 아니라, **같은 토큰으로 완료를 겹쳐 불러야** 그 경로를 지납니다. 사용자가 예약 버튼을 두 번 누르거나 클라이언트가 재시도하는 상황입니다.
+
+```bash
+k6 run -e DOUBLE_SUBMIT=true -e SLOT_ID=<slot_id> load-test/booking-queue.js
+```
+
+서버는 두 번째 요청에 둘 중 하나로 답해야 합니다.
+
+| 응답 | 뜻 |
+| --- | --- |
+| `BOOKING_QUEUE_PROCESSING` | 앞 요청이 아직 처리 중 — 잠금이 동작 |
+| 200에 **같은 예약** | 앞 요청이 이미 끝남 — `completed-ttl` 안의 재생 |
+
+둘 다 정상입니다. **확인할 것은 예약이 두 건 생기지 않는 것**입니다. 회차가 끝나면 DB로 교차 확인합니다.
+
+```sql
+SELECT reserved_quantity, total_quantity FROM ticket_inventory
+WHERE ticket_time_slot_id = <slot_id>;
+-- 예약 성공 수와 reserved_quantity가 같아야 합니다.
+```
+
+`DOUBLE_SUBMIT` 회차의 **예약 성공 수는 평소 회차와 같아야 합니다.** 늘었다면 이중 예약입니다.
+
 ---
 
 ## 5. 조절할 값
@@ -186,6 +222,17 @@ docker compose exec redis redis-cli TTL "all-my-trips:booking-queue:entry:<토�
 | `capacity-per-second` | `BOOKING_QUEUE_CAPACITY_PER_SECOND` | 5 | 대기가 줄지만 DB 경쟁이 늘어남 | 대기가 길어짐 |
 | `entry-ttl` | `BOOKING_QUEUE_ENTRY_TTL` | `10m` | 오래 기다려도 순번 유지 | 만료가 늘어남 |
 | `admission-ttl` | `BOOKING_QUEUE_ADMISSION_TTL` | `2m` | 차례가 온 뒤 여유가 늘어남 | 자리를 오래 잡고 있지 않음 |
+
+### VU를 30보다 크게 돌리려면
+
+계정이 상한입니다. k6는 VU 번호로 계정을 고르므로 **계정보다 VU가 많으면 없는 계정으로 로그인해 회차 전체가 실패합니다.** 계정과 재고를 함께 올립니다.
+
+```bash
+psql -v accounts=60 -v stock=25 -f load-test/fixtures.sql
+k6 run -e VUS=60 -e SLOT_ID=<slot_id> load-test/booking-queue.js
+```
+
+**재고는 VU보다 적게 둡니다.** 재고가 VU와 같아지면 못 사는 사람이 없어 재고 소진 경로를 확인하지 못합니다.
 
 **파일을 고치지 않고 환경변수로 바꿀 수 있습니다.** 값을 바꿔가며 비교할 때 이 편이 안전합니다. 커밋에 실수로 섞이지 않습니다.
 
