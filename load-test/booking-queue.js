@@ -36,12 +36,16 @@ const PASSWORD = __ENV.PASSWORD || "Test1234!";
 const EMAIL_PREFIX = __ENV.EMAIL_PREFIX || "loadtest";
 
 /*
- * 순번 확인 주기. 기본값 3초는 화면(queue.js)과 같다.
+ * 순번 확인 주기. 기본값은 화면(queue.js의 POLL_INTERVAL_MS)과 맞춘다.
  *
- * 측정값은 서버 지연이 아니라 사용자 체감이라, 이 주기만큼 올림된다. capacity를 올려도
- * 체감 대기가 주기 아래로 내려가지 않는다. 그 경계를 재려고 열어 둔다.
+ * 측정값은 서버 지연이 아니라 사용자 체감이라, 이 주기만큼 올림된다. 대기열이 시간이 아니라
+ * 조회할 때 전진하므로(3차 14절) 이 값이 체감 대기를 그대로 결정한다.
+ *
+ * 주의 — 1~3차는 3초로 측정했다. 당시 이 자리에 "화면과 같은 3초"라고 적혀 있었으나
+ * 실제 화면은 2초였다. 이후 화면을 1.5초로 낮추면서 기본값도 맞췄다.
+ * 과거 회차와 비교하려면 -e POLL_SECONDS=3 으로 명시해서 돌린다.
  */
-const POLL_SECONDS = Number(__ENV.POLL_SECONDS || 3);
+const POLL_SECONDS = Number(__ENV.POLL_SECONDS || 1.5);
 /*
  * 최대 대기 한도는 주기와 무관하게 고정한다.
  *
@@ -166,7 +170,7 @@ export default function () {
   const startedAt = Date.now();
 
   let state = entry.status;
-  /* READY가 될 때까지 순번을 확인한다. 기본값은 화면 폴링 주기와 같은 3초다. */
+  /* READY가 될 때까지 순번을 확인한다. 기본값은 화면 폴링 주기와 맞춰 둔다. */
   let attempts = 0;
   while (state === "WAITING" && attempts < MAX_ATTEMPTS) {
     sleep(POLL_SECONDS);

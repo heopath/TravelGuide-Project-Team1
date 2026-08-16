@@ -140,11 +140,13 @@ docker run --rm -i --add-host=host.docker.internal:host-gateway \
 ```
 로그인 → CSRF 발급
   → POST /api/v1/booking-queue/entries        (줄 서기)
-  → GET  /api/v1/booking-queue/entries/{token} (3초마다 순번 확인)
+  → GET  /api/v1/booking-queue/entries/{token} (POLL_SECONDS마다 순번 확인)
   → POST /api/v1/booking-queue/entries/{token}/reservation  (차례가 오면 예약)
 ```
 
-폴링 주기 3초는 화면(`queue.js`)과 같은 값입니다. 다르게 주면 실제 사용자와 다른 부하를 만듭니다.
+기본 폴링 주기는 화면(`queue.js`의 `POLL_INTERVAL_MS`)과 맞춰 둡니다. 다르게 주면 실제 사용자와 다른 부하를 만듭니다.
+
+> **1~3차 기록을 읽을 때 주의합니다.** 그때는 이 문서와 스크립트가 *"3초는 화면과 같은 값"* 이라고 적고 있었지만 **실제 화면은 2초였습니다.** 3차에서 발견해 화면을 1.5초로 낮추면서 기본값도 맞췄습니다. 과거 회차와 비교하려면 `-e POLL_SECONDS=3`으로 명시해서 돌립니다.
 
 ### 결과 읽는 법
 

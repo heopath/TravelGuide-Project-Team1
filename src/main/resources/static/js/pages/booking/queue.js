@@ -72,6 +72,25 @@
     }
   }
 
+  /*
+   * 순번 확인 주기.
+   *
+   * 이 값이 곧 체감 대기다. 대기열은 시간이 아니라 조회할 때 전진하기 때문이다
+   * (RedisBookingQueueStore의 조회 스크립트가 대기자를 함께 승급시킨다. 별도 스케줄러가 없다).
+   * 3차 부하 테스트에서 p95가 주기의 정확히 5배로 나왔다 — 1초 5.07초, 3초 15.17초, 5초 25.07초.
+   *
+   *   체감 대기 ≈ (앞에 선 사람 수 ÷ capacity) × 이 주기
+   *
+   * 그래서 대기를 줄이는 데는 capacity보다 이 값이 먼저다. capacity를 올리면 같은 재고를 두고
+   * DB에서 다투느라 응답이 느려지지만(2차: 5→10에서 3.5배), 주기를 줄이는 쪽은 Redis 조회만
+   * 늘어난다.
+   *
+   * 무작정 줄이지는 않는다. 줄인 만큼 조회 요청이 비례해 늘고, 대기 화면은 사람이 많을 때
+   * 열리는 화면이라 그 배수가 그대로 서버에 온다. 2초 → 1.5초는 요청이 1.33배 늘고 체감은
+   * 25% 줄어드는 선이다.
+   */
+  const POLL_INTERVAL_MS = 1500;
+
   async function refresh() {
     if (state.polling || !token) return;
     state.polling = true;
@@ -79,7 +98,7 @@
       const status = await request(`/api/v1/booking-queue/entries/${encodeURIComponent(token)}`);
       render(status);
       if (["READY", "COMPLETED"].includes(status.status)) await complete(status);
-      else state.timer = setTimeout(refresh, 2000);
+      else state.timer = setTimeout(refresh, POLL_INTERVAL_MS);
     } catch (error) {
       fail(error.message);
     } finally {
