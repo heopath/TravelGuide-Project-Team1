@@ -341,6 +341,31 @@ public enum ErrorCode {
     TICKET_USAGE_DATE_PASSED(
             HttpStatus.CONFLICT,
             "이용일이 지나 취소할 수 없습니다."
+    ),
+
+    SUPPORT_CHAT_ROOM_NOT_FOUND(
+            HttpStatus.NOT_FOUND,
+            "상담을 찾을 수 없습니다."
+    ),
+
+    SUPPORT_CHAT_ROOM_CLOSED(
+            HttpStatus.CONFLICT,
+            "이미 종료된 상담입니다."
+    ),
+
+    SUPPORT_CHAT_ALREADY_ASSIGNED(
+            HttpStatus.CONFLICT,
+            "다른 관리자가 응대하고 있는 상담입니다."
+    ),
+
+    SUPPORT_CHAT_NOT_ASSIGNED(
+            HttpStatus.CONFLICT,
+            "먼저 내가 응대하기를 눌러야 답할 수 있습니다."
+    ),
+
+    INVALID_SUPPORT_CHAT_REQUEST(
+            HttpStatus.BAD_REQUEST,
+            "상담 요청이 올바르지 않습니다."
     );
 
     private final HttpStatus status;

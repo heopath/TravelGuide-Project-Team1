@@ -61,7 +61,7 @@
                   <span aria-hidden="true">◐</span><span>성능 모니터링</span><em class="live">실연동</em>
                 </button>
                 <button type="button" data-admin-panel="chat">
-                  <span aria-hidden="true">✉</span><span>상담 채팅</span><em>연동 전</em>
+                  <span aria-hidden="true">✉</span><span>상담 채팅</span><em class="live">실연동</em>
                 </button>
                 <button type="button" data-admin-panel="support">
                   <span aria-hidden="true">Q</span><span>1:1 문의 관리</span><em class="live">실연동</em>
@@ -508,7 +508,7 @@
               <section class="admin-section" data-admin-section="chat" aria-labelledby="chatTitle" hidden>
                 <div class="admin-section-head">
                   <h2 id="chatTitle">상담 채팅</h2>
-                  <span class="admin-tag" data-admin-state="chat">연동 전</span>
+                  <span class="admin-tag live" data-admin-state="chat">실연동</span>
                   <div class="admin-filter" role="group" aria-label="상담 상태 필터">
                     <button type="button" class="admin-chip on" data-chat-filter="">전체</button>
                     <button type="button" class="admin-chip" data-chat-filter="BOT">봇 응대 중</button>
@@ -522,11 +522,11 @@
                   <div class="admin-chat-rooms">
                     <label class="admin-chat-search">
                       <span class="sr-only">상담 검색</span>
-                      <input id="chatSearch" type="search" placeholder="닉네임·문의 내용 검색" disabled />
+                      <input id="chatSearch" type="search" placeholder="닉네임·이메일로 검색 후 Enter" />
                     </label>
                     <div id="chatRoomList" class="admin-chat-room-list"></div>
                     <p class="admin-empty" id="chatRoomEmpty" role="status">
-                      상담 채팅 연동 후 문의 중인 사용자가 여기에 쌓여요.
+                      상담 목록을 불러오는 중이에요.
                     </p>
                   </div>
 
@@ -536,26 +536,36 @@
                         <strong id="chatPeerName">대화를 선택해 주세요</strong>
                         <small id="chatPeerMeta">왼쪽 목록에서 상담을 고르면 대화가 열려요.</small>
                       </div>
-                      <button type="button" class="admin-chat-takeover" id="chatTakeover" disabled>
-                        내가 응대하기
-                      </button>
+                      <div class="admin-chat-actions">
+                        <button type="button" class="admin-chat-takeover" id="chatTakeover" disabled>
+                          내가 응대하기
+                        </button>
+                        <button type="button" class="admin-chip" id="chatClose" disabled>종료</button>
+                      </div>
                     </div>
 
                     <div id="chatMessages" class="admin-chat-messages"></div>
                     <p class="admin-empty" id="chatMessageEmpty" role="status">
-                      아직 연동되지 않았어요. WebSocket이 붙으면 실시간으로 대화가 표시돼요.
+                      왼쪽 목록에서 상담을 고르면 대화가 열려요.
                     </p>
 
+                    <!--
+                      맡지 않은 상담에는 답할 수 없다. 아무나 끼어들면 손님은 여러 사람이 번갈아
+                      답하는 것을 보게 되고, 누가 맡았는지도 흐려진다. 먼저 `내가 응대하기`를
+                      눌러야 입력창이 열린다.
+                    -->
                     <form class="admin-chat-composer" id="chatComposer">
                       <label class="sr-only" for="chatInput">답장 입력</label>
-                      <input id="chatInput" autocomplete="off" placeholder="연동 후 답장할 수 있어요" disabled />
+                      <input id="chatInput" autocomplete="off" maxlength="2000"
+                             placeholder="내가 응대하기를 누르면 답할 수 있어요" disabled />
                       <button type="submit" class="primary-button" id="chatSend" disabled>보내기</button>
                     </form>
                   </div>
                 </div>
                 <p class="admin-hint">
-                  봇이 먼저 받고 관리자가 넘겨받는 구조예요. 넘겨받는 시점과 관리자가 없을 때의 동작은
-                  연동 전에 정해야 해요.
+                  봇이 먼저 받고 관리자가 넘겨받는 구조예요. 챗봇은 아직 붙지 않아 지금은 모든 상담이
+                  <b>대기</b>로 들어옵니다. 봇이 붙으면 <b>봇 응대 중</b>으로 시작하고,
+                  <b>내가 응대하기</b>가 그 상담을 사람에게 넘깁니다.
                 </p>
               </section>
             </div>
@@ -573,6 +583,7 @@
     <script th:src="@{/js/pages/admin/admin-performance.js}" src="../../static/js/pages/admin/admin-performance.js"></script>
     <script th:src="@{/js/pages/admin/admin-metrics.js}" src="../../static/js/pages/admin/admin-metrics.js"></script>
     <script th:src="@{/js/pages/admin/admin-reservations.js}" src="../../static/js/pages/admin/admin-reservations.js"></script>
+    <script th:src="@{/js/pages/admin/admin-chat.js}" src="../../static/js/pages/admin/admin-chat.js"></script>
     <script th:src="@{/js/pages/admin/admin-validation.js}" src="../../static/js/pages/admin/admin-validation.js"></script>
     <script th:src="@{/js/pages/admin/admin-members.js}" src="../../static/js/pages/admin/admin-members.js"></script>
     <script th:src="@{/js/pages/admin/admin-audit.js}" src="../../static/js/pages/admin/admin-audit.js"></script>

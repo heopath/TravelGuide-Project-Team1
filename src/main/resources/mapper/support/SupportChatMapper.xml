@@ -1,0 +1,129 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.example.all_my_trip_project.domain.support.mapper.SupportChatMapper">
+
+    <!--
+      담당 관리자 닉네임은 LEFT JOIN이다. 계정이 지워지면 assigned_admin_id가 비는데
+      (ON DELETE SET NULL), 그때도 상담 기록은 남아야 한다.
+    -->
+    <sql id="roomColumns">
+        r.support_chat_room_id, r.user_id, u.nickname AS user_nickname, u.email AS user_email,
+        r.assigned_admin_id, a.nickname AS assigned_admin_nickname,
+        r.status, r.last_message_at, r.assigned_at, r.closed_at, r.created_at
+    </sql>
+
+    <sql id="roomJoins">
+        FROM support_chat_rooms r
+        JOIN users u ON u.user_id = r.user_id
+        LEFT JOIN users a ON a.user_id = r.assigned_admin_id
+    </sql>
+
+    <select id="findOpenRoomByUser"
+            resultType="org.example.all_my_trip_project.domain.support.dto.SupportChatRoomDTO">
+        SELECT <include refid="roomColumns"/>
+        <include refid="roomJoins"/>
+        WHERE r.user_id = #{userId} AND r.status &lt;&gt; 'CLOSED'
+    </select>
+
+    <insert id="insertRoom" useGeneratedKeys="true"
+            keyProperty="supportChatRoomId" keyColumn="support_chat_room_id">
+        INSERT INTO support_chat_rooms (user_id, status)
+        VALUES (#{userId}, 'WAITING')
+    </insert>
+
+    <select id="findRoom"
+            resultType="org.example.all_my_trip_project.domain.support.dto.SupportChatRoomDTO">
+        SELECT <include refid="roomColumns"/>
+        <include refid="roomJoins"/>
+        WHERE r.support_chat_room_id = #{roomId}
+    </select>
+
+    <!--
+      상태를 바꾸기 전에 방 행만 잠근다. users는 읽기만 하므로 함께 잠그지 않는다.
+      두 관리자가 같은 방을 동시에 맡으려 할 때 뒤에 온 요청이 여기서 기다렸다가
+      앞의 결과(ASSIGNED)를 보고 거부된다.
+    -->
+    <select id="lockRoom"
+            resultType="org.example.all_my_trip_project.domain.support.dto.SupportChatRoomDTO">
+        SELECT r.support_chat_room_id, r.user_id, r.assigned_admin_id, r.status,
+               r.last_message_at, r.assigned_at, r.closed_at, r.created_at
+        FROM support_chat_rooms r
+        WHERE r.support_chat_room_id = #{roomId}
+        FOR UPDATE
+    </select>
+
+    <!--
+      마지막 한 줄과 메시지 수를 함께 내린다. 목록에서 어떤 대화인지 알아보려면 필요하다.
+      상관 서브쿼리라 방 수만큼 도는데, 관리자 화면이 한 번에 가져오는 수가 제한돼 있어
+      문제되지 않는다.
+    -->
+    <select id="findRooms"
+            resultType="org.example.all_my_trip_project.domain.support.dto.SupportChatRoomDTO">
+        SELECT <include refid="roomColumns"/>,
+               (SELECT m.content FROM support_chat_messages m
+                 WHERE m.support_chat_room_id = r.support_chat_room_id
+                 ORDER BY m.support_chat_message_id DESC LIMIT 1) AS last_message_preview,
+               (SELECT count(*) FROM support_chat_messages m
+                 WHERE m.support_chat_room_id = r.support_chat_room_id) AS message_count
+        <include refid="roomJoins"/>
+        <where>
+            <if test="status != null and status != ''">
+                AND r.status = #{status}
+            </if>
+            <if test="keyword != null and keyword != ''">
+                AND (u.nickname ILIKE '%' || #{keyword} || '%'
+                     OR u.email ILIKE '%' || #{keyword} || '%')
+            </if>
+        </where>
+        <!-- 아직 말이 오가지 않은 방은 뒤로 밀리지 않도록 생성 시각으로 받쳐 준다. -->
+        ORDER BY COALESCE(r.last_message_at, r.created_at) DESC
+        LIMIT #{limit}
+    </select>
+
+    <!--
+      WAITING과 BOT에서만 배정한다. 이미 ASSIGNED면 0건이 되어 호출부가 거절할 수 있다.
+      BOT을 포함하는 것이 `내가 응대하기`의 뜻이다 — 봇이 응대하던 방을 사람이 가져간다.
+    -->
+    <update id="assignRoom">
+        UPDATE support_chat_rooms
+        SET status = 'ASSIGNED', assigned_admin_id = #{adminId}, assigned_at = CURRENT_TIMESTAMP
+        WHERE support_chat_room_id = #{roomId} AND status IN ('WAITING', 'BOT')
+    </update>
+
+    <!--
+      종료하면 담당자를 비운다. ck_support_chat_rooms_assignee가 "ASSIGNED일 때만 담당자가
+      있다"를 강제하므로, 비우지 않으면 제약에 걸린다.
+    -->
+    <update id="closeRoom">
+        UPDATE support_chat_rooms
+        SET status = 'CLOSED', assigned_admin_id = NULL, closed_at = CURRENT_TIMESTAMP
+        WHERE support_chat_room_id = #{roomId} AND status &lt;&gt; 'CLOSED'
+    </update>
+
+    <insert id="insertMessage" useGeneratedKeys="true"
+            keyProperty="supportChatMessageId" keyColumn="support_chat_message_id">
+        INSERT INTO support_chat_messages (
+            support_chat_room_id, sender_type, sender_user_id, content
+        ) VALUES (
+            #{supportChatRoomId}, #{senderType}, #{senderUserId}, #{content}
+        )
+    </insert>
+
+    <update id="touchRoom">
+        UPDATE support_chat_rooms
+        SET last_message_at = CURRENT_TIMESTAMP
+        WHERE support_chat_room_id = #{roomId}
+    </update>
+
+    <select id="findMessages"
+            resultType="org.example.all_my_trip_project.domain.support.dto.SupportChatMessageDTO">
+        SELECT m.support_chat_message_id, m.support_chat_room_id, m.sender_type,
+               m.sender_user_id, s.nickname AS sender_nickname, m.content, m.created_at
+        FROM support_chat_messages m
+        LEFT JOIN users s ON s.user_id = m.sender_user_id
+        WHERE m.support_chat_room_id = #{roomId}
+        ORDER BY m.support_chat_message_id
+        LIMIT #{limit}
+    </select>
+
+</mapper>

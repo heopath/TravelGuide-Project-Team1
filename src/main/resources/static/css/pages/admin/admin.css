@@ -553,9 +553,43 @@ body.page-admin #page-content {
   white-space: nowrap;
 }
 .page-admin .admin-chat-takeover:disabled { border-color: var(--border); color: #a5aec1; }
+/* 응대하기와 종료를 나란히. 좁아질 때 접히도록 wrap을 둔다. */
+.page-admin .admin-chat-actions { display: flex; gap: 6px; flex-wrap: wrap; }
 
 .page-admin .admin-chat-messages { flex: 1; padding: 18px; display: grid; gap: 10px; align-content: start; overflow-y: auto; }
 .page-admin .admin-chat-messages:empty { padding: 0; }
+
+/*
+  보낸이에 따라 좌우를 나눈다. 손님은 왼쪽, 관리자는 오른쪽 — 흔한 메신저 배치라
+  검표원이 따로 익힐 것이 없다. 봇은 아직 없지만 자리를 함께 둔다.
+*/
+.page-admin .admin-chat-message {
+  max-width: 76%;
+  padding: 9px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: #fff;
+}
+.page-admin .admin-chat-message.user { justify-self: start; }
+.page-admin .admin-chat-message.bot { justify-self: start; background: #f7f8fc; }
+.page-admin .admin-chat-message.admin {
+  justify-self: end;
+  border-color: var(--primary);
+  background: var(--primary-soft, #eef0ff);
+}
+.page-admin .admin-chat-message em {
+  display: block; color: var(--muted); font-size: 11px; font-style: normal; font-weight: 700;
+}
+/* 손님이 줄바꿈 없이 길게 붙여 써도 칸을 넘지 않아야 한다. */
+.page-admin .admin-chat-message p {
+  margin: 4px 0 0; font-size: 13px; line-height: 1.55; overflow-wrap: anywhere;
+}
+.page-admin .admin-chat-message small { display: block; margin-top: 5px; color: var(--muted); font-size: 10.5px; }
+
+.page-admin .admin-chat-room em {
+  justify-self: end; color: var(--muted); font-size: 11px; font-style: normal;
+}
+.page-admin .admin-chat-room-time { grid-column: 1 / -1; color: var(--muted); font-size: 10.5px; }
 
 .page-admin .admin-chat-composer {
   padding: 12px 14px;
