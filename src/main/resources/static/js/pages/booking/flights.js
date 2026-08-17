@@ -415,8 +415,9 @@
      * PENDING은 아직 결제하지 않은 상태다. 자리를 잡아 두고 있을 뿐이라 시간이 지나면
      * 반납된다(15분). 그래서 결제 버튼이 이 자리에 있어야 한다.
      *
-     * CONFIRMED가 되면 취소 버튼을 내린다. 지금 취소는 PENDING만 다루고, 결제한 건을 되돌리는
-     * 환불은 구현하지 않았다. 누를 수 있는데 실패하는 버튼을 두면 그게 더 나쁘다.
+     * 취소는 결제 전후 모두 둔다. 손님에게는 둘 다 "취소" 하나이고, 결제했으면 환불까지
+     * 함께 일어난다. 다만 확인 문구는 갈린다 — 결제한 건을 취소하면 발급된 티켓이 무효가
+     * 되므로 그 사실을 누르기 전에 알려야 한다.
      */
     const ticketRows = tickets.map((item) => `<div class="mn${item.status === "CANCELLED" ? " cancelled" : ""}">
       <div class="mn-h">티켓·액티비티 <span class="mn-s">${esc(item.statusLabel)}</span></div>
@@ -427,9 +428,12 @@
         : ""}
       <div class="mn-a">${item.status === "PENDING"
         ? `<button type="button" class="mn-b primary" data-mine-ticket-pay="${esc(item.referenceId)}">모의 결제하기</button>`
-          + `<button type="button" class="mn-b danger" data-mine-ticket-cancel="${esc(item.referenceId)}">모의 예약 취소</button>`
         : ""}${item.status === "CONFIRMED"
         ? `<button type="button" class="mn-b" data-mine-ticket-show="${esc(item.referenceId)}">발급된 티켓 보기</button>`
+        : ""}${item.status === "PENDING" || item.status === "CONFIRMED"
+        ? `<button type="button" class="mn-b danger" data-mine-ticket-cancel="${esc(item.referenceId)}"`
+          + ` data-mine-ticket-paid="${item.status === "CONFIRMED" ? "1" : ""}">`
+          + `${item.status === "CONFIRMED" ? "결제 취소" : "모의 예약 취소"}</button>`
         : ""}<button type="button" class="mn-b" data-mine-tab="ticket">티켓에서 확인</button></div>
     </div>`).join("");
 
@@ -986,11 +990,21 @@
       }
       const cancelTicket = e.target.closest("[data-mine-ticket-cancel]");
       if (cancelTicket) {
-        if (!window.confirm("이 모의 예약을 취소할까요? 취소한 수량은 다시 예약할 수 있게 됩니다.")) return;
+        /*
+         * 결제한 건은 취소하면 발급된 티켓이 무효가 된다. 누르기 전에 그 사실을 알려야 한다.
+         * 결제 전 취소와 같은 문구를 쓰면 티켓이 사라지는 줄 모르고 누른다.
+         */
+        const paid = cancelTicket.dataset.mineTicketPaid === "1";
+        const question = paid
+          ? "결제를 취소할까요? 발급된 티켓은 더 이상 사용할 수 없게 됩니다."
+          : "이 모의 예약을 취소할까요? 취소한 수량은 다시 예약할 수 있게 됩니다.";
+        if (!window.confirm(question)) return;
         cancelTicket.disabled = true;
         try {
           const reservationId = cancelTicket.dataset.mineTicketCancel;
           await request("DELETE", `/api/v1/ticket-reservations/${reservationId}`);
+          /* 무효가 된 티켓을 화면에 남겨두지 않는다. */
+          delete issuedTickets[reservationId];
           if (String(ticketReservation?.reservationId) === reservationId) ticketReservation = null;
           window.dispatchEvent(new CustomEvent("allmytrips:ticket-cancelled", {
             detail: { reservationId: Number(reservationId) }

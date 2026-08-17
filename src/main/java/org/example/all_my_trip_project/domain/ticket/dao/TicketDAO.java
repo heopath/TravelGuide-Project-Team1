@@ -37,4 +37,12 @@ public class TicketDAO {
         return mapper.findExpiredPendingReservations(limit);
     }
     public int expireReservation(Long reservationId) { return mapper.expireReservation(reservationId); }
+    public List<String> lockIssuedTicketStatuses(Long reservationId) {
+        return mapper.lockIssuedTicketStatuses(reservationId);
+    }
+    public int cancelIssuedTickets(Long reservationId) { return mapper.cancelIssuedTickets(reservationId); }
+    public int refundPayments(Long reservationId) { return mapper.refundPayments(reservationId); }
+    public int cancelConfirmedReservation(Long reservationId) {
+        return mapper.cancelConfirmedReservation(reservationId);
+    }
 }
