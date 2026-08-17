@@ -2057,3 +2057,45 @@ body.page-mypage main#page-content > .page-shell {
     gap: 8px;
   }
 }
+
+/* ── 상담 채팅 ──
+   1:1 문의와 나란히 있지만 오가는 방식이 달라 모양도 다르다.
+   문의는 목록이고, 상담은 대화창이다. */
+
+.page-mypage .support-chat { display: grid; gap: 10px; }
+.page-mypage .support-chat-status {
+  margin: 0; padding: 8px 12px; border-radius: 9px;
+  background: #f3f5fb; color: #55607a; font-size: 12px;
+}
+.page-mypage .support-chat-messages {
+  /* 대화가 길어져도 화면을 밀지 않는다. 창 안에서만 스크롤된다. */
+  min-height: 220px; max-height: 380px; overflow-y: auto;
+  padding: 14px; display: grid; gap: 10px; align-content: start;
+  border: 1px solid #e3e7f0; border-radius: 12px; background: #fbfcff;
+}
+.page-mypage .support-chat-message {
+  max-width: 78%; padding: 9px 12px; border-radius: 12px;
+  border: 1px solid #e3e7f0; background: #fff;
+}
+/* 내가 쓴 말은 오른쪽. 흔한 메신저 배치라 따로 익힐 것이 없다. */
+.page-mypage .support-chat-message.user { justify-self: end; border-color: #cdd2f5; background: #eef0ff; }
+.page-mypage .support-chat-message.bot,
+.page-mypage .support-chat-message.admin { justify-self: start; }
+.page-mypage .support-chat-message em {
+  display: block; color: #7a879f; font-size: 11px; font-style: normal; font-weight: 700;
+}
+/* 줄바꿈 없이 길게 붙여 써도 칸을 넘지 않아야 한다. */
+.page-mypage .support-chat-message p {
+  margin: 4px 0 0; font-size: 13px; line-height: 1.55; overflow-wrap: anywhere;
+}
+.page-mypage .support-chat-message small { display: block; margin-top: 5px; color: #97a1b5; font-size: 10.5px; }
+
+.page-mypage .support-chat-composer { display: grid; grid-template-columns: minmax(0, 1fr) 88px; gap: 8px; }
+.page-mypage .support-chat-composer input {
+  padding: 11px 13px; border: 1px solid #e3e7f0; border-radius: 10px; font-size: 13px;
+}
+.page-mypage .support-chat-start { display: grid; gap: 10px; justify-items: start; }
+
+@media (max-width: 620px) {
+  .page-mypage .support-chat-message { max-width: 88%; }
+}
