@@ -163,7 +163,8 @@ async function run() {
      * 다른 하나가 늘어나면 통과한다. 추천 장소 관리는 별도 주소라 data-route를 쓰므로 빠진다.
      */
     T("사이드바에 패널이 빠짐없이 있다",
-      ["reports", "metrics", "products", "reservations", "performance", "chat", "support", "audit", "members"]
+      ["reports", "metrics", "products", "reservations", "performance", "chat", "support", "audit",
+        "members", "validation"]
         .every((key) => d.querySelector(`[data-admin-panel="${key}"]`) !== null));
     T("1:1 문의 관리 패널이 있다",
       d.querySelector('[data-admin-panel="support"]') !== null
