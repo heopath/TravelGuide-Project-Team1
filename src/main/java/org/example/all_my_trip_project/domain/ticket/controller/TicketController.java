@@ -1,6 +1,7 @@
 package org.example.all_my_trip_project.domain.ticket.controller;
 
 import lombok.RequiredArgsConstructor;
+import org.example.all_my_trip_project.domain.ticket.dto.TicketCancelResponse;
 import org.example.all_my_trip_project.domain.ticket.dto.TicketOfferDTO;
 import org.example.all_my_trip_project.domain.ticket.dto.TicketReservationDTO;
 import org.example.all_my_trip_project.domain.ticket.service.TicketService;
@@ -44,12 +45,21 @@ public class TicketController {
         return ApiResponse.success(ticketService.reservations(requireUserId(principal), tripId));
     }
 
+    /**
+     * 예약 취소. 결제 전이면 자리만 놓고, 결제 후면 환불까지 한다.
+     *
+     * <p>손님에게는 둘 다 "취소" 하나라 엔드포인트를 나누지 않는다. 결과 안내만 갈린다.
+     */
     @DeleteMapping("/ticket-reservations/{reservationId}")
-    public ApiResponse<TicketReservationDTO> cancel(
+    public ApiResponse<TicketCancelResponse> cancel(
             @AuthenticationPrincipal AuthenticatedUser principal,
             @PathVariable Long reservationId) {
-        return ApiResponse.success("모의 예약을 취소하고 수량을 다시 열었습니다.",
-                ticketService.cancel(requireUserId(principal), reservationId));
+        TicketCancelResponse result = ticketService.cancel(requireUserId(principal), reservationId);
+        return ApiResponse.success(
+                result.refunded()
+                        ? "결제를 취소하고 발급된 티켓을 무효 처리했습니다. 수량도 다시 열었습니다."
+                        : "모의 예약을 취소하고 수량을 다시 열었습니다.",
+                result);
     }
 
     private Long requireUserId(AuthenticatedUser principal) {

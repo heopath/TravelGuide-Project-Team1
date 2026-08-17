@@ -331,6 +331,16 @@ public enum ErrorCode {
     INVALID_PAYMENT_REQUEST(
             HttpStatus.BAD_REQUEST,
             "결제 요청이 올바르지 않습니다."
+    ),
+
+    TICKET_ALREADY_USED(
+            HttpStatus.CONFLICT,
+            "이미 사용한 티켓이 있어 취소할 수 없습니다."
+    ),
+
+    TICKET_USAGE_DATE_PASSED(
+            HttpStatus.CONFLICT,
+            "이용일이 지나 취소할 수 없습니다."
     );
 
     private final HttpStatus status;

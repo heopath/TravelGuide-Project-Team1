@@ -29,4 +29,12 @@ public interface TicketMapper {
     /** 만료 시각이 지났는데 아직 PENDING인 예약. 예약 행과 재고 행을 함께 잠근다. */
     List<TicketReservationDTO> findExpiredPendingReservations(@Param("limit") int limit);
     int expireReservation(@Param("reservationId") Long reservationId);
+
+    /* ── 환불 ── */
+
+    /** 환불 대상 티켓을 잠그고 상태를 읽는다. 검표와 겹치지 않게 하려는 것이다. */
+    List<String> lockIssuedTicketStatuses(@Param("reservationId") Long reservationId);
+    int cancelIssuedTickets(@Param("reservationId") Long reservationId);
+    int refundPayments(@Param("reservationId") Long reservationId);
+    int cancelConfirmedReservation(@Param("reservationId") Long reservationId);
 }

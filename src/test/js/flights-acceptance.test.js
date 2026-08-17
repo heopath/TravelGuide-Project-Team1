@@ -456,11 +456,15 @@ async function run() {
     await until(() => d.querySelector("[data-mine-ticket-show]"));
 
     T("결제 후에는 결제 버튼이 사라진다", !d.querySelector("[data-mine-ticket-pay]"));
+    T("결제 후에도 취소할 수 있다", Boolean(d.querySelector("[data-mine-ticket-cancel]")));
     /*
-     * 지금 취소는 PENDING만 다룬다. 결제한 건에 취소 버튼을 두면 눌러도 실패하는 버튼이 된다.
-     * 환불을 만들 때 함께 되살린다.
+     * 결제한 건은 취소하면 발급된 티켓이 무효가 된다. 결제 전 취소와 같은 문구를 쓰면
+     * 티켓이 사라지는 줄 모르고 누른다. 화면이 둘을 구분할 수 있어야 한다.
      */
-    T("결제 후에는 취소 버튼을 두지 않는다", !d.querySelector("[data-mine-ticket-cancel]"));
+    T("결제한 건임을 취소 버튼이 구분해 둔다",
+      d.querySelector("[data-mine-ticket-cancel]").dataset.mineTicketPaid === "1");
+    T("결제 후 취소 버튼은 결제 취소로 이름이 바뀐다",
+      d.querySelector("[data-mine-ticket-cancel]").textContent === "결제 취소");
     T("결제 후에는 발급된 티켓을 볼 수 있다", Boolean(d.querySelector("[data-mine-ticket-show]")));
   }
   {
@@ -492,6 +496,32 @@ async function run() {
     T("발급된 티켓을 수량만큼 그린다", d.querySelectorAll(".mn-ticket").length === 2);
     T("입장 코드를 화면에 보여준다",
       d.querySelector(".mn-ticket-code")?.textContent === "tok-aaa");
+  }
+  {
+    /*
+     * 결제한 건을 취소하면 발급된 티켓이 무효가 된다. 누르기 전에 그 사실을 알려야 하고,
+     * 취소 뒤에는 화면에 남은 티켓도 지워야 한다. 무효가 된 코드를 계속 보여주면
+     * 손님이 그것을 들고 현장에 간다.
+     */
+    const asked = [];
+    const { d, w, calls } = await boot({
+      query: "?tripId=10&tab=mine",
+      summary: ticketSummary("CONFIRMED", "결제 완료"),
+      tickets: [{ ticketNumber: "AMT-TKN-AAA", validFrom: null, validUntil: null }]
+    });
+    await until(() => d.querySelector("[data-mine-ticket-show]"));
+
+    d.querySelector("[data-mine-ticket-show]").click();
+    await until(() => d.querySelector(".mn-ticket"));
+
+    w.confirm = (question) => { asked.push(question); return true; };
+    d.querySelector("[data-mine-ticket-cancel]").click();
+    await until(() => calls.some((c) => c.startsWith("DELETE /api/v1/ticket-reservations/30")));
+
+    T("결제 취소 전에 티켓이 무효가 된다고 알린다",
+      asked.length === 1 && asked[0].includes("사용할 수 없게"));
+    await until(() => !d.querySelector(".mn-ticket"));
+    T("취소하면 화면에 남은 티켓도 지운다", !d.querySelector(".mn-ticket"));
   }
   {
     /*
