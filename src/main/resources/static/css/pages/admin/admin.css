@@ -289,6 +289,56 @@ body.page-admin #page-content {
 .page-admin .admin-audit-row [data-audit-change] small { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
 .page-admin .admin-audit-row [data-audit-empty-payload] { color: var(--muted); font-size: 11px; }
 
+/* ── 티켓 검표 ── */
+
+.page-admin .admin-scan {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 72px;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.page-admin .admin-scan input {
+  padding: 11px 13px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  /* 입장 코드는 대소문자가 섞인 난수라 고정폭이어야 눈으로 대조할 수 있다. */
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 13px;
+}
+.page-admin .admin-scan button { border: 0; cursor: pointer; }
+
+/*
+  결과는 색으로만 구분하지 않는다. 문구가 스스로 무엇인지 말하고 색은 거들기만 한다.
+  현장은 화면을 오래 들여다보는 자리가 아니라 흘끗 보는 자리다.
+*/
+.page-admin .admin-scan-result {
+  padding: 14px 16px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+}
+.page-admin .admin-scan-result strong { display: block; font-size: 15px; }
+.page-admin .admin-scan-result p { margin: 6px 0 0; font-size: 13px; }
+.page-admin .admin-scan-result small {
+  display: block;
+  margin-top: 8px;
+  color: var(--muted);
+  font-size: 11.5px;
+}
+.page-admin .admin-scan-result.ok { border-color: #a6f4c5; background: #f0fdf4; }
+.page-admin .admin-scan-result.ok strong { color: #067647; }
+.page-admin .admin-scan-result.no { border-color: #fecdca; background: #fff5f4; }
+.page-admin .admin-scan-result.no strong { color: #b42318; }
+
+.page-admin .admin-validation-row {
+  grid-template-columns: 132px 72px minmax(0, 1fr) 96px;
+  align-items: center;
+}
+.page-admin .admin-validation-row > span { padding: 10px 0; min-width: 0; }
+.page-admin .admin-validation-row strong { display: block; }
+.page-admin .admin-validation-row small {
+  display: block; margin-top: 2px; color: var(--muted); font-size: 11px;
+}
+
 /*
   관리 칸은 버튼 두 개(`정지`·`관리자 승격`)가 나란히 서야 해서 고정 폭이다. 1fr로 두면
   긴 이메일이 들어올 때 회원 칸이 버튼을 밀어내고 버튼이 세로로 접힌다.
@@ -602,6 +652,10 @@ body.page-admin #page-content {
     grid-template-columns: minmax(0, 1fr) 56px 56px 160px;
   }
   .page-admin .admin-member-row > :nth-child(4) { display: none; }
+
+  /* 검표 기록은 검표자를 숨겨 세 칸으로 줄인다. 현장에서는 결과와 티켓이 먼저다. */
+  .page-admin .admin-validation-row { grid-template-columns: 108px 64px minmax(0, 1fr); }
+  .page-admin .admin-validation-row > :nth-child(4) { display: none; }
 
   .page-admin .admin-filter { margin-left: 0; }
 }

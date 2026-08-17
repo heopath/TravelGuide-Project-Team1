@@ -66,6 +66,9 @@
                 <button type="button" data-admin-panel="support">
                   <span aria-hidden="true">Q</span><span>1:1 문의 관리</span><em class="live">실연동</em>
                 </button>
+                <button type="button" data-admin-panel="validation">
+                  <span aria-hidden="true">✓</span><span>티켓 검표</span><em class="live">실연동</em>
+                </button>
                 <button type="button" data-admin-panel="members">
                   <span aria-hidden="true">☖</span><span>회원 관리</span><em class="live">실연동</em>
                 </button>
@@ -316,6 +319,50 @@
                 새 동작이 늘어도 화면을 고칠 필요가 없다.
               -->
               <!--
+                티켓 검표
+
+                손님이 보여준 입장 코드를 확인하고 입장 처리한다. 실패도 정상 결과다 —
+                없는 코드나 이미 쓴 티켓은 오류가 아니라 검표가 답해야 할 상황이라, 화면도
+                오류가 아니라 결과로 보여준다. 현장에서는 "왜 안 되는지"가 가장 중요하다.
+
+                성공·실패 모두 기록이 남는다. 아래 목록이 그 기록이다.
+              -->
+              <section class="admin-section" data-admin-section="validation" aria-labelledby="validationTitle" hidden>
+                <div class="admin-section-head">
+                  <h2 id="validationTitle">티켓 검표</h2>
+                  <span class="admin-tag live" data-admin-state="validation">실연동</span>
+                  <div class="admin-filter" role="group" aria-label="검표 결과 필터" data-validation-filter>
+                    <button type="button" class="admin-chip on" data-validation-result="">전체</button>
+                    <button type="button" class="admin-chip" data-validation-result="SUCCESS">입장</button>
+                    <button type="button" class="admin-chip" data-validation-result="ALREADY_USED">사용됨</button>
+                    <button type="button" class="admin-chip" data-validation-result="EXPIRED">기간 밖</button>
+                    <button type="button" class="admin-chip" data-validation-result="NOT_FOUND">없는 코드</button>
+                  </div>
+                </div>
+
+                <div class="white-panel admin-panel">
+                  <form class="admin-scan" data-validation-form>
+                    <label class="sr-only" for="validationToken">입장 코드</label>
+                    <input id="validationToken" type="text" data-validation-token autocomplete="off"
+                           spellcheck="false" placeholder="손님이 보여준 입장 코드를 입력하세요" />
+                    <button type="submit" class="admin-chip on" data-validation-submit>확인</button>
+                  </form>
+                  <!-- 결과는 색으로만 구분하지 않는다. 문구가 스스로 무엇인지 말해야 한다. -->
+                  <div class="admin-scan-result" data-validation-result-box role="status" hidden></div>
+                </div>
+
+                <div class="white-panel admin-panel">
+                  <div class="admin-table-head admin-validation-row">
+                    <span>시각</span><span>결과</span><span>티켓</span><span>검표자</span>
+                  </div>
+                  <div data-validation-list class="admin-table-body"></div>
+                  <p class="admin-empty" data-validation-empty role="status">
+                    검표 기록을 불러오는 중이에요.
+                  </p>
+                </div>
+              </section>
+
+              <!--
                 회원 관리
 
                 정지와 관리자 승격은 이 서비스에서 가장 되돌리기 어려운 동작이다. 그래서
@@ -526,6 +573,7 @@
     <script th:src="@{/js/pages/admin/admin-performance.js}" src="../../static/js/pages/admin/admin-performance.js"></script>
     <script th:src="@{/js/pages/admin/admin-metrics.js}" src="../../static/js/pages/admin/admin-metrics.js"></script>
     <script th:src="@{/js/pages/admin/admin-reservations.js}" src="../../static/js/pages/admin/admin-reservations.js"></script>
+    <script th:src="@{/js/pages/admin/admin-validation.js}" src="../../static/js/pages/admin/admin-validation.js"></script>
     <script th:src="@{/js/pages/admin/admin-members.js}" src="../../static/js/pages/admin/admin-members.js"></script>
     <script th:src="@{/js/pages/admin/admin-audit.js}" src="../../static/js/pages/admin/admin-audit.js"></script>
   </body>
