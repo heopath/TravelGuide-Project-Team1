@@ -203,6 +203,37 @@ class ItineraryItemServiceTest {
         verify(itemDAO).insert(candidate);
     }
 
+    /*
+     * 늦은 시간대에도 겹침을 잡아야 한다.
+     *
+     * 종료 시각이 없으면 기본 2시간을 더하는데, 22:30에 더하면 00:30이 되어 자정을 넘는다.
+     * 그때 검사를 통째로 포기하면 기존 22:00~23:00 일정과 명백히 겹치는데도 통과한다.
+     * 자정을 넘는 쪽은 AI가 아니라 이 기본값이라, 그날 끝으로 잘라서 판단한다.
+     */
+    @Test
+    void createRejectsLateNightAiRecommendationThatOverlapsExistingItem() {
+        TripDayDTO day = TripDayDTO.builder().tripDayId(20L).tripId(10L).build();
+        TripDTO trip = TripDTO.builder().tripId(10L).userId(42L).build();
+        ItineraryItemDTO candidate = ItineraryItemDTO.builder()
+                .tripDayId(20L).placeId(103L).title("AI 추천 야시장")
+                .startTime(LocalTime.of(22, 30)).source("AI").build();
+        ItineraryItemDTO existing = ItineraryItemDTO.builder()
+                .tripDayId(20L).title("기존 야경 일정")
+                .startTime(LocalTime.of(22, 0)).endTime(LocalTime.of(23, 0)).build();
+        when(tripDayDAO.findById(20L)).thenReturn(Optional.of(day));
+        when(tripDAO.findById(10L)).thenReturn(Optional.of(trip));
+        when(itemDAO.countByTripDayId(20L)).thenReturn(1);
+        when(itemDAO.existsByTripDayIdAndPlaceId(20L, 103L)).thenReturn(false);
+        when(itemDAO.findByTripDayId(20L)).thenReturn(List.of(existing));
+
+        assertThatThrownBy(() -> itineraryItemService.create(42L, candidate))
+                .isInstanceOf(BusinessException.class)
+                .extracting(exception -> ((BusinessException) exception).getErrorCode())
+                .isEqualTo(ErrorCode.ITINERARY_TIME_CONFLICT);
+
+        verify(itemDAO, never()).insert(candidate);
+    }
+
     @Test
     void updateKeepsExistingSortOrderRegardlessOfIncomingValue() {
         ItineraryItemDTO existing = ItineraryItemDTO.builder()
