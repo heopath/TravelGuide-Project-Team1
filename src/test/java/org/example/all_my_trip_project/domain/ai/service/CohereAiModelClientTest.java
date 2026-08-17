@@ -10,6 +10,8 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
+import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -74,6 +76,25 @@ class CohereAiModelClientTest {
 
         assertThat(response.days().getFirst().day()).isEqualTo(1);
         assertThat(response.days().getFirst().title()).isEqualTo("DAY 1 추천 일정");
+    }
+
+    @Test
+    void createPromptIncludesExistingScheduleAndTwoHourReservationRule() {
+        AiGuideContext.Item existingItem = new AiGuideContext.Item(
+                1L, "기존 점심", LocalTime.of(10, 0), null, "PLACE", null);
+        AiGuideContext.Day day = new AiGuideContext.Day(
+                1, LocalDate.of(2026, 8, 14), "DAY 1", null, List.of(existingItem));
+        AiGuideContext.Trip trip = new AiGuideContext.Trip(
+                1L, "부산 여행", "부산", LocalDate.of(2026, 8, 14), LocalDate.of(2026, 8, 15),
+                null, null, null, null, null, null, null, null, null, List.of(day));
+
+        String prompt = client.createPrompt(new AiGuideRequest("빈 시간대 카페 추천", 1L),
+                List.of(), new AiGuideContext(trip, List.of()), List.of());
+
+        assertThat(prompt)
+                .contains("기존 점심 (10:00-12:00)")
+                .contains("Prefer an empty time slot on the same DAY")
+                .contains("reserve two hours after its start time");
     }
 
     @SuppressWarnings("unchecked")

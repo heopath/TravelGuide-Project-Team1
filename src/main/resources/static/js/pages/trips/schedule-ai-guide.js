@@ -70,9 +70,10 @@ document.addEventListener("DOMContentLoaded", function () {
     return Number.isInteger(Number(item?.placeId)) && Number(item.placeId) > 0;
   }
 
-  function setAddButtonState(button, added) {
-    button.disabled = added;
-    button.textContent = added ? "추가됨" : "일정에 추가";
+  function setAddButtonState(button, added, timeConflict) {
+    button.disabled = added || timeConflict;
+    button.classList.toggle("is-time-conflict", Boolean(timeConflict));
+    button.textContent = added ? "추가됨" : (timeConflict ? "시간 겹침" : "일정에 추가");
   }
 
   function setDayStatus(control, text, isError) {
@@ -85,6 +86,7 @@ document.addEventListener("DOMContentLoaded", function () {
     const parts = [];
     if (result.added) parts.push(result.added + "개 추가됨");
     if (result.alreadyAdded) parts.push(result.alreadyAdded + "개 이미 추가됨");
+    if (result.timeConflicts) parts.push(result.timeConflicts + "개 시간 겹침");
     if (result.failed?.length) parts.push(result.failed.length + "개 추가 실패");
     return parts.join(" · ");
   }
@@ -92,19 +94,25 @@ document.addEventListener("DOMContentLoaded", function () {
   async function refreshDayControl(control) {
     if (!window.AllMyTripsSchedule?.getAiRecommendationStates) return;
     try {
-      const addedPlaceIds = await window.AllMyTripsSchedule.getAiRecommendationStates(
-        control.items, control.dayNumber
-      );
+      const [addedPlaceIds, timeConflictPlaceIds] = await Promise.all([
+        window.AllMyTripsSchedule.getAiRecommendationStates(control.items, control.dayNumber),
+        window.AllMyTripsSchedule.getAiRecommendationTimeConflicts(control.items, control.dayNumber)
+      ]);
       control.itemButtons.forEach(function (entry) {
-        setAddButtonState(entry.button, addedPlaceIds.has(Number(entry.item.placeId)));
+        setAddButtonState(entry.button, addedPlaceIds.has(Number(entry.item.placeId)),
+          timeConflictPlaceIds.has(Number(entry.item.placeId)));
       });
       const hasUnaddedItem = control.items.some(function (item) {
-        return !addedPlaceIds.has(Number(item.placeId));
+        const placeId = Number(item.placeId);
+        return !addedPlaceIds.has(placeId) && !timeConflictPlaceIds.has(placeId);
       });
       control.bulkButton.disabled = !hasUnaddedItem;
       control.bulkButton.textContent = hasUnaddedItem
         ? "DAY " + control.dayNumber + " 일정 모두 추가"
-        : "모두 추가됨";
+        : (timeConflictPlaceIds.size ? "시간 조정 필요" : "모두 추가됨");
+      if (timeConflictPlaceIds.size) {
+        setDayStatus(control, timeConflictPlaceIds.size + "개는 기존 일정과 시간이 겹칩니다.", false);
+      }
     } catch (error) {
       setDayStatus(control, "현재 저장 상태를 확인하지 못했습니다.", true);
     }

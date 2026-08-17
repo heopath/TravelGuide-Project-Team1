@@ -124,6 +124,11 @@ public enum ErrorCode {
             "같은 DAY에 이미 추가된 장소입니다."
     ),
 
+    ITINERARY_TIME_CONFLICT(
+            HttpStatus.CONFLICT,
+            "기존 일정과 시간이 겹쳐 추가할 수 없습니다."
+    ),
+
     INVALID_FLIGHT_LEG(
             HttpStatus.BAD_REQUEST,
             "항공 구간은 가는 편(0) 또는 오는 편(1)만 지정할 수 있습니다."
