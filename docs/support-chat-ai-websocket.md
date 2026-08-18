@@ -116,11 +116,13 @@ support_chat_messages.sender_type -- USER · BOT · ADMIN (BOT 메시지는 send
    **이 설정이 빠지면 WebSocket 핸드셰이크가 로컬에서는 되고 운영에서는 실패하는(502/400) 상황이 됩니다.** 이 저장소에는 nginx 설정 파일이 없어(위키에서 관리) 직접 확인하지 못했으므로, 배포 전에 위키/EC2에서 실제 설정을 확인해야 합니다.
 2. **다중 인스턴스로 바뀌면 이 결론을 다시 봐야 합니다.** 지금은 없지만, 나중에 트래픽이 늘어 로드밸런서 + 다중 인스턴스 구조로 바뀌면 그때는 (a) 같은 클라이언트를 같은 인스턴스로 고정하는 스티키 세션, 또는 (b) 인스턴스 간 메시지를 전달할 브로커(예: Redis Pub/Sub — 이미 예약 대기열(`RedisBookingQueueStore`)에서 Redis를 쓰고 있어 재사용 후보)가 필요해집니다. **지금 시점에 미리 만들면 오버엔지니어링이라 범위 밖으로 둡니다.**
 
+**브로커(확정, heopath 리뷰)**: 단일 인스턴스인 지금은 Spring이 기본 제공하는 **내장(in-memory) 심플 브로커**로 시작합니다. RabbitMQ 같은 외부 STOMP 브로커는 다중 인스턴스로 바뀔 때(위 2번) 다시 검토합니다.
+
 ## 설계
 
 ### 1. 봇 연동 지점
 
-`domain.ai`에 이미 `AiModelClient` 인터페이스와 두 구현체(`GeminiAiModelClient`, `CohereAiModelClient`)가 있습니다. 여행 일정 프롬프트 전용으로 짜여 있어 그대로 재사용하기는 어렵고, 같은 `ChatModel`/Cohere 클라이언트 설정을 공유하되 **상담용 프롬프트를 별도로 갖는 구현체**가 필요해 보입니다(가칭 `SupportChatBotClient`, `domain.support` 아래).
+**확정(heopath 리뷰, [PR #263](https://github.com/heopath/TravelGuide-Project-Team1/pull/263)): Gemini를 사용하되, 기존 AI 여행 가이드 프롬프트는 재사용하지 않습니다.** `domain.ai`의 `AiModelClient`/`GeminiAiModelClient`는 여행 일정 프롬프트 전용으로 짜여 있어 그대로 쓰기 어렵고, 같은 `ChatModel` 빈 설정은 공유하되 **상담 전용 `SupportChatBotClient`와 별도 시스템 프롬프트**로 분리합니다(`domain.support` 아래).
 
 흐름 제안:
 
@@ -138,14 +140,22 @@ SupportChatService.sendAsUser()
 
 > 봇이 붙으면 이 화면은 고칠 것이 없다.
 
-즉 관리자 쪽 코드는 그대로 두고, `SupportChatService`의 손님 쪽 메서드 몇 개만 손대면 됩니다.
+즉 관리자 쪽 코드는 그대로 두고, `SupportChatService`의 손님 쪽 메서드 몇 개만 손대면 됩니다. **다만 위 흐름은 단순화된 그림이고, 실제로는 아래 "Gemini 응답과 관리자 takeover 경쟁 조건"의 재확인 절차가 반드시 필요합니다.**
 
-### 2. WebSocket 설계 (제안, 미확정)
+**봇 → `WAITING` 전환 기준(heopath 리뷰로 확정)**: 아래 네 가지 중 하나면 봇이 멈추고 사람 대기로 넘어갑니다.
+
+- 손님이 명시적으로 상담원 연결을 요청
+- Gemini 호출 실패 또는 시간 초과
+- 상담 정책 범위 밖의 질문
+- 같은 문제가 반복돼 해결되지 않음
+
+### 2. WebSocket 설계
 
 - `build.gradle`에 `spring-boot-starter-websocket` 추가 필요.
 - STOMP over SockJS 제안 — 예: 핸드셰이크 `/ws/support-chat`, 구독 `/topic/support-chat/rooms/{roomId}`, 발행 `/app/support-chat/{roomId}/send`. **구체적인 경로 이름은 팀 논의 후 확정합니다.**
-- 인증: 이 프로젝트는 세션·쿠키 인증을 씁니다. STOMP 핸드셰이크가 기존 `JSESSIONID` 쿠키를 그대로 탈 수 있는지, 아니면 별도 처리가 필요한지 확인이 필요합니다(미정).
-- 기존 REST 엔드포인트(`open`/`messages`/`takeover`/`close`)는 유지하고, **"새 메시지 도착을 실시간으로 알리는 부분"만 WebSocket으로 바꾸는 방향을 우선 검토**합니다. 메시지 발신 자체를 WebSocket으로 옮길지는 아래 "정할 것" 참고.
+- **인증(확정)**: 별도 JWT를 추가하지 않고 기존 `JSESSIONID` 세션 인증을 WebSocket 핸드셰이크에서 그대로 재사용합니다. STOMP `CONNECT` 프레임에는 기존 CSRF 토큰을 포함하고, 동일 출처(same-origin) 요청만 허용합니다.
+- **발신 경로(확정)**: 1차 구현은 기존 REST POST(`open`/`messages`/`takeover`/`close`)를 그대로 유지합니다. **새 메시지·방 상태 변경 "수신"만 WebSocket으로 전환**합니다. 기존 인증·CSRF·검증·공통 오류 응답을 그대로 활용할 수 있어 구현 범위와 회귀 위험이 작습니다. 발신도 WebSocket으로 옮기는 건 추후 필요해지면 검토합니다.
+- **구독 권한 검사(필수, 구현 시 반드시 반영)**: `/topic/support-chat/rooms/{roomId}` 구독을 아무나 허용하면 안 됩니다. 일반 사용자는 자신의 방만, 관리자는 `ROLE_ADMIN`만 구독할 수 있어야 하고, **이 판단은 클라이언트가 보내는 `roomId`/사용자 ID/`senderType`을 신뢰하지 않고 서버가 세션에서 얻은 `Principal`로만 해야 합니다.**
 
 ### 3. 프론트-백엔드 데이터 형식 (제안)
 
@@ -195,16 +205,54 @@ SupportChatService.sendAsUser()
 
 `status`/`senderType`은 REST와 동일한 값 집합(`BOT`/`WAITING`/`ASSIGNED`/`CLOSED`, `USER`/`BOT`/`ADMIN`)을 그대로 씁니다. 서버 구현은 `SimpMessagingTemplate.convertAndSend()`로 기존 DTO 인스턴스를 그대로 넘기면 되므로, 직렬화 로직을 새로 짤 필요가 없습니다.
 
-**오류 전달(제안, 미정)** — 권한 없는 방 구독 시도, 메시지 검증 실패(2000자 초과 등) 같은 개인별 오류는 Spring STOMP의 사용자 전용 큐(`/user/queue/support-chat/errors`)로 보내는 방향을 검토합니다. 구체적인 오류 코드 형식은 "정할 것"에 남겨둡니다.
+**오류 전달(확정, heopath 리뷰)** — 오류를 세 층으로 나눕니다.
 
-### 4. 상태 전이
+1. **REST 오류**: 기존 `ErrorResponse(success/code/message/data/errors)`를 그대로 유지합니다. WebSocket 도입과 무관합니다.
+2. **WebSocket의 복구 가능한 오류**(권한 없는 방 구독 시도, 메시지 검증 실패 등): 사용자 전용 큐 `/user/queue/support-chat/errors`로 아래 형식을 보냅니다.
+
+   ```json
+   { "type": "VALIDATION_ERROR", "code": "INVALID_SUPPORT_CHAT_REQUEST", "message": "메시지는 2000자 이하여야 합니다.", "retryable": false }
+   ```
+
+3. **연결·프로토콜 자체 오류**(핸드셰이크 실패 등): STOMP `ERROR` 프레임을 그대로 사용합니다.
+
+### 4. 보안 — 신뢰 경계
+
+WebSocket 메시지는 REST 요청과 달리 클라이언트가 페이로드에 `roomId`, `senderType`, 심지어 다른 사용자의 ID까지 마음대로 채워 보낼 수 있습니다. **서버는 이 값을 절대 그대로 믿지 않습니다.**
+
+- 구독(`/topic/support-chat/rooms/{roomId}`)과 발행 양쪽 모두, 누구인지는 STOMP 세션에 연결된 `Principal`(로그인 세션)에서만 가져옵니다.
+- 일반 사용자는 `SupportChatDAO.findOpenRoomByUser()`로 확인되는 **자기 방만** 구독할 수 있습니다.
+- 관리자는 `ROLE_ADMIN`이어야 방 목록에 있는 어떤 방이든 구독할 수 있습니다.
+- 클라이언트가 보낸 `senderType: "ADMIN"` 같은 값은 절대 그대로 저장하지 않고, 서버가 `Principal`의 역할을 보고 직접 결정합니다.
+
+### 5. Gemini 응답과 관리자 takeover 경쟁 조건
+
+봇 응답은 비동기이므로, **손님 메시지 저장과 봇 응답 저장 사이에 관리자가 `takeover()`를 부를 수 있습니다.** 그대로 두면 관리자가 이미 응대를 시작한 방에 봇 답변이 뒤늦게 끼어드는 사고가 납니다.
+
+- `Gemini` 호출은 **DB 트랜잭션 안에서 기다리지 않습니다** — 외부 API 호출을 트랜잭션으로 묶으면 커넥션을 오래 붙잡습니다.
+- 봇 응답을 저장하기 **직전에 방 상태를 다시 조회**해, 여전히 `BOT`일 때만 메시지를 저장합니다. 그 사이 `ASSIGNED`로 바뀌었다면 봇 응답은 버립니다(저장하지 않음).
+
+```text
+1. 손님 메시지 저장 (status=BOT 확인)
+2. Gemini 호출 (트랜잭션 밖, 비동기)
+3. 응답 도착 → 방 상태 재조회
+4. 여전히 BOT이면 → 저장 + WebSocket 브로드캐스트
+   ASSIGNED로 바뀌었으면 → 버림 (관리자가 이미 응대 중)
+```
+
+### 6. 재연결 동기화
+
+WebSocket 연결이 끊겼다가 재연결되면 그 사이의 이벤트(메시지, 상태 변경)를 놓칠 수 있습니다. **재연결 직후 WebSocket을 다시 구독하기 전에, 먼저 기존 REST(`GET /api/v1/support/chat` 또는 `GET /api/v1/admin/support-chats/{roomId}`)로 방 전체를 한 번 동기화**해 화면을 최신 상태로 맞춘 다음 구독을 재개합니다. 이 흐름은 "완료 기준"에 포함합니다.
+
+### 7. 상태 전이
 
 ```text
 방 생성 → BOT (봇이 자동 응답)
             │
             ├─ 관리자가 "내가 응대하기" ──▶ ASSIGNED (사람이 응대)
             │
-            └─ (제안, 미정) 봇이 답을 못 찾음 ──▶ WAITING (사람 대기)
+            └─ 봇 → WAITING 전환 기준(위 "1. 봇 연동 지점" 참고: 상담원 요청 /
+               Gemini 실패·시간 초과 / 정책 범위 밖 / 반복 미해결) ──▶ WAITING (사람 대기)
 
 ASSIGNED / WAITING → 관리자가 "상담 종료" ──▶ CLOSED
 ```
@@ -214,14 +262,22 @@ ASSIGNED / WAITING → 관리자가 "상담 종료" ──▶ CLOSED
 - **이미 해결됨** — `support_chat_messages`가 append-only 로그이고, 봇 메시지도 같은 테이블에 `sender_type='BOT'`으로 쌓입니다. 새 테이블·컬럼이 필요 없습니다.
 - `takeover()`(응대 이관)를 `admin_audit_logs`에 남길지는 별도 논의 대상입니다 — 현재 `SupportChatService.takeover()`는 감사 로그를 남기지 않습니다.
 
-## 정할 것 (팀 논의 필요)
+## 정할 것
 
-1. **봇 프롬프트/모델** — AI 여행 가이드와 같은 Gemini/Cohere 키·설정을 재사용할지, 상담 전용 시스템 프롬프트를 어떻게 짤지.
-2. **봇이 답을 못 찾을 때** — 자동으로 `WAITING`(사람 대기)으로 넘길지, 계속 봇이 응대하며 손님이 직접 "상담원 연결"을 요청하게 할지.
-3. **WebSocket 인증 방식** — 세션 쿠키 재사용 가능 여부 확인.
-4. **발신 경로** — 메시지 전송도 WebSocket으로 옮길지, 지금처럼 REST POST로 보내고 수신(push)만 WebSocket으로 할지.
-5. **봇 응답 대기 중 UX** — 타이핑 표시 등이 필요한지.
-6. **오류 페이로드 형식** — 사용자 전용 오류 큐(`/user/queue/support-chat/errors`)를 쓸지, 어떤 필드(코드/메시지)를 담을지.
+**heopath 리뷰([PR #263](https://github.com/heopath/TravelGuide-Project-Team1/pull/263))로 대부분 확정됐습니다.** 확정된 내용은 해당 섹션에 반영했고, 아래는 남은 항목만 정리합니다.
+
+| # | 항목 | 상태 |
+| --- | --- | --- |
+| 1 | 봇 프롬프트/모델 | ✅ 확정 — "설계 &gt; 1. 봇 연동 지점" |
+| 2 | 봇이 답을 못 찾을 때 | ✅ 확정 — "설계 &gt; 1. 봇 연동 지점" |
+| 3 | WebSocket 인증 방식 | ✅ 확정 — "설계 &gt; 2. WebSocket 설계" |
+| 4 | 발신 경로 | ✅ 확정 — "설계 &gt; 2. WebSocket 설계" |
+| 5 | 봇 응답 대기 중 UX | **미정** — 아래 참고 |
+| 6 | 오류 페이로드 형식 | ✅ 확정 — "설계 &gt; 3. 프론트-백엔드 데이터 형식" |
+
+**남은 항목**
+
+- **봇 응답 대기 중 UX** — 타이핑 표시 등이 필요한지. 아직 논의되지 않았습니다.
 
 (WebSocket 채택 여부 자체는 "왜 WebSocket인가"에서 이미 확정됐으므로 여기서 다시 논의하지 않습니다.)
 
@@ -235,9 +291,11 @@ ASSIGNED / WAITING → 관리자가 "상담 종료" ──▶ CLOSED
 
 - [ ] 방 생성 시 `BOT` 상태로 시작하고 첫 메시지가 자동으로 달린다
 - [ ] 관리자가 응대를 넘겨받으면(`ASSIGNED`) 봇 응답이 멈춘다
-- [ ] "정할 것" 항목이 팀 논의를 거쳐 확정되고 이 문서에 반영된다
-- [ ] WebSocket 실시간 갱신이 동작한다(발신 경로 정책 확정 후)
+- [ ] Gemini 응답 저장 직전 방 상태를 재확인해, `takeover` 이후 봇 응답이 뒤늦게 저장되지 않는다(경쟁 조건 검증)
+- [ ] `/topic/support-chat/rooms/{roomId}` 구독이 서버의 `Principal` 기준으로만 허용된다(자기 방 아닌 손님, `ROLE_ADMIN` 아닌 사용자의 구독·발행 거부 검증)
+- [ ] WebSocket 재연결 시 REST로 전체 동기화 후 재구독하는 흐름이 동작한다(이벤트 유실 방지)
+- [ ] "봇 응답 대기 중 UX"(정할 것 남은 항목)가 팀 논의를 거쳐 확정되고 이 문서에 반영된다
+- [ ] WebSocket 실시간 갱신(수신)이 동작한다 — 발신은 1차에서 기존 REST POST 유지
 - [ ] 운영 nginx에 WebSocket 업그레이드 헤더 설정을 확인·추가한다(로컬에서만 되고 운영에서 실패하는 상황 방지)
-- [ ] 기존 REST API·폴링 화면과의 하위 호환 또는 교체 범위가 확정된다
 - [ ] `src/test/js`의 기존 상담 채팅 수용 테스트(`admin-chat-acceptance.test.js` 등)가 회귀 없이 통과한다
 - [ ] 팀 리뷰
