@@ -489,9 +489,38 @@ document.addEventListener("DOMContentLoaded", function () {
     return formatDuration(override?.durationMinutes);
   }
 
-  function saveScheduleTime(item, startTime, durationMinutes) {
+  function formatTimeFromMinutes(minutes) {
+    const normalized = Math.max(0, Math.min((24 * 60) - 1, Number(minutes) || 0));
+    return String(Math.floor(normalized / 60)).padStart(2, "0") + ":"
+      + String(normalized % 60).padStart(2, "0");
+  }
+
+  async function saveScheduleTime(item, startTime, durationMinutes) {
     const overrides = readScheduleTimeOverrides();
-    overrides[getScheduleTimeKey(item)] = {startTime, durationMinutes};
+    const key = getScheduleTimeKey(item);
+    const startMinutes = toMinutes(startTime);
+    const endTime = startMinutes === null ? null : formatTimeFromMinutes(startMinutes + durationMinutes);
+
+    // 저장 전 초안 항목은 아직 서버 ID가 없으므로 화면에서만 시간을 유지한다.
+    if (!item?.itineraryItemId || String(item.itineraryItemId).startsWith("draft-") || !item.tripDayId) {
+      overrides[key] = {startTime, durationMinutes};
+      sessionStorage.setItem(scheduleTimeStorageKey, JSON.stringify(overrides));
+      return;
+    }
+
+    const saved = await api("/api/v1/trip-days/" + encodeURIComponent(item.tripDayId)
+      + "/items/" + encodeURIComponent(item.itineraryItemId), {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        ...item,
+        startTime,
+        endTime,
+      }),
+    });
+
+    Object.assign(item, saved || {}, {startTime, endTime});
+    delete overrides[key];
     sessionStorage.setItem(scheduleTimeStorageKey, JSON.stringify(overrides));
   }
 
@@ -638,17 +667,21 @@ document.addEventListener("DOMContentLoaded", function () {
     minuteInput.addEventListener("blur", normalizeMinute);
     editor.querySelector(".schedule-time-close").addEventListener("click", closeTimeEditor);
     editor.querySelector(".schedule-time-cancel").addEventListener("click", closeTimeEditor);
-    editor.querySelector(".schedule-time-save").addEventListener("click", function () {
+    editor.querySelector(".schedule-time-save").addEventListener("click", async function () {
       normalizeHour();
       normalizeMinute();
       const startTime = hourInput.value + ":" + minuteInput.value;
       const durationMinutes = Number(durationSelect.value);
-      saveScheduleTime(item, startTime, durationMinutes);
-      timeButton.innerHTML = `<span aria-hidden="true">◷</span><span>${startTime}</span>`;
-      const durationTag = timeButton.closest(".schedule-item")?.querySelector(".schedule-item-duration");
-      if (durationTag) durationTag.textContent = formatDuration(durationMinutes);
-      closeTimeEditor();
-      toast("방문 시간이 저장되었습니다.");
+      try {
+        await saveScheduleTime(item, startTime, durationMinutes);
+        timeButton.innerHTML = `<span aria-hidden="true">◷</span><span>${startTime}</span>`;
+        const durationTag = timeButton.closest(".schedule-item")?.querySelector(".schedule-item-duration");
+        if (durationTag) durationTag.textContent = formatDuration(durationMinutes);
+        closeTimeEditor();
+        toast("방문 시간이 저장되었습니다.");
+      } catch (error) {
+        toast(error?.message || "방문 시간을 저장하지 못했습니다.");
+      }
     });
 
     clickedControl.appendChild(editor);
@@ -1483,11 +1516,23 @@ document.addEventListener("DOMContentLoaded", function () {
 
   function overlapsAiRecommendation(recommendation, scheduledItem) {
     const recommendationStart = toMinutes(recommendation?.time);
-    const existingStart = toMinutes(getItemStartTime(scheduledItem));
-    if (recommendationStart === null || existingStart === null) return false;
-    const existingEnd = toMinutes(scheduledItem?.endTime) ?? existingStart + 120;
+    const existingWindow = getScheduledItemTimeWindow(scheduledItem);
+    if (recommendationStart === null || !existingWindow) return false;
     const recommendationEnd = recommendationStart + 120;
-    return recommendationStart < existingEnd && existingStart < recommendationEnd;
+    return recommendationStart < existingWindow.end && existingWindow.start < recommendationEnd;
+  }
+
+  function getScheduledItemTimeWindow(scheduledItem) {
+    const override = readScheduleTimeOverrides()[getScheduleTimeKey(scheduledItem)];
+    const start = toMinutes(override?.startTime || scheduledItem?.startTime);
+    if (start === null) return null;
+
+    const overrideDuration = Number(override?.durationMinutes);
+    const storedEnd = toMinutes(scheduledItem?.endTime);
+    const end = Number.isFinite(overrideDuration) && overrideDuration > 0
+      ? start + overrideDuration
+      : (storedEnd !== null && storedEnd > start ? storedEnd : start + 120);
+    return {start, end};
   }
 
   async function getAiRecommendationTimeConflicts(recommendations, recommendedDayNumber) {

@@ -38,7 +38,6 @@ public class CohereAiModelClient implements AiModelClient {
     private static final int MAX_ITEMS_PER_DAY = 10;
     private static final int RECOMMENDATION_DURATION_MINUTES = 120;
     private static final int TIME_SLOT_MINUTES = 30;
-    private static final int EARLIEST_RECOMMENDATION_MINUTES = 6 * 60;
     private static final int LATEST_RECOMMENDATION_START_MINUTES = 22 * 60;
     private static final Pattern TIME_PATTERN = Pattern.compile("^([01]\\d|2[0-3]):[0-5]\\d$");
     private static final DateTimeFormatter TIME_FORMATTER = DateTimeFormatter.ofPattern("HH:mm");
@@ -375,11 +374,6 @@ public class CohereAiModelClient implements AiModelClient {
     private Integer findAvailableStart(int requestedStart, List<TimeWindow> occupied) {
         int firstCandidate = roundUpToTimeSlot(requestedStart);
         for (int candidate = firstCandidate; candidate <= LATEST_RECOMMENDATION_START_MINUTES; candidate += TIME_SLOT_MINUTES) {
-            if (isAvailable(candidate, occupied)) {
-                return candidate;
-            }
-        }
-        for (int candidate = EARLIEST_RECOMMENDATION_MINUTES; candidate < firstCandidate; candidate += TIME_SLOT_MINUTES) {
             if (isAvailable(candidate, occupied)) {
                 return candidate;
             }

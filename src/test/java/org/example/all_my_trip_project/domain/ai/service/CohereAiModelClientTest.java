@@ -118,6 +118,30 @@ class CohereAiModelClientTest {
         assertThat(response.days().getFirst().items().getFirst().time()).isEqualTo("14:30");
     }
 
+    @Test
+    void generateKeepsLateRecommendationWhenNoLaterTwoHourSlotExists() throws Exception {
+        stubResponse(200, """
+                {"message":{"content":[{"type":"text","text":"{\\"answer\\":\\"추천 일정\\",\\"days\\":[{\\"day\\":1,\\"title\\":\\"DAY 1\\",\\"items\\":[{\\"time\\":\\"23:00\\",\\"name\\":\\"늦은 카페\\",\\"reason\\":\\"야간 이용\\"}]}]}"}]}}
+                """);
+
+        AiGuideResponse response = client.generate(new AiGuideRequest("23시 카페 추천", 1L),
+                List.of(), new AiGuideContext(null, List.of()));
+
+        assertThat(response.days().getFirst().items().getFirst().time()).isEqualTo("23:00");
+    }
+
+    @Test
+    void generateKeepsEarlyRecommendationWhenItDoesNotOverlap() throws Exception {
+        stubResponse(200, """
+                {"message":{"content":[{"type":"text","text":"{\\"answer\\":\\"추천 일정\\",\\"days\\":[{\\"day\\":1,\\"title\\":\\"DAY 1\\",\\"items\\":[{\\"time\\":\\"05:30\\",\\"name\\":\\"이른 산책\\",\\"reason\\":\\"새벽 일정\\"}]}]}"}]}}
+                """);
+
+        AiGuideResponse response = client.generate(new AiGuideRequest("이른 아침 산책", 1L),
+                List.of(), new AiGuideContext(null, List.of()));
+
+        assertThat(response.days().getFirst().items().getFirst().time()).isEqualTo("05:30");
+    }
+
     @SuppressWarnings("unchecked")
     private void stubResponse(int status, String body) throws Exception {
         HttpResponse<String> response = mock(HttpResponse.class);
