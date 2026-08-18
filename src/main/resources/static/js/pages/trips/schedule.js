@@ -676,6 +676,7 @@ document.addEventListener("DOMContentLoaded", function () {
     if (!response.ok || !payload?.success) {
       const error = new Error(payload?.message || payload?.detail || "요청을 처리하지 못했습니다.");
       error.status = response.status;
+      error.code = payload?.code;
       throw error;
     }
     return payload.data;
@@ -1819,7 +1820,11 @@ document.addEventListener("DOMContentLoaded", function () {
     } catch (error) {
       saveButton.disabled = false;
       saveButton.textContent = "▣ 여행 저장하기";
-      toast(error.message || "여행 저장에 실패했습니다.");
+      if (error.code === "TRIP_PERIOD_CONFLICT") {
+        toast("기간 밖 일차에 일정이 있어 변경할 수 없습니다. 일정을 이동하거나 삭제한 후 다시 시도해 주세요.");
+      } else {
+        toast(error.message || "여행 저장에 실패했습니다.");
+      }
     } finally {
       savingTrip = false;
     }
