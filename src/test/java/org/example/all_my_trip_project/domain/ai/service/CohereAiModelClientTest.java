@@ -119,13 +119,21 @@ class CohereAiModelClientTest {
     }
 
     @Test
-    void generateKeepsLateRecommendationWhenNoLaterTwoHourSlotExists() throws Exception {
+    void generateKeepsLateRecommendationWhenNoLaterTwoHourSlotExistsInTripContext() throws Exception {
         stubResponse(200, """
                 {"message":{"content":[{"type":"text","text":"{\\"answer\\":\\"추천 일정\\",\\"days\\":[{\\"day\\":1,\\"title\\":\\"DAY 1\\",\\"items\\":[{\\"time\\":\\"23:00\\",\\"name\\":\\"늦은 카페\\",\\"reason\\":\\"야간 이용\\"}]}]}"}]}}
                 """);
 
+        AiGuideContext.Item existingItem = new AiGuideContext.Item(
+                2L, "기존 저녁", LocalTime.of(21, 0), LocalTime.of(23, 0), "PLACE", null);
+        AiGuideContext.Day day = new AiGuideContext.Day(
+                1, LocalDate.of(2026, 8, 14), "DAY 1", null, List.of(existingItem));
+        AiGuideContext.Trip trip = new AiGuideContext.Trip(
+                1L, "부산 여행", "부산", LocalDate.of(2026, 8, 14), LocalDate.of(2026, 8, 15),
+                null, null, null, null, null, null, null, null, null, List.of(day));
+
         AiGuideResponse response = client.generate(new AiGuideRequest("23시 카페 추천", 1L),
-                List.of(), new AiGuideContext(null, List.of()));
+                List.of(), new AiGuideContext(trip, List.of()));
 
         assertThat(response.days().getFirst().items().getFirst().time()).isEqualTo("23:00");
     }

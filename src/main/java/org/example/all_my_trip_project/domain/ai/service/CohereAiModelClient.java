@@ -38,7 +38,9 @@ public class CohereAiModelClient implements AiModelClient {
     private static final int MAX_ITEMS_PER_DAY = 10;
     private static final int RECOMMENDATION_DURATION_MINUTES = 120;
     private static final int TIME_SLOT_MINUTES = 30;
-    private static final int LATEST_RECOMMENDATION_START_MINUTES = 22 * 60;
+    // 일정 화면은 종료 시각이 24:00과 같아지는 경우도 자정 초과로 취급한다.
+    // AI 추천도 같은 기준을 사용하므로 2시간 체류 기준 마지막 시작 시각은 21:30이다.
+    private static final int LATEST_RECOMMENDATION_START_MINUTES = 21 * 60 + 30;
     private static final Pattern TIME_PATTERN = Pattern.compile("^([01]\\d|2[0-3]):[0-5]\\d$");
     private static final DateTimeFormatter TIME_FORMATTER = DateTimeFormatter.ofPattern("HH:mm");
     private static final List<AiGuideResponse.ExternalLink> DEFAULT_EXTERNAL_LINKS = List.of(
@@ -383,7 +385,7 @@ public class CohereAiModelClient implements AiModelClient {
 
     private boolean isAvailable(int start, List<TimeWindow> occupied) {
         int end = start + RECOMMENDATION_DURATION_MINUTES;
-        return end <= 24 * 60 && occupied.stream().noneMatch(window -> start < window.end() && window.start() < end);
+        return end < 24 * 60 && occupied.stream().noneMatch(window -> start < window.end() && window.start() < end);
     }
 
     private int roundUpToTimeSlot(int minutes) {

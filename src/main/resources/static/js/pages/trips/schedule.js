@@ -25,6 +25,8 @@ document.addEventListener("DOMContentLoaded", function () {
   let lastOptimizationCriterion = "TIME";
   let allScheduleVisible = false;
   const maxItineraryItemsPerDay = 5;
+  const aiRecommendationDurationMinutes = 120;
+  const dayMinutes = 24 * 60;
   const itineraryItemLimitMessage = "하루 일정은 최대 5개까지 추가할 수 있습니다.";
   const placeCategoryNames = new Map();
   const placeCategoryStorageKey = "allMyTrips.kakaoPlaceCategoryNames";
@@ -1532,8 +1534,22 @@ document.addEventListener("DOMContentLoaded", function () {
     const recommendationStart = toMinutes(recommendation?.time);
     const existingWindow = getScheduledItemTimeWindow(scheduledItem);
     if (recommendationStart === null || !existingWindow) return false;
-    const recommendationEnd = recommendationStart + 120;
+    const recommendationEnd = recommendationStart + aiRecommendationDurationMinutes;
     return recommendationStart < existingWindow.end && existingWindow.start < recommendationEnd;
+  }
+
+  // 시간 편집기와 동일하게 24:00은 허용하지 않는다. AI 추천은 기본 2시간을 점유한다.
+  function isAiRecommendationOutsideDay(recommendation) {
+    const recommendationStart = toMinutes(recommendation?.time);
+    return recommendationStart === null
+      || recommendationStart + aiRecommendationDurationMinutes >= dayMinutes;
+  }
+
+  function getAiRecommendationUnavailableTimePlaceIds(recommendations) {
+    return new Set((recommendations || [])
+      .filter(isAiRecommendationOutsideDay)
+      .map(verifiedRecommendationPlaceId)
+      .filter(Boolean));
   }
 
   function getScheduledItemTimeWindow(scheduledItem) {
@@ -1583,7 +1599,8 @@ document.addEventListener("DOMContentLoaded", function () {
     const storedPlaceIds = new Set(targetItems.map(function (item) { return Number(item.placeId); }));
     const handledPlaceIds = new Set();
     const timeConflictPlaceIds = await getAiRecommendationTimeConflicts(recommendations, recommendedDayNumber);
-    const result = {added: 0, alreadyAdded: 0, timeConflicts: 0, failed: []};
+    const unavailableTimePlaceIds = getAiRecommendationUnavailableTimePlaceIds(recommendations);
+    const result = {added: 0, alreadyAdded: 0, timeConflicts: 0, unavailableTimes: 0, failed: []};
     let nextSortOrder = targetItems.reduce(function (max, item) {
       return Math.max(max, Number(item.sortOrder) || 0);
     }, 0) + 1;
@@ -1596,6 +1613,11 @@ document.addEventListener("DOMContentLoaded", function () {
       }
       if (storedPlaceIds.has(placeId) || handledPlaceIds.has(placeId)) {
         result.alreadyAdded += 1;
+        handledPlaceIds.add(placeId);
+        continue;
+      }
+      if (unavailableTimePlaceIds.has(placeId)) {
+        result.unavailableTimes += 1;
         handledPlaceIds.add(placeId);
         continue;
       }
@@ -1635,7 +1657,8 @@ document.addEventListener("DOMContentLoaded", function () {
           continue;
         }
         if (error.code === "ITINERARY_TIME_CONFLICT") {
-          result.timeConflicts += 1;
+          if (unavailableTimePlaceIds.has(placeId)) result.unavailableTimes += 1;
+          else result.timeConflicts += 1;
           handledPlaceIds.add(placeId);
           continue;
         }
@@ -1656,6 +1679,7 @@ document.addEventListener("DOMContentLoaded", function () {
   window.AllMyTripsSchedule = {
     getAiRecommendationStates,
     getAiRecommendationTimeConflicts,
+    getAiRecommendationUnavailableTimePlaceIds,
     addAiRecommendations,
     addAiRecommendation: async function (recommendation, recommendedDayNumber) {
       const placeId = verifiedRecommendationPlaceId(recommendation);
