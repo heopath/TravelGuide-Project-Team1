@@ -25,6 +25,8 @@ document.addEventListener("DOMContentLoaded", function () {
   let lastOptimizationCriterion = "TIME";
   let allScheduleVisible = false;
   const maxItineraryItemsPerDay = 5;
+  const aiRecommendationDurationMinutes = 120;
+  const dayMinutes = 24 * 60;
   const itineraryItemLimitMessage = "하루 일정은 최대 5개까지 추가할 수 있습니다.";
   const placeCategoryNames = new Map();
   const placeCategoryStorageKey = "allMyTrips.kakaoPlaceCategoryNames";
@@ -485,13 +487,56 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   function getItemDuration(item) {
-    const override = readScheduleTimeOverrides()[getScheduleTimeKey(item)];
-    return formatDuration(override?.durationMinutes);
+    return formatDuration(getItemDurationMinutes(item));
   }
 
-  function saveScheduleTime(item, startTime, durationMinutes) {
+  function getItemDurationMinutes(item, fallbackMinutes) {
+    const override = readScheduleTimeOverrides()[getScheduleTimeKey(item)];
+    const overrideDuration = Number(override?.durationMinutes);
+    if (Number.isFinite(overrideDuration) && overrideDuration > 0) {
+      return overrideDuration;
+    }
+
+    const start = toMinutes(item?.startTime);
+    const end = toMinutes(item?.endTime);
+    if (start !== null && end !== null && end > start) {
+      return end - start;
+    }
+
+    return fallbackMinutes;
+  }
+
+  async function saveScheduleTime(item, startTime, durationMinutes) {
     const overrides = readScheduleTimeOverrides();
-    overrides[getScheduleTimeKey(item)] = {startTime, durationMinutes};
+    const key = getScheduleTimeKey(item);
+    const startMinutes = toMinutes(startTime);
+    const endMinutes = startMinutes === null ? null : startMinutes + durationMinutes;
+    if (startMinutes === null || !Number.isFinite(endMinutes) || endMinutes >= 24 * 60) {
+      throw new Error("자정을 넘는 일정은 현재 저장할 수 없습니다. 종료 시각을 자정 이전으로 설정해 주세요.");
+    }
+    const endTime = String(Math.floor(endMinutes / 60)).padStart(2, "0") + ":"
+      + String(endMinutes % 60).padStart(2, "0");
+
+    // 저장 전 초안 항목은 아직 서버 ID가 없으므로 화면에서만 시간을 유지한다.
+    if (!item?.itineraryItemId || String(item.itineraryItemId).startsWith("draft-") || !item.tripDayId) {
+      overrides[key] = {startTime, durationMinutes};
+      sessionStorage.setItem(scheduleTimeStorageKey, JSON.stringify(overrides));
+      return;
+    }
+
+    const saved = await api("/api/v1/trip-days/" + encodeURIComponent(item.tripDayId)
+      + "/items/" + encodeURIComponent(item.itineraryItemId), {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        ...item,
+        startTime,
+        endTime,
+      }),
+    });
+
+    Object.assign(item, saved || {}, {startTime, endTime});
+    delete overrides[key];
     sessionStorage.setItem(scheduleTimeStorageKey, JSON.stringify(overrides));
   }
 
@@ -595,7 +640,7 @@ document.addEventListener("DOMContentLoaded", function () {
     const hourInput = editor.querySelector("[data-time-hour]");
     const minuteInput = editor.querySelector("[data-time-minute]");
     const durationSelect = editor.querySelector("[data-duration]");
-    durationSelect.value = String(override.durationMinutes || 120);
+    durationSelect.value = String(getItemDurationMinutes(item, 120));
 
     function padTime(value) { return String(value).padStart(2, "0"); }
     function normalizeHour() {
@@ -638,17 +683,21 @@ document.addEventListener("DOMContentLoaded", function () {
     minuteInput.addEventListener("blur", normalizeMinute);
     editor.querySelector(".schedule-time-close").addEventListener("click", closeTimeEditor);
     editor.querySelector(".schedule-time-cancel").addEventListener("click", closeTimeEditor);
-    editor.querySelector(".schedule-time-save").addEventListener("click", function () {
+    editor.querySelector(".schedule-time-save").addEventListener("click", async function () {
       normalizeHour();
       normalizeMinute();
       const startTime = hourInput.value + ":" + minuteInput.value;
       const durationMinutes = Number(durationSelect.value);
-      saveScheduleTime(item, startTime, durationMinutes);
-      timeButton.innerHTML = `<span aria-hidden="true">◷</span><span>${startTime}</span>`;
-      const durationTag = timeButton.closest(".schedule-item")?.querySelector(".schedule-item-duration");
-      if (durationTag) durationTag.textContent = formatDuration(durationMinutes);
-      closeTimeEditor();
-      toast("방문 시간이 저장되었습니다.");
+      try {
+        await saveScheduleTime(item, startTime, durationMinutes);
+        timeButton.innerHTML = `<span aria-hidden="true">◷</span><span>${startTime}</span>`;
+        const durationTag = timeButton.closest(".schedule-item")?.querySelector(".schedule-item-duration");
+        if (durationTag) durationTag.textContent = formatDuration(durationMinutes);
+        closeTimeEditor();
+        toast("방문 시간이 저장되었습니다.");
+      } catch (error) {
+        toast(error?.message || "방문 시간을 저장하지 못했습니다.");
+      }
     });
 
     clickedControl.appendChild(editor);
@@ -1477,18 +1526,44 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   function toMinutes(value) {
-    if (!/^([01]\\d|2[0-3]):[0-5]\\d$/.test(value || "")) return null;
-    const parts = value.split(":");
-    return Number(parts[0]) * 60 + Number(parts[1]);
+    const matched = String(value || "").trim().match(/^([01]\\d|2[0-3]):([0-5]\\d)(?::[0-5]\\d)?$/);
+    if (!matched) return null;
+    return Number(matched[1]) * 60 + Number(matched[2]);
   }
 
   function overlapsAiRecommendation(recommendation, scheduledItem) {
     const recommendationStart = toMinutes(recommendation?.time);
-    const existingStart = toMinutes(scheduledItem?.startTime);
-    if (recommendationStart === null || existingStart === null) return false;
-    const existingEnd = toMinutes(scheduledItem?.endTime) ?? existingStart + 120;
-    const recommendationEnd = recommendationStart + 120;
-    return recommendationStart < existingEnd && existingStart < recommendationEnd;
+    const existingWindow = getScheduledItemTimeWindow(scheduledItem);
+    if (recommendationStart === null || !existingWindow) return false;
+    const recommendationEnd = recommendationStart + aiRecommendationDurationMinutes;
+    return recommendationStart < existingWindow.end && existingWindow.start < recommendationEnd;
+  }
+
+  // 시간 편집기와 동일하게 24:00은 허용하지 않는다. AI 추천은 기본 2시간을 점유한다.
+  function isAiRecommendationOutsideDay(recommendation) {
+    const recommendationStart = toMinutes(recommendation?.time);
+    return recommendationStart === null
+      || recommendationStart + aiRecommendationDurationMinutes >= dayMinutes;
+  }
+
+  function getAiRecommendationUnavailableTimePlaceIds(recommendations) {
+    return new Set((recommendations || [])
+      .filter(isAiRecommendationOutsideDay)
+      .map(verifiedRecommendationPlaceId)
+      .filter(Boolean));
+  }
+
+  function getScheduledItemTimeWindow(scheduledItem) {
+    const override = readScheduleTimeOverrides()[getScheduleTimeKey(scheduledItem)];
+    const start = toMinutes(override?.startTime || scheduledItem?.startTime);
+    if (start === null) return null;
+
+    const overrideDuration = Number(override?.durationMinutes);
+    const storedEnd = toMinutes(scheduledItem?.endTime);
+    const end = Number.isFinite(overrideDuration) && overrideDuration > 0
+      ? start + overrideDuration
+      : (storedEnd !== null && storedEnd > start ? storedEnd : start + 120);
+    return {start, end};
   }
 
   async function getAiRecommendationTimeConflicts(recommendations, recommendedDayNumber) {
@@ -1525,7 +1600,8 @@ document.addEventListener("DOMContentLoaded", function () {
     const storedPlaceIds = new Set(targetItems.map(function (item) { return Number(item.placeId); }));
     const handledPlaceIds = new Set();
     const timeConflictPlaceIds = await getAiRecommendationTimeConflicts(recommendations, recommendedDayNumber);
-    const result = {added: 0, alreadyAdded: 0, timeConflicts: 0, failed: []};
+    const unavailableTimePlaceIds = getAiRecommendationUnavailableTimePlaceIds(recommendations);
+    const result = {added: 0, alreadyAdded: 0, timeConflicts: 0, unavailableTimes: 0, failed: []};
     let nextSortOrder = targetItems.reduce(function (max, item) {
       return Math.max(max, Number(item.sortOrder) || 0);
     }, 0) + 1;
@@ -1538,6 +1614,11 @@ document.addEventListener("DOMContentLoaded", function () {
       }
       if (storedPlaceIds.has(placeId) || handledPlaceIds.has(placeId)) {
         result.alreadyAdded += 1;
+        handledPlaceIds.add(placeId);
+        continue;
+      }
+      if (unavailableTimePlaceIds.has(placeId)) {
+        result.unavailableTimes += 1;
         handledPlaceIds.add(placeId);
         continue;
       }
@@ -1577,7 +1658,8 @@ document.addEventListener("DOMContentLoaded", function () {
           continue;
         }
         if (error.code === "ITINERARY_TIME_CONFLICT") {
-          result.timeConflicts += 1;
+          if (unavailableTimePlaceIds.has(placeId)) result.unavailableTimes += 1;
+          else result.timeConflicts += 1;
           handledPlaceIds.add(placeId);
           continue;
         }
@@ -1598,6 +1680,7 @@ document.addEventListener("DOMContentLoaded", function () {
   window.AllMyTripsSchedule = {
     getAiRecommendationStates,
     getAiRecommendationTimeConflicts,
+    getAiRecommendationUnavailableTimePlaceIds,
     addAiRecommendations,
     addAiRecommendation: async function (recommendation, recommendedDayNumber) {
       const placeId = verifiedRecommendationPlaceId(recommendation);

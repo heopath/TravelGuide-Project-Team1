@@ -53,6 +53,13 @@
   let bookingSummary = null;
   let bookingSummaryError = null;
   /*
+   * 티켓은 여행에 묶이지 않는다(#255). 그래서 여행 기준 요약(booking-summary)이 아니라
+   * 사용자 기준으로 따로 받는다. 여행을 안 고르고 담은 티켓도 이 탭에서 결제할 수 있어야
+   * 한다 — 예전에는 여행이 없으면 목록 자체가 비어 결제할 길이 없었다. (#276)
+   */
+  let ticketReservations = null;
+  let ticketReservationsError = null;
+  /*
    * 예약별 발급 티켓. 결제 응답에 담겨 온 것을 그대로 들고 있는다.
    *
    * 입장 코드(verificationToken)는 결제 응답에만 들어 있고 목록 조회로는 다시 받을 수 없다.
@@ -378,11 +385,104 @@
     return (bookingSummary?.errors || []).find((error) => error.section === section)?.message || "";
   }
 
+  const ticketStatusLabels = {
+    PENDING: "결제 대기",
+    CONFIRMED: "결제 완료",
+    CANCELLED: "취소됨",
+    EXPIRED: "만료됨",
+    USED: "사용 완료",
+  };
+
+  /**
+   * 사용자 기준으로 받은 예약을 요약 항목과 같은 모양으로 바꾼다.
+   *
+   * <p>상태 이름을 화면에서 직접 붙인다. 서버 요약을 거치면 알 수 없는 값이 왔을 때
+   * `모의 예약`으로 뭉뚱그려지고, 그러면 결제·취소 버튼이 통째로 사라진다.
+   */
+  function ticketItems(fallback) {
+    const fromServer = (ticketReservations || [])
+      .filter((item) => !["CANCELLED", "EXPIRED"].includes(item.status));
+
+    /*
+     * 방금 담은 티켓은 화면 상태에만 있고 서버 목록에는 아직 없다. 목록을 다시 받기 전에도
+     * 바로 보여야 하므로, 서버에 없으면 화면이 들고 있는 것을 함께 쓴다.
+     */
+    const known = new Set(fromServer.map((item) => String(item.reservationId)));
+    const local = ticketReservation
+      && !known.has(String(ticketReservation.reservationId))
+      && !["CANCELLED", "EXPIRED"].includes(ticketReservation.status)
+      ? [ticketReservation]
+      : [];
+
+    /*
+     * 사용자 기준 조회가 실패했거나(로그인 전 등) 아직 안 왔으면 여행 요약이 아는 티켓을
+     * 그대로 쓴다. 한쪽이 비었다고 화면까지 비면 안 된다.
+     */
+    if (!fromServer.length && !local.length) {
+      return fallback || [];
+    }
+
+    return fromServer.concat(local)
+      .map((item) => ({
+        type: "TICKET",
+        referenceId: String(item.reservationId),
+        title: item.productName,
+        detail: item.optionName,
+        status: item.status,
+        statusLabel: ticketStatusLabels[item.status] || item.status,
+        amount: item.totalAmount,
+        currency: item.currency,
+        usageDate: item.usageDate,
+        quantity: item.quantity,
+      }));
+  }
+
+  /**
+   * 티켓 줄을 그린다. 여행을 고른 경우와 안 고른 경우가 같은 화면을 써야 한다.
+   *
+   * <p>예전에는 여행이 없으면 상태와 무관하게 `모의 예약`이라고만 적힌 카드가 나오고
+   * 결제 버튼이 아예 없었다. 여행 없이 산 티켓을 결제할 길이 화면에 없던 이유다. (#276)
+   *
+   * <p>PENDING은 아직 결제하지 않은 상태다. 자리를 잡아 두고 있을 뿐이라 시간이 지나면
+   * 반납된다(15분). 그래서 결제 버튼이 이 자리에 있어야 한다.
+   *
+   * <p>취소는 결제 전후 모두 둔다. 손님에게는 둘 다 "취소" 하나이고, 결제했으면 환불까지
+   * 함께 일어난다. 다만 확인 문구는 갈린다 — 결제한 건을 취소하면 발급된 티켓이 무효가
+   * 되므로 그 사실을 누르기 전에 알려야 한다.
+   */
+  function ticketRowsHtml(tickets) {
+    if (!tickets.length) {
+      return `<div class="mn"><div class="mn-h">티켓·액티비티</div><p class="mn-e">아직 담은 티켓이 없어요.</p>
+        <div class="mn-a"><button type="button" class="mn-b" data-mine-tab="ticket">티켓 선택하기</button></div></div>`;
+    }
+    return tickets.map((item) => `<div class="mn${item.status === "CANCELLED" ? " cancelled" : ""}">
+      <div class="mn-h">티켓·액티비티 <span class="mn-s">${esc(item.statusLabel)}</span></div>
+      <p class="mn-f">${esc(item.title)} · ${esc(item.detail || "")}</p>
+      <p class="mn-meta">${esc(item.usageDate || "")} · ${item.quantity || 1}매 · ${esc(summaryAmount(item))} · 실제 결제 아님</p>
+      ${item.status === "CONFIRMED"
+        ? `<div class="mn-tickets" data-mine-tickets="${esc(item.referenceId)}"></div>`
+        : ""}
+      <div class="mn-a">${item.status === "PENDING"
+        ? `<button type="button" class="mn-b primary" data-mine-ticket-pay="${esc(item.referenceId)}">모의 결제하기</button>`
+        : ""}${item.status === "CONFIRMED"
+        ? `<button type="button" class="mn-b" data-mine-ticket-show="${esc(item.referenceId)}">발급된 티켓 보기</button>`
+        : ""}${item.status === "PENDING" || item.status === "CONFIRMED"
+        ? `<button type="button" class="mn-b danger" data-mine-ticket-cancel="${esc(item.referenceId)}"`
+          + ` data-mine-ticket-paid="${item.status === "CONFIRMED" ? "1" : ""}">`
+          + `${item.status === "CONFIRMED" ? "결제 취소" : "모의 예약 취소"}</button>`
+        : ""}${item.status === "CONFIRMED"
+        /* 결제까지 끝난 티켓에서 상품 목록으로 돌아가는 버튼은 의미가 없다. 입장 QR로 보낸다. */
+        ? `<a class="mn-b" href="/mypage">마이페이지에서 입장 QR</a>`
+        : `<button type="button" class="mn-b" data-mine-tab="ticket">다른 티켓 보기</button>`}</div>
+    </div>`).join("");
+  }
+
   function renderSummaryMine(container) {
     const items = bookingSummary.items || [];
     const flights = items.filter((item) => item.type === "FLIGHT");
     const stays = items.filter((item) => item.type === "ACCOMMODATION");
-    const tickets = items.filter((item) => item.type === "TICKET");
+    /* 티켓만 사용자 기준으로 갈아끼운다. 항공·숙소는 여행에 묶여 있어 그대로 둔다. */
+    const tickets = ticketItems(items.filter((item) => item.type === "TICKET"));
 
     const section = (type, title, rows, empty) => {
       const error = summaryError(type);
@@ -419,29 +519,7 @@
      * 함께 일어난다. 다만 확인 문구는 갈린다 — 결제한 건을 취소하면 발급된 티켓이 무효가
      * 되므로 그 사실을 누르기 전에 알려야 한다.
      */
-    const ticketRows = tickets.map((item) => `<div class="mn${item.status === "CANCELLED" ? " cancelled" : ""}">
-      <div class="mn-h">티켓·액티비티 <span class="mn-s">${esc(item.statusLabel)}</span></div>
-      <p class="mn-f">${esc(item.title)} · ${esc(item.detail || "")}</p>
-      <p class="mn-meta">${esc(item.usageDate || "")} · ${item.quantity || 1}매 · ${esc(summaryAmount(item))} · 실제 결제 아님</p>
-      ${item.status === "CONFIRMED"
-        ? `<div class="mn-tickets" data-mine-tickets="${esc(item.referenceId)}"></div>`
-        : ""}
-      <div class="mn-a">${item.status === "PENDING"
-        ? `<button type="button" class="mn-b primary" data-mine-ticket-pay="${esc(item.referenceId)}">모의 결제하기</button>`
-        : ""}${item.status === "CONFIRMED"
-        ? `<button type="button" class="mn-b" data-mine-ticket-show="${esc(item.referenceId)}">발급된 티켓 보기</button>`
-        : ""}${item.status === "PENDING" || item.status === "CONFIRMED"
-        ? `<button type="button" class="mn-b danger" data-mine-ticket-cancel="${esc(item.referenceId)}"`
-          + ` data-mine-ticket-paid="${item.status === "CONFIRMED" ? "1" : ""}">`
-          + `${item.status === "CONFIRMED" ? "결제 취소" : "모의 예약 취소"}</button>`
-        : ""}${item.status === "CONFIRMED"
-        /*
-         * 결제까지 끝난 티켓에서 상품 목록으로 돌아가는 버튼(`티켓에서 확인`)은 의미가 없었다.
-         * 그 자리에 입장 QR로 가는 길을 둔다. QR은 마이페이지가 담당한다. (#276)
-         */
-        ? `<a class="mn-b" href="/mypage">마이페이지에서 입장 QR</a>`
-        : `<button type="button" class="mn-b" data-mine-tab="ticket">다른 티켓 보기</button>`}</div>
-    </div>`).join("");
+    const ticketRows = ticketRowsHtml(tickets);
 
     const globalError = bookingSummaryError
       ? `<p class="mn-e mine-error">${esc(bookingSummaryError)}</p>` : "";
@@ -529,23 +607,43 @@
       : `<div class="mn"><div class="mn-h">숙소</div><p class="mn-e">아직 선택한 숙소가 없어요.</p>
           <div class="mn-a"><button type="button" class="mn-b" data-mine-tab="hotel">숙소 선택하기</button></div></div>`;
 
-    const ticketCard = ticketDone()
-      ? `<div class="mn">
-          <div class="mn-h">티켓·액티비티 <span class="mn-s">모의 예약</span></div>
-          <p class="mn-f">${esc(ticketReservation.productName)} · ${esc(ticketReservation.optionName || "")}</p>
-          <p class="mn-meta">${esc(ticketReservation.usageDate || "")} · ${ticketReservation.quantity || 1}매 · ${won(ticketTotal())} · 실제 결제 아님</p>
-          <div class="mn-a"><button type="button" class="mn-b" data-mine-tab="ticket">티켓에서 확인</button></div>
-        </div>`
-      : `<div class="mn"><div class="mn-h">티켓·액티비티</div><p class="mn-e">아직 담은 티켓이 없어요.</p>
-          <div class="mn-a"><button type="button" class="mn-b" data-mine-tab="ticket">티켓 선택하기</button></div></div>`;
+    /*
+     * 여행을 안 고른 경우다. 예전에는 여기서 상태와 무관하게 `모의 예약`이라고만 적힌
+     * 카드를 그리고 결제 버튼을 두지 않아, 여행 없이 담은 티켓을 결제할 길이 없었다. (#276)
+     * 여행이 있을 때와 같은 줄을 쓴다.
+     */
+    const ticketCard = ticketRowsHtml(ticketItems());
 
     container.innerHTML = `<section class="mine-group"><h3>항공</h3>${flightCards}</section>
       <section class="mine-group"><h3>숙소</h3>${hotelCard}</section>
       <section class="mine-group"><h3>티켓·액티비티</h3>${ticketCard}</section>`;
   }
 
+  /**
+   * 티켓 예약을 사용자 기준으로 받는다.
+   *
+   * <p>여행 요약과 달리 `tripId`가 필요 없다. 티켓은 여행에 묶이지 않으므로(#255)
+   * 여행을 안 골랐어도 담아둔 티켓이 이 탭에 보여야 하고, 거기서 결제할 수 있어야 한다.
+   */
+  async function loadTicketReservations() {
+    try {
+      const payload = await request("GET", "/api/v1/ticket-reservations");
+      ticketReservations = Array.isArray(payload?.data) ? payload.data : [];
+      ticketReservationsError = null;
+    } catch (error) {
+      /* 로그인 전이면 401이다. 티켓 목록만 비우고 나머지 화면은 그대로 둔다. */
+      ticketReservations = [];
+      ticketReservationsError = error.message || "";
+    }
+  }
+
   async function loadBookingSummary() {
-    if (!canPersist()) return;
+    await loadTicketReservations();
+    if (!canPersist()) {
+      /* 여행이 없어도 티켓은 받았으므로 그 부분만 다시 그린다. */
+      renderMine();
+      return;
+    }
     try {
       const payload = await request("GET", `/api/v1/trips/${tripId}/booking-summary`);
       if (!Array.isArray(payload.data?.items)) throw new Error("BOOKING_SUMMARY_INVALID");

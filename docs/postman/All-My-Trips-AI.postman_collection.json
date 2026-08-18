@@ -7,6 +7,8 @@
   "variable": [
     { "key": "baseUrl", "value": "http://localhost:8080" },
     { "key": "tripId", "value": "1" },
+    { "key": "tripDayId", "value": "1" },
+    { "key": "timeConflictPlaceId", "value": "999999" },
     { "key": "csrfHeaderName", "value": "X-CSRF-TOKEN" },
     { "key": "csrfToken", "value": "" }
   ],
@@ -55,6 +57,32 @@
           { "key": "{{csrfHeaderName}}", "value": "{{csrfToken}}" }
         ],
         "url": { "raw": "{{baseUrl}}/api/v1/ai-guides/conversation?tripId={{tripId}}", "host": ["{{baseUrl}}"], "path": ["api", "v1", "ai-guides", "conversation"], "query": [{ "key": "tripId", "value": "{{tripId}}" }] }
+      }
+    },
+    {
+      "name": "Time conflict - expects 409 ITINERARY_TIME_CONFLICT",
+      "description": "Before running, set tripDayId to a DAY that already has an item occupying 10:00-12:00 (or an item with startTime 10:00 and no endTime). Set timeConflictPlaceId to a different verified place ID. The AI source causes the server-side time conflict validation to run.",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('returns 409', () => pm.response.to.have.status(409));",
+              "pm.test('code is ITINERARY_TIME_CONFLICT', () => pm.expect(pm.response.json().code).to.eql('ITINERARY_TIME_CONFLICT'));"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Accept", "value": "application/json" },
+          { "key": "{{csrfHeaderName}}", "value": "{{csrfToken}}" }
+        ],
+        "body": { "mode": "raw", "raw": "{\n  \"placeId\": {{timeConflictPlaceId}},\n  \"itemType\": \"PLACE\",\n  \"title\": \"AI 시간 충돌 검증 장소\",\n  \"startTime\": \"11:00\",\n  \"source\": \"AI\"\n}" },
+        "url": { "raw": "{{baseUrl}}/api/v1/trip-days/{{tripDayId}}/items", "host": ["{{baseUrl}}"], "path": ["api", "v1", "trip-days", "{{tripDayId}}", "items"] }
       }
     },
     {

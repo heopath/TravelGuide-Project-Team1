@@ -10,6 +10,19 @@ import java.util.List;
 final class ItineraryItemTimeConflictValidator {
 
     private static final int DEFAULT_AI_STAY_MINUTES = 120;
+    private static final int DAY_MINUTES = 24 * 60;
+
+    /**
+     * AI 추천은 종료 시각이 자정과 같아지는 경우도 다음 DAY로 넘어가는 것으로 본다.
+     * 일정 화면의 추가 가능 여부와 서버 저장 검증을 동일한 정책으로 유지한다.
+     */
+    boolean exceedsAiDayBoundary(ItineraryItemDTO candidate) {
+        if (candidate == null || candidate.getStartTime() == null) {
+            return false;
+        }
+        int startMinutes = candidate.getStartTime().getHour() * 60 + candidate.getStartTime().getMinute();
+        return startMinutes + DEFAULT_AI_STAY_MINUTES >= DAY_MINUTES;
+    }
 
     boolean hasConflict(ItineraryItemDTO candidate, List<ItineraryItemDTO> existingItems) {
         if (candidate.getStartTime() == null || existingItems == null) {

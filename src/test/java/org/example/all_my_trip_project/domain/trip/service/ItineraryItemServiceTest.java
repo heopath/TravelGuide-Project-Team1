@@ -172,7 +172,6 @@ class ItineraryItemServiceTest {
         when(itemDAO.countByTripDayId(20L)).thenReturn(1);
         when(itemDAO.existsByTripDayIdAndPlaceId(20L, 101L)).thenReturn(false);
         when(itemDAO.findByTripDayId(20L)).thenReturn(List.of(existing));
-
         assertThatThrownBy(() -> itineraryItemService.create(42L, candidate))
                 .isInstanceOf(BusinessException.class)
                 .extracting(exception -> ((BusinessException) exception).getErrorCode())
@@ -203,28 +202,37 @@ class ItineraryItemServiceTest {
         verify(itemDAO).insert(candidate);
     }
 
-    /*
-     * 늦은 시간대에도 겹침을 잡아야 한다.
-     *
-     * 종료 시각이 없으면 기본 2시간을 더하는데, 22:30에 더하면 00:30이 되어 자정을 넘는다.
-     * 그때 검사를 통째로 포기하면 기존 22:00~23:00 일정과 명백히 겹치는데도 통과한다.
-     * 자정을 넘는 쪽은 AI가 아니라 이 기본값이라, 그날 끝으로 잘라서 판단한다.
-     */
     @Test
-    void createRejectsLateNightAiRecommendationThatOverlapsExistingItem() {
+    void createRejectsLateNightAiRecommendationBeforeItCanCrossMidnight() {
         TripDayDTO day = TripDayDTO.builder().tripDayId(20L).tripId(10L).build();
         TripDTO trip = TripDTO.builder().tripId(10L).userId(42L).build();
         ItineraryItemDTO candidate = ItineraryItemDTO.builder()
                 .tripDayId(20L).placeId(103L).title("AI 추천 야시장")
                 .startTime(LocalTime.of(22, 30)).source("AI").build();
-        ItineraryItemDTO existing = ItineraryItemDTO.builder()
-                .tripDayId(20L).title("기존 야경 일정")
-                .startTime(LocalTime.of(22, 0)).endTime(LocalTime.of(23, 0)).build();
         when(tripDayDAO.findById(20L)).thenReturn(Optional.of(day));
         when(tripDAO.findById(10L)).thenReturn(Optional.of(trip));
         when(itemDAO.countByTripDayId(20L)).thenReturn(1);
         when(itemDAO.existsByTripDayIdAndPlaceId(20L, 103L)).thenReturn(false);
-        when(itemDAO.findByTripDayId(20L)).thenReturn(List.of(existing));
+
+        assertThatThrownBy(() -> itineraryItemService.create(42L, candidate))
+                .isInstanceOf(BusinessException.class)
+                .extracting(exception -> ((BusinessException) exception).getErrorCode())
+                .isEqualTo(ErrorCode.ITINERARY_TIME_CONFLICT);
+
+        verify(itemDAO, never()).insert(candidate);
+    }
+
+    @Test
+    void createRejectsAiRecommendationAtMidnightBoundaryEvenWithoutExistingItems() {
+        TripDayDTO day = TripDayDTO.builder().tripDayId(20L).tripId(10L).build();
+        TripDTO trip = TripDTO.builder().tripId(10L).userId(42L).build();
+        ItineraryItemDTO candidate = ItineraryItemDTO.builder()
+                .tripDayId(20L).placeId(104L).title("AI 추천 심야 카페")
+                .startTime(LocalTime.of(22, 0)).source("AI").build();
+        when(tripDayDAO.findById(20L)).thenReturn(Optional.of(day));
+        when(tripDAO.findById(10L)).thenReturn(Optional.of(trip));
+        when(itemDAO.countByTripDayId(20L)).thenReturn(0);
+        when(itemDAO.existsByTripDayIdAndPlaceId(20L, 104L)).thenReturn(false);
 
         assertThatThrownBy(() -> itineraryItemService.create(42L, candidate))
                 .isInstanceOf(BusinessException.class)
@@ -253,6 +261,51 @@ class ItineraryItemServiceTest {
     }
 
     @Test
+    void updateKeepsThirtyMinuteTimeRangeForSubsequentRead() {
+        ItineraryItemDTO existing = ItineraryItemDTO.builder()
+                .itineraryItemId(30L).tripDayId(20L).title("기존 제목").sortOrder(4).build();
+        ItineraryItemDTO update = ItineraryItemDTO.builder()
+                .itineraryItemId(30L).tripDayId(20L).title("기존 제목")
+                .startTime(LocalTime.of(13, 0)).endTime(LocalTime.of(13, 30)).build();
+        prepareOwnedItemForUpdate(existing);
+        when(itemDAO.update(update)).thenReturn(1);
+
+        itineraryItemService.update(42L, update);
+
+        assertThat(update.getStartTime()).isEqualTo(LocalTime.of(13, 0));
+        assertThat(update.getEndTime()).isEqualTo(LocalTime.of(13, 30));
+        verify(itemDAO).update(update);
+    }
+
+    @Test
+    void updateKeepsThreeHourTimeRangeForSubsequentRead() {
+        ItineraryItemDTO existing = ItineraryItemDTO.builder()
+                .itineraryItemId(30L).tripDayId(20L).title("기존 제목").sortOrder(4).build();
+        ItineraryItemDTO update = ItineraryItemDTO.builder()
+                .itineraryItemId(30L).tripDayId(20L).title("기존 제목")
+                .startTime(LocalTime.of(14, 0)).endTime(LocalTime.of(17, 0)).build();
+        prepareOwnedItemForUpdate(existing);
+        when(itemDAO.update(update)).thenReturn(1);
+
+        itineraryItemService.update(42L, update);
+
+        assertThat(update.getStartTime()).isEqualTo(LocalTime.of(14, 0));
+        assertThat(update.getEndTime()).isEqualTo(LocalTime.of(17, 0));
+        verify(itemDAO).update(update);
+    }
+
+    @Test
+    void validatorRejectsAnOvernightTimeRange() {
+        ItineraryItemDTO update = ItineraryItemDTO.builder()
+                .title("심야 일정")
+                .startTime(LocalTime.of(23, 30)).endTime(LocalTime.of(1, 30)).build();
+
+        assertThatThrownBy(() -> new ItineraryItemValidator().validate(update))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("일정 종료 시각은 시작 시각보다 빠를 수 없습니다.");
+    }
+
+    @Test
     void createRejectsAnotherUsersTripDay() {
         TripDayDTO day = TripDayDTO.builder().tripDayId(20L).tripId(10L).build();
         TripDTO trip = TripDTO.builder().tripId(10L).userId(99L).build();
@@ -273,5 +326,13 @@ class ItineraryItemServiceTest {
                 .tripDayId(10L)
                 .title("해운대해수욕장")
                 .build();
+    }
+
+    private void prepareOwnedItemForUpdate(ItineraryItemDTO existing) {
+        TripDayDTO day = TripDayDTO.builder().tripDayId(20L).tripId(10L).build();
+        TripDTO trip = TripDTO.builder().tripId(10L).userId(42L).build();
+        when(tripDayDAO.findById(20L)).thenReturn(Optional.of(day));
+        when(tripDAO.findById(10L)).thenReturn(Optional.of(trip));
+        when(itemDAO.findById(30L)).thenReturn(Optional.of(existing));
     }
 }
