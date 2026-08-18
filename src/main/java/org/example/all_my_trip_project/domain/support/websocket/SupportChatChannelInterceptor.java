@@ -70,7 +70,7 @@ public class SupportChatChannelInterceptor implements ChannelInterceptor {
         Map<String, Object> sessionAttributes = accessor.getSessionAttributes();
         Object expected = sessionAttributes == null
                 ? null : sessionAttributes.get(SupportChatHandshakeInterceptor.CSRF_COOKIE_ATTRIBUTE);
-        if (presented == null || expected == null || !presented.equals(expected)) {
+        if (presented == null || !presented.equals(expected)) {
             log.warn("상담 채팅 WebSocket CONNECT의 CSRF 토큰이 일치하지 않아 연결을 거부합니다.");
             return false;
         }
