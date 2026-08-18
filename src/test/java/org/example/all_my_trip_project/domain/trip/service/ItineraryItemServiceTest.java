@@ -253,6 +253,51 @@ class ItineraryItemServiceTest {
     }
 
     @Test
+    void updateKeepsThirtyMinuteTimeRangeForSubsequentRead() {
+        ItineraryItemDTO existing = ItineraryItemDTO.builder()
+                .itineraryItemId(30L).tripDayId(20L).title("기존 제목").sortOrder(4).build();
+        ItineraryItemDTO update = ItineraryItemDTO.builder()
+                .itineraryItemId(30L).tripDayId(20L).title("기존 제목")
+                .startTime(LocalTime.of(13, 0)).endTime(LocalTime.of(13, 30)).build();
+        prepareOwnedItemForUpdate(existing);
+        when(itemDAO.update(update)).thenReturn(1);
+
+        itineraryItemService.update(42L, update);
+
+        assertThat(update.getStartTime()).isEqualTo(LocalTime.of(13, 0));
+        assertThat(update.getEndTime()).isEqualTo(LocalTime.of(13, 30));
+        verify(itemDAO).update(update);
+    }
+
+    @Test
+    void updateKeepsThreeHourTimeRangeForSubsequentRead() {
+        ItineraryItemDTO existing = ItineraryItemDTO.builder()
+                .itineraryItemId(30L).tripDayId(20L).title("기존 제목").sortOrder(4).build();
+        ItineraryItemDTO update = ItineraryItemDTO.builder()
+                .itineraryItemId(30L).tripDayId(20L).title("기존 제목")
+                .startTime(LocalTime.of(14, 0)).endTime(LocalTime.of(17, 0)).build();
+        prepareOwnedItemForUpdate(existing);
+        when(itemDAO.update(update)).thenReturn(1);
+
+        itineraryItemService.update(42L, update);
+
+        assertThat(update.getStartTime()).isEqualTo(LocalTime.of(14, 0));
+        assertThat(update.getEndTime()).isEqualTo(LocalTime.of(17, 0));
+        verify(itemDAO).update(update);
+    }
+
+    @Test
+    void validatorRejectsAnOvernightTimeRange() {
+        ItineraryItemDTO update = ItineraryItemDTO.builder()
+                .title("심야 일정")
+                .startTime(LocalTime.of(23, 30)).endTime(LocalTime.of(1, 30)).build();
+
+        assertThatThrownBy(() -> new ItineraryItemValidator().validate(update))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("일정 종료 시각은 시작 시각보다 빠를 수 없습니다.");
+    }
+
+    @Test
     void createRejectsAnotherUsersTripDay() {
         TripDayDTO day = TripDayDTO.builder().tripDayId(20L).tripId(10L).build();
         TripDTO trip = TripDTO.builder().tripId(10L).userId(99L).build();
@@ -273,5 +318,13 @@ class ItineraryItemServiceTest {
                 .tripDayId(10L)
                 .title("해운대해수욕장")
                 .build();
+    }
+
+    private void prepareOwnedItemForUpdate(ItineraryItemDTO existing) {
+        TripDayDTO day = TripDayDTO.builder().tripDayId(20L).tripId(10L).build();
+        TripDTO trip = TripDTO.builder().tripId(10L).userId(42L).build();
+        when(tripDayDAO.findById(20L)).thenReturn(Optional.of(day));
+        when(tripDAO.findById(10L)).thenReturn(Optional.of(trip));
+        when(itemDAO.findById(30L)).thenReturn(Optional.of(existing));
     }
 }

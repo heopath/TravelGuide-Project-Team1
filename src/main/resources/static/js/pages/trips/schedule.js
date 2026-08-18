@@ -485,21 +485,35 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   function getItemDuration(item) {
-    const override = readScheduleTimeOverrides()[getScheduleTimeKey(item)];
-    return formatDuration(override?.durationMinutes);
+    return formatDuration(getItemDurationMinutes(item));
   }
 
-  function formatTimeFromMinutes(minutes) {
-    const normalized = Math.max(0, Math.min((24 * 60) - 1, Number(minutes) || 0));
-    return String(Math.floor(normalized / 60)).padStart(2, "0") + ":"
-      + String(normalized % 60).padStart(2, "0");
+  function getItemDurationMinutes(item, fallbackMinutes) {
+    const override = readScheduleTimeOverrides()[getScheduleTimeKey(item)];
+    const overrideDuration = Number(override?.durationMinutes);
+    if (Number.isFinite(overrideDuration) && overrideDuration > 0) {
+      return overrideDuration;
+    }
+
+    const start = toMinutes(item?.startTime);
+    const end = toMinutes(item?.endTime);
+    if (start !== null && end !== null && end > start) {
+      return end - start;
+    }
+
+    return fallbackMinutes;
   }
 
   async function saveScheduleTime(item, startTime, durationMinutes) {
     const overrides = readScheduleTimeOverrides();
     const key = getScheduleTimeKey(item);
     const startMinutes = toMinutes(startTime);
-    const endTime = startMinutes === null ? null : formatTimeFromMinutes(startMinutes + durationMinutes);
+    const endMinutes = startMinutes === null ? null : startMinutes + durationMinutes;
+    if (startMinutes === null || !Number.isFinite(endMinutes) || endMinutes >= 24 * 60) {
+      throw new Error("자정을 넘는 일정은 현재 저장할 수 없습니다. 종료 시각을 자정 이전으로 설정해 주세요.");
+    }
+    const endTime = String(Math.floor(endMinutes / 60)).padStart(2, "0") + ":"
+      + String(endMinutes % 60).padStart(2, "0");
 
     // 저장 전 초안 항목은 아직 서버 ID가 없으므로 화면에서만 시간을 유지한다.
     if (!item?.itineraryItemId || String(item.itineraryItemId).startsWith("draft-") || !item.tripDayId) {
@@ -624,7 +638,7 @@ document.addEventListener("DOMContentLoaded", function () {
     const hourInput = editor.querySelector("[data-time-hour]");
     const minuteInput = editor.querySelector("[data-time-minute]");
     const durationSelect = editor.querySelector("[data-duration]");
-    durationSelect.value = String(override.durationMinutes || 120);
+    durationSelect.value = String(getItemDurationMinutes(item, 120));
 
     function padTime(value) { return String(value).padStart(2, "0"); }
     function normalizeHour() {
