@@ -219,9 +219,13 @@
 
             </section>
 
-            <!-- 최근 예약 -->
+            <!--
+              최근 예약. 티켓은 여행에 붙지 않은 채로도 존재할 수 있으므로(#255)
+              여행별이 아니라 사용자 기준으로 받는다.
+            -->
             <section
-                    class="white-panel mypage-panel mypage-empty-panel"
+                    class="white-panel mypage-panel"
+                    data-ticket-panel
             >
               <div class="mypage-panel-head">
                 <div class="mypage-panel-title">
@@ -234,9 +238,28 @@
 
                   <h2>최근 예약 내역</h2>
                 </div>
+
+                <span
+                        class="mypage-panel-count"
+                        data-ticket-count
+                        hidden
+                ></span>
               </div>
 
-              <div class="mypage-empty-content">
+              <div
+                      class="mypage-ticket-list"
+                      data-ticket-list
+              ></div>
+
+              <!--
+                비었을 때와 못 불러왔을 때를 한 자리에서 쓴다. 둘을 나누면 "없음"과
+                "실패"가 같은 화면처럼 보이는 일이 생긴다.
+              -->
+              <div
+                      class="mypage-empty-content"
+                      data-ticket-empty
+                      role="status"
+              >
                 <div
                         class="mypage-empty-icon"
                         aria-hidden="true"
@@ -244,14 +267,11 @@
                   ▱
                 </div>
 
-                <strong>
-                  아직 예약 내역이 없어요
+                <strong data-ticket-empty-title>
+                  예약 내역을 불러오는 중이에요
                 </strong>
 
-                <p>
-                  관광 티켓 예약 기능이 준비되면<br />
-                  이곳에 표시됩니다.
-                </p>
+                <p data-ticket-empty-description></p>
               </div>
             </section>
 
