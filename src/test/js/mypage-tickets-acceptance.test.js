@@ -244,6 +244,64 @@ async function run() {
       d.querySelector("[data-ticket-qr-open]") === null);
   }
 
+  /* ── 결제 전 예약 (#276) ── */
+  {
+    const toasts = [];
+    let paid = null;
+    let listCalls = 0;
+    const pending = ticket({
+      status: "PENDING",
+      expiresAt: new Date(Date.now() + 9 * 60 * 1000).toISOString(),
+    });
+    const { d, calls } = await boot((url, options) => {
+      if (url.includes("/payment") && options.method === "POST") {
+        paid = JSON.parse(options.body);
+        return {};
+      }
+      if (url.startsWith("/api/v1/ticket-reservations")) {
+        listCalls += 1;
+        /* 결제 뒤에는 확정된 목록을 준다. 화면이 다시 받아 그리는지 본다. */
+        return [paid ? ticket({ status: "CONFIRMED" }) : pending];
+      }
+      if (url.startsWith("/api/v1/trips")) return { items: [] };
+      return null;
+    }, toasts);
+
+    test("결제 전 예약에 결제 버튼이 있다", d.querySelector("[data-ticket-pay]") !== null);
+    test("예약 취소 버튼도 함께 둔다", d.querySelector("[data-ticket-cancel]") !== null);
+    test("결제 전에는 입장 QR 버튼을 두지 않는다",
+      d.querySelector("[data-ticket-qr-open]") === null);
+    test("결제까지 남은 시간을 밝힌다",
+      /\d+분 안에 결제해야/.test(d.querySelector("[data-pay-remain]").textContent),
+      d.querySelector("[data-pay-remain]")?.textContent);
+
+    d.defaultView.confirm = () => true;
+    d.querySelector("[data-ticket-pay]").click();
+    await until(() => paid !== null);
+    await until(() => listCalls > 1);
+
+    test("결제는 POST로 보낸다",
+      calls.some((c) => c.method === "POST" && c.url.includes("/ticket-reservations/5/payment")));
+    test("멱등키를 담는다", typeof paid.idempotencyKey === "string" && paid.idempotencyKey.length > 0);
+    test("결제수단을 담는다", paid.method === "CARD");
+    test("결제 후 목록을 다시 받는다", listCalls > 1);
+    test("결제 결과를 알린다", toasts.some((m) => m.includes("결제가 완료")));
+  }
+  {
+    /* 만료 시각이 지난 예약은 자리가 이미 반납됐을 수 있다. 그 사실을 밝힌다. */
+    const toasts = [];
+    const { d } = await boot((url) => {
+      if (url.startsWith("/api/v1/ticket-reservations")) {
+        return [ticket({ status: "PENDING", expiresAt: new Date(Date.now() - 1000).toISOString() })];
+      }
+      if (url.startsWith("/api/v1/trips")) return { items: [] };
+      return null;
+    }, toasts);
+
+    test("만료 시각이 지나면 그 사실을 알린다",
+      d.querySelector("[data-pay-remain]").textContent.includes("자리가 반납"));
+  }
+
   /* ── 빈 목록과 실패 ── */
   {
     const toasts = [];
