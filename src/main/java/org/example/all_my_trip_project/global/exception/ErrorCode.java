@@ -283,6 +283,15 @@ public enum ErrorCode {
             "이미 예약된 수량보다 적게 줄일 수 없습니다."
     ),
 
+    /*
+     * 취소·사용 완료된 티켓의 QR을 달라는 경우. 만들어주면 통하지 않는 QR을 손님이 들고
+     * 현장에 서 있게 된다.
+     */
+    TICKET_QR_NOT_AVAILABLE(
+            HttpStatus.CONFLICT,
+            "이 티켓은 입장 코드를 다시 발급할 수 없습니다."
+    ),
+
     TICKET_OPTION_NOT_FOUND(
             HttpStatus.NOT_FOUND,
             "티켓 옵션을 찾을 수 없습니다."

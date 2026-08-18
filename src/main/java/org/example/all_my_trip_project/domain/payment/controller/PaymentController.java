@@ -3,6 +3,7 @@ package org.example.all_my_trip_project.domain.payment.controller;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.example.all_my_trip_project.domain.payment.dto.IssuedTicketDTO;
+import org.example.all_my_trip_project.domain.payment.dto.TicketQrResponse;
 import org.example.all_my_trip_project.domain.payment.dto.PaymentRequest;
 import org.example.all_my_trip_project.domain.payment.dto.PaymentResultResponse;
 import org.example.all_my_trip_project.domain.payment.service.PaymentService;
@@ -52,6 +53,23 @@ public class PaymentController {
             @AuthenticationPrincipal AuthenticatedUser principal,
             @PathVariable Long reservationId) {
         return ApiResponse.success(paymentService.tickets(requireUserId(principal), reservationId));
+    }
+
+    /**
+     * QR에 담을 입장 코드를 새로 발급한다. (#265)
+     *
+     * <p>GET이 아니라 POST다. 부를 때마다 토큰을 새로 만들어 상태가 바뀐다. 앞서 띄운 QR은
+     * 그 순간부터 통하지 않는다.
+     *
+     * <p>응답의 {@code token}은 여기서만 나온다. 서버는 해시만 저장하므로 다시 받아올 수 없다.
+     */
+    @PostMapping("/tickets/{issuedTicketId}/qr")
+    public ApiResponse<TicketQrResponse> issueQr(
+            @AuthenticationPrincipal AuthenticatedUser principal,
+            @PathVariable Long reservationId,
+            @PathVariable Long issuedTicketId) {
+        return ApiResponse.success("입장 코드를 발급했습니다.",
+                paymentService.issueQrToken(requireUserId(principal), reservationId, issuedTicketId));
     }
 
     private Long requireUserId(AuthenticatedUser principal) {
