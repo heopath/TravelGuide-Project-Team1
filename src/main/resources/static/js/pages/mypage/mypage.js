@@ -22,6 +22,10 @@ import {
     initSupportChat,
 } from "./mypage-support-chat.js";
 
+import {
+    initTickets,
+} from "./mypage-tickets.js";
+
 document.addEventListener(
     "DOMContentLoaded",
     () => {
@@ -499,6 +503,7 @@ document.addEventListener(
             initSupport(),
             /* 상담 채팅은 탭을 열 때 서버를 부른다. 여기서는 화면만 걸어 둔다. */
             initSupportChat(),
+            initTickets(),
         ]).then(
             () => {
                 document.body
