@@ -37,9 +37,19 @@ public class TicketService {
         return ticketDAO.findOffers(normalized, from, to);
     }
 
+    /**
+     * 티켓을 예약한다.
+     *
+     * <p>여행은 <b>선택</b>이다. 관리자가 열어둔 티켓은 여행 계획과 상관없이 살 수 있다.
+     * {@code tripId}를 보낸 경우에만 소유를 확인하고 이용일이 여행 기간 안인지 본다. (#255)
+     */
     @Transactional
     public TicketReservationDTO reserve(Long userId, CreateTicketReservationRequest request) {
-        TripDTO trip = requireOwnedTrip(userId, request.tripId());
+        if (userId == null || userId < 1) {
+            throw new BusinessException(ErrorCode.UNAUTHORIZED);
+        }
+        /* 여행을 보냈을 때만 확인한다. 안 보냈으면 여행에 붙지 않은 티켓이다. */
+        TripDTO trip = request.tripId() == null ? null : requireOwnedTrip(userId, request.tripId());
         String requestKey = request.requestKey().trim();
 
         TicketReservationDTO existing = ticketDAO.findByRequestKey(userId, requestKey).orElse(null);
@@ -52,9 +62,10 @@ public class TicketService {
 
         TicketOfferDTO offer = ticketDAO.findSlotForUpdate(request.slotId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.TICKET_NOT_FOUND));
-        if (offer.getUsageDate().isBefore(trip.getStartDate())
-                || offer.getUsageDate().isAfter(trip.getEndDate())
-                || request.quantity() > offer.getMaxQuantityPerUser()) {
+        if (request.quantity() > offer.getMaxQuantityPerUser()) {
+            throw new BusinessException(ErrorCode.INVALID_TICKET_REQUEST);
+        }
+        if (trip != null && !withinTrip(offer.getUsageDate(), trip)) {
             throw new BusinessException(ErrorCode.INVALID_TICKET_REQUEST);
         }
         if (request.quantity() > offer.getRemainingQuantity()
@@ -85,10 +96,57 @@ public class TicketService {
         return reservation;
     }
 
+    /**
+     * 예약 목록. {@code tripId}가 없으면 그 사용자의 티켓 전체다.
+     *
+     * <p>여행에 붙지 않은 티켓이 생기면서 "여행별"만으로는 산 티켓을 다 볼 수 없게 됐다. (#255)
+     */
     @Transactional(readOnly = true)
     public List<TicketReservationDTO> reservations(Long userId, Long tripId) {
+        if (userId == null || userId < 1) {
+            throw new BusinessException(ErrorCode.UNAUTHORIZED);
+        }
+        if (tripId == null) {
+            return ticketDAO.findByUser(userId);
+        }
         requireOwnedTrip(userId, tripId);
         return ticketDAO.findByTrip(tripId);
+    }
+
+    /**
+     * 산 티켓을 여행에 붙이거나 뗀다. {@code tripId}가 {@code null}이면 뗀다.
+     *
+     * <p>붙일 때는 이용일이 여행 기간 안이어야 한다. 8월 여행에 9월 티켓을 붙이면 일정
+     * 화면에서 그 티켓이 어디에도 놓이지 못한다.
+     */
+    @Transactional
+    public TicketReservationDTO linkTrip(Long userId, Long reservationId, Long tripId) {
+        if (userId == null || userId < 1) {
+            throw new BusinessException(ErrorCode.UNAUTHORIZED);
+        }
+        TicketReservationDTO reservation = ticketDAO.findForCancel(userId, reservationId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.TICKET_RESERVATION_NOT_FOUND));
+        /* 취소된 예약을 여행에 붙이면 일정에 없는 티켓이 얹힌다. */
+        if ("CANCELLED".equals(reservation.getStatus()) || "EXPIRED".equals(reservation.getStatus())) {
+            throw new BusinessException(ErrorCode.TICKET_CANCEL_NOT_ALLOWED);
+        }
+        if (tripId != null) {
+            TripDTO trip = requireOwnedTrip(userId, tripId);
+            if (!withinTrip(reservation.getUsageDate(), trip)) {
+                throw new BusinessException(ErrorCode.TICKET_TRIP_PERIOD_MISMATCH);
+            }
+        }
+        if (ticketDAO.updateReservationTrip(userId, reservationId, tripId) != 1) {
+            throw new BusinessException(ErrorCode.TICKET_RESERVATION_NOT_FOUND);
+        }
+        reservation.setTripId(tripId);
+        return reservation;
+    }
+
+    private boolean withinTrip(LocalDate usageDate, TripDTO trip) {
+        return usageDate != null
+                && !usageDate.isBefore(trip.getStartDate())
+                && !usageDate.isAfter(trip.getEndDate());
     }
 
     /**
@@ -110,7 +168,13 @@ public class TicketService {
 
         TicketReservationDTO reservation = ticketDAO.findForCancel(userId, reservationId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.TICKET_RESERVATION_NOT_FOUND));
-        requireOwnedTrip(userId, reservation.getTripId());
+        /*
+         * 여행에 붙은 예약만 여행 소유를 다시 본다. findForCancel이 이미 userId로 걸렀으므로
+         * 여행이 없어도 남의 예약을 취소할 수는 없다.
+         */
+        if (reservation.getTripId() != null) {
+            requireOwnedTrip(userId, reservation.getTripId());
+        }
 
         if ("CANCELLED".equals(reservation.getStatus())) {
             return new TicketCancelResponse(reservation, false, 0);
