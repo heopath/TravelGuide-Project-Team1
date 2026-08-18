@@ -50,4 +50,11 @@ public class PaymentDAO {
     public Optional<TicketReservationDTO> findReservation(Long reservationId) {
         return paymentMapper.findReservation(reservationId);
     }
+    public java.util.Optional<IssuedTicketDTO> findIssuedTicket(Long reservationId, Long issuedTicketId) {
+        return paymentMapper.findIssuedTicket(reservationId, issuedTicketId);
+    }
+
+    public int updateQrToken(Long issuedTicketId, String tokenHash, java.time.OffsetDateTime expiresAt) {
+        return paymentMapper.updateQrToken(issuedTicketId, tokenHash, expiresAt);
+    }
 }

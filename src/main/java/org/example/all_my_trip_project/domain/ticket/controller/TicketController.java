@@ -2,6 +2,8 @@ package org.example.all_my_trip_project.domain.ticket.controller;
 
 import lombok.RequiredArgsConstructor;
 import org.example.all_my_trip_project.domain.ticket.dto.TicketCancelResponse;
+import org.example.all_my_trip_project.domain.ticket.dto.TicketProductPage;
+import org.example.all_my_trip_project.domain.ticket.dto.TicketProductDetailDTO;
 import org.example.all_my_trip_project.domain.ticket.dto.TicketOfferDTO;
 import org.example.all_my_trip_project.domain.ticket.dto.TicketReservationDTO;
 import org.example.all_my_trip_project.domain.ticket.service.TicketService;
@@ -12,9 +14,12 @@ import org.example.all_my_trip_project.global.security.AuthenticatedUser;
 import org.springframework.context.annotation.Profile;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.example.all_my_trip_project.domain.ticket.dto.LinkTicketTripRequest;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -38,11 +43,52 @@ public class TicketController {
         return ApiResponse.success(ticketService.search(destination, from, to));
     }
 
+    /**
+     * 판매 중인 티켓 상품 목록. 날짜를 받지 않는다. (#255)
+     *
+     * <p>{@code GET /tickets}(날짜 범위)는 예약 화면 밖에서 아직 쓸 수 있어 함께 남겨둔다.
+     */
+    @GetMapping("/tickets/products")
+    public ApiResponse<TicketProductPage> products(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(required = false) String keyword) {
+        return ApiResponse.success(ticketService.products(page, size, keyword));
+    }
+
+    /** 상품 하나와 고를 수 있는 시간대 전부. */
+    @GetMapping("/tickets/products/{productId}")
+    public ApiResponse<TicketProductDetailDTO> product(@PathVariable Long productId) {
+        return ApiResponse.success(ticketService.product(productId));
+    }
+
+    /**
+     * 예약 목록. {@code tripId}를 주면 그 여행의 티켓만, 안 주면 산 티켓 전체다.
+     *
+     * <p>여행에 붙지 않은 티켓이 생기면서 "여행별"만으로는 다 볼 수 없게 됐다. (#255)
+     */
     @GetMapping("/ticket-reservations")
     public ApiResponse<List<TicketReservationDTO>> reservations(
             @AuthenticationPrincipal AuthenticatedUser principal,
-            @RequestParam Long tripId) {
+            @RequestParam(required = false) Long tripId) {
         return ApiResponse.success(ticketService.reservations(requireUserId(principal), tripId));
+    }
+
+    /**
+     * 산 티켓을 여행에 붙이거나 뗀다. 본문의 {@code tripId}가 {@code null}이면 뗀다.
+     *
+     * <p>구매와 분리한 이유는 티켓을 살 때는 어느 여행에 쓸지 아직 안 정한 경우가 많기
+     * 때문이다. 사고 나서 일정을 짜는 순서가 자연스럽다.
+     */
+    @PatchMapping("/ticket-reservations/{reservationId}/trip")
+    public ApiResponse<TicketReservationDTO> linkTrip(
+            @AuthenticationPrincipal AuthenticatedUser principal,
+            @PathVariable Long reservationId,
+            @RequestBody LinkTicketTripRequest request) {
+        TicketReservationDTO result =
+                ticketService.linkTrip(requireUserId(principal), reservationId, request.tripId());
+        return ApiResponse.success(
+                request.tripId() == null ? "여행 연결을 해제했습니다." : "여행에 연결했습니다.", result);
     }
 
     /**

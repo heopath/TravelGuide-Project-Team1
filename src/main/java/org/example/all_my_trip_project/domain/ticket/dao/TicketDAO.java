@@ -2,6 +2,7 @@ package org.example.all_my_trip_project.domain.ticket.dao;
 
 import lombok.RequiredArgsConstructor;
 import org.example.all_my_trip_project.domain.ticket.dto.TicketOfferDTO;
+import org.example.all_my_trip_project.domain.ticket.dto.TicketProductSummaryDTO;
 import org.example.all_my_trip_project.domain.ticket.dto.TicketReservationDTO;
 import org.example.all_my_trip_project.domain.ticket.mapper.TicketMapper;
 import org.springframework.context.annotation.Profile;
@@ -45,4 +46,24 @@ public class TicketDAO {
     public int cancelConfirmedReservation(Long reservationId) {
         return mapper.cancelConfirmedReservation(reservationId);
     }
+    public List<TicketReservationDTO> findByUser(Long userId) { return mapper.findReservationsByUser(userId); }
+
+    public int updateReservationTrip(Long userId, Long reservationId, Long tripId) {
+        return mapper.updateReservationTrip(userId, reservationId, tripId);
+    }
+
+    public List<TicketProductSummaryDTO> findSellableProducts(String keyword, int offset, int size) {
+        return mapper.findSellableProducts(keyword, offset, size);
+    }
+
+    public long countSellableProducts(String keyword) { return mapper.countSellableProducts(keyword); }
+
+    public Optional<TicketProductSummaryDTO> findSellableProductById(Long productId) {
+        return mapper.findSellableProductById(productId);
+    }
+
+    public List<TicketOfferDTO> findSlotsByProduct(Long productId) {
+        return mapper.findSlotsByProduct(productId);
+    }
+
 }

@@ -4,6 +4,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.example.all_my_trip_project.domain.ticket.dto.AdminTicketInventoryRequest;
 import org.example.all_my_trip_project.domain.ticket.dto.AdminTicketSlotDTO;
+import org.example.all_my_trip_project.domain.ticket.dto.AdminTicketSlotStatusRequest;
 import org.example.all_my_trip_project.domain.ticket.service.AdminTicketProductService;
 import org.example.all_my_trip_project.global.response.ApiResponse;
 import org.springframework.context.annotation.Profile;
@@ -33,5 +34,17 @@ public class AdminTicketSlotController {
             @Valid @RequestBody AdminTicketInventoryRequest request) {
         return ApiResponse.success("재고를 변경했습니다.",
                 adminTicketProductService.changeInventory(slotId, request.totalQuantity()));
+    }
+
+    /**
+     * 시간대를 열거나 닫는다. 삭제는 없다 — 예약이 시간대를 참조하고 있어 지우면
+     * 이미 팔린 예약이 무엇이었는지 되짚을 수 없다.
+     */
+    @PatchMapping("/{slotId}/status")
+    public ApiResponse<AdminTicketSlotDTO> changeStatus(
+            @PathVariable Long slotId,
+            @Valid @RequestBody AdminTicketSlotStatusRequest request) {
+        return ApiResponse.success("시간대 상태를 변경했습니다.",
+                adminTicketProductService.changeSlotStatus(slotId, request.status()));
     }
 }

@@ -160,7 +160,7 @@ Redis 캐시는 `PlaceCacheStore` 내부 컴포넌트로 두고 Controller가 �
 | --- | --- | --- | --- |
 | 허민재 | 회원·인증·선호·공통 보안 | `AuthService`, `MemberService` | 인증 사용자와 권한 조회 계약을 전체 도메인에 먼저 제공 |
 | 정인길 | 장소·즐겨찾기·장소 운영 | `PlaceService`, `FavoriteService`, `PlaceSyncService` | AI·여행·티켓에 장소 조회 계약 제공 |
-| 홍유원 | 여행 계획·일차·일정 | `TripService` | AI와 여행 기록에 여행·소유권·완료 상태 계약 제공 |
+| 남현호 | 여행 계획·일차·일정 | `TripService` | AI와 여행 기록에 여행·소유권·완료 상태 계약 제공 |
 | 남현호 | 여행 기록·소셜·신고 | `TravelRecordService`, `TravelRecordReportService` | 회원 인증과 완료 여행 조회 계약 사용 |
 | 한성주 | AI·추천·RAG 연결 | `AiTravelService`, `RecommendationService` | 회원 선호·장소 후보·여행 저장 계약 조합 |
 

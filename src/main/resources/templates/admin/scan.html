@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+  <head>
+    <meta charset="UTF-8" />
+    <!-- 입구에서 폰으로 쓰는 화면이다. 확대를 막지 않는다 — 코드가 안 보일 때 키울 수 있어야 한다. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="All My Trips 현장 검표" />
+    <title>현장 검표 — All My Trips</title>
+    <link rel="icon" th:href="@{/images/icons/app-icon.png}" href="../../static/images/icons/app-icon.png" />
+    <link rel="stylesheet" th:href="@{/css/common/reset.css}" href="../../static/css/common/reset.css" />
+    <link rel="stylesheet" th:href="@{/css/common/layout.css}" href="../../static/css/common/layout.css" />
+    <link rel="stylesheet" th:href="@{/css/common/components.css}" href="../../static/css/common/components.css" />
+    <link rel="stylesheet" th:href="@{/css/pages/admin/scan.css}" href="../../static/css/pages/admin/scan.css" />
+  </head>
+  <body class="page-scan" data-route="/admin/scan">
+    <main class="scan-shell">
+      <header class="scan-head">
+        <h1>현장 검표</h1>
+        <a class="text-button" th:href="@{/admin}" href="../admin/admin.html">관리자 화면</a>
+      </header>
+
+      <!--
+        카메라는 보안 컨텍스트(HTTPS 또는 localhost)에서만 열린다. 사설 IP로 접속하면
+        열리지 않으므로 화면이 그 이유를 직접 밝힌다. 안 밝히면 "고장난 화면"으로 읽힌다.
+      -->
+      <p class="scan-notice" data-scan-notice role="status" hidden></p>
+
+      <section class="scan-camera" data-scan-camera hidden>
+        <!-- muted·playsinline이 없으면 iOS에서 전체화면으로 튀거나 자동재생이 막힌다. -->
+        <video data-scan-video muted playsinline autoplay></video>
+        <div class="scan-frame" aria-hidden="true"></div>
+      </section>
+
+      <div class="scan-actions">
+        <button type="button" class="primary-button" data-scan-start>카메라로 검표 시작</button>
+        <button type="button" class="outline-button" data-scan-stop hidden>카메라 끄기</button>
+      </div>
+
+      <!--
+        수동 입력은 항상 둔다. 조명이 나쁘거나 카메라 권한이 막히면 이것이 유일한 길이고,
+        현장이 멈추면 안 된다.
+      -->
+      <form class="scan-manual" data-scan-form>
+        <label for="scanToken">입장 코드 직접 입력</label>
+        <div>
+          <input id="scanToken" data-scan-input autocomplete="off"
+                 autocapitalize="off" spellcheck="false"
+                 placeholder="손님 화면의 코드를 입력" />
+          <button type="submit" class="primary-button" data-scan-submit>확인</button>
+        </div>
+      </form>
+
+      <!-- 검표 결과. 현장에서는 이 한 칸만 본다. -->
+      <section class="scan-result" data-scan-result hidden aria-live="assertive"></section>
+
+      <!-- 방금 처리한 것들. 같은 손님을 두 번 통과시켰는지 바로 확인한다. -->
+      <section class="scan-recent">
+        <h2>방금 처리한 검표</h2>
+        <ul data-scan-recent></ul>
+        <p class="scan-empty" data-scan-recent-empty>아직 검표한 티켓이 없어요.</p>
+      </section>
+    </main>
+
+    <div th:replace="~{fragments/scripts :: appScripts}"></div>
+    <script
+            type="module"
+            th:src="@{/js/pages/admin/scan.js}"
+            src="../../static/js/pages/admin/scan.js"
+    ></script>
+  </body>
+</html>

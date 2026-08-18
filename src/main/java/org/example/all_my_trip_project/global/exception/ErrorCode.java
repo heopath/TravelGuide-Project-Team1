@@ -283,6 +283,53 @@ public enum ErrorCode {
             "이미 예약된 수량보다 적게 줄일 수 없습니다."
     ),
 
+    /*
+     * 취소·사용 완료된 티켓의 QR을 달라는 경우. 만들어주면 통하지 않는 QR을 손님이 들고
+     * 현장에 서 있게 된다.
+     */
+    TICKET_QR_NOT_AVAILABLE(
+            HttpStatus.CONFLICT,
+            "이 티켓은 입장 코드를 다시 발급할 수 없습니다."
+    ),
+
+    TICKET_OPTION_NOT_FOUND(
+            HttpStatus.NOT_FOUND,
+            "티켓 옵션을 찾을 수 없습니다."
+    ),
+
+    /*
+     * uk_ticket_product_options_name·uk_ticket_product_options_order 위반. 제약으로 터지면
+     * 이름이 겹친 것인지 순서가 겹친 것인지 화면에서 구분할 수 없어 먼저 거른다.
+     */
+    TICKET_OPTION_DUPLICATED(
+            HttpStatus.CONFLICT,
+            "같은 이름이나 순서의 옵션이 이미 있습니다."
+    ),
+
+    /* uk_ticket_time_slots (옵션·이용일·시작시각) 위반. */
+    TICKET_SLOT_DUPLICATED(
+            HttpStatus.CONFLICT,
+            "같은 옵션에 같은 날짜·시작시각의 시간대가 이미 있습니다."
+    ),
+
+    /*
+     * 예약이 걸린 시간대를 닫으려는 경우. 닫아도 예약 자체는 남지만, 관리자가 "정리했다"고
+     * 오해하기 쉬워 막고 이유를 밝힌다.
+     */
+    TICKET_SLOT_HAS_RESERVATION(
+            HttpStatus.CONFLICT,
+            "이미 예약이 걸린 시간대입니다. 예약을 먼저 정리해 주세요."
+    ),
+
+    /*
+     * 산 티켓을 여행에 붙일 때 이용일이 여행 기간 밖인 경우. 8월 여행에 9월 티켓을 붙이면
+     * 일정 화면에서 그 티켓이 놓일 자리가 없다.
+     */
+    TICKET_TRIP_PERIOD_MISMATCH(
+            HttpStatus.CONFLICT,
+            "티켓 이용일이 선택한 여행 기간에 들어 있지 않습니다."
+    ),
+
     SUPPORT_INQUIRY_NOT_FOUND(
             HttpStatus.NOT_FOUND,
             "고객센터 문의를 찾을 수 없습니다."

@@ -294,6 +294,74 @@
                     <h3 data-slot-title>시간대 재고</h3>
                     <button type="button" class="text-button" data-slot-close>닫기</button>
                   </div>
+                  <!--
+                    옵션이 먼저다. 시간대는 옵션에 달리므로(ticket_time_slots는 상품이 아니라
+                    옵션을 참조한다) 옵션이 하나도 없으면 시간대를 만들 수 없다.
+                  -->
+                  <h4 class="admin-subhead">옵션</h4>
+                  <div data-option-list class="admin-table-body"></div>
+                  <p class="admin-empty" data-option-empty role="status"></p>
+
+                  <form class="admin-product-form" data-option-form>
+                    <label><span>옵션명</span>
+                      <input data-option-field="name" maxlength="150" required />
+                    </label>
+                    <label><span>가격</span>
+                      <input type="number" data-option-field="unitPrice" min="0" step="100" required />
+                    </label>
+                    <label><span>1인 최대</span>
+                      <input type="number" data-option-field="maxQuantityPerUser" min="1" max="10" value="4" required />
+                    </label>
+                    <label><span>표시 순서</span>
+                      <input type="number" data-option-field="sortOrder" min="1" max="999" value="1" required />
+                    </label>
+                    <p class="admin-hint" data-option-message role="status"></p>
+                    <div class="admin-form-buttons">
+                      <button type="button" class="text-button" data-option-reset hidden>새 옵션으로</button>
+                      <button type="submit" class="primary-button" data-option-submit>옵션 추가</button>
+                    </div>
+                  </form>
+
+                  <!--
+                    시간대는 기간으로 받는다. 하루씩 만들게 하면 한 달 판매를 여는 데 30번을
+                    눌러야 하고, 중간에 빠뜨린 날이 생겨도 아무도 알아채지 못한다.
+                  -->
+                  <h4 class="admin-subhead">시간대 등록</h4>
+                  <form class="admin-product-form" data-slot-form>
+                    <label><span>옵션</span>
+                      <select data-slot-field="ticketProductOptionId" required></select>
+                    </label>
+                    <!--
+                      수량 기본값은 JS가 넣는다. 마크업에 숫자를 박아두면 서버에서 온 값과
+                      구분되지 않아, 화면을 읽는 사람이 실제 재고로 오해한다.
+                    -->
+                    <label><span>수량(시간대당)</span>
+                      <input type="number" data-slot-field="totalQuantity" min="0" required />
+                    </label>
+                    <label><span>이용 시작일</span>
+                      <input type="date" data-slot-field="usageStartDate" required />
+                    </label>
+                    <label><span>이용 종료일</span>
+                      <input type="date" data-slot-field="usageEndDate" />
+                    </label>
+                    <label><span>시작 시각</span>
+                      <input type="time" data-slot-field="startTime" />
+                    </label>
+                    <label><span>종료 시각</span>
+                      <input type="time" data-slot-field="endTime" />
+                    </label>
+                    <fieldset class="wide admin-weekday-set" data-slot-weekdays>
+                      <legend>요일 (선택 안 하면 매일)</legend>
+                    </fieldset>
+                    <p class="admin-hint" data-slot-form-message role="status">
+                      종료일을 비우면 시작일 하루만 만들어요. 시각을 비우면 종일권이 돼요.
+                    </p>
+                    <div class="admin-form-buttons">
+                      <button type="submit" class="primary-button" data-slot-submit>시간대 추가</button>
+                    </div>
+                  </form>
+
+                  <h4 class="admin-subhead">등록된 시간대</h4>
                   <div class="admin-table-head admin-slot-row">
                     <span>옵션 · 이용일</span><span>예약</span><span>전체 수량</span><span></span>
                   </div>
@@ -331,6 +399,11 @@
                 <div class="admin-section-head">
                   <h2 id="validationTitle">티켓 검표</h2>
                   <span class="admin-tag live" data-admin-state="validation">실연동</span>
+                  <!--
+                    현장에서는 이 화면이 아니라 폰으로 스캔한다. (#266)
+                    여기는 수동 입력과 이력 조회용으로 남긴다 — 스캐너가 안 될 때 유일한 길이다.
+                  -->
+                  <a class="text-button" data-route="/admin/scan" href="/admin/scan">폰으로 스캔 →</a>
                   <div class="admin-filter" role="group" aria-label="검표 결과 필터" data-validation-filter>
                     <button type="button" class="admin-chip on" data-validation-result="">전체</button>
                     <button type="button" class="admin-chip" data-validation-result="SUCCESS">입장</button>

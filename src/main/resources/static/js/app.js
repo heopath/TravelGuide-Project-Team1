@@ -122,7 +122,8 @@ const ALL_MY_TRIPS_TEMPLATE_ROUTES = {
   "/mypage": "mypage/mypage",
   "/trips/1/record": "trips/record",
   "/admin": "admin/admin",
-  "/admin/places": "admin/places"
+  "/admin/places": "admin/places",
+  "/admin/scan": "admin/scan"
 };
 
 function navigateTo(route) {
@@ -359,6 +360,11 @@ const ALL_MY_TRIPS_SCREENS = [
   [
     "/admin/places",
     "관리자 · 추천 장소 관리",
+    "admin"
+  ],
+  [
+    "/admin/scan",
+    "관리자 · 현장 검표 (폰)",
     "admin"
   ],
   [
