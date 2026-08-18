@@ -21,6 +21,8 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
+import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -34,7 +36,13 @@ public class CohereAiModelClient implements AiModelClient {
     private static final URI CHAT_URI = URI.create("https://api.cohere.com/v2/chat");
     private static final int MAX_DAYS = 30;
     private static final int MAX_ITEMS_PER_DAY = 10;
+    private static final int RECOMMENDATION_DURATION_MINUTES = 120;
+    private static final int TIME_SLOT_MINUTES = 30;
+    // 일정 화면은 종료 시각이 24:00과 같아지는 경우도 자정 초과로 취급한다.
+    // AI 추천도 같은 기준을 사용하므로 2시간 체류 기준 마지막 시작 시각은 21:30이다.
+    private static final int LATEST_RECOMMENDATION_START_MINUTES = 21 * 60 + 30;
     private static final Pattern TIME_PATTERN = Pattern.compile("^([01]\\d|2[0-3]):[0-5]\\d$");
+    private static final DateTimeFormatter TIME_FORMATTER = DateTimeFormatter.ofPattern("HH:mm");
     private static final List<AiGuideResponse.ExternalLink> DEFAULT_EXTERNAL_LINKS = List.of(
             new AiGuideResponse.ExternalLink("FLIGHT", "항공권 검색", "https://www.google.com/travel/flights"),
             new AiGuideResponse.ExternalLink("HOTEL", "숙소 검색", "https://www.google.com/travel/hotels")
@@ -80,6 +88,7 @@ public class CohereAiModelClient implements AiModelClient {
                     CohereGuideContent.class
             );
             content = normalize(content);
+            content = moveItemsToAvailableTimes(content, context);
             validate(content);
 
             List<String> sources = new ArrayList<>(List.of("Cohere AI", "질문: " + request.question()));
@@ -204,8 +213,12 @@ public class CohereAiModelClient implements AiModelClient {
 
                 Scheduling rules:
                 - Existing itinerary entries in Travel context belong to their stated DAY only.
-                - Prefer an empty time slot on the same DAY. Never return an item time that overlaps an existing entry.
+                - The existing schedule explicitly lists unavailable time windows. Treat every listed window as unavailable.
+                - Never return an item time that overlaps an existing entry or another returned item on the same DAY.
                 - When an existing entry has no end time, reserve two hours after its start time.
+                - If the user requests a time inside an unavailable window, choose the nearest later available HH:mm time
+                  on the same DAY in 30-minute increments instead of returning the requested time.
+                - Reserve two hours for every returned item when checking overlaps.
 
                 User question: %s
                 """.formatted(formatHistory(history), formatContext(context), formatRagResults(ragResults), request.question());
@@ -279,6 +292,114 @@ public class CohereAiModelClient implements AiModelClient {
         return new CohereGuideContent(content.answer(), days);
     }
 
+    /**
+     * Cohere is instructed not to overlap existing plans, but the final response is also adjusted here
+     * so that an addable recommendation is presented whenever the same DAY has an available time slot.
+     */
+    private CohereGuideContent moveItemsToAvailableTimes(CohereGuideContent content, AiGuideContext context) {
+        if (content == null || content.days() == null || context == null || context.trip() == null) {
+            return content;
+        }
+
+        Map<Integer, List<TimeWindow>> occupiedByDay = existingOccupiedWindows(context.trip().days());
+        List<AiGuideDayResponse> adjustedDays = new ArrayList<>();
+
+        for (AiGuideDayResponse day : content.days()) {
+            if (day == null || day.items() == null) {
+                adjustedDays.add(day);
+                continue;
+            }
+
+            List<TimeWindow> occupied = occupiedByDay.computeIfAbsent(day.day(), ignored -> new ArrayList<>());
+            List<AiGuideItemResponse> adjustedItems = new ArrayList<>();
+            for (AiGuideItemResponse item : day.items()) {
+                AiGuideItemResponse adjustedItem = moveItemToAvailableTime(item, occupied);
+                adjustedItems.add(adjustedItem);
+                addRecommendationWindow(adjustedItem, occupied);
+            }
+            adjustedDays.add(new AiGuideDayResponse(day.day(), day.title(), adjustedItems));
+        }
+        return new CohereGuideContent(content.answer(), adjustedDays);
+    }
+
+    private Map<Integer, List<TimeWindow>> existingOccupiedWindows(List<AiGuideContext.Day> days) {
+        Map<Integer, List<TimeWindow>> occupiedByDay = new LinkedHashMap<>();
+        if (days == null) {
+            return occupiedByDay;
+        }
+        for (AiGuideContext.Day day : days) {
+            if (day == null || day.dayNumber() == null) {
+                continue;
+            }
+            List<TimeWindow> occupied = occupiedByDay.computeIfAbsent(day.dayNumber(), ignored -> new ArrayList<>());
+            for (AiGuideContext.Item item : day.items()) {
+                if (item == null || item.startTime() == null) {
+                    continue;
+                }
+                int start = toMinutes(item.startTime());
+                int end = item.endTime() == null ? start + RECOMMENDATION_DURATION_MINUTES : toMinutes(item.endTime());
+                if (end > start) {
+                    occupied.add(new TimeWindow(start, Math.min(end, 24 * 60)));
+                }
+            }
+        }
+        return occupiedByDay;
+    }
+
+    private AiGuideItemResponse moveItemToAvailableTime(AiGuideItemResponse item, List<TimeWindow> occupied) {
+        if (item == null || item.time() == null || !TIME_PATTERN.matcher(item.time()).matches()) {
+            return item;
+        }
+        int requestedStart = toMinutes(LocalTime.parse(item.time(), TIME_FORMATTER));
+        if (isAvailable(requestedStart, occupied)) {
+            return item;
+        }
+
+        Integer availableStart = findAvailableStart(requestedStart, occupied);
+        if (availableStart == null) {
+            return item;
+        }
+        return new AiGuideItemResponse(
+                formatMinutes(availableStart), item.name(), item.reason(), item.placeId(),
+                item.placeCategory(), item.placeAddress(), item.placeUrl()
+        );
+    }
+
+    private void addRecommendationWindow(AiGuideItemResponse item, List<TimeWindow> occupied) {
+        if (item == null || item.time() == null || !TIME_PATTERN.matcher(item.time()).matches()) {
+            return;
+        }
+        int start = toMinutes(LocalTime.parse(item.time(), TIME_FORMATTER));
+        occupied.add(new TimeWindow(start, Math.min(start + RECOMMENDATION_DURATION_MINUTES, 24 * 60)));
+    }
+
+    private Integer findAvailableStart(int requestedStart, List<TimeWindow> occupied) {
+        int firstCandidate = roundUpToTimeSlot(requestedStart);
+        for (int candidate = firstCandidate; candidate <= LATEST_RECOMMENDATION_START_MINUTES; candidate += TIME_SLOT_MINUTES) {
+            if (isAvailable(candidate, occupied)) {
+                return candidate;
+            }
+        }
+        return null;
+    }
+
+    private boolean isAvailable(int start, List<TimeWindow> occupied) {
+        int end = start + RECOMMENDATION_DURATION_MINUTES;
+        return end < 24 * 60 && occupied.stream().noneMatch(window -> start < window.end() && window.start() < end);
+    }
+
+    private int roundUpToTimeSlot(int minutes) {
+        return ((minutes + TIME_SLOT_MINUTES - 1) / TIME_SLOT_MINUTES) * TIME_SLOT_MINUTES;
+    }
+
+    private int toMinutes(LocalTime time) {
+        return time.getHour() * 60 + time.getMinute();
+    }
+
+    private String formatMinutes(int minutes) {
+        return LocalTime.of(minutes / 60, minutes % 60).format(TIME_FORMATTER);
+    }
+
     private void validate(CohereGuideContent content) {
         if (content == null || content.answer() == null || content.answer().isBlank()
                 || content.days() == null || content.days().isEmpty() || content.days().size() > MAX_DAYS) {
@@ -301,5 +422,8 @@ public class CohereAiModelClient implements AiModelClient {
     }
 
     private record CohereGuideContent(String answer, List<AiGuideDayResponse> days) {
+    }
+
+    private record TimeWindow(int start, int end) {
     }
 }

@@ -93,8 +93,61 @@ class CohereAiModelClientTest {
 
         assertThat(prompt)
                 .contains("기존 점심 (10:00-12:00)")
-                .contains("Prefer an empty time slot on the same DAY")
-                .contains("reserve two hours after its start time");
+                .contains("Treat every listed window as unavailable")
+                .contains("reserve two hours after its start time")
+                .contains("nearest later available HH:mm time");
+    }
+
+    @Test
+    void generateMovesOverlappingRecommendationToNextAvailableTime() throws Exception {
+        stubResponse(200, """
+                {"message":{"content":[{"type":"text","text":"{\\"answer\\":\\"추천 일정\\",\\"days\\":[{\\"day\\":1,\\"title\\":\\"DAY 1\\",\\"items\\":[{\\"time\\":\\"13:00\\",\\"name\\":\\"카페\\",\\"reason\\":\\"휴식에 좋아요\\"}]}]}"}]}}
+                """);
+
+        AiGuideContext.Item existingItem = new AiGuideContext.Item(
+                1L, "기존 점심", LocalTime.of(12, 30), null, "PLACE", null);
+        AiGuideContext.Day day = new AiGuideContext.Day(
+                1, LocalDate.of(2026, 8, 14), "DAY 1", null, List.of(existingItem));
+        AiGuideContext.Trip trip = new AiGuideContext.Trip(
+                1L, "부산 여행", "부산", LocalDate.of(2026, 8, 14), LocalDate.of(2026, 8, 15),
+                null, null, null, null, null, null, null, null, null, List.of(day));
+
+        AiGuideResponse response = client.generate(new AiGuideRequest("오후 카페 추천", 1L),
+                List.of(), new AiGuideContext(trip, List.of()));
+
+        assertThat(response.days().getFirst().items().getFirst().time()).isEqualTo("14:30");
+    }
+
+    @Test
+    void generateKeepsLateRecommendationWhenNoLaterTwoHourSlotExistsInTripContext() throws Exception {
+        stubResponse(200, """
+                {"message":{"content":[{"type":"text","text":"{\\"answer\\":\\"추천 일정\\",\\"days\\":[{\\"day\\":1,\\"title\\":\\"DAY 1\\",\\"items\\":[{\\"time\\":\\"23:00\\",\\"name\\":\\"늦은 카페\\",\\"reason\\":\\"야간 이용\\"}]}]}"}]}}
+                """);
+
+        AiGuideContext.Item existingItem = new AiGuideContext.Item(
+                2L, "기존 저녁", LocalTime.of(21, 0), LocalTime.of(23, 0), "PLACE", null);
+        AiGuideContext.Day day = new AiGuideContext.Day(
+                1, LocalDate.of(2026, 8, 14), "DAY 1", null, List.of(existingItem));
+        AiGuideContext.Trip trip = new AiGuideContext.Trip(
+                1L, "부산 여행", "부산", LocalDate.of(2026, 8, 14), LocalDate.of(2026, 8, 15),
+                null, null, null, null, null, null, null, null, null, List.of(day));
+
+        AiGuideResponse response = client.generate(new AiGuideRequest("23시 카페 추천", 1L),
+                List.of(), new AiGuideContext(trip, List.of()));
+
+        assertThat(response.days().getFirst().items().getFirst().time()).isEqualTo("23:00");
+    }
+
+    @Test
+    void generateKeepsEarlyRecommendationWhenItDoesNotOverlap() throws Exception {
+        stubResponse(200, """
+                {"message":{"content":[{"type":"text","text":"{\\"answer\\":\\"추천 일정\\",\\"days\\":[{\\"day\\":1,\\"title\\":\\"DAY 1\\",\\"items\\":[{\\"time\\":\\"05:30\\",\\"name\\":\\"이른 산책\\",\\"reason\\":\\"새벽 일정\\"}]}]}"}]}}
+                """);
+
+        AiGuideResponse response = client.generate(new AiGuideRequest("이른 아침 산책", 1L),
+                List.of(), new AiGuideContext(null, List.of()));
+
+        assertThat(response.days().getFirst().items().getFirst().time()).isEqualTo("05:30");
     }
 
     @SuppressWarnings("unchecked")
