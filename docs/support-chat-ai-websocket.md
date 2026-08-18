@@ -244,7 +244,17 @@ WebSocket 메시지는 REST 요청과 달리 클라이언트가 페이로드에 
 
 WebSocket 연결이 끊겼다가 재연결되면 그 사이의 이벤트(메시지, 상태 변경)를 놓칠 수 있습니다. **재연결 직후 WebSocket을 다시 구독하기 전에, 먼저 기존 REST(`GET /api/v1/support/chat` 또는 `GET /api/v1/admin/support-chats/{roomId}`)로 방 전체를 한 번 동기화**해 화면을 최신 상태로 맞춘 다음 구독을 재개합니다. 이 흐름은 "완료 기준"에 포함합니다.
 
-### 7. 상태 전이
+### 7. 봇 응답 대기 중 UX
+
+**확정(heopath 리뷰, [PR #263](https://github.com/heopath/TravelGuide-Project-Team1/pull/263)):** 1차 구현은 별도 서버 이벤트 없이 프론트 로컬 상태만으로 처리합니다.
+
+- 손님 메시지가 REST 전송에 성공하면 즉시 "답변을 준비하고 있습니다..." 표시를 띄웁니다.
+- `BOT` 메시지를 WebSocket으로 수신하면 대기 표시를 제거합니다.
+- 방 상태가 `WAITING`으로 바뀌거나 오류가 발생하면 대기 표시를 상담원 대기 안내로 전환합니다.
+- 봇 응답을 기다리는 동안에는 손님의 추가 전송을 막아 응답 순서가 뒤섞이지 않게 합니다.
+- **1차 범위 밖**: 별도 `BOT_TYPING` WebSocket 이벤트나 DB 저장은 하지 않습니다. 대기 상태는 프론트가 로컬로만 관리합니다.
+
+### 8. 상태 전이
 
 ```text
 방 생성 → BOT (봇이 자동 응답)
@@ -264,7 +274,7 @@ ASSIGNED / WAITING → 관리자가 "상담 종료" ──▶ CLOSED
 
 ## 정할 것
 
-**heopath 리뷰([PR #263](https://github.com/heopath/TravelGuide-Project-Team1/pull/263))로 대부분 확정됐습니다.** 확정된 내용은 해당 섹션에 반영했고, 아래는 남은 항목만 정리합니다.
+**heopath 리뷰([PR #263](https://github.com/heopath/TravelGuide-Project-Team1/pull/263))로 6개 항목 전부 확정됐습니다.**
 
 | # | 항목 | 상태 |
 | --- | --- | --- |
@@ -272,12 +282,8 @@ ASSIGNED / WAITING → 관리자가 "상담 종료" ──▶ CLOSED
 | 2 | 봇이 답을 못 찾을 때 | ✅ 확정 — "설계 &gt; 1. 봇 연동 지점" |
 | 3 | WebSocket 인증 방식 | ✅ 확정 — "설계 &gt; 2. WebSocket 설계" |
 | 4 | 발신 경로 | ✅ 확정 — "설계 &gt; 2. WebSocket 설계" |
-| 5 | 봇 응답 대기 중 UX | **미정** — 아래 참고 |
+| 5 | 봇 응답 대기 중 UX | ✅ 확정 — "설계 &gt; 7. 봇 응답 대기 중 UX" |
 | 6 | 오류 페이로드 형식 | ✅ 확정 — "설계 &gt; 3. 프론트-백엔드 데이터 형식" |
-
-**남은 항목**
-
-- **봇 응답 대기 중 UX** — 타이핑 표시 등이 필요한지. 아직 논의되지 않았습니다.
 
 (WebSocket 채택 여부 자체는 "왜 WebSocket인가"에서 이미 확정됐으므로 여기서 다시 논의하지 않습니다.)
 
@@ -294,7 +300,7 @@ ASSIGNED / WAITING → 관리자가 "상담 종료" ──▶ CLOSED
 - [ ] Gemini 응답 저장 직전 방 상태를 재확인해, `takeover` 이후 봇 응답이 뒤늦게 저장되지 않는다(경쟁 조건 검증)
 - [ ] `/topic/support-chat/rooms/{roomId}` 구독이 서버의 `Principal` 기준으로만 허용된다(자기 방 아닌 손님, `ROLE_ADMIN` 아닌 사용자의 구독·발행 거부 검증)
 - [ ] WebSocket 재연결 시 REST로 전체 동기화 후 재구독하는 흐름이 동작한다(이벤트 유실 방지)
-- [ ] "봇 응답 대기 중 UX"(정할 것 남은 항목)가 팀 논의를 거쳐 확정되고 이 문서에 반영된다
+- [x] "봇 응답 대기 중 UX"(정할 것 남은 항목)가 팀 논의를 거쳐 확정되고 이 문서에 반영된다 — "설계 > 7. 봇 응답 대기 중 UX" 참고
 - [ ] WebSocket 실시간 갱신(수신)이 동작한다 — 발신은 1차에서 기존 REST POST 유지
 - [ ] 운영 nginx에 WebSocket 업그레이드 헤더 설정을 확인·추가한다(로컬에서만 되고 운영에서 실패하는 상황 방지)
 - [ ] `src/test/js`의 기존 상담 채팅 수용 테스트(`admin-chat-acceptance.test.js` 등)가 회귀 없이 통과한다
