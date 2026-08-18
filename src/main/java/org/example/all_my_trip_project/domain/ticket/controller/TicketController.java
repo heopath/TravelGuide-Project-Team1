@@ -2,6 +2,8 @@ package org.example.all_my_trip_project.domain.ticket.controller;
 
 import lombok.RequiredArgsConstructor;
 import org.example.all_my_trip_project.domain.ticket.dto.TicketCancelResponse;
+import org.example.all_my_trip_project.domain.ticket.dto.TicketProductPage;
+import org.example.all_my_trip_project.domain.ticket.dto.TicketProductDetailDTO;
 import org.example.all_my_trip_project.domain.ticket.dto.TicketOfferDTO;
 import org.example.all_my_trip_project.domain.ticket.dto.TicketReservationDTO;
 import org.example.all_my_trip_project.domain.ticket.service.TicketService;

@@ -4,6 +4,9 @@ import lombok.RequiredArgsConstructor;
 import org.example.all_my_trip_project.domain.ticket.dao.TicketDAO;
 import org.example.all_my_trip_project.domain.ticket.dto.CreateTicketReservationRequest;
 import org.example.all_my_trip_project.domain.ticket.dto.TicketCancelResponse;
+import org.example.all_my_trip_project.domain.ticket.dto.TicketProductPage;
+import org.example.all_my_trip_project.domain.ticket.dto.TicketProductDetailDTO;
+import org.example.all_my_trip_project.domain.ticket.dto.TicketProductSummaryDTO;
 import org.example.all_my_trip_project.domain.ticket.dto.TicketOfferDTO;
 import org.example.all_my_trip_project.domain.ticket.dto.TicketReservationDTO;
 import org.example.all_my_trip_project.domain.trip.dao.TripDAO;
@@ -25,6 +28,9 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class TicketService {
 
+    /** 상품 목록 한 쪽의 최대 개수. 관리자 목록과 같은 값으로 맞춘다. */
+    private static final int MAX_PRODUCT_PAGE_SIZE = 100;
+
     private final TicketDAO ticketDAO;
     private final TripDAO tripDAO;
 
@@ -35,6 +41,49 @@ public class TicketService {
         }
         String normalized = destination == null ? "" : destination.trim();
         return ticketDAO.findOffers(normalized, from, to);
+    }
+
+    /**
+     * 판매 중인 상품 목록. <b>날짜를 받지 않는다.</b>
+     *
+     * <p>{@link #search}는 날짜 범위로 시간대를 훑는 길이고 이쪽은 상품을 훑는 길이다.
+     * 관리자가 열어둔 티켓을 먼저 보여주고 언제 갈지는 상품을 고른 뒤 정한다. 날짜로 먼저
+     * 거르면 팔고 있는 티켓인데도 화면이 비는 일이 생긴다 — 실제로 8월 여행에서 9월에만
+     * 열린 티켓 20개가 통째로 안 보였다. (#255)
+     */
+    @Transactional(readOnly = true)
+    public TicketProductPage products(int page, int size, String keyword) {
+        if (page < 0 || size < 1 || size > MAX_PRODUCT_PAGE_SIZE) {
+            throw new BusinessException(ErrorCode.INVALID_TICKET_REQUEST);
+        }
+        int offset;
+        try {
+            offset = Math.multiplyExact(page, size);
+        } catch (ArithmeticException exception) {
+            throw new BusinessException(ErrorCode.INVALID_TICKET_REQUEST);
+        }
+        String normalized = keyword == null || keyword.isBlank() ? null : keyword.trim();
+        long total = ticketDAO.countSellableProducts(normalized);
+        int totalPages = total == 0 ? 0 : (int) Math.ceil((double) total / size);
+        return new TicketProductPage(
+                ticketDAO.findSellableProducts(normalized, offset, size), page, size, total, totalPages);
+    }
+
+    /**
+     * 상품 하나와 그 상품에서 고를 수 있는 시간대 전부.
+     *
+     * <p>여기에는 30일 제한을 두지 않는다. 상품을 이미 골랐으므로 그 상품의 일정을 다
+     * 보여주는 것이 맞다. 제한은 "아무 조건 없이 전체 시간대를 훑는" 것을 막으려던 것이고,
+     * 상품 하나로 좁혀진 뒤에는 그 이유가 사라진다.
+     */
+    @Transactional(readOnly = true)
+    public TicketProductDetailDTO product(Long productId) {
+        if (productId == null || productId < 1) {
+            throw new BusinessException(ErrorCode.TICKET_NOT_FOUND);
+        }
+        TicketProductSummaryDTO product = ticketDAO.findSellableProductById(productId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.TICKET_NOT_FOUND));
+        return new TicketProductDetailDTO(product, ticketDAO.findSlotsByProduct(productId));
     }
 
     /**

@@ -39,6 +39,12 @@ const product = (id, overrides) => Object.assign({
   minUnitPrice: 12000, currency: "KRW",
 }, overrides || {});
 
+const option = (id, overrides) => Object.assign({
+  ticketProductOptionId: id, ticketProductId: 1, name: "성인",
+  unitPrice: 12000, currency: "KRW", maxQuantityPerUser: 4,
+  sortOrder: 1, isActive: true, slotCount: 2,
+}, overrides || {});
+
 const slot = (id, overrides) => Object.assign({
   ticketTimeSlotId: id, ticketProductOptionId: 100 + id,
   optionName: "성인", unitPrice: 12000, currency: "KRW",
@@ -78,6 +84,8 @@ function responder(extra) {
     if (url.includes("/admin/places")) {
       return ok(page([{ placeId: 3, name: "해운대 블루라인파크", city: "해운대구" }]));
     }
+    /* 옵션은 시간대보다 먼저 조회된다. 시간대가 옵션에 달리기 때문이다. (#254) */
+    if (url.includes("/options")) return ok([option(101), option(102, { name: "청소년", sortOrder: 2 })]);
     if (url.includes("/slots")) return ok([slot(9), slot(10, { status: "CLOSED" })]);
     if (extra) {
       const handled = extra(url, options);
@@ -256,10 +264,11 @@ async function run() {
       slotRows(d)[0].querySelector("[data-slot-message]").textContent.includes("적게 줄일 수 없습니다"));
   }
 
-  /* ── 시간대가 없는 상품 ── */
+  /* ── 옵션은 있는데 시간대가 없는 상품 ── */
   {
     const { d } = await boot((url) => {
       if (url.includes("/admin/places")) return ok(page([]));
+      if (url.includes("/options")) return ok([option(101)]);
       if (url.includes("/slots")) return ok([]);
       return ok(page([product(1, { slotCount: 0 })]));
     });
@@ -269,6 +278,30 @@ async function run() {
 
     T("시간대가 없으면 예약을 못 받는다는 것을 알린다",
       d.querySelector("[data-slot-empty]").textContent.includes("예약을 받을 수 있어요"));
+  }
+
+  /*
+   * 옵션조차 없는 상품. 시간대는 옵션에 달리므로(#254) 이때는 "시간대를 추가하라"가 아니라
+   * "옵션을 먼저 만들라"고 해야 한다. 안 그러면 만들 수 없는 것을 만들라고 시키는 셈이다.
+   */
+  {
+    const { d } = await boot((url) => {
+      if (url.includes("/admin/places")) return ok(page([]));
+      if (url.includes("/options")) return ok([]);
+      if (url.includes("/slots")) return ok([]);
+      return ok(page([product(1, { optionCount: 0, slotCount: 0 })]));
+    });
+    await until(() => rows(d).length === 1);
+    d.querySelector('[data-product-slots="1"]').click();
+    /* hidden은 처음부터 false라 대기 조건이 못 된다. 실제로 채워진 문구를 기다린다. */
+    await until(() => d.querySelector("[data-option-empty]").textContent.trim() !== "");
+
+    T("옵션이 없으면 옵션부터 만들라고 안내한다",
+      d.querySelector("[data-slot-empty]").textContent.includes("옵션을 먼저 등록"));
+    T("옵션이 없다는 것도 따로 알린다",
+      d.querySelector("[data-option-empty]").textContent.includes("등록된 옵션이 없어요"));
+    T("목록에서도 옵션 없음을 표시한다",
+      rows(d)[0].querySelector("[data-product-note]").textContent === "옵션 없음");
   }
 
   console.log(`\n${passed} passed, ${failed} failed`);
