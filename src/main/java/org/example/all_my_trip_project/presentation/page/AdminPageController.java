@@ -31,4 +31,18 @@ public class AdminPageController {
         model.addAttribute("kakaoJavascriptKey", kakaoJavascriptKey);
         return "admin/places";
     }
+
+    /**
+     * 현장 검표 화면. (#266)
+     *
+     * <p>관리자 대시보드 안의 검표 탭과 따로 둔다. 그쪽은 사이드바와 표가 있는 데스크톱
+     * 배치라 입구에서 폰으로 쓸 수 없다. 하는 일도 다르다 — 대시보드는 수동 입력과 이력
+     * 조회, 이 화면은 카메라 스캔이다.
+     *
+     * <p>검표 API는 그대로 쓴다. 권한도 {@code ApiSecurityConfig}가 이미 걸고 있다.
+     */
+    @GetMapping("/admin/scan")
+    public String scan() {
+        return "admin/scan";
+    }
 }

@@ -1,0 +1,186 @@
+/* 현장 검표 (#266)
+   입구에서 폰으로 쓰는 화면이다. 한 손으로 들고 팔을 뻗은 거리에서 읽혀야 한다. */
+
+.page-scan {
+  background: #f5f7fc;
+  min-height: 100vh;
+}
+
+.scan-shell {
+  max-width: 520px;
+  margin: 0 auto;
+  padding: 16px 16px 40px;
+}
+
+.scan-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+.scan-head h1 {
+  margin: 0;
+  color: #0b1b3f;
+  font-size: 20px;
+  letter-spacing: -0.02em;
+}
+.scan-head a { margin-left: auto; font-size: 13px; }
+
+.scan-notice {
+  margin: 0 0 12px;
+  padding: 12px 14px;
+  border: 1px solid #cbd5ea;
+  border-radius: 12px;
+  background: #fff;
+  color: #52617c;
+  font-size: 13px;
+  line-height: 1.6;
+}
+.scan-notice[hidden] { display: none; }
+.scan-notice[data-error="true"] {
+  border-color: #f1b9b9;
+  background: #fff6f6;
+  color: #b33a3a;
+  font-weight: 600;
+}
+
+/* ── 카메라 ── */
+
+.scan-camera {
+  position: relative;
+  margin-bottom: 12px;
+  border-radius: 16px;
+  overflow: hidden;
+  background: #0b1b3f;
+  aspect-ratio: 3 / 4;
+}
+.scan-camera[hidden] { display: none; }
+.scan-camera video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* 어디에 비춰야 하는지 보여주는 테두리. 없으면 화면 어디든 대게 된다. */
+.scan-frame {
+  position: absolute;
+  inset: 18%;
+  border: 3px solid rgba(255, 255, 255, 0.9);
+  border-radius: 14px;
+  box-shadow: 0 0 0 100vmax rgba(11, 27, 63, 0.35);
+}
+
+.scan-actions {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+.scan-actions button { flex: 1; min-height: 52px; font-size: 15px; }
+.scan-actions button[hidden] { display: none; }
+
+/* ── 수동 입력 ── */
+
+.scan-manual {
+  margin-bottom: 16px;
+  padding: 14px;
+  border: 1px solid #dce3f1;
+  border-radius: 14px;
+  background: #fff;
+}
+.scan-manual label {
+  display: block;
+  margin-bottom: 8px;
+  color: #52617c;
+  font-size: 12px;
+  font-weight: 700;
+}
+.scan-manual > div { display: flex; gap: 8px; }
+.scan-manual input {
+  flex: 1;
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid #dce3f1;
+  border-radius: 10px;
+  /* 16px 미만이면 iOS가 입력할 때 화면을 확대한다. */
+  font-size: 16px;
+}
+.scan-manual button { min-height: 46px; padding: 0 18px; }
+
+/* ── 결과 ── */
+
+.scan-result {
+  margin-bottom: 20px;
+  padding: 18px;
+  border-radius: 16px;
+  border: 2px solid;
+}
+.scan-result[hidden] { display: none; }
+/* 통과와 거부는 멀리서도 색으로 갈려야 한다. 글자를 읽기 전에 판단이 선다. */
+.scan-result[data-admitted="true"] { border-color: #0a7f5a; background: #e6f7f1; }
+.scan-result[data-admitted="false"] { border-color: #b42318; background: #fff1f2; }
+
+.scan-result-headline {
+  display: block;
+  font-size: 30px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+}
+.scan-result[data-admitted="true"] .scan-result-headline { color: #0a7f5a; }
+.scan-result[data-admitted="false"] .scan-result-headline { color: #b42318; }
+
+.scan-result-message {
+  margin: 6px 0 12px;
+  color: #344054;
+  font-size: 14px;
+  line-height: 1.6;
+}
+.scan-result p {
+  display: flex;
+  gap: 10px;
+  margin: 4px 0;
+  font-size: 13px;
+}
+.scan-result p span { width: 68px; flex: none; color: #7a8499; }
+.scan-result p strong { color: #0b1b3f; font-weight: 700; }
+
+/* ── 최근 검표 ── */
+
+.scan-recent h2 {
+  margin: 0 0 10px;
+  color: #52617c;
+  font-size: 13px;
+  font-weight: 800;
+}
+.scan-recent ul { margin: 0; padding: 0; list-style: none; }
+.scan-recent li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  margin-bottom: 6px;
+  border: 1px solid #e4e8f4;
+  border-radius: 10px;
+  background: #fff;
+}
+.scan-recent li span {
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: #eef1f7;
+  color: #7a8499;
+  font-size: 11px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+.scan-recent li[data-recent-result="SUCCESS"] span { background: #e6f7f1; color: #0a7f5a; }
+.scan-recent li[data-recent-result="ALREADY_USED"] span { background: #fef3e2; color: #9a5f08; }
+.scan-recent li[data-recent-result="NOT_FOUND"],
+.scan-recent li[data-recent-result="EXPIRED"],
+.scan-recent li[data-recent-result="CANCELLED"] { border-color: #f1d6d6; }
+.scan-recent li[data-recent-result="NOT_FOUND"] span,
+.scan-recent li[data-recent-result="EXPIRED"] span,
+.scan-recent li[data-recent-result="CANCELLED"] span { background: #fff1f2; color: #b42318; }
+.scan-recent li small { color: #7a8499; font-size: 12px; }
+
+.scan-empty { margin: 0; color: #98a2b3; font-size: 13px; }
+.scan-empty[hidden] { display: none; }
