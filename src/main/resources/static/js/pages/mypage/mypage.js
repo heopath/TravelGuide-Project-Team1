@@ -18,6 +18,10 @@ import {
     initSupport,
 } from "./mypage-support.js";
 
+import {
+    initSupportChat,
+} from "./mypage-support-chat.js";
+
 document.addEventListener(
     "DOMContentLoaded",
     () => {
