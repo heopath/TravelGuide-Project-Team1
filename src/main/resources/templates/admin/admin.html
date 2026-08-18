@@ -331,8 +331,12 @@
                     <label><span>옵션</span>
                       <select data-slot-field="ticketProductOptionId" required></select>
                     </label>
+                    <!--
+                      수량 기본값은 JS가 넣는다. 마크업에 숫자를 박아두면 서버에서 온 값과
+                      구분되지 않아, 화면을 읽는 사람이 실제 재고로 오해한다.
+                    -->
                     <label><span>수량(시간대당)</span>
-                      <input type="number" data-slot-field="totalQuantity" min="0" value="100" required />
+                      <input type="number" data-slot-field="totalQuantity" min="0" required />
                     </label>
                     <label><span>이용 시작일</span>
                       <input type="date" data-slot-field="usageStartDate" required />

@@ -8,6 +8,8 @@
   "use strict";
 
   const PAGE_SIZE = 20;
+  /* 시간대 등록 폼의 기본 수량. 마크업에 두면 실제 재고로 오해할 수 있어 여기 둔다. */
+  const DEFAULT_SLOT_QUANTITY = 100;
   const statusLabels = {
     DRAFT: "작성 중",
     ON_SALE: "판매 중",
@@ -580,8 +582,10 @@
 
   async function refreshOptions() {
     if (!currentProduct) return;
-    loadedOptions = await request(
-      `/api/v1/admin/ticket-products/${currentProduct.ticketProductId}/options`) || [];
+    const received = await request(
+      `/api/v1/admin/ticket-products/${currentProduct.ticketProductId}/options`);
+    /* 배열이 아니면 빈 목록으로 본다. forEach를 바로 부르면 여기서 터져 시간대까지 못 그린다. */
+    loadedOptions = Array.isArray(received) ? received : [];
     optionList.replaceChildren();
     if (!loadedOptions.length) {
       optionEmpty.hidden = false;
@@ -593,11 +597,21 @@
     fillOptionSelect();
   }
 
+  /*
+   * 옵션과 시간대는 따로 받는다. 옵션 조회가 실패해도 시간대는 보여야 한다 — 재고 조정이
+   * 옵션과 무관한 동작인데, 옵션 때문에 막히면 고칠 수 있는 것까지 못 고치게 된다.
+   */
   async function reloadSlotPanel() {
-    await refreshOptions();
+    try {
+      await refreshOptions();
+    } catch (error) {
+      loadedOptions = [];
+      optionEmpty.hidden = false;
+      optionEmpty.textContent = error.message || "옵션을 불러오지 못했어요.";
+    }
     const slots = await request(
       `/api/v1/admin/ticket-products/${currentProduct.ticketProductId}/slots`);
-    renderSlots(slots);
+    renderSlots(Array.isArray(slots) ? slots : []);
   }
 
   async function openSlots(product) {
@@ -616,6 +630,8 @@
     /* 상품의 이용 기간을 기본값으로 넣는다. 그 밖의 날짜를 여는 일은 드물다. */
     if (slotField("usageStartDate")) slotField("usageStartDate").value = product.usageStartDate || "";
     if (slotField("usageEndDate")) slotField("usageEndDate").value = product.usageEndDate || "";
+    /* 수량 기본값은 마크업이 아니라 여기서 넣는다. 서버에서 온 값과 섞이면 안 된다. */
+    if (slotField("totalQuantity")) slotField("totalQuantity").value = DEFAULT_SLOT_QUANTITY;
     try {
       await reloadSlotPanel();
     } catch (error) {

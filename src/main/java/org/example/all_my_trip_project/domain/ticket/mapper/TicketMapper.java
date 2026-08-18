@@ -3,6 +3,7 @@ package org.example.all_my_trip_project.domain.ticket.mapper;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import org.example.all_my_trip_project.domain.ticket.dto.TicketOfferDTO;
+import org.example.all_my_trip_project.domain.ticket.dto.TicketProductSummaryDTO;
 import org.example.all_my_trip_project.domain.ticket.dto.TicketReservationDTO;
 
 import java.time.LocalDate;
@@ -42,5 +43,15 @@ public interface TicketMapper {
     int updateReservationTrip(@Param("userId") Long userId,
                               @Param("reservationId") Long reservationId,
                               @Param("tripId") Long tripId);
+
+    List<TicketProductSummaryDTO> findSellableProducts(@Param("keyword") String keyword,
+                                                       @Param("offset") int offset,
+                                                       @Param("size") int size);
+
+    long countSellableProducts(@Param("keyword") String keyword);
+
+    Optional<TicketProductSummaryDTO> findSellableProductById(@Param("productId") Long productId);
+
+    List<TicketOfferDTO> findSlotsByProduct(@Param("productId") Long productId);
 
 }
