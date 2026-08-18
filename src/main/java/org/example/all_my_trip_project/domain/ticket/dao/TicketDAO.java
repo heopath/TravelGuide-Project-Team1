@@ -45,4 +45,10 @@ public class TicketDAO {
     public int cancelConfirmedReservation(Long reservationId) {
         return mapper.cancelConfirmedReservation(reservationId);
     }
+    public List<TicketReservationDTO> findByUser(Long userId) { return mapper.findReservationsByUser(userId); }
+
+    public int updateReservationTrip(Long userId, Long reservationId, Long tripId) {
+        return mapper.updateReservationTrip(userId, reservationId, tripId);
+    }
+
 }

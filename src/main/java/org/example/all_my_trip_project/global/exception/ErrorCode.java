@@ -312,6 +312,15 @@ public enum ErrorCode {
             "이미 예약이 걸린 시간대입니다. 예약을 먼저 정리해 주세요."
     ),
 
+    /*
+     * 산 티켓을 여행에 붙일 때 이용일이 여행 기간 밖인 경우. 8월 여행에 9월 티켓을 붙이면
+     * 일정 화면에서 그 티켓이 놓일 자리가 없다.
+     */
+    TICKET_TRIP_PERIOD_MISMATCH(
+            HttpStatus.CONFLICT,
+            "티켓 이용일이 선택한 여행 기간에 들어 있지 않습니다."
+    ),
+
     SUPPORT_INQUIRY_NOT_FOUND(
             HttpStatus.NOT_FOUND,
             "고객센터 문의를 찾을 수 없습니다."

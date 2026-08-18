@@ -37,4 +37,10 @@ public interface TicketMapper {
     int cancelIssuedTickets(@Param("reservationId") Long reservationId);
     int refundPayments(@Param("reservationId") Long reservationId);
     int cancelConfirmedReservation(@Param("reservationId") Long reservationId);
+    List<TicketReservationDTO> findReservationsByUser(@Param("userId") Long userId);
+
+    int updateReservationTrip(@Param("userId") Long userId,
+                              @Param("reservationId") Long reservationId,
+                              @Param("tripId") Long tripId);
+
 }
