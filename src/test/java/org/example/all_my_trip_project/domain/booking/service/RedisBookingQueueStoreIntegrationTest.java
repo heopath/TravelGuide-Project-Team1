@@ -103,6 +103,54 @@ class RedisBookingQueueStoreIntegrationTest {
         }
     }
 
+    /**
+     * 여행 없는 요청이 Redis를 왕복해도 {@code tripId}가 null로 남는지 본다.
+     *
+     * <p>넣을 때 {@code String.valueOf(null)}이 문자열 {@code "null"}을 만들고, 꺼낼 때
+     * {@code asLong()}이 그것을 0으로 되살려서, 여행 없이 산 티켓이 "여행을 찾을 수 없습니다"로
+     * 막혔다. 0은 어느 여행도 아니다.
+     *
+     * <p>값 변환만 보는 시험({@code BookingQueueValueParsingTest})과 달리 실제 Lua·Redis를
+     * 거친다. 저장 형식이 바뀌어도 여기서 잡힌다.
+     */
+    @Test
+    void keepsTripIdNullThroughRedisRoundTrip() {
+        Instant now = Instant.now();
+        String token = "a".repeat(32);
+        tokens.add(token);
+
+        BookingQueueStatusResponse enqueued = store.enqueue(
+                1L, new CreateTicketReservationRequest(null, slotId, 1, "no-trip"), token, now);
+
+        /* 응답에 0이 실리면 화면도 없는 여행을 고른 것처럼 보인다. */
+        assertThat(enqueued.tripId()).isNull();
+        assertThat(enqueued.status()).isEqualTo(BookingQueueState.READY);
+
+        assertThat(store.status(1L, token, now).tripId()).isNull();
+
+        var claim = store.claim(1L, token, now);
+        assertThat(claim.claimed()).isTrue();
+        /* 여기가 핵심. 0이면 requireOwnedTrip이 TRIP_NOT_FOUND로 막는다. */
+        assertThat(claim.request().tripId()).isNull();
+        assertThat(claim.request().slotId()).isEqualTo(slotId);
+        assertThat(claim.request().quantity()).isEqualTo(1);
+        assertThat(claim.request().requestKey()).isEqualTo("no-trip");
+    }
+
+    /** 여행을 고른 경우는 그대로 살아남아야 한다. 없는 값만 걸러내는 것이지 전부 비우는 게 아니다. */
+    @Test
+    void keepsRealTripIdThroughRedisRoundTrip() {
+        Instant now = Instant.now();
+        String token = "b".repeat(32);
+        tokens.add(token);
+
+        BookingQueueStatusResponse enqueued = store.enqueue(
+                2L, new CreateTicketReservationRequest(50L, slotId, 2, "with-trip"), token, now);
+
+        assertThat(enqueued.tripId()).isEqualTo(50L);
+        assertThat(store.claim(2L, token, now).request().tripId()).isEqualTo(50L);
+    }
+
     private String environmentOrDefault(String name, String defaultValue) {
         String value = System.getenv(name);
         return value == null || value.isBlank() ? defaultValue : value;
