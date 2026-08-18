@@ -44,6 +44,25 @@ public class TicketController {
     }
 
     /**
+     * 판매 중인 티켓 상품 목록. 날짜를 받지 않는다. (#255)
+     *
+     * <p>{@code GET /tickets}(날짜 범위)는 예약 화면 밖에서 아직 쓸 수 있어 함께 남겨둔다.
+     */
+    @GetMapping("/tickets/products")
+    public ApiResponse<TicketProductPage> products(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(required = false) String keyword) {
+        return ApiResponse.success(ticketService.products(page, size, keyword));
+    }
+
+    /** 상품 하나와 고를 수 있는 시간대 전부. */
+    @GetMapping("/tickets/products/{productId}")
+    public ApiResponse<TicketProductDetailDTO> product(@PathVariable Long productId) {
+        return ApiResponse.success(ticketService.product(productId));
+    }
+
+    /**
      * 예약 목록. {@code tripId}를 주면 그 여행의 티켓만, 안 주면 산 티켓 전체다.
      *
      * <p>여행에 붙지 않은 티켓이 생기면서 "여행별"만으로는 다 볼 수 없게 됐다. (#255)
