@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.example.all_my_trip_project.domain.payment.dao.PaymentDAO;
 import org.example.all_my_trip_project.domain.payment.dto.IssuedTicketDTO;
+import org.example.all_my_trip_project.domain.payment.dto.TicketQrResponse;
 import org.example.all_my_trip_project.domain.payment.dto.PayableReservationDTO;
 import org.example.all_my_trip_project.domain.payment.dto.PaymentDTO;
 import org.example.all_my_trip_project.domain.payment.dto.PaymentRequest;
@@ -21,6 +22,7 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.time.Clock;
+import java.time.Duration;
 import java.time.LocalTime;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
@@ -51,6 +53,14 @@ public class PaymentService {
 
     private static final String PROVIDER_MOCK = "MOCK";
     private static final int TOKEN_BYTES = 32;
+
+    /**
+     * QR 토큰이 살아 있는 시간.
+     *
+     * <p>짧게 두는 이유는 QR이 화면 캡처로 퍼지기 때문이다. 줄 서 있는 동안 만료되면 다시
+     * 누르면 된다. 실제 티켓 앱들이 QR을 주기적으로 갱신하는 것도 같은 이유다.
+     */
+    private static final Duration QR_TOKEN_TTL = Duration.ofMinutes(5);
 
     /**
      * 티켓을 언제부터 언제까지 쓸 수 있는지.
@@ -252,6 +262,46 @@ public class PaymentService {
             /* SHA-256은 표준 구현에 반드시 있다. 여기 오면 JVM 문제다. */
             throw new IllegalStateException("SHA-256을 사용할 수 없습니다.", exception);
         }
+    }
+
+    /**
+     * QR에 담을 입장 코드를 새로 발급한다. (#265)
+     *
+     * <p>발권 때 준 코드는 그대로 두고 <b>대조용 토큰을 하나 더</b> 만든다. 저장하는 것은
+     * 여전히 해시뿐이라, 평문을 두지 않는 지금 설계를 깨지 않으면서 마이페이지에서 QR을
+     * 다시 볼 수 있게 된다.
+     *
+     * <p>부를 때마다 새로 만들므로 앞서 띄운 QR은 그 순간 통하지 않는다. 유효기간이 짧은
+     * 이유는 QR이 화면 캡처로 퍼지기 때문이다 — 사진 한 장이 영원히 통하면 그 한 장으로
+     * 여러 명이 들어간다.
+     */
+    @Transactional
+    public TicketQrResponse issueQrToken(Long userId, Long reservationId, Long issuedTicketId) {
+        requireUser(userId);
+        TicketReservationDTO reservation = requireReservation(reservationId);
+        if (!userId.equals(reservation.getUserId())) {
+            throw new BusinessException(ErrorCode.TICKET_RESERVATION_NOT_FOUND);
+        }
+
+        IssuedTicketDTO ticket = paymentDAO.findIssuedTicket(reservationId, issuedTicketId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.TICKET_NOT_FOUND));
+        /*
+         * 쓸 수 없는 티켓에는 만들지 않는다. 만들어주면 통하지 않는 QR을 손님이 들고
+         * 서 있게 되고, 현장에서야 안 된다는 것을 알게 된다.
+         */
+        if (!"ISSUED".equals(ticket.getStatus())) {
+            throw new BusinessException(ErrorCode.TICKET_QR_NOT_AVAILABLE);
+        }
+
+        OffsetDateTime now = OffsetDateTime.now(clock);
+        OffsetDateTime expiresAt = now.plus(QR_TOKEN_TTL);
+        String token = newToken();
+        if (paymentDAO.updateQrToken(issuedTicketId, sha256(token), expiresAt) != 1) {
+            /* 읽고 쓰는 사이에 취소·사용 처리가 들어온 경우다. 조용히 넘기지 않는다. */
+            throw new BusinessException(ErrorCode.TICKET_QR_NOT_AVAILABLE);
+        }
+        return new TicketQrResponse(
+                issuedTicketId, ticket.getTicketNumber(), token, expiresAt, now);
     }
 
     private TicketReservationDTO requireReservation(Long reservationId) {

@@ -44,13 +44,20 @@ const trip = (overrides) => Object.assign({
  * 배선은 mypage-module-wiring.test.js가 따로 본다.
  */
 function loadModule(w, handlers) {
+  /* import를 전부 걷어낸다. 하나라도 남으면 eval이 SyntaxError로 죽는다. */
   const source = fs.readFileSync(JS, "utf8")
-    .replace(/^import[\s\S]*?from\s*"\.\/mypage-common\.js";/m, "")
+    .replace(/^import[\s\S]*?from\s*"[^"]+";\s*$/gm, "")
     .replace(/^export function/m, "function");
   w.eval(`${source}
     window.__initTickets = initTickets;`);
   w.request = handlers.request;
   w.showToast = handlers.showToast;
+  /* QR 그리기는 별도 시험(qr-encoder.test.js)이 맡는다. 여기서는 호출 여부만 본다. */
+  w.createQrSvg = handlers.createQrSvg || ((text) => {
+    const svg = w.document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    svg.dataset.stubToken = text;
+    return svg;
+  });
   return w.__initTickets;
 }
 
@@ -173,6 +180,68 @@ async function run() {
       d.querySelector("[data-ticket-row] select") === null);
     test("취소 상태를 표시한다",
       d.querySelector("[data-ticket-status]").textContent === "취소됨");
+  }
+
+  /* ── 입장 QR (#265) ── */
+  {
+    const toasts = [];
+    const issued = [
+      { issuedTicketId: 11, ticketNumber: "AMT-TKN-000000000011", status: "ISSUED" },
+      { issuedTicketId: 12, ticketNumber: "AMT-TKN-000000000012", status: "ISSUED" },
+      /* 취소된 티켓은 섞여 있어도 QR을 만들면 안 된다. */
+      { issuedTicketId: 13, ticketNumber: "AMT-TKN-000000000013", status: "CANCELLED" },
+    ];
+    const { d, calls } = await boot((url, options) => {
+      if (url.includes("/qr") && options.method === "POST") {
+        const id = Number(url.match(/tickets\/(\d+)\/qr/)[1]);
+        return {
+          issuedTicketId: id, ticketNumber: "AMT-TKN-" + id,
+          token: "token-" + id,
+          expiresAt: "2026-08-18T14:35:19+09:00",
+          serverTime: "2026-08-18T14:30:19+09:00",
+        };
+      }
+      if (url.endsWith("/tickets")) return issued;
+      if (url.startsWith("/api/v1/ticket-reservations")) return [ticket({ status: "CONFIRMED" })];
+      if (url.startsWith("/api/v1/trips")) return { items: [] };
+      return null;
+    }, toasts);
+
+    const open = d.querySelector("[data-ticket-qr-open]");
+    test("결제 완료된 예약에 입장 QR 버튼이 있다", open !== null);
+
+    open.click();
+    await until(() => d.querySelectorAll("[data-qr-card]").length > 0);
+
+    test("발급 API를 티켓마다 POST로 부른다",
+      calls.filter((c) => c.method === "POST" && c.url.includes("/qr")).length === 2,
+      calls.filter((c) => c.url.includes("/qr")).map((c) => c.url).join(" | "));
+    test("쓸 수 있는 티켓 수만큼 QR을 보여준다",
+      d.querySelectorAll("[data-qr-card]").length === 2);
+    test("취소된 티켓의 QR은 만들지 않는다",
+      !calls.some((c) => c.url.includes("/tickets/13/qr")));
+    test("티켓 번호를 함께 보여준다",
+      d.querySelector("[data-qr-card] small").textContent.includes("AMT-TKN-"));
+    test("남은 시간을 서버가 준 값으로 센다",
+      /분 \d\d초 뒤 만료/.test(d.querySelector("[data-qr-remain]").textContent),
+      d.querySelector("[data-qr-remain]")?.textContent);
+
+    open.click();
+    test("닫으면 QR과 타이머를 함께 정리한다",
+      d.querySelectorAll("[data-qr-card]").length === 0
+      && !d.querySelector("[data-ticket-qr-panel]").dataset.qrTimer);
+  }
+  {
+    const toasts = [];
+    const { d } = await boot((url) => {
+      if (url.startsWith("/api/v1/ticket-reservations")) return [ticket({ status: "PENDING" })];
+      if (url.startsWith("/api/v1/trips")) return { items: [] };
+      return null;
+    }, toasts);
+
+    /* 결제 전에는 티켓이 아직 없다. 버튼을 두면 눌러야만 없다는 것을 알게 된다. */
+    test("결제 전 예약에는 QR 버튼을 두지 않는다",
+      d.querySelector("[data-ticket-qr-open]") === null);
   }
 
   /* ── 빈 목록과 실패 ── */

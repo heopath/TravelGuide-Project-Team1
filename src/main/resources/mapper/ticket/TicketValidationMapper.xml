@@ -20,7 +20,17 @@
         FROM issued_tickets t
         JOIN reservation_items ri ON ri.reservation_item_id = t.reservation_item_id
         JOIN reservations r ON r.reservation_id = ri.reservation_id
-        WHERE t.verification_token_hash = #{tokenHash}
+        <!--
+          발권 때 준 코드와 마이페이지에서 다시 받은 QR 토큰 둘 다 받는다. (#265)
+
+          발권 코드를 계속 받는 이유는 받아 적어둔 손님이 있기 때문이다. 그쪽을 막으면
+          지금까지 발급된 티켓이 한꺼번에 못 쓰게 된다.
+
+          QR 토큰은 만료를 함께 본다. 유효기간을 안 보면 화면 캡처 한 장이 영원히 통한다.
+        -->
+        WHERE (t.verification_token_hash = #{tokenHash}
+            OR (t.qr_token_hash = #{tokenHash}
+                AND t.qr_token_expires_at &gt; CURRENT_TIMESTAMP))
         FOR UPDATE OF t
     </select>
 

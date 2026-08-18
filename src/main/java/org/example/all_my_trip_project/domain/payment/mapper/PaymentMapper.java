@@ -52,4 +52,12 @@ public interface PaymentMapper {
      */
     Optional<org.example.all_my_trip_project.domain.ticket.dto.TicketReservationDTO>
             findReservation(@Param("reservationId") Long reservationId);
+    /** 티켓 하나. 예약 소유 확인 뒤 상태를 보려고 읽는다. (#265) */
+    Optional<IssuedTicketDTO> findIssuedTicket(@Param("reservationId") Long reservationId,
+                                               @Param("issuedTicketId") Long issuedTicketId);
+
+    /** QR 토큰 해시와 만료 시각을 새로 쓴다. 앞서 만든 값은 그 순간 못 쓰게 된다. */
+    int updateQrToken(@Param("issuedTicketId") Long issuedTicketId,
+                      @Param("tokenHash") String tokenHash,
+                      @Param("expiresAt") java.time.OffsetDateTime expiresAt);
 }

@@ -399,6 +399,11 @@
                 <div class="admin-section-head">
                   <h2 id="validationTitle">티켓 검표</h2>
                   <span class="admin-tag live" data-admin-state="validation">실연동</span>
+                  <!--
+                    현장에서는 이 화면이 아니라 폰으로 스캔한다. (#266)
+                    여기는 수동 입력과 이력 조회용으로 남긴다 — 스캐너가 안 될 때 유일한 길이다.
+                  -->
+                  <a class="text-button" data-route="/admin/scan" href="/admin/scan">폰으로 스캔 →</a>
                   <div class="admin-filter" role="group" aria-label="검표 결과 필터" data-validation-filter>
                     <button type="button" class="admin-chip on" data-validation-result="">전체</button>
                     <button type="button" class="admin-chip" data-validation-result="SUCCESS">입장</button>
