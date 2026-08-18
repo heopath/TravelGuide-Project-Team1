@@ -516,6 +516,19 @@ document.addEventListener("DOMContentLoaded", function () {
     }
     const endTime = String(Math.floor(endMinutes / 60)).padStart(2, "0") + ":"
       + String(endMinutes % 60).padStart(2, "0");
+    const requestedWindow = {start: startMinutes, end: endMinutes};
+    const hasLocalTimeConflict = (activeItems || [])
+      .filter(function (other) {
+        return String(other?.itineraryItemId) !== String(item?.itineraryItemId);
+      })
+      .map(getScheduledItemTimeWindow)
+      .filter(Boolean)
+      .some(function (otherWindow) {
+        return requestedWindow.start < otherWindow.end && otherWindow.start < requestedWindow.end;
+      });
+    if (hasLocalTimeConflict) {
+      throw new Error("기존 일정과 시간이 겹칩니다. 다른 시간을 선택해 주세요.");
+    }
 
     // 저장 전 초안 항목은 아직 서버 ID가 없으므로 화면에서만 시간을 유지한다.
     if (!item?.itineraryItemId || String(item.itineraryItemId).startsWith("draft-") || !item.tripDayId) {
@@ -1526,7 +1539,7 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   function toMinutes(value) {
-    const matched = String(value || "").trim().match(/^([01]\\d|2[0-3]):([0-5]\\d)(?::[0-5]\\d)?$/);
+    const matched = String(value || "").trim().match(/^([01]\d|2[0-3]):([0-5]\d)(?::[0-5]\d)?$/);
     if (!matched) return null;
     return Number(matched[1]) * 60 + Number(matched[2]);
   }
@@ -1680,6 +1693,7 @@ document.addEventListener("DOMContentLoaded", function () {
   window.AllMyTripsSchedule = {
     getAiRecommendationStates,
     getAiRecommendationTimeConflicts,
+    isAiRecommendationOutsideDay,
     getAiRecommendationUnavailableTimePlaceIds,
     addAiRecommendations,
     addAiRecommendation: async function (recommendation, recommendedDayNumber) {

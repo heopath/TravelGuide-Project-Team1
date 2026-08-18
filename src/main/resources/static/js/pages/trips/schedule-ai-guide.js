@@ -78,6 +78,43 @@ document.addEventListener("DOMContentLoaded", function () {
       : (unavailableTime ? "시간 조정 필요" : (timeConflict ? "시간 겹침" : "일정에 추가"));
   }
 
+  function recommendationKey(item) {
+    return String(item?.placeId || "") + ":" + String(item?.time || "");
+  }
+
+  function isOutsideDay(item) {
+    return Boolean(window.AllMyTripsSchedule?.isAiRecommendationOutsideDay?.(item));
+  }
+
+  function isAddableItem(item, addedPlaceIds, timeConflictPlaceIds, unavailableTimeKeys) {
+    const placeId = Number(item?.placeId);
+    return Number.isInteger(placeId) && placeId > 0
+      && !addedPlaceIds.has(placeId)
+      && !timeConflictPlaceIds.has(placeId)
+      && !unavailableTimeKeys.has(recommendationKey(item));
+  }
+
+  function updateBulkButton(control, addedPlaceIds, timeConflictPlaceIds, unavailableTimeKeys) {
+    const addableItems = control.items.filter(function (item) {
+      return isAddableItem(item, addedPlaceIds, timeConflictPlaceIds, unavailableTimeKeys);
+    });
+    control.selectedPlaceIds.forEach(function (placeId) {
+      if (!addableItems.some(function (item) { return Number(item.placeId) === placeId; })) {
+        control.selectedPlaceIds.delete(placeId);
+      }
+    });
+    const selectedItems = addableItems.filter(function (item) {
+      return control.selectedPlaceIds.has(Number(item.placeId));
+    });
+    control.bulkButton.disabled = selectedItems.length === 0;
+    control.bulkButton.textContent = selectedItems.length
+      ? (selectedItems.length === addableItems.length
+        ? "DAY " + control.dayNumber + " 일정 모두 추가"
+        : selectedItems.length + "개 선택 추가")
+      : ((timeConflictPlaceIds.size || unavailableTimeKeys.size) ? "시간 조정 필요" : "모두 추가됨");
+    return selectedItems;
+  }
+
   function setDayStatus(control, text, isError) {
     if (!control.status) return;
     control.status.textContent = text || "";
@@ -101,26 +138,23 @@ document.addEventListener("DOMContentLoaded", function () {
         window.AllMyTripsSchedule.getAiRecommendationStates(control.items, control.dayNumber),
         window.AllMyTripsSchedule.getAiRecommendationTimeConflicts(control.items, control.dayNumber)
       ]);
-      const unavailableTimePlaceIds = window.AllMyTripsSchedule
-        .getAiRecommendationUnavailableTimePlaceIds(control.items);
+      const unavailableTimeKeys = new Set(control.items
+        .filter(isOutsideDay)
+        .map(recommendationKey));
       control.itemButtons.forEach(function (entry) {
-        setAddButtonState(entry.button, addedPlaceIds.has(Number(entry.item.placeId)),
-          timeConflictPlaceIds.has(Number(entry.item.placeId)),
-          unavailableTimePlaceIds.has(Number(entry.item.placeId)));
+        const added = addedPlaceIds.has(Number(entry.item.placeId));
+        const timeConflict = timeConflictPlaceIds.has(Number(entry.item.placeId));
+        const unavailableTime = unavailableTimeKeys.has(recommendationKey(entry.item));
+        setAddButtonState(entry.button, added, timeConflict, unavailableTime);
+        entry.checkbox.disabled = !isAddableItem(entry.item, addedPlaceIds, timeConflictPlaceIds, unavailableTimeKeys);
+        entry.checkbox.checked = control.selectedPlaceIds.has(Number(entry.item.placeId)) && !entry.checkbox.disabled;
+        entry.adjustButton.hidden = !timeConflict && !unavailableTime;
       });
-      const hasUnaddedItem = control.items.some(function (item) {
-        const placeId = Number(item.placeId);
-        return !addedPlaceIds.has(placeId) && !timeConflictPlaceIds.has(placeId)
-          && !unavailableTimePlaceIds.has(placeId);
-      });
-      control.bulkButton.disabled = !hasUnaddedItem;
-      control.bulkButton.textContent = hasUnaddedItem
-        ? "DAY " + control.dayNumber + " 일정 모두 추가"
-        : ((timeConflictPlaceIds.size || unavailableTimePlaceIds.size) ? "시간 조정 필요" : "모두 추가됨");
-      if (timeConflictPlaceIds.size || unavailableTimePlaceIds.size) {
+      updateBulkButton(control, addedPlaceIds, timeConflictPlaceIds, unavailableTimeKeys);
+      if (timeConflictPlaceIds.size || unavailableTimeKeys.size) {
         const messages = [];
         if (timeConflictPlaceIds.size) messages.push(timeConflictPlaceIds.size + "개는 기존 일정과 시간이 겹칩니다.");
-        if (unavailableTimePlaceIds.size) messages.push(unavailableTimePlaceIds.size + "개는 자정을 넘어 추가할 수 없습니다.");
+        if (unavailableTimeKeys.size) messages.push(unavailableTimeKeys.size + "개는 자정을 넘어 추가할 수 없습니다.");
         setDayStatus(control, messages.join(" "), false);
       }
     } catch (error) {
@@ -130,6 +164,15 @@ document.addEventListener("DOMContentLoaded", function () {
 
   function refreshAllDayControls() {
     dayControls.forEach(function (control) { refreshDayControl(control); });
+  }
+
+  function requestAlternativeTime(dayNumber, item) {
+    const name = String(item?.name || "추천 장소").trim();
+    const question = "DAY " + dayNumber + "의 " + name
+      + "을(를) 현재 일정과 겹치지 않는 다른 시간대로 추천해줘. "
+      + "일정은 2시간 기준으로, 22:00 이후에는 시작하지 않게 해줘.";
+    input.value = "";
+    submit(question);
   }
 
   function renderResponse(payload) {
@@ -146,6 +189,7 @@ document.addEventListener("DOMContentLoaded", function () {
           dayNumber: day.day,
           items: verifiedItems,
           itemButtons: [],
+          selectedPlaceIds: new Set(verifiedItems.map(function (item) { return Number(item.placeId); })),
           bulkButton: create("button", "DAY " + day.day + " 일정 모두 추가", "schedule-ai-add-all"),
           status: create("small", "", "schedule-ai-bulk-status")
         } : null;
@@ -159,7 +203,10 @@ document.addEventListener("DOMContentLoaded", function () {
             control.bulkButton.disabled = true;
             control.bulkButton.textContent = "추가 중";
             try {
-              const result = await window.AllMyTripsSchedule.addAiRecommendations(control.items, control.dayNumber);
+              const selectedItems = control.items.filter(function (item) {
+                return control.selectedPlaceIds.has(Number(item.placeId));
+              });
+              const result = await window.AllMyTripsSchedule.addAiRecommendations(selectedItems, control.dayNumber);
               setDayStatus(control, resultMessage(result), Boolean(result.failed?.length));
               await refreshDayControl(control);
             } catch (error) {
@@ -179,6 +226,7 @@ document.addEventListener("DOMContentLoaded", function () {
           if (isVerifiedPlace(item)) {
             const meta = create("div", "", "schedule-ai-place-meta");
             meta.append(create("em", categoryLabel(item.placeCategory)));
+            meta.append(create("small", "예상 체류 2시간", "schedule-ai-duration"));
             if (item.placeAddress) meta.append(create("small", item.placeAddress));
             copy.append(meta);
           }
@@ -212,8 +260,28 @@ document.addEventListener("DOMContentLoaded", function () {
                 showError(error.message || "일정을 추가하지 못했습니다.");
               }
             });
-            if (control) control.itemButtons.push({ item, button: addButton });
+            const adjustButton = create("button", "다른 시간 추천", "schedule-ai-adjust-time");
+            adjustButton.type = "button";
+            adjustButton.hidden = true;
+            adjustButton.addEventListener("click", function () {
+              requestAlternativeTime(day.day, item);
+            });
+            const selectLabel = create("label", "", "schedule-ai-select-label");
+            const checkbox = document.createElement("input");
+            checkbox.type = "checkbox";
+            checkbox.checked = true;
+            checkbox.setAttribute("aria-label", item.name + " 일정에 추가 선택");
+            checkbox.addEventListener("change", function () {
+              const placeId = Number(item.placeId);
+              if (checkbox.checked) control.selectedPlaceIds.add(placeId);
+              else control.selectedPlaceIds.delete(placeId);
+              refreshDayControl(control);
+            });
+            selectLabel.append(checkbox, create("span", "선택"));
+            if (control) control.itemButtons.push({ item, button: addButton, adjustButton, checkbox });
             actions.append(addButton);
+            actions.append(adjustButton);
+            if (control) actions.append(selectLabel);
             row.append(actions);
           }
           list.append(row);

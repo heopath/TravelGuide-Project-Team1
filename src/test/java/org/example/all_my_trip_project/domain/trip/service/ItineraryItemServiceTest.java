@@ -295,6 +295,28 @@ class ItineraryItemServiceTest {
     }
 
     @Test
+    void updateRejectsTimeThatOverlapsAnotherItemOnSameDay() {
+        ItineraryItemDTO existing = ItineraryItemDTO.builder()
+                .itineraryItemId(30L).tripDayId(20L).title("수정할 일정").sortOrder(4)
+                .startTime(LocalTime.of(9, 0)).endTime(LocalTime.of(11, 0)).build();
+        ItineraryItemDTO otherItem = ItineraryItemDTO.builder()
+                .itineraryItemId(31L).tripDayId(20L).title("기존 점심 일정")
+                .startTime(LocalTime.of(12, 0)).endTime(LocalTime.of(14, 0)).build();
+        ItineraryItemDTO update = ItineraryItemDTO.builder()
+                .itineraryItemId(30L).tripDayId(20L).title("수정할 일정")
+                .startTime(LocalTime.of(12, 0)).endTime(LocalTime.of(14, 0)).build();
+        prepareOwnedItemForUpdate(existing);
+        when(itemDAO.findByTripDayId(20L)).thenReturn(List.of(existing, otherItem));
+
+        assertThatThrownBy(() -> itineraryItemService.update(42L, update))
+                .isInstanceOf(BusinessException.class)
+                .extracting(exception -> ((BusinessException) exception).getErrorCode())
+                .isEqualTo(ErrorCode.ITINERARY_TIME_CONFLICT);
+
+        verify(itemDAO, never()).update(update);
+    }
+
+    @Test
     void validatorRejectsAnOvernightTimeRange() {
         ItineraryItemDTO update = ItineraryItemDTO.builder()
                 .title("심야 일정")
