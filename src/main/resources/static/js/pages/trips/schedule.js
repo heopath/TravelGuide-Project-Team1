@@ -1476,14 +1476,14 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   function toMinutes(value) {
-    if (!/^([01]\\d|2[0-3]):[0-5]\\d$/.test(value || "")) return null;
-    const parts = value.split(":");
-    return Number(parts[0]) * 60 + Number(parts[1]);
+    const matched = String(value || "").trim().match(/^([01]\\d|2[0-3]):([0-5]\\d)(?::[0-5]\\d)?$/);
+    if (!matched) return null;
+    return Number(matched[1]) * 60 + Number(matched[2]);
   }
 
   function overlapsAiRecommendation(recommendation, scheduledItem) {
     const recommendationStart = toMinutes(recommendation?.time);
-    const existingStart = toMinutes(scheduledItem?.startTime);
+    const existingStart = toMinutes(getItemStartTime(scheduledItem));
     if (recommendationStart === null || existingStart === null) return false;
     const existingEnd = toMinutes(scheduledItem?.endTime) ?? existingStart + 120;
     const recommendationEnd = recommendationStart + 120;
