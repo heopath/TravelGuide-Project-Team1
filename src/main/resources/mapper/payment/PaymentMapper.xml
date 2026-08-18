@@ -108,6 +108,38 @@
         ORDER BY t.issued_ticket_id
     </select>
 
+    <!--
+      예약에 딸린 티켓 하나. 예약 id를 조건에 함께 두는 이유는 남의 티켓 id를 넣어
+      QR을 받아가는 것을 막기 위해서다. 서비스가 예약 소유를 먼저 확인하므로,
+      이 조건까지 통과해야 그 손님의 티켓이다. (#265)
+
+      토큰 해시는 가져오지 않는다. 조회로 새어 나갈 자리를 만들지 않는다.
+    -->
+    <select id="findIssuedTicket"
+            resultType="org.example.all_my_trip_project.domain.payment.dto.IssuedTicketDTO">
+        SELECT t.issued_ticket_id, t.reservation_item_id, t.ticket_number,
+               t.issue_method, t.status, t.valid_from, t.valid_until, t.issued_at
+        FROM issued_tickets t
+        JOIN reservation_items ri ON ri.reservation_item_id = t.reservation_item_id
+        WHERE ri.reservation_id = #{reservationId}
+          AND t.issued_ticket_id = #{issuedTicketId}
+    </select>
+
+    <!--
+      QR 토큰을 새로 쓴다. 앞서 만든 QR은 이 순간부터 통하지 않는다.
+      발권 때 준 verification_token_hash는 건드리지 않는다 — 받아 적어둔 코드는 계속 통해야 한다.
+
+      ISSUED가 아닌 티켓에는 만들지 않는다. 취소·사용 완료된 티켓의 QR을 만들어주면
+      통하지 않는 QR을 손님이 들고 서 있게 된다. 서비스가 먼저 거르지만 여기서도 막는다.
+    -->
+    <update id="updateQrToken">
+        UPDATE issued_tickets
+        SET qr_token_hash = #{tokenHash},
+            qr_token_expires_at = #{expiresAt}
+        WHERE issued_ticket_id = #{issuedTicketId}
+          AND status = 'ISSUED'
+    </update>
+
     <select id="findReservation"
             resultType="org.example.all_my_trip_project.domain.ticket.dto.TicketReservationDTO">
         SELECT r.reservation_id, r.reservation_number, r.trip_id, r.user_id, r.status,
