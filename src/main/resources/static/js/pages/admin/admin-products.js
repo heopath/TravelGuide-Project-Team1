@@ -31,6 +31,16 @@
   const slotList = document.querySelector("[data-slot-list]");
   const slotEmpty = document.querySelector("[data-slot-empty]");
   const slotClose = document.querySelector("[data-slot-close]");
+  const optionList = document.querySelector("[data-option-list]");
+  const optionEmpty = document.querySelector("[data-option-empty]");
+  const optionForm = document.querySelector("[data-option-form]");
+  const optionMessage = document.querySelector("[data-option-message]");
+  const optionSubmit = document.querySelector("[data-option-submit]");
+  const optionReset = document.querySelector("[data-option-reset]");
+  const slotForm = document.querySelector("[data-slot-form]");
+  const slotFormMessage = document.querySelector("[data-slot-form-message]");
+  const slotSubmit = document.querySelector("[data-slot-submit]");
+  const slotWeekdays = document.querySelector("[data-slot-weekdays]");
   if (!list || !empty) return;
 
   let status = "";
@@ -38,6 +48,10 @@
   let currentPage = 0;
   let editingId = null;
   let placesLoaded = false;
+  /* 시간대 패널이 열려 있는 상품. 옵션·시간대 등록이 모두 이 상품 아래로 들어간다. */
+  let currentProduct = null;
+  let loadedOptions = [];
+  let editingOptionId = null;
 
   const field = (name) => form?.querySelector(`[data-field="${name}"]`);
 
@@ -307,6 +321,11 @@
     actionCell.appendChild(actionButton("저장", {}, function () {
       saveInventory(slot, input, item);
     }));
+    /* 삭제는 없다. reservation_items가 시간대를 참조해 지우면 팔린 예약을 되짚을 수 없다. */
+    actionCell.appendChild(actionButton(
+      slot.status === "OPEN" ? "닫기" : "열기", {}, function () {
+        toggleSlotStatus(slot, item);
+      }));
 
     item.append(infoCell, reservedCell, inputCell, actionCell);
     return item;
@@ -347,22 +366,258 @@
     }
   }
 
+  /* ── 옵션 ── */
+
+  function optionRow(option) {
+    const item = document.createElement("div");
+    item.className = "admin-slot-row";
+
+    const infoCell = document.createElement("span");
+    const name = document.createElement("strong");
+    name.textContent = option.name;
+    const price = document.createElement("small");
+    price.textContent = `${number(Number(option.unitPrice))}원 · 1인 ${option.maxQuantityPerUser}장`;
+    infoCell.append(name, price);
+    /* 옵션이 꺼져 있으면 그 아래 시간대가 통째로 예약 화면에서 사라진다. 이유를 밝혀둔다. */
+    if (option.isActive === false) {
+      const off = document.createElement("small");
+      off.dataset.slotClosed = "";
+      off.textContent = "비활성";
+      infoCell.appendChild(off);
+    }
+
+    const slotCountCell = document.createElement("span");
+    slotCountCell.textContent = option.slotCount ? `시간대 ${option.slotCount}개` : "시간대 없음";
+
+    const orderCell = document.createElement("span");
+    orderCell.textContent = `순서 ${option.sortOrder}`;
+
+    const actionCell = document.createElement("span");
+    actionCell.appendChild(actionButton("수정", {}, function () { fillOptionForm(option); }));
+    actionCell.appendChild(actionButton(
+      option.isActive === false ? "켜기" : "끄기", {}, function () {
+        saveOption(Object.assign({}, optionPayload(option), { isActive: option.isActive === false }),
+          option.ticketProductOptionId);
+      }));
+
+    item.append(infoCell, slotCountCell, orderCell, actionCell);
+    return item;
+  }
+
+  function optionPayload(option) {
+    return {
+      name: option.name,
+      description: option.description ?? null,
+      unitPrice: Number(option.unitPrice),
+      maxQuantityPerUser: option.maxQuantityPerUser,
+      sortOrder: option.sortOrder,
+      isActive: option.isActive !== false,
+    };
+  }
+
+  function optionField(name) {
+    return optionForm ? optionForm.querySelector(`[data-option-field="${name}"]`) : null;
+  }
+
+  function fillOptionForm(option) {
+    editingOptionId = option ? option.ticketProductOptionId : null;
+    optionField("name").value = option ? option.name : "";
+    optionField("unitPrice").value = option ? String(Number(option.unitPrice)) : "";
+    optionField("maxQuantityPerUser").value = option ? String(option.maxQuantityPerUser) : "4";
+    optionField("sortOrder").value = option
+      ? String(option.sortOrder)
+      : String(loadedOptions.length + 1);
+    if (optionSubmit) optionSubmit.textContent = option ? "옵션 저장" : "옵션 추가";
+    if (optionReset) optionReset.hidden = !option;
+    if (optionMessage) optionMessage.textContent = "";
+  }
+
+  async function saveOption(body, optionId) {
+    if (!currentProduct) return;
+    if (optionSubmit) optionSubmit.disabled = true;
+    try {
+      if (optionId) {
+        await request(`/api/v1/admin/ticket-options/${optionId}`,
+          { method: "PUT", body: JSON.stringify(body) });
+      } else {
+        await request(`/api/v1/admin/ticket-products/${currentProduct.ticketProductId}/options`,
+          { method: "POST", body: JSON.stringify(body) });
+      }
+      fillOptionForm(null);
+      await reloadSlotPanel();
+    } catch (error) {
+      if (optionMessage) optionMessage.textContent = error.message || "옵션을 저장하지 못했어요.";
+    } finally {
+      if (optionSubmit) optionSubmit.disabled = false;
+    }
+  }
+
+  function submitOption(event) {
+    event.preventDefault();
+    const price = Number(optionField("unitPrice").value);
+    saveOption({
+      name: optionField("name").value.trim(),
+      description: null,
+      unitPrice: Number.isFinite(price) ? price : 0,
+      maxQuantityPerUser: Number(optionField("maxQuantityPerUser").value),
+      sortOrder: Number(optionField("sortOrder").value),
+      /* 수정 중이면 현재 노출 상태를 유지한다. 폼에 항목이 없어 끄기/켜기는 목록 버튼이 맡는다. */
+      isActive: editingOptionId
+        ? (loadedOptions.find(function (o) { return o.ticketProductOptionId === editingOptionId; })
+            ?.isActive !== false)
+        : true,
+    }, editingOptionId);
+  }
+
+  /* ── 시간대 등록 ── */
+
+  const WEEKDAYS = [
+    ["MONDAY", "월"], ["TUESDAY", "화"], ["WEDNESDAY", "수"], ["THURSDAY", "목"],
+    ["FRIDAY", "금"], ["SATURDAY", "토"], ["SUNDAY", "일"],
+  ];
+
+  function buildWeekdays() {
+    if (!slotWeekdays || slotWeekdays.querySelector("input")) return;
+    WEEKDAYS.forEach(function (pair) {
+      const label = document.createElement("label");
+      const input = document.createElement("input");
+      input.type = "checkbox";
+      input.value = pair[0];
+      const text = document.createElement("span");
+      text.textContent = pair[1];
+      label.append(input, text);
+      slotWeekdays.appendChild(label);
+    });
+  }
+
+  function slotField(name) {
+    return slotForm ? slotForm.querySelector(`[data-slot-field="${name}"]`) : null;
+  }
+
+  function fillOptionSelect() {
+    const select = slotField("ticketProductOptionId");
+    if (!select) return;
+    const previous = select.value;
+    select.replaceChildren();
+    loadedOptions.forEach(function (option) {
+      const item = document.createElement("option");
+      item.value = String(option.ticketProductOptionId);
+      item.textContent = option.isActive === false
+        ? `${option.name} (비활성)`
+        : option.name;
+      select.appendChild(item);
+    });
+    if (previous) select.value = previous;
+  }
+
+  async function submitSlots(event) {
+    event.preventDefault();
+    if (!currentProduct) return;
+    const optionId = Number(slotField("ticketProductOptionId").value);
+    if (!optionId) {
+      slotFormMessage.textContent = "옵션을 먼저 등록해 주세요.";
+      return;
+    }
+    const weekdays = slotWeekdays
+      ? Array.from(slotWeekdays.querySelectorAll("input:checked")).map(function (i) { return i.value; })
+      : [];
+    const body = {
+      ticketProductOptionId: optionId,
+      usageStartDate: slotField("usageStartDate").value,
+      usageEndDate: slotField("usageEndDate").value || null,
+      weekdays: weekdays,
+      startTime: slotField("startTime").value || null,
+      endTime: slotField("endTime").value || null,
+      totalQuantity: Number(slotField("totalQuantity").value),
+    };
+    if (slotSubmit) slotSubmit.disabled = true;
+    try {
+      const result = await request(
+        `/api/v1/admin/ticket-products/${currentProduct.ticketProductId}/slots`,
+        { method: "POST", body: JSON.stringify(body) });
+      /* 건너뛴 날을 반드시 알린다. 요청한 만큼 다 열렸다고 믿으면 빠진 날을 못 찾는다. */
+      slotFormMessage.textContent = result.skipped
+        ? `${result.created}개를 등록했어요. ${result.skipped}개는 이미 있어 건너뛰었어요.`
+        : `${result.created}개를 등록했어요.`;
+      renderSlots(result.slots);
+      await refreshOptions();
+    } catch (error) {
+      slotFormMessage.textContent = error.message || "시간대를 등록하지 못했어요.";
+    } finally {
+      if (slotSubmit) slotSubmit.disabled = false;
+    }
+  }
+
+  async function toggleSlotStatus(slot, container) {
+    const next = slot.status === "OPEN" ? "CLOSED" : "OPEN";
+    const message = slotMessageElement(container);
+    try {
+      const updated = await request(
+        `/api/v1/admin/ticket-slots/${slot.ticketTimeSlotId}/status`,
+        { method: "PATCH", body: JSON.stringify({ status: next }) });
+      slot.status = updated.status;
+      await reloadSlotPanel();
+    } catch (error) {
+      message.textContent = error.message || "상태를 바꾸지 못했어요.";
+      message.dataset.slotError = "true";
+    }
+  }
+
+  /* ── 패널 ── */
+
+  function renderSlots(slots) {
+    slotList.replaceChildren();
+    if (!slots || !slots.length) {
+      slotEmpty.hidden = false;
+      slotEmpty.textContent = loadedOptions.length
+        ? "등록된 시간대가 없어요. 위에서 시간대를 추가하면 예약을 받을 수 있어요."
+        : "옵션을 먼저 등록해 주세요. 시간대는 옵션에 달려요.";
+      return;
+    }
+    slotEmpty.hidden = true;
+    slots.forEach(function (slot) { slotList.appendChild(slotRow(slot)); });
+  }
+
+  async function refreshOptions() {
+    if (!currentProduct) return;
+    loadedOptions = await request(
+      `/api/v1/admin/ticket-products/${currentProduct.ticketProductId}/options`) || [];
+    optionList.replaceChildren();
+    if (!loadedOptions.length) {
+      optionEmpty.hidden = false;
+      optionEmpty.textContent = "등록된 옵션이 없어요. 옵션에 가격과 1인 구매 한도가 붙어요.";
+    } else {
+      optionEmpty.hidden = true;
+      loadedOptions.forEach(function (option) { optionList.appendChild(optionRow(option)); });
+    }
+    fillOptionSelect();
+  }
+
+  async function reloadSlotPanel() {
+    await refreshOptions();
+    const slots = await request(
+      `/api/v1/admin/ticket-products/${currentProduct.ticketProductId}/slots`);
+    renderSlots(slots);
+  }
+
   async function openSlots(product) {
     if (!slotPanel) return;
     closeForm();
+    currentProduct = product;
+    editingOptionId = null;
     slotPanel.hidden = false;
-    slotTitle.textContent = `${product.name} · 시간대 재고`;
+    slotTitle.textContent = `${product.name} · 옵션과 시간대`;
     slotList.replaceChildren();
     slotEmpty.hidden = false;
     slotEmpty.textContent = "시간대를 불러오는 중이에요.";
+    buildWeekdays();
+    fillOptionForm(null);
+    if (slotFormMessage) slotFormMessage.textContent = "";
+    /* 상품의 이용 기간을 기본값으로 넣는다. 그 밖의 날짜를 여는 일은 드물다. */
+    if (slotField("usageStartDate")) slotField("usageStartDate").value = product.usageStartDate || "";
+    if (slotField("usageEndDate")) slotField("usageEndDate").value = product.usageEndDate || "";
     try {
-      const slots = await request(`/api/v1/admin/ticket-products/${product.ticketProductId}/slots`);
-      if (!slots || !slots.length) {
-        slotEmpty.textContent = "등록된 시간대가 없어요. 시간대가 있어야 예약을 받을 수 있어요.";
-        return;
-      }
-      slotEmpty.hidden = true;
-      slots.forEach(function (slot) { slotList.appendChild(slotRow(slot)); });
+      await reloadSlotPanel();
     } catch (error) {
       slotEmpty.textContent = error.message || "시간대를 불러오지 못했어요.";
     }
@@ -421,7 +676,13 @@
   if (newButton) newButton.addEventListener("click", function () { openForm(null); });
   if (cancelButton) cancelButton.addEventListener("click", closeForm);
   if (form) form.addEventListener("submit", submitForm);
-  if (slotClose) slotClose.addEventListener("click", function () { slotPanel.hidden = true; });
+  if (slotClose) slotClose.addEventListener("click", function () {
+    slotPanel.hidden = true;
+    currentProduct = null;
+  });
+  if (optionForm) optionForm.addEventListener("submit", submitOption);
+  if (optionReset) optionReset.addEventListener("click", function () { fillOptionForm(null); });
+  if (slotForm) slotForm.addEventListener("submit", submitSlots);
 
   /* 관리자 화면은 패널이 전환될 때마다 다시 부르지 않는다. 처음 한 번만 채운다. */
   if (document.readyState === "loading") {
