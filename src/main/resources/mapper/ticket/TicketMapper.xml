@@ -183,9 +183,13 @@
         )
     </insert>
 
+    <!--
+      expires_at을 함께 내린다. 화면이 "결제까지 남은 시간"을 보여주지 못하면 손님은
+      담아둔 예약이 왜 갑자기 사라졌는지 알 수 없다. (#276)
+    -->
     <sql id="reservationColumns">
         r.reservation_id, r.reservation_number, r.trip_id, r.user_id, r.status,
-        r.total_amount, r.currency_code AS currency, r.request_key,
+        r.total_amount, r.currency_code AS currency, r.request_key, r.expires_at,
         ri.ticket_time_slot_id AS slot_id, ri.product_name, ri.option_name,
         ri.usage_date, ri.usage_start_time, ri.quantity, ri.unit_price
     </sql>

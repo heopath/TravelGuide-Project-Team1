@@ -513,6 +513,30 @@ body.page-mypage main#page-content > .page-shell {
 /* 여행에 안 붙은 티켓은 눈에 띄어야 붙일 생각을 한다. */
 .page-mypage .mypage-ticket-trip [data-ticket-unlinked] { color: #a3abbf; }
 
+/* 결제 전 예약 (#276) */
+.page-mypage .mypage-ticket-pay {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid #f0f3f8;
+}
+/* 남은 시간이 먼저 눈에 들어와야 결제를 미루지 않는다. */
+.page-mypage .mypage-ticket-pay [data-pay-remain] {
+  flex: 1 1 100%;
+  color: #9a5f08;
+  font-size: 12px;
+  font-weight: 700;
+}
+.page-mypage .mypage-ticket-pay .primary-button {
+  min-height: 38px;
+  padding: 0 16px;
+  font-size: 13px;
+}
+.page-mypage .mypage-ticket-pay .text-button { font-size: 12px; }
+
 /* 입장 QR (#265) */
 .page-mypage .mypage-ticket-qr { margin-top: 8px; }
 .page-mypage .mypage-ticket-qr > button { font-size: 12px; font-weight: 700; }

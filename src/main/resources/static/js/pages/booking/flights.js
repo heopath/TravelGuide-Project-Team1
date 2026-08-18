@@ -434,7 +434,13 @@
         ? `<button type="button" class="mn-b danger" data-mine-ticket-cancel="${esc(item.referenceId)}"`
           + ` data-mine-ticket-paid="${item.status === "CONFIRMED" ? "1" : ""}">`
           + `${item.status === "CONFIRMED" ? "결제 취소" : "모의 예약 취소"}</button>`
-        : ""}<button type="button" class="mn-b" data-mine-tab="ticket">티켓에서 확인</button></div>
+        : ""}${item.status === "CONFIRMED"
+        /*
+         * 결제까지 끝난 티켓에서 상품 목록으로 돌아가는 버튼(`티켓에서 확인`)은 의미가 없었다.
+         * 그 자리에 입장 QR로 가는 길을 둔다. QR은 마이페이지가 담당한다. (#276)
+         */
+        ? `<a class="mn-b" href="/mypage">마이페이지에서 입장 QR</a>`
+        : `<button type="button" class="mn-b" data-mine-tab="ticket">다른 티켓 보기</button>`}</div>
     </div>`).join("");
 
     const globalError = bookingSummaryError
@@ -468,7 +474,12 @@
         ~ ${esc(String(ticket.validUntil || "").slice(0, 16).replace("T", " "))}</span>
       ${ticket.verificationToken
         ? `<code class="mn-ticket-code">${esc(ticket.verificationToken)}</code>`
-        : `<span class="mn-meta">입장 코드는 결제 직후에만 표시됩니다.</span>`}
+        /*
+         * 예전에는 "결제 직후에만 표시됩니다"라고 안내했는데 이제 사실이 아니다. #265로
+         * 마이페이지에서 QR을 언제든 다시 발급받을 수 있다. 그대로 두면 손님이 코드를
+         * 놓친 줄 알고 포기한다.
+         */
+        : `<span class="mn-meta">입장 코드는 마이페이지 &gt; 최근 예약 내역에서 QR로 다시 볼 수 있어요.</span>`}
     </div>`).join("");
   }
 

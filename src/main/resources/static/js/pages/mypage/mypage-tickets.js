@@ -445,7 +445,198 @@ export function initTickets() {
             );
         }
 
+        /*
+         * 결제 전 예약에는 결제 경로를 둔다. #255로 여행 없이 살 수 있게 됐는데 결제 버튼은
+         * 예약 화면의 `내 예약` 탭(여행 기준)에만 있어, 여행 없이 담으면 결제할 방법이
+         * 아예 없었다. (#276)
+         */
+        if (ticket.status === "PENDING") {
+            item.appendChild(
+                paySection(ticket),
+            );
+        }
+
         return item;
+    }
+
+    /* ── 결제 (#276) ── */
+
+    function paySection(
+        ticket,
+    ) {
+        const wrap =
+            document.createElement(
+                "div",
+            );
+
+        wrap.className =
+            "mypage-ticket-pay";
+
+        /*
+         * 남은 시간을 밝힌다. 예약은 결제하지 않으면 자리를 반납하는데, 안 보여주면
+         * 손님은 담아둔 것이 왜 사라졌는지 알 수 없다.
+         */
+        const remain =
+            document.createElement(
+                "span",
+            );
+
+        remain.dataset.payRemain = "";
+        remain.textContent =
+            expiryText(ticket.expiresAt);
+
+        const pay =
+            document.createElement(
+                "button",
+            );
+
+        pay.type = "button";
+        pay.className =
+            "primary-button";
+        pay.dataset.ticketPay =
+            String(
+                ticket.reservationId,
+            );
+        pay.textContent =
+            "모의 결제하기";
+
+        pay.addEventListener(
+            "click",
+            () => {
+                payTicket(ticket, pay);
+            },
+        );
+
+        const cancel =
+            document.createElement(
+                "button",
+            );
+
+        cancel.type = "button";
+        cancel.className =
+            "text-button";
+        cancel.dataset.ticketCancel =
+            String(
+                ticket.reservationId,
+            );
+        cancel.textContent =
+            "예약 취소";
+
+        cancel.addEventListener(
+            "click",
+            () => {
+                cancelTicket(ticket, cancel);
+            },
+        );
+
+        wrap.append(remain, pay, cancel);
+
+        return wrap;
+    }
+
+    function expiryText(
+        expiresAt,
+    ) {
+        if (!expiresAt) {
+            return "결제하면 티켓이 발급돼요.";
+        }
+
+        const left =
+            new Date(expiresAt).getTime() -
+            Date.now();
+
+        if (left <= 0) {
+            return "결제 시간이 지나 자리가 반납됐을 수 있어요.";
+        }
+
+        const minutes =
+            Math.ceil(left / 60000);
+
+        return `${minutes}분 안에 결제해야 자리가 유지돼요.`;
+    }
+
+    async function payTicket(
+        ticket,
+        button,
+    ) {
+        if (!window.confirm(
+            "모의 결제를 진행할까요? 실제 결제는 이루어지지 않고, 결제하면 티켓이 발급됩니다.",
+        )) {
+            return;
+        }
+
+        button.disabled = true;
+
+        try {
+            /*
+             * 멱등키는 화면에서 만든다. 응답이 유실되어 다시 눌러도 같은 키로 들어가면
+             * 서버가 앞의 결과를 돌려주고 두 번 결제되지 않는다. 예약 화면도 같은 방식이다.
+             */
+            const idempotencyKey =
+                window.crypto?.randomUUID
+                    ? window.crypto.randomUUID()
+                    : `pay-${ticket.reservationId}-${Date.now()}`;
+
+            await request(
+                `/api/v1/ticket-reservations/${ticket.reservationId}/payment`,
+                {
+                    method: "POST",
+                    body: JSON.stringify({
+                        method: "CARD",
+                        idempotencyKey,
+                    }),
+                },
+            );
+
+            showToast(
+                "결제가 완료됐어요. 입장 QR을 확인해 주세요.",
+            );
+
+            /* 결제하면 상태와 발급 티켓이 바뀐다. 목록을 다시 받아 그린다. */
+            await load();
+        } catch (error) {
+            showToast(
+                error.message ||
+                "결제하지 못했어요.",
+            );
+
+            button.disabled = false;
+        }
+    }
+
+    async function cancelTicket(
+        ticket,
+        button,
+    ) {
+        if (!window.confirm(
+            "이 예약을 취소할까요? 잡아둔 자리가 다시 열립니다.",
+        )) {
+            return;
+        }
+
+        button.disabled = true;
+
+        try {
+            await request(
+                `/api/v1/ticket-reservations/${ticket.reservationId}`,
+                {
+                    method: "DELETE",
+                },
+            );
+
+            showToast(
+                "예약을 취소했어요.",
+            );
+
+            await load();
+        } catch (error) {
+            showToast(
+                error.message ||
+                "취소하지 못했어요.",
+            );
+
+            button.disabled = false;
+        }
     }
 
     /* ── 입장 QR ── */
