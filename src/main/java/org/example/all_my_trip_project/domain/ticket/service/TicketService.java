@@ -62,7 +62,14 @@ public class TicketService {
         } catch (ArithmeticException exception) {
             throw new BusinessException(ErrorCode.INVALID_TICKET_REQUEST);
         }
-        String normalized = keyword == null || keyword.isBlank() ? null : keyword.trim();
+        /*
+         * 빈 검색어는 null이 아니라 빈 문자열로 넘긴다.
+         *
+         * 질의가 #{keyword}를 IS NULL 비교에 쓰는데, 타입 없는 null 파라미터가 들어가면
+         * PostgreSQL이 파라미터 타입을 정하지 못해 질의 자체가 실패한다. search()가 같은
+         * 이유로 destination을 빈 문자열로 맞춘다.
+         */
+        String normalized = keyword == null ? "" : keyword.trim();
         long total = ticketDAO.countSellableProducts(normalized);
         int totalPages = total == 0 ? 0 : (int) Math.ceil((double) total / size);
         return new TicketProductPage(
