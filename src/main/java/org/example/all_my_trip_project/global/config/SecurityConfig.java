@@ -34,6 +34,11 @@ public class SecurityConfig {
             "/trips/**", "/mypage"
     };
 
+    // SockJS 핸드셰이크(및 폴백 전송의 XHR POST)가 지나가는 경로. 인증은 여기서 요구하고,
+    // CSRF는 스프링 시큐리티의 기본 필터가 아니라 STOMP CONNECT 프레임 안에서 직접 검증한다
+    // (SupportChatChannelInterceptor) — 설계 문서 §2 "인증(확정)".
+    private static final String WEBSOCKET_PATH = "/ws/support-chat/**";
+
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
@@ -67,12 +72,16 @@ public class SecurityConfig {
                         .requestMatchers(PUBLIC_PAGES).permitAll()
                         .requestMatchers("/admin", "/admin/**").hasRole("ADMIN")
                         .requestMatchers(AUTHENTICATED_PAGES).authenticated()
+                        .requestMatchers(WEBSOCKET_PATH).authenticated()
                         .anyRequest().permitAll()
                 )
                 // 페이지 요청은 JSON이 아니라 화면을 기대하므로 401 본문 대신 로그인 화면으로 보낸다.
                 // API 체인은 401 JSON을 그대로 유지한다. (#95)
                 .exceptionHandling(handling -> handling
                         .authenticationEntryPoint(loginRedirectEntryPoint()))
+                // STOMP CONNECT 프레임 안에서 직접 CSRF를 검증하므로, 이 경로는 스프링
+                // 시큐리티의 CsrfFilter 대상에서 뺀다(안 빼면 SockJS 폴백 전송의 POST가 막힌다).
+                .csrf(csrf -> csrf.ignoringRequestMatchers(WEBSOCKET_PATH))
                 .formLogin(AbstractHttpConfigurer::disable)
                 .httpBasic(AbstractHttpConfigurer::disable)
                 .build();

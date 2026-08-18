@@ -4,13 +4,18 @@ import lombok.RequiredArgsConstructor;
 import org.example.all_my_trip_project.domain.support.dao.SupportChatDAO;
 import org.example.all_my_trip_project.domain.support.dto.SupportChatMessageDTO;
 import org.example.all_my_trip_project.domain.support.dto.SupportChatRoomDTO;
+import org.example.all_my_trip_project.domain.support.dto.SupportChatSocketEvent;
 import org.example.all_my_trip_project.domain.support.dto.SupportChatViewResponse;
 import org.example.all_my_trip_project.global.exception.BusinessException;
 import org.example.all_my_trip_project.global.exception.ErrorCode;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.Profile;
 import org.springframework.dao.DuplicateKeyException;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.util.List;
 import java.util.Locale;
@@ -21,9 +26,15 @@ import java.util.Locale;
  * <p>둘로 나누면 방을 찾고 상태를 판단하는 규칙이 두 벌이 되고, 한쪽만 고쳐 어긋나기 쉽다.
  * 대신 <b>누가 부르는지</b>를 메서드 이름과 인자로 분명히 한다.
  *
- * <p><b>챗봇이 들어올 자리를 비워 두었다.</b> 보낸이 종류에 {@code BOT}이 있고 방 상태에도
- * {@code BOT}이 있다. 봇이 붙으면 방을 {@code BOT}으로 시작시키고 봇이 쓴 메시지를 넣으면
- * 되며, {@code 내가 응대하기}는 그 방을 사람에게 넘기는 동작으로 그대로 성립한다.
+ * <p><b>챗봇이 붙었다.</b> 방을 {@code BOT} 상태로 시작시키고 {@link SupportChatBotClient}로
+ * 첫 인사·이후 답변을 만든다. 봇이 상담원 연결이 필요하다고 판단하면(또는 호출 자체가 실패하면)
+ * {@code WAITING}으로 넘기며, 그 뒤로는 기존 {@code 내가 응대하기} 흐름을 그대로 탄다.
+ *
+ * <p>Gemini 호출은 이 클래스 밖, {@link SupportChatBotOrchestrator}(별도 빈, {@code @Async})에서
+ * 트랜잭션 커밋 뒤에 한다 — 외부 API 응답을 기다리며 DB 트랜잭션을 오래 붙잡지 않기 위해서다
+ * (설계 문서 §5). 이 클래스는 그 결과를 저장하는 {@link #recordBotReply}/{@link #recordBotHandoff}만
+ * 제공하며, 두 메서드 모두 저장 직전 방을 잠그고 상태를 다시 확인해 그 사이 관리자가
+ * {@code takeover}로 가져간 방에 뒤늦게 봇 답변이 끼어들지 않게 한다.
  */
 @Service
 @Profile("!ui")
@@ -34,7 +45,17 @@ public class SupportChatService {
     private static final int MAX_MESSAGES = 200;
     private static final int MAX_ROOMS = 100;
 
+    private static final String ROOM_TOPIC_PREFIX = "/topic/support-chat/rooms/";
+
+    /** 봇 호출 없이 곧장 사람을 붙여도 되는, 손님이 명시적으로 상담원을 찾는 표현들. */
+    private static final List<String> HUMAN_HANDOFF_KEYWORDS =
+            List.of("상담원", "상담사", "사람이랑", "사람과 얘기", "사람 연결", "직원 연결", "실제 사람");
+
+    private static final String HUMAN_REQUEST_REPLY = "상담원에게 연결해 드릴게요. 잠시만 기다려 주세요.";
+
     private final SupportChatDAO supportChatDAO;
+    private final SimpMessagingTemplate messagingTemplate;
+    private final ApplicationEventPublisher eventPublisher;
 
     /* ── 손님 ── */
 
@@ -43,6 +64,9 @@ public class SupportChatService {
      *
      * <p>열린 방이 있으면 그 방을 준다. 손님당 열린 방은 하나로 제한돼 있어, 새로 열면
      * 관리자가 같은 사람과 여러 창구에서 이야기하게 된다.
+     *
+     * <p>새로 연 방은 봇의 첫 인사를 기다려야 한다. 인사는 이 메서드가 커밋된 뒤
+     * {@link SupportChatBotOrchestrator}가 비동기로 채우므로, 이 응답에는 아직 담기지 않는다.
      */
     @Transactional
     public SupportChatViewResponse openMyRoom(Long userId) {
@@ -60,6 +84,7 @@ public class SupportChatService {
                 return view(requireOpenRoom(userId));
             }
             room = requireRoom(created.getSupportChatRoomId());
+            eventPublisher.publishEvent(new SupportChatBotTriggerEvent(room.getSupportChatRoomId()));
         }
         return view(room);
     }
@@ -70,12 +95,70 @@ public class SupportChatService {
         return view(requireOpenRoom(userId));
     }
 
+    /**
+     * 손님이 보낸다.
+     *
+     * <p>방이 아직 봇 응대 중이면, 손님이 상담원을 대놓고 찾는 경우에만 여기서 곧장
+     * {@code WAITING}으로 넘긴다(봇을 부를 이유가 없다). 그 밖에는 봇을 부르는 이벤트를
+     * 발행하고, 실제 호출과 판단은 {@link SupportChatBotOrchestrator}에 맡긴다.
+     */
     @Transactional
     public SupportChatViewResponse sendAsUser(Long userId, String content) {
         requireUser(userId);
         SupportChatRoomDTO room = requireOpenRoom(userId);
         append(room.getSupportChatRoomId(), "USER", userId, content);
+
+        if ("BOT".equals(room.getStatus())) {
+            if (requestsHuman(content)) {
+                recordBotHandoff(room.getSupportChatRoomId(), HUMAN_REQUEST_REPLY);
+            } else {
+                eventPublisher.publishEvent(new SupportChatBotTriggerEvent(room.getSupportChatRoomId()));
+            }
+        }
         return view(requireRoom(room.getSupportChatRoomId()));
+    }
+
+    private boolean requestsHuman(String content) {
+        String normalized = content == null ? "" : content;
+        return HUMAN_HANDOFF_KEYWORDS.stream().anyMatch(normalized::contains);
+    }
+
+    /* ── 봇(비동기 오케스트레이터 전용) ── */
+
+    /** Gemini를 부르기 전에 값싸게 거르는 사전 확인. 최종 판단은 저장 시점에 다시 한다. */
+    @Transactional(readOnly = true)
+    public boolean isStillBot(Long roomId) {
+        return supportChatDAO.findRoom(roomId).map(r -> "BOT".equals(r.getStatus())).orElse(false);
+    }
+
+    @Transactional(readOnly = true)
+    public List<SupportChatMessageDTO> recentMessages(Long roomId) {
+        return supportChatDAO.findMessages(roomId, MAX_MESSAGES);
+    }
+
+    /**
+     * 봇의 답을 저장한다.
+     *
+     * <p>저장 직전 방을 잠그고 여전히 {@code BOT}인지 다시 본다. Gemini를 부르는 동안 관리자가
+     * {@code takeover}로 이미 가져갔다면(더 이상 {@code BOT}이 아니라면) 이 답은 버린다 — 이미
+     * 사람이 응대를 시작한 방에 봇 답변이 뒤늦게 끼어드는 것을 막는다(설계 문서 §5).
+     */
+    @Transactional
+    public void recordBotReply(Long roomId, String content) {
+        SupportChatRoomDTO locked = supportChatDAO.lockRoom(roomId).orElse(null);
+        if (locked == null || !"BOT".equals(locked.getStatus())) return;
+        append(roomId, "BOT", null, content);
+    }
+
+    /** 봇이 스스로 상담원에게 넘긴다(사용자 요청 / Gemini 실패 / 정책 범위 밖 / 반복 미해결). */
+    @Transactional
+    public void recordBotHandoff(Long roomId, String content) {
+        SupportChatRoomDTO locked = supportChatDAO.lockRoom(roomId).orElse(null);
+        if (locked == null || !"BOT".equals(locked.getStatus())) return;
+        append(roomId, "BOT", null, content);
+        if (supportChatDAO.markWaiting(roomId) == 1) {
+            broadcastRoomStatus(roomId);
+        }
     }
 
     /* ── 관리자 ── */
@@ -135,6 +218,7 @@ public class SupportChatService {
         if (supportChatDAO.assignRoom(roomId, adminId) != 1) {
             throw new BusinessException(ErrorCode.SUPPORT_CHAT_ALREADY_ASSIGNED);
         }
+        broadcastRoomStatus(roomId);
         return view(markMine(requireRoom(roomId), adminId));
     }
 
@@ -164,6 +248,7 @@ public class SupportChatService {
         SupportChatRoomDTO room = requireRoom(roomId);
         if ("CLOSED".equals(room.getStatus())) return view(markMine(room, adminId));
         supportChatDAO.closeRoom(roomId);
+        broadcastRoomStatus(roomId);
         return view(markMine(requireRoom(roomId), adminId));
     }
 
@@ -172,14 +257,52 @@ public class SupportChatService {
     private void append(Long roomId, String senderType, Long senderUserId, String content) {
         String normalized = text(content);
         if (normalized == null) throw new BusinessException(ErrorCode.INVALID_SUPPORT_CHAT_REQUEST);
-        supportChatDAO.insertMessage(SupportChatMessageDTO.builder()
+        SupportChatMessageDTO toInsert = SupportChatMessageDTO.builder()
                 .supportChatRoomId(roomId)
                 .senderType(senderType)
                 .senderUserId(senderUserId)
                 .content(normalized)
-                .build());
+                .build();
+        supportChatDAO.insertMessage(toInsert);
         /* 목록을 최근 대화순으로 세우려면 방에도 표시해야 한다. */
         supportChatDAO.touchRoom(roomId);
+        broadcastMessage(roomId, toInsert.getSupportChatMessageId());
+    }
+
+    /**
+     * 방금 넣은 메시지를 구독자에게 내려보낸다.
+     *
+     * <p>{@code insertMessage}는 PK만 채워 주므로, 닉네임·저장 시각까지 채운 완전한 형태로
+     * 다시 읽어 보낸다. REST 응답과 같은 {@link SupportChatMessageDTO}를 그대로 쓴다(설계
+     * 문서 §3) — WebSocket 전용 스키마를 새로 만들지 않는다.
+     *
+     * <p>트랜잭션이 커밋된 뒤에만 내보낸다. 커밋 전에 보내면, 이후 어떤 이유로든 롤백됐을 때
+     * 구독자가 존재하지 않는 메시지를 이미 화면에 그린 상태가 된다.
+     */
+    private void broadcastMessage(Long roomId, Long messageId) {
+        afterCommit(() -> supportChatDAO.findMessage(messageId).ifPresent(message ->
+                messagingTemplate.convertAndSend(
+                        ROOM_TOPIC_PREFIX + roomId, SupportChatSocketEvent.message(message))));
+    }
+
+    private void broadcastRoomStatus(Long roomId) {
+        afterCommit(() -> supportChatDAO.findRoom(roomId).ifPresent(room ->
+                messagingTemplate.convertAndSend(
+                        ROOM_TOPIC_PREFIX + roomId, SupportChatSocketEvent.roomStatus(room))));
+    }
+
+    /** 활성 트랜잭션이 있으면 커밋 후로 미루고, 없으면(단위 테스트 등) 곧바로 실행한다. */
+    private void afterCommit(Runnable action) {
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            action.run();
+            return;
+        }
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                action.run();
+            }
+        });
     }
 
     private SupportChatViewResponse view(SupportChatRoomDTO room) {

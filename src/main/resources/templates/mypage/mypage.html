@@ -1087,6 +1087,10 @@
 
 <div th:replace="~{fragments/scripts :: appScripts}"></div>
 
+<!-- 상담 채팅 실시간 수신용. 백엔드로 서빙될 때만 뜬다 — 정적 미리보기에서는 없어도 폴백으로 동작한다. -->
+<script th:src="@{/webjars/sockjs-client/1.5.1/sockjs.min.js}"></script>
+<script th:src="@{/webjars/stomp-websocket/2.3.4/stomp.min.js}"></script>
+
 <script
         type="module"
         th:src="@{/js/pages/mypage/mypage.js}"
