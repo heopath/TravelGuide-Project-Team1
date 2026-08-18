@@ -31,6 +31,103 @@
         ORDER BY tts.usage_date, tts.start_time NULLS FIRST, tp.ticket_product_id, tpo.sort_order
     </select>
 
+    <!--
+      상품 목록. 날짜를 조건으로 받지 않는다. (#255)
+
+      "살 수 있는 시간대가 하나라도 있는 상품"이 기준이라 EXISTS가 아니라 집계로 뽑는다.
+      첫 이용일과 남은 수량을 같은 질의에서 함께 내려야 화면이 상품마다 다시 묻지 않는다.
+
+      GROUP BY로 상품당 한 행을 만든다. 관리자 목록처럼 스칼라 서브쿼리를 늘어놓으면
+      같은 JOIN을 네 번 반복하게 된다 — 여기는 조건이 하나뿐이라 집계가 더 싸다.
+    -->
+    <sql id="sellableProductFrom">
+        FROM ticket_products tp
+        JOIN places p ON p.place_id = tp.place_id AND p.is_active = TRUE
+        JOIN ticket_product_options tpo ON tpo.ticket_product_id = tp.ticket_product_id AND tpo.is_active = TRUE
+        JOIN ticket_time_slots tts ON tts.ticket_product_option_id = tpo.ticket_product_option_id
+        JOIN ticket_inventory ti ON ti.ticket_time_slot_id = tts.ticket_time_slot_id
+        WHERE tp.status = 'ON_SALE'
+          AND CURRENT_TIMESTAMP BETWEEN tp.sale_start_at AND tp.sale_end_at
+          AND tts.status = 'OPEN'
+          AND ti.reserved_quantity &lt; ti.total_quantity
+          AND (#{keyword} IS NULL OR #{keyword} = '' OR
+               CONCAT_WS(' ', tp.name, p.region, p.city, p.address, p.name) ILIKE '%' || #{keyword} || '%')
+    </sql>
+
+    <select id="findSellableProducts"
+            resultType="org.example.all_my_trip_project.domain.ticket.dto.TicketProductSummaryDTO">
+        SELECT
+            tp.ticket_product_id AS product_id, tp.name AS product_name, tp.description,
+            tp.place_id, p.name AS place_name, p.region, p.city,
+            tp.sale_start_at, tp.sale_end_at,
+            (SELECT pi.image_url FROM place_images pi WHERE pi.place_id = p.place_id
+             ORDER BY pi.is_primary DESC, pi.sort_order LIMIT 1) AS image_url,
+            MIN(tpo.unit_price) AS min_unit_price,
+            MIN(tpo.currency_code) AS currency,
+            MIN(tts.usage_date) AS first_usage_date,
+            MAX(tts.usage_date) AS last_usage_date,
+            COUNT(*) AS available_slot_count,
+            SUM(ti.total_quantity - ti.reserved_quantity) AS remaining_quantity
+        <include refid="sellableProductFrom"/>
+        GROUP BY tp.ticket_product_id, tp.name, tp.description, tp.place_id,
+                 p.name, p.region, p.city, p.place_id, tp.sale_start_at, tp.sale_end_at
+        ORDER BY MIN(tts.usage_date), tp.ticket_product_id
+        LIMIT #{size} OFFSET #{offset}
+    </select>
+
+    <!-- 상품 수를 센다. 집계 전 행이 아니라 상품 개수라 DISTINCT가 필요하다. -->
+    <select id="countSellableProducts" resultType="long">
+        SELECT COUNT(DISTINCT tp.ticket_product_id)
+        <include refid="sellableProductFrom"/>
+    </select>
+
+    <select id="findSellableProductById"
+            resultType="org.example.all_my_trip_project.domain.ticket.dto.TicketProductSummaryDTO">
+        SELECT
+            tp.ticket_product_id AS product_id, tp.name AS product_name, tp.description,
+            tp.place_id, p.name AS place_name, p.region, p.city,
+            tp.sale_start_at, tp.sale_end_at,
+            (SELECT pi.image_url FROM place_images pi WHERE pi.place_id = p.place_id
+             ORDER BY pi.is_primary DESC, pi.sort_order LIMIT 1) AS image_url,
+            MIN(tpo.unit_price) AS min_unit_price,
+            MIN(tpo.currency_code) AS currency,
+            MIN(tts.usage_date) AS first_usage_date,
+            MAX(tts.usage_date) AS last_usage_date,
+            COUNT(*) AS available_slot_count,
+            SUM(ti.total_quantity - ti.reserved_quantity) AS remaining_quantity
+        FROM ticket_products tp
+        JOIN places p ON p.place_id = tp.place_id AND p.is_active = TRUE
+        JOIN ticket_product_options tpo ON tpo.ticket_product_id = tp.ticket_product_id AND tpo.is_active = TRUE
+        JOIN ticket_time_slots tts ON tts.ticket_product_option_id = tpo.ticket_product_option_id
+        JOIN ticket_inventory ti ON ti.ticket_time_slot_id = tts.ticket_time_slot_id
+        WHERE tp.ticket_product_id = #{productId}
+          AND tp.status = 'ON_SALE'
+          AND CURRENT_TIMESTAMP BETWEEN tp.sale_start_at AND tp.sale_end_at
+          AND tts.status = 'OPEN'
+          AND ti.reserved_quantity &lt; ti.total_quantity
+        GROUP BY tp.ticket_product_id, tp.name, tp.description, tp.place_id,
+                 p.name, p.region, p.city, p.place_id, tp.sale_start_at, tp.sale_end_at
+    </select>
+
+    <!--
+      상품 하나의 살 수 있는 시간대 전부. 여기에는 날짜 제한을 두지 않는다.
+      상품을 이미 골랐으므로 그 상품의 일정을 다 보여주는 것이 맞다.
+    -->
+    <select id="findSlotsByProduct" resultType="org.example.all_my_trip_project.domain.ticket.dto.TicketOfferDTO">
+        SELECT <include refid="offerColumns"/>
+        FROM ticket_products tp
+        JOIN places p ON p.place_id = tp.place_id AND p.is_active = TRUE
+        JOIN ticket_product_options tpo ON tpo.ticket_product_id = tp.ticket_product_id AND tpo.is_active = TRUE
+        JOIN ticket_time_slots tts ON tts.ticket_product_option_id = tpo.ticket_product_option_id
+        JOIN ticket_inventory ti ON ti.ticket_time_slot_id = tts.ticket_time_slot_id
+        WHERE tp.ticket_product_id = #{productId}
+          AND tp.status = 'ON_SALE'
+          AND CURRENT_TIMESTAMP BETWEEN tp.sale_start_at AND tp.sale_end_at
+          AND tts.status = 'OPEN'
+          AND ti.reserved_quantity &lt; ti.total_quantity
+        ORDER BY tts.usage_date, tts.start_time NULLS FIRST, tpo.sort_order
+    </select>
+
     <select id="findSlotForUpdate" resultType="org.example.all_my_trip_project.domain.ticket.dto.TicketOfferDTO">
         SELECT <include refid="offerColumns"/>
         FROM ticket_products tp
@@ -113,6 +210,25 @@
         LIMIT 1
         FOR UPDATE OF r, ti
     </select>
+
+    <!-- 여행에 붙지 않은 티켓까지 포함한다. 마이페이지 "내 티켓"이 쓰는 길이다. (#255) -->
+    <select id="findReservationsByUser"
+            resultType="org.example.all_my_trip_project.domain.ticket.dto.TicketReservationDTO">
+        SELECT <include refid="reservationColumns"/>
+        FROM reservations r JOIN reservation_items ri ON ri.reservation_id = r.reservation_id
+        WHERE r.user_id = #{userId}
+        ORDER BY r.created_at DESC
+    </select>
+
+    <!--
+      user_id를 WHERE에 남긴다. 서비스가 이미 소유를 확인하지만, 남의 예약을 남의 여행에
+      붙이는 일은 조건 하나로 막을 수 있으면 막아두는 편이 낫다.
+    -->
+    <update id="updateReservationTrip">
+        UPDATE reservations
+        SET trip_id = #{tripId}
+        WHERE reservation_id = #{reservationId} AND user_id = #{userId}
+    </update>
 
     <select id="findReservationsByTrip"
             resultType="org.example.all_my_trip_project.domain.ticket.dto.TicketReservationDTO">

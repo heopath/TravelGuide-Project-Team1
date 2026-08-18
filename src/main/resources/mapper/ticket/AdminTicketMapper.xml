@@ -169,4 +169,114 @@
           AND #{totalQuantity} &gt;= reserved_quantity
     </update>
 
+    <sql id="optionColumns">
+        o.ticket_product_option_id, o.ticket_product_id, o.name, o.description,
+        o.unit_price, o.currency_code AS currency, o.max_quantity_per_user,
+        o.sort_order, o.is_active,
+        (SELECT COUNT(*) FROM ticket_time_slots s
+          WHERE s.ticket_product_option_id = o.ticket_product_option_id) AS slot_count
+    </sql>
+
+    <!-- 비활성 옵션도 내린다. 감춰버리면 다시 켤 방법이 없다. -->
+    <select id="findOptions" resultType="org.example.all_my_trip_project.domain.ticket.dto.AdminTicketOptionDTO">
+        SELECT <include refid="optionColumns"/>
+        FROM ticket_product_options o
+        WHERE o.ticket_product_id = #{ticketProductId}
+        ORDER BY o.sort_order, o.ticket_product_option_id
+    </select>
+
+    <select id="findOptionById" resultType="org.example.all_my_trip_project.domain.ticket.dto.AdminTicketOptionDTO">
+        SELECT <include refid="optionColumns"/>
+        FROM ticket_product_options o
+        WHERE o.ticket_product_option_id = #{optionId}
+    </select>
+
+    <!-- insertProduct와 같은 이유로 RETURNING을 쓴다. 요청 DTO가 record라 키를 돌려받을 자리가 없다. -->
+    <select id="insertOption" resultType="long">
+        INSERT INTO ticket_product_options (
+            ticket_product_id, name, description, unit_price,
+            max_quantity_per_user, sort_order, is_active
+        ) VALUES (
+            #{ticketProductId}, #{request.name}, #{request.description}, #{request.unitPrice},
+            #{request.maxQuantityPerUser}, #{request.sortOrder}, #{request.isActive}
+        )
+        RETURNING ticket_product_option_id
+    </select>
+
+    <update id="updateOption">
+        UPDATE ticket_product_options
+        SET name = #{request.name},
+            description = #{request.description},
+            unit_price = #{request.unitPrice},
+            max_quantity_per_user = #{request.maxQuantityPerUser},
+            sort_order = #{request.sortOrder},
+            is_active = #{request.isActive}
+        WHERE ticket_product_option_id = #{optionId}
+    </update>
+
+    <select id="existsConflictingOption" resultType="boolean">
+        SELECT EXISTS (
+            SELECT 1 FROM ticket_product_options
+            WHERE ticket_product_id = #{ticketProductId}
+              AND (name = #{name} OR sort_order = #{sortOrder})
+            <if test="optionId != null">
+                AND ticket_product_option_id &lt;&gt; #{optionId}
+            </if>
+        )
+    </select>
+
+    <select id="insertSlot" resultType="long">
+        INSERT INTO ticket_time_slots (
+            ticket_product_option_id, usage_date, start_time, end_time, status
+        ) VALUES (
+            #{optionId}, #{usageDate}, #{startTime}, #{endTime}, 'OPEN'
+        )
+        RETURNING ticket_time_slot_id
+    </select>
+
+    <!--
+      시간대를 만든 트랜잭션에서 반드시 함께 불려야 한다. 이 행이 없으면 조회 질의들의
+      INNER JOIN에서 빠져 시간대가 아무 화면에도 나오지 않는다.
+    -->
+    <insert id="insertInventory">
+        INSERT INTO ticket_inventory (ticket_time_slot_id, total_quantity, reserved_quantity)
+        VALUES (#{slotId}, #{totalQuantity}, 0)
+    </insert>
+
+    <!-- NULLS NOT DISTINCT 유니크와 같게 비교해야 종일권(시작시각 NULL) 중복도 잡힌다. -->
+    <select id="existsSlot" resultType="boolean">
+        SELECT EXISTS (
+            SELECT 1 FROM ticket_time_slots
+            WHERE ticket_product_option_id = #{optionId}
+              AND usage_date = #{usageDate}
+              AND start_time IS NOT DISTINCT FROM #{startTime}
+        )
+    </select>
+
+    <update id="updateSlotStatus">
+        UPDATE ticket_time_slots
+        SET status = #{status}
+        WHERE ticket_time_slot_id = #{slotId}
+    </update>
+
+    <select id="countSlotReserved" resultType="int">
+        SELECT COALESCE(reserved_quantity, 0)
+        FROM ticket_inventory
+        WHERE ticket_time_slot_id = #{slotId}
+    </select>
+
+    <select id="findProductIdBySlot" resultType="long">
+        SELECT o.ticket_product_id
+        FROM ticket_time_slots s
+            JOIN ticket_product_options o
+              ON o.ticket_product_option_id = s.ticket_product_option_id
+        WHERE s.ticket_time_slot_id = #{slotId}
+    </select>
+
+    <select id="findProductIdByOption" resultType="long">
+        SELECT ticket_product_id
+        FROM ticket_product_options
+        WHERE ticket_product_option_id = #{optionId}
+    </select>
+
 </mapper>
