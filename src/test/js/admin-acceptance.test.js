@@ -118,8 +118,13 @@ async function run() {
     T("연동 전 블록에는 연동 전 표시가 붙는다",
       [...d.querySelectorAll(".admin-tag:not(.live)")]
         .every((tag) => tag.textContent.trim() === "연동 전"));
-    T("아직 연동되지 않은 패널이 남아 있다",
-      d.querySelectorAll(".admin-tag:not(.live)").length > 0);
+    /*
+     * 상담 채팅까지 붙어 관리자 패널이 모두 실연동이 됐다(#247). "연동 전이 남아 있다"는
+     * 단정은 그때의 상태를 지키던 것이라 지운다. 대신 위의 두 규칙 — 배지와 태그가 같은 말을
+     * 하고, 연동 전 태그에는 다른 문구를 넣지 않는다 — 은 그대로 남는다.
+     */
+    T("모든 관리자 패널이 실연동이다",
+      d.querySelectorAll(".admin-tag:not(.live)").length === 0);
     /*
      * 테마 여행 등록은 구현 범위에서 뺐다. `연동 전`으로 남겨두면 앞으로 붙일 것으로 읽히므로
      * 패널째 지웠다. 되살아나면 다시 "곧 붙는 화면"으로 오해되므로 없는 것을 확인한다.
@@ -129,7 +134,12 @@ async function run() {
         && d.querySelector('[data-admin-section="theme"]') === null
         && d.getElementById("themeForm") === null);
 
-    /* ── 상담 채팅: 방 목록 + 대화. 연동 전이라 비어 있고 입력이 막혀 있어야 한다 ── */
+    /*
+     * ── 상담 채팅 ──
+     *
+     * 동작은 admin-chat.js가 맡고 admin-chat-acceptance.test.js가 확인한다.
+     * 여기서는 이 화면에 자리가 갖춰져 있는지만 본다.
+     */
     T("상담 채팅 블록이 있다", headings.includes("상담 채팅"));
     T("방 목록과 대화창이 함께 있다",
       Boolean(d.getElementById("chatRoomList")) && Boolean(d.getElementById("chatMessages")));
@@ -137,18 +147,14 @@ async function run() {
     T("상담 상태 필터가 봇·대기·내 담당·종료를 구분한다",
       ["BOT", "WAITING", "ASSIGNED", "CLOSED"]
         .every((value) => d.querySelector(`[data-chat-filter="${value}"]`)));
-    T("연동 전에는 가짜 대화를 넣지 않는다",
-      d.getElementById("chatRoomList").children.length === 0
-        && d.getElementById("chatMessages").children.length === 0);
-    T("연동 전에는 답장 입력을 막아둔다",
-      d.getElementById("chatInput").disabled
-        && d.getElementById("chatSend").disabled
-        && d.getElementById("chatTakeover").disabled);
-
-    d.querySelector('[data-chat-filter="WAITING"]').click();
-    T("상담 필터는 선택만 바뀌고 조회는 하지 않는다",
-      w.__adminDashboard.state.chatFilter === "WAITING"
-        && d.querySelectorAll('[data-chat-filter].on').length === 1);
+    /*
+     * 맡지 않은 상담에는 답할 수 없다. 처음 열었을 때는 고른 상담이 없으므로 입력이 막혀
+     * 있어야 한다. `내가 응대하기`를 누른 뒤에 열린다.
+     */
+    T("상담을 고르기 전에는 답장 입력이 막혀 있다",
+      d.getElementById("chatInput").disabled && d.getElementById("chatSend").disabled);
+    T("가짜 대화를 미리 넣어두지 않는다",
+      d.getElementById("chatMessages").children.length === 0);
   }
 
   /* ── 사이드바: 고른 화면 하나만 보여준다 (#165) ── */
@@ -163,7 +169,8 @@ async function run() {
      * 다른 하나가 늘어나면 통과한다. 추천 장소 관리는 별도 주소라 data-route를 쓰므로 빠진다.
      */
     T("사이드바에 패널이 빠짐없이 있다",
-      ["reports", "metrics", "products", "reservations", "performance", "chat", "support", "audit"]
+      ["reports", "metrics", "products", "reservations", "performance", "chat", "support", "audit",
+        "members", "validation"]
         .every((key) => d.querySelector(`[data-admin-panel="${key}"]`) !== null));
     T("1:1 문의 관리 패널이 있다",
       d.querySelector('[data-admin-panel="support"]') !== null

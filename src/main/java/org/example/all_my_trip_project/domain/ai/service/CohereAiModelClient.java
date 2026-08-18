@@ -176,7 +176,7 @@ public class CohereAiModelClient implements AiModelClient {
         );
     }
 
-    private String createPrompt(AiGuideRequest request, List<AiConversationTurn> history,
+    String createPrompt(AiGuideRequest request, List<AiConversationTurn> history,
                                 AiGuideContext context, List<RagSearchResult> ragResults) {
         return """
                 Create a Korean travel itinerary that answers the user question.
@@ -202,6 +202,11 @@ public class CohereAiModelClient implements AiModelClient {
                   popularity claim, or neighborhood-specific fact. Explain that verified place candidates are unavailable
                   and give general planning guidance instead.
 
+                Scheduling rules:
+                - Existing itinerary entries in Travel context belong to their stated DAY only.
+                - Prefer an empty time slot on the same DAY. Never return an item time that overlaps an existing entry.
+                - When an existing entry has no end time, reserve two hours after its start time.
+
                 User question: %s
                 """.formatted(formatHistory(history), formatContext(context), formatRagResults(ragResults), request.question());
     }
@@ -216,7 +221,23 @@ public class CohereAiModelClient implements AiModelClient {
         if (context == null || context.trip() == null) return "No travel context is available.";
         AiGuideContext.Trip trip = context.trip();
         return "destination=" + trip.destinationName() + ", dates=" + trip.startDate() + " to " + trip.endDate()
-                + ", purpose=" + trip.purpose() + ", existing days=" + trip.days();
+                + ", purpose=" + trip.purpose() + ", existing schedule=" + formatSchedule(trip.days());
+    }
+
+    private String formatSchedule(List<AiGuideContext.Day> days) {
+        if (days == null || days.isEmpty()) return "None";
+        return days.stream().map(day -> "DAY " + day.dayNumber() + ": " + day.items().stream()
+                        .map(this::formatScheduleItem)
+                        .collect(java.util.stream.Collectors.joining(", ")))
+                .collect(java.util.stream.Collectors.joining("; "));
+    }
+
+    private String formatScheduleItem(AiGuideContext.Item item) {
+        if (item.startTime() == null) return item.title() + " (time unset)";
+        String end = item.endTime() == null
+                ? item.startTime().plusHours(2).toString()
+                : item.endTime().toString();
+        return item.title() + " (" + item.startTime() + "-" + end + ")";
     }
 
     private String formatRagResults(List<RagSearchResult> ragResults) {

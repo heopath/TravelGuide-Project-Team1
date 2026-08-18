@@ -1,5 +1,7 @@
 package org.example.all_my_trip_project.global.config;
 
+import org.example.all_my_trip_project.domain.user.repository.UserRepository;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.security.autoconfigure.web.servlet.PathRequest;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -52,7 +54,13 @@ public class SecurityConfig {
     // /api/** 체인(ApiSecurityConfig, @Order(1))이 먼저 매칭되고 이 체인이 나머지 페이지 요청을 받는다.
     @Bean
     @Profile("!ui")
-    public SecurityFilterChain pageSecurityFilterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain pageSecurityFilterChain(
+            HttpSecurity http,
+            ObjectProvider<UserRepository> users
+    ) throws Exception {
+        // 화면 체인에도 같이 건다. API만 막으면 /admin 화면은 정지된 관리자에게 계속 열린다. (#238)
+        ApiSecurityConfig.addAccountStatusFilter(http, users);
+
         return http
                 .authorizeHttpRequests(authorize -> authorize
                         .requestMatchers(PathRequest.toStaticResources().atCommonLocations()).permitAll()

@@ -21,6 +21,7 @@ class ItineraryItemService {
     private final ItineraryItemDAO itemDAO;
     private final TripOwnershipGuard ownershipGuard;
     private final ItineraryItemValidator itineraryItemValidator;
+    private final ItineraryItemTimeConflictValidator timeConflictValidator;
 
     @Transactional
     public Long create(Long userId, ItineraryItemDTO item) {
@@ -33,6 +34,10 @@ class ItineraryItemService {
         if (item.getPlaceId() != null
                 && itemDAO.existsByTripDayIdAndPlaceId(item.getTripDayId(), item.getPlaceId())) {
             throw new BusinessException(ErrorCode.ITINERARY_PLACE_ALREADY_ADDED);
+        }
+        if ("AI".equalsIgnoreCase(item.getSource())
+                && timeConflictValidator.hasConflict(item, itemDAO.findByTripDayId(item.getTripDayId()))) {
+            throw new BusinessException(ErrorCode.ITINERARY_TIME_CONFLICT);
         }
         // 삭제로 중간 순번이 비어도 마지막 순번 뒤에 추가한다.
         item.setSortOrder(itemDAO.nextSortOrderByTripDayId(item.getTripDayId()));

@@ -124,6 +124,11 @@ public enum ErrorCode {
             "같은 DAY에 이미 추가된 장소입니다."
     ),
 
+    ITINERARY_TIME_CONFLICT(
+            HttpStatus.CONFLICT,
+            "기존 일정과 시간이 겹쳐 추가할 수 없습니다."
+    ),
+
     INVALID_FLIGHT_LEG(
             HttpStatus.BAD_REQUEST,
             "항공 구간은 가는 편(0) 또는 오는 편(1)만 지정할 수 있습니다."
@@ -286,6 +291,86 @@ public enum ErrorCode {
     INVALID_ADMIN_REQUEST(
             HttpStatus.BAD_REQUEST,
             "조회 조건이 올바르지 않습니다."
+    ),
+
+    MEMBER_NOT_FOUND(
+            HttpStatus.NOT_FOUND,
+            "회원을 찾을 수 없습니다."
+    ),
+
+    INVALID_MEMBER_REQUEST(
+            HttpStatus.BAD_REQUEST,
+            "회원 변경 요청이 올바르지 않습니다."
+    ),
+
+    MEMBER_SELF_CHANGE_DENIED(
+            HttpStatus.BAD_REQUEST,
+            "자기 자신의 권한과 상태는 변경할 수 없습니다."
+    ),
+
+    LAST_ADMIN_PROTECTED(
+            HttpStatus.BAD_REQUEST,
+            "마지막 관리자입니다. 다른 관리자를 먼저 지정해 주세요."
+    ),
+
+    MEMBER_WITHDRAWN_IMMUTABLE(
+            HttpStatus.BAD_REQUEST,
+            "탈퇴한 회원은 변경할 수 없습니다."
+    ),
+
+    MEMBER_NOT_ACTIVE(
+            HttpStatus.BAD_REQUEST,
+            "정지된 회원은 관리자로 올릴 수 없습니다."
+    ),
+
+    RESERVATION_NOT_PAYABLE(
+            HttpStatus.CONFLICT,
+            "결제할 수 없는 예약입니다. 예약 상태를 확인해 주세요."
+    ),
+
+    RESERVATION_EXPIRED(
+            HttpStatus.GONE,
+            "예약 시간이 지나 자리가 반납되었습니다. 다시 예약해 주세요."
+    ),
+
+    INVALID_PAYMENT_REQUEST(
+            HttpStatus.BAD_REQUEST,
+            "결제 요청이 올바르지 않습니다."
+    ),
+
+    TICKET_ALREADY_USED(
+            HttpStatus.CONFLICT,
+            "이미 사용한 티켓이 있어 취소할 수 없습니다."
+    ),
+
+    TICKET_USAGE_DATE_PASSED(
+            HttpStatus.CONFLICT,
+            "이용일이 지나 취소할 수 없습니다."
+    ),
+
+    SUPPORT_CHAT_ROOM_NOT_FOUND(
+            HttpStatus.NOT_FOUND,
+            "상담을 찾을 수 없습니다."
+    ),
+
+    SUPPORT_CHAT_ROOM_CLOSED(
+            HttpStatus.CONFLICT,
+            "이미 종료된 상담입니다."
+    ),
+
+    SUPPORT_CHAT_ALREADY_ASSIGNED(
+            HttpStatus.CONFLICT,
+            "다른 관리자가 응대하고 있는 상담입니다."
+    ),
+
+    SUPPORT_CHAT_NOT_ASSIGNED(
+            HttpStatus.CONFLICT,
+            "먼저 내가 응대하기를 눌러야 답할 수 있습니다."
+    ),
+
+    INVALID_SUPPORT_CHAT_REQUEST(
+            HttpStatus.BAD_REQUEST,
+            "상담 요청이 올바르지 않습니다."
     );
 
     private final HttpStatus status;

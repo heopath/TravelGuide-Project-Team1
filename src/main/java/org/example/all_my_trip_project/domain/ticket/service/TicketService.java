@@ -3,6 +3,7 @@ package org.example.all_my_trip_project.domain.ticket.service;
 import lombok.RequiredArgsConstructor;
 import org.example.all_my_trip_project.domain.ticket.dao.TicketDAO;
 import org.example.all_my_trip_project.domain.ticket.dto.CreateTicketReservationRequest;
+import org.example.all_my_trip_project.domain.ticket.dto.TicketCancelResponse;
 import org.example.all_my_trip_project.domain.ticket.dto.TicketOfferDTO;
 import org.example.all_my_trip_project.domain.ticket.dto.TicketReservationDTO;
 import org.example.all_my_trip_project.domain.trip.dao.TripDAO;
@@ -90,9 +91,19 @@ public class TicketService {
         return ticketDAO.findByTrip(tripId);
     }
 
-    /** PENDING 모의 예약만 취소하고, 잡아 두었던 수량을 같은 트랜잭션에서 되돌린다. */
+    /**
+     * 예약을 취소한다. 결제 전이면 자리만 놓고, 결제 후면 환불까지 한다.
+     *
+     * <p>손님에게는 둘 다 "예약 취소" 하나다. 돈이 돌아오는지는 결제했는지에 따라 갈릴 뿐이라
+     * 경로를 나누지 않는다.
+     *
+     * <p>결제한 예약을 취소할 때는 <b>네 가지가 함께 움직인다.</b> 결제를 환불로, 발급된
+     * 티켓을 무효로, 예약을 취소로, 그리고 잡아 두었던 수량을 반납한다. 하나라도 빠지면
+     * 어긋난다 — 티켓을 무효로 만들지 않으면 환불받고도 입장할 수 있고, 재고를 반납하지
+     * 않으면 판 적 없는 자리가 잠긴다.
+     */
     @Transactional
-    public TicketReservationDTO cancel(Long userId, Long reservationId) {
+    public TicketCancelResponse cancel(Long userId, Long reservationId) {
         if (userId == null || userId < 1) {
             throw new BusinessException(ErrorCode.UNAUTHORIZED);
         }
@@ -101,17 +112,63 @@ public class TicketService {
                 .orElseThrow(() -> new BusinessException(ErrorCode.TICKET_RESERVATION_NOT_FOUND));
         requireOwnedTrip(userId, reservation.getTripId());
 
-        if ("CANCELLED".equals(reservation.getStatus())) return reservation;
-        if (!"PENDING".equals(reservation.getStatus())) {
-            throw new BusinessException(ErrorCode.TICKET_CANCEL_NOT_ALLOWED);
+        if ("CANCELLED".equals(reservation.getStatus())) {
+            return new TicketCancelResponse(reservation, false, 0);
         }
+        if ("PENDING".equals(reservation.getStatus())) return cancelPending(reservation);
+        if ("CONFIRMED".equals(reservation.getStatus())) return refund(reservation);
+        throw new BusinessException(ErrorCode.TICKET_CANCEL_NOT_ALLOWED);
+    }
 
-        if (ticketDAO.cancelReservation(reservationId) != 1
+    private TicketCancelResponse cancelPending(TicketReservationDTO reservation) {
+        if (ticketDAO.cancelReservation(reservation.getReservationId()) != 1
                 || ticketDAO.releaseInventory(reservation.getSlotId(), reservation.getQuantity()) != 1) {
             throw new BusinessException(ErrorCode.TICKET_CANCEL_NOT_ALLOWED);
         }
         reservation.setStatus("CANCELLED");
-        return reservation;
+        return new TicketCancelResponse(reservation, false, 0);
+    }
+
+    private TicketCancelResponse refund(TicketReservationDTO reservation) {
+        Long reservationId = reservation.getReservationId();
+
+        /*
+         * 이용일이 지난 뒤의 취소는 받지 않는다. 오지 않은 것은 환불 대상이 아니다.
+         * 당일까지는 허용한다 — 아침에 마음이 바뀌는 것까지 막을 이유는 없다.
+         */
+        if (reservation.getUsageDate() != null
+                && reservation.getUsageDate().isBefore(LocalDate.now())) {
+            throw new BusinessException(ErrorCode.TICKET_USAGE_DATE_PASSED);
+        }
+
+        /*
+         * 티켓 행을 잠그고 상태를 본다. 잠그지 않으면 여기서 "안 썼다"를 읽은 뒤 환불을
+         * 끝내기 전에 검표가 들어와 그 티켓이 USED가 될 수 있다. 입장하고 환불도 받는 셈이다.
+         *
+         * 한 장이라도 썼으면 거부한다. 2매 중 1매만 쓴 경우도 마찬가지다 — 부분 환불은
+         * 범위 밖이라, 쓴 만큼만 빼고 돌려줄 방법이 없다.
+         */
+        if (ticketDAO.lockIssuedTicketStatuses(reservationId).contains("USED")) {
+            throw new BusinessException(ErrorCode.TICKET_ALREADY_USED);
+        }
+
+        if (ticketDAO.cancelConfirmedReservation(reservationId) != 1) {
+            /* 잠갔는데도 CONFIRMED가 아니게 됐다면 다른 요청이 먼저 처리한 것이다. */
+            throw new BusinessException(ErrorCode.TICKET_CANCEL_NOT_ALLOWED);
+        }
+        int cancelledTickets = ticketDAO.cancelIssuedTickets(reservationId);
+        ticketDAO.refundPayments(reservationId);
+        if (ticketDAO.releaseInventory(reservation.getSlotId(), reservation.getQuantity()) != 1) {
+            /*
+             * 재고를 되돌리지 못하면 조용히 넘기지 않는다. 예약만 취소되고 자리는 잠긴 채
+             * 남아 아무도 그 자리를 살 수 없게 된다.
+             */
+            throw new IllegalStateException(
+                    "예약 " + reservationId + "의 재고를 되돌리지 못했습니다.");
+        }
+
+        reservation.setStatus("CANCELLED");
+        return new TicketCancelResponse(reservation, true, cancelledTickets);
     }
 
     private TripDTO requireOwnedTrip(Long userId, Long tripId) {

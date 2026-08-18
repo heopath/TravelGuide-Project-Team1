@@ -33,8 +33,6 @@
     reportStatus: "",
     reports: [],
     loading: false,
-    /* 상담 채팅은 화면만 있고 연동 전이다. 선택한 필터만 기억한다. */
-    chatFilter: "",
     /* 사이드바에서 고른 화면. 실연동은 신고 관리뿐이라 그것부터 연다. */
     panel: "reports"
   };
@@ -210,20 +208,7 @@
       });
     });
 
-    /* 입력과 버튼을 막아뒀지만 엔터 제출까지는 막지 못한다. */
-    $("chatComposer").addEventListener("submit", (event) => event.preventDefault());
-
-    /*
-     * 상담 상태 필터는 눌린 것만 표시하고 조회는 하지 않는다.
-     * WebSocket과 방 목록 API가 붙으면 여기서 room 조회를 건다.
-     */
-    document.querySelectorAll("[data-chat-filter]").forEach((button) => {
-      button.addEventListener("click", () => {
-        document.querySelectorAll("[data-chat-filter]").forEach((item) => item.classList.remove("on"));
-        button.classList.add("on");
-        state.chatFilter = button.dataset.chatFilter;
-      });
-    });
+    /* 상담 채팅은 admin-chat.js가 맡는다. 여기서는 아무것도 걸지 않는다. */
   }
 
   function init() {

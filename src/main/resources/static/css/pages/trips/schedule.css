@@ -768,6 +768,7 @@ body.map-modal-open {
 .schedule-ai-add-item { min-height: 28px; padding: 0 8px; border: 1px solid #cdd4ff; border-radius: 8px; background: #fff; color: var(--primary); font-size: 10px; font-weight: 900; cursor: pointer; }
 .schedule-ai-add-item:hover:not(:disabled) { border-color: var(--primary); background: var(--primary-soft); }
 .schedule-ai-add-item:disabled { cursor: default; opacity: .7; }
+.schedule-ai-add-item.is-time-conflict { border-color: #f0ad57; background: #fff8ed; color: #a96512; opacity: 1; }
 .schedule-ai-links { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
 .schedule-ai-links a { padding: 7px 8px; border-radius: 8px; background: #fff; color: var(--primary); font-size: 10px; font-weight: 800; text-decoration: none; }
 .schedule-ai-error { margin: 0 16px 10px; padding: 11px 12px; border-radius: 10px; background: #fff0f2; color: #cb4b61; font-size: 11px; }

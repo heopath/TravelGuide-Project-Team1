@@ -52,6 +52,14 @@
   let ticketReservation = null;
   let bookingSummary = null;
   let bookingSummaryError = null;
+  /*
+   * 예약별 발급 티켓. 결제 응답에 담겨 온 것을 그대로 들고 있는다.
+   *
+   * 입장 코드(verificationToken)는 결제 응답에만 들어 있고 목록 조회로는 다시 받을 수 없다.
+   * 서버가 해시만 저장하기 때문이다. 새로고침하면 코드가 사라지는 것은 그래서이고, 의도한
+   * 동작이다. 실제 서비스라면 이 자리에서 QR을 그린다.
+   */
+  const issuedTickets = {};
 
   /* ────────── 파생값 ────────── */
   const offerOf = (leg, id) => offers[leg].find((o) => o.offerId === id) || null;
@@ -403,12 +411,29 @@
       <div class="mn-a"><button type="button" class="mn-b" data-mine-tab="hotel">숙소에서 확인·변경</button></div>
     </div>`).join("");
 
+    /*
+     * PENDING은 아직 결제하지 않은 상태다. 자리를 잡아 두고 있을 뿐이라 시간이 지나면
+     * 반납된다(15분). 그래서 결제 버튼이 이 자리에 있어야 한다.
+     *
+     * 취소는 결제 전후 모두 둔다. 손님에게는 둘 다 "취소" 하나이고, 결제했으면 환불까지
+     * 함께 일어난다. 다만 확인 문구는 갈린다 — 결제한 건을 취소하면 발급된 티켓이 무효가
+     * 되므로 그 사실을 누르기 전에 알려야 한다.
+     */
     const ticketRows = tickets.map((item) => `<div class="mn${item.status === "CANCELLED" ? " cancelled" : ""}">
       <div class="mn-h">티켓·액티비티 <span class="mn-s">${esc(item.statusLabel)}</span></div>
       <p class="mn-f">${esc(item.title)} · ${esc(item.detail || "")}</p>
       <p class="mn-meta">${esc(item.usageDate || "")} · ${item.quantity || 1}매 · ${esc(summaryAmount(item))} · 실제 결제 아님</p>
+      ${item.status === "CONFIRMED"
+        ? `<div class="mn-tickets" data-mine-tickets="${esc(item.referenceId)}"></div>`
+        : ""}
       <div class="mn-a">${item.status === "PENDING"
-        ? `<button type="button" class="mn-b danger" data-mine-ticket-cancel="${esc(item.referenceId)}">모의 예약 취소</button>`
+        ? `<button type="button" class="mn-b primary" data-mine-ticket-pay="${esc(item.referenceId)}">모의 결제하기</button>`
+        : ""}${item.status === "CONFIRMED"
+        ? `<button type="button" class="mn-b" data-mine-ticket-show="${esc(item.referenceId)}">발급된 티켓 보기</button>`
+        : ""}${item.status === "PENDING" || item.status === "CONFIRMED"
+        ? `<button type="button" class="mn-b danger" data-mine-ticket-cancel="${esc(item.referenceId)}"`
+          + ` data-mine-ticket-paid="${item.status === "CONFIRMED" ? "1" : ""}">`
+          + `${item.status === "CONFIRMED" ? "결제 취소" : "모의 예약 취소"}</button>`
         : ""}<button type="button" class="mn-b" data-mine-tab="ticket">티켓에서 확인</button></div>
     </div>`).join("");
 
@@ -418,6 +443,33 @@
       + section("FLIGHT", "항공", flightRows, "아직 선택한 항공편이 없어요.")
       + section("ACCOMMODATION", "숙소", stayRows, "아직 선택한 숙소가 없어요.")
       + section("TICKET", "티켓·액티비티", ticketRows, "아직 담은 티켓이 없어요.");
+
+    /* innerHTML로 다시 그리면 티켓 자리도 비므로, 들고 있던 것을 다시 채운다. */
+    Object.keys(issuedTickets).forEach(renderIssuedTickets);
+  }
+
+  /**
+   * 발급된 티켓을 예약 카드 안에 그린다.
+   *
+   * 입장 코드는 결제 직후에만 있다. 목록으로 다시 불러오면 번호와 유효기간만 온다.
+   * 그 차이를 화면이 숨기지 않고 밝힌다 — 코드가 없어진 것을 오류로 오해하지 않도록.
+   */
+  function renderIssuedTickets(reservationId) {
+    const slot = document.querySelector(`[data-mine-tickets="${reservationId}"]`);
+    if (!slot) return;
+    const tickets = issuedTickets[reservationId];
+    if (!tickets || !tickets.length) {
+      slot.innerHTML = "";
+      return;
+    }
+    slot.innerHTML = tickets.map((ticket) => `<div class="mn-ticket">
+      <b>${esc(ticket.ticketNumber)}</b>
+      <span class="mn-meta">${esc(String(ticket.validFrom || "").slice(0, 16).replace("T", " "))}
+        ~ ${esc(String(ticket.validUntil || "").slice(0, 16).replace("T", " "))}</span>
+      ${ticket.verificationToken
+        ? `<code class="mn-ticket-code">${esc(ticket.verificationToken)}</code>`
+        : `<span class="mn-meta">입장 코드는 결제 직후에만 표시됩니다.</span>`}
+    </div>`).join("");
   }
 
   function renderMine() {
@@ -892,13 +944,67 @@
         setTab(tab.dataset.mineTab);
         return;
       }
+      const payTicket = e.target.closest("[data-mine-ticket-pay]");
+      if (payTicket) {
+        if (!window.confirm("모의 결제를 진행할까요? 실제 결제는 이루어지지 않고, 결제하면 티켓이 발급됩니다.")) return;
+        payTicket.disabled = true;
+        try {
+          const reservationId = payTicket.dataset.mineTicketPay;
+          /*
+           * 멱등키를 화면에서 만든다. 응답이 유실되어 다시 눌러도 같은 키로 들어가면 서버가
+           * 앞의 결과를 그대로 돌려주고 두 번 결제되지 않는다.
+           */
+          const idempotencyKey = crypto.randomUUID
+            ? crypto.randomUUID()
+            : `pay-${reservationId}-${Date.now()}`;
+          const result = await request("POST", `/api/v1/ticket-reservations/${reservationId}/payment`,
+            { method: "CARD", idempotencyKey });
+          /* request()는 data가 아니라 응답 전체를 돌려준다. */
+          issuedTickets[reservationId] = result?.data?.tickets || [];
+          bookingSummary = null;
+          await loadBookingSummary();
+          sync();
+        } catch (error) {
+          bookingSummaryError = error.message || "모의 결제를 완료하지 못했습니다.";
+          renderMine();
+        } finally {
+          payTicket.disabled = false;
+        }
+        return;
+      }
+      const showTickets = e.target.closest("[data-mine-ticket-show]");
+      if (showTickets) {
+        const reservationId = showTickets.dataset.mineTicketShow;
+        showTickets.disabled = true;
+        try {
+          const loaded = await request("GET", `/api/v1/ticket-reservations/${reservationId}/tickets`);
+          issuedTickets[reservationId] = loaded?.data || [];
+          renderIssuedTickets(reservationId);
+        } catch (error) {
+          bookingSummaryError = error.message || "발급된 티켓을 불러오지 못했습니다.";
+          renderMine();
+        } finally {
+          showTickets.disabled = false;
+        }
+        return;
+      }
       const cancelTicket = e.target.closest("[data-mine-ticket-cancel]");
       if (cancelTicket) {
-        if (!window.confirm("이 모의 예약을 취소할까요? 취소한 수량은 다시 예약할 수 있게 됩니다.")) return;
+        /*
+         * 결제한 건은 취소하면 발급된 티켓이 무효가 된다. 누르기 전에 그 사실을 알려야 한다.
+         * 결제 전 취소와 같은 문구를 쓰면 티켓이 사라지는 줄 모르고 누른다.
+         */
+        const paid = cancelTicket.dataset.mineTicketPaid === "1";
+        const question = paid
+          ? "결제를 취소할까요? 발급된 티켓은 더 이상 사용할 수 없게 됩니다."
+          : "이 모의 예약을 취소할까요? 취소한 수량은 다시 예약할 수 있게 됩니다.";
+        if (!window.confirm(question)) return;
         cancelTicket.disabled = true;
         try {
           const reservationId = cancelTicket.dataset.mineTicketCancel;
           await request("DELETE", `/api/v1/ticket-reservations/${reservationId}`);
+          /* 무효가 된 티켓을 화면에 남겨두지 않는다. */
+          delete issuedTickets[reservationId];
           if (String(ticketReservation?.reservationId) === reservationId) ticketReservation = null;
           window.dispatchEvent(new CustomEvent("allmytrips:ticket-cancelled", {
             detail: { reservationId: Number(reservationId) }

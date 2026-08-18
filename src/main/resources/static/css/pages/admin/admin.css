@@ -289,6 +289,89 @@ body.page-admin #page-content {
 .page-admin .admin-audit-row [data-audit-change] small { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
 .page-admin .admin-audit-row [data-audit-empty-payload] { color: var(--muted); font-size: 11px; }
 
+/* ── 티켓 검표 ── */
+
+.page-admin .admin-scan {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 72px;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.page-admin .admin-scan input {
+  padding: 11px 13px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  /* 입장 코드는 대소문자가 섞인 난수라 고정폭이어야 눈으로 대조할 수 있다. */
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 13px;
+}
+.page-admin .admin-scan button { border: 0; cursor: pointer; }
+
+/*
+  결과는 색으로만 구분하지 않는다. 문구가 스스로 무엇인지 말하고 색은 거들기만 한다.
+  현장은 화면을 오래 들여다보는 자리가 아니라 흘끗 보는 자리다.
+*/
+.page-admin .admin-scan-result {
+  padding: 14px 16px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+}
+.page-admin .admin-scan-result strong { display: block; font-size: 15px; }
+.page-admin .admin-scan-result p { margin: 6px 0 0; font-size: 13px; }
+.page-admin .admin-scan-result small {
+  display: block;
+  margin-top: 8px;
+  color: var(--muted);
+  font-size: 11.5px;
+}
+.page-admin .admin-scan-result.ok { border-color: #a6f4c5; background: #f0fdf4; }
+.page-admin .admin-scan-result.ok strong { color: #067647; }
+.page-admin .admin-scan-result.no { border-color: #fecdca; background: #fff5f4; }
+.page-admin .admin-scan-result.no strong { color: #b42318; }
+
+.page-admin .admin-validation-row {
+  grid-template-columns: 132px 72px minmax(0, 1fr) 96px;
+  align-items: center;
+}
+.page-admin .admin-validation-row > span { padding: 10px 0; min-width: 0; }
+.page-admin .admin-validation-row strong { display: block; }
+.page-admin .admin-validation-row small {
+  display: block; margin-top: 2px; color: var(--muted); font-size: 11px;
+}
+
+/*
+  관리 칸은 버튼 두 개(`정지`·`관리자 승격`)가 나란히 서야 해서 고정 폭이다. 1fr로 두면
+  긴 이메일이 들어올 때 회원 칸이 버튼을 밀어내고 버튼이 세로로 접힌다.
+*/
+.page-admin .admin-member-row {
+  grid-template-columns: minmax(0, 1fr) 64px 64px 116px 178px;
+  align-items: center;
+}
+.page-admin .admin-member-row > span { padding: 10px 0; min-width: 0; }
+.page-admin .admin-member-row strong { display: block; }
+/*
+  이메일은 길면 잘라낸다. 줄바꿈을 허용하면 회원 한 명이 두세 줄을 차지해 목록을 훑을 수 없다.
+  전체 값은 별도 화면 없이도 브라우저가 선택·복사로 꺼낼 수 있다.
+*/
+.page-admin .admin-member-row small {
+  display: block;
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 11px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.page-admin .admin-member-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+/*
+  잠긴 버튼도 지우지 않고 남긴다. 사라지면 "원래 못 하는 것"으로 읽히는데, 실제로는
+  조건이 바뀌면 할 수 있다. 왜 잠겼는지는 title에 붙어 있다.
+*/
+.page-admin .admin-member-actions .admin-chip:disabled {
+  opacity: .45;
+  cursor: not-allowed;
+}
+
 .page-admin .admin-search { display: block; margin-bottom: 12px; }
 .page-admin .admin-search input {
   width: 100%;
@@ -470,9 +553,43 @@ body.page-admin #page-content {
   white-space: nowrap;
 }
 .page-admin .admin-chat-takeover:disabled { border-color: var(--border); color: #a5aec1; }
+/* 응대하기와 종료를 나란히. 좁아질 때 접히도록 wrap을 둔다. */
+.page-admin .admin-chat-actions { display: flex; gap: 6px; flex-wrap: wrap; }
 
 .page-admin .admin-chat-messages { flex: 1; padding: 18px; display: grid; gap: 10px; align-content: start; overflow-y: auto; }
 .page-admin .admin-chat-messages:empty { padding: 0; }
+
+/*
+  보낸이에 따라 좌우를 나눈다. 손님은 왼쪽, 관리자는 오른쪽 — 흔한 메신저 배치라
+  검표원이 따로 익힐 것이 없다. 봇은 아직 없지만 자리를 함께 둔다.
+*/
+.page-admin .admin-chat-message {
+  max-width: 76%;
+  padding: 9px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: #fff;
+}
+.page-admin .admin-chat-message.user { justify-self: start; }
+.page-admin .admin-chat-message.bot { justify-self: start; background: #f7f8fc; }
+.page-admin .admin-chat-message.admin {
+  justify-self: end;
+  border-color: var(--primary);
+  background: var(--primary-soft, #eef0ff);
+}
+.page-admin .admin-chat-message em {
+  display: block; color: var(--muted); font-size: 11px; font-style: normal; font-weight: 700;
+}
+/* 손님이 줄바꿈 없이 길게 붙여 써도 칸을 넘지 않아야 한다. */
+.page-admin .admin-chat-message p {
+  margin: 4px 0 0; font-size: 13px; line-height: 1.55; overflow-wrap: anywhere;
+}
+.page-admin .admin-chat-message small { display: block; margin-top: 5px; color: var(--muted); font-size: 10.5px; }
+
+.page-admin .admin-chat-room em {
+  justify-self: end; color: var(--muted); font-size: 11px; font-style: normal;
+}
+.page-admin .admin-chat-room-time { grid-column: 1 / -1; color: var(--muted); font-size: 10.5px; }
 
 .page-admin .admin-chat-composer {
   padding: 12px 14px;
@@ -558,6 +675,21 @@ body.page-admin #page-content {
   .page-admin .admin-panel { overflow-x: auto; }
   .page-admin .admin-product-row { min-width: 440px; }
   .page-admin .admin-monitor-row { min-width: 400px; }
+
+  /*
+    회원 관리는 마지막 칸에 버튼 두 개가 들어가 눌러 담을 수 없다. 마지막 로그인을 숨겨
+    네 칸으로 줄이고, 그래도 남는 최소 폭은 패널 안에서 굴린다.
+    숨기는 칸 수와 남는 칸 수를 반드시 같이 고친다.
+  */
+  .page-admin .admin-member-row {
+    min-width: 392px;
+    grid-template-columns: minmax(0, 1fr) 56px 56px 160px;
+  }
+  .page-admin .admin-member-row > :nth-child(4) { display: none; }
+
+  /* 검표 기록은 검표자를 숨겨 세 칸으로 줄인다. 현장에서는 결과와 티켓이 먼저다. */
+  .page-admin .admin-validation-row { grid-template-columns: 108px 64px minmax(0, 1fr); }
+  .page-admin .admin-validation-row > :nth-child(4) { display: none; }
 
   .page-admin .admin-filter { margin-left: 0; }
 }

@@ -475,6 +475,27 @@
 .page-flights .mn-meta { margin:4px 0 0; color:#7a879f; font-size:11.5px; }
 .page-flights .mn.cancelled { opacity:.68; }
 .page-flights .mn-b.danger { color:#b42318; border-color:#fda29b; background:#fff5f4; }
+/* 결제는 이 카드에서 가장 앞서는 동작이라 유일하게 채운 버튼으로 둔다. */
+.page-flights .mn-b.primary { color:#fff; background:var(--primary); border-color:var(--primary); }
+.page-flights .mn-b.primary:hover:not(:disabled) { color:#fff; filter:brightness(1.06); }
+
+/* 발급된 티켓 */
+.page-flights .mn-tickets { display:grid; gap:8px; margin:10px 0 0; }
+.page-flights .mn-tickets:empty { display:none; }
+.page-flights .mn-ticket {
+  padding:10px 12px; border:1px dashed #cdd2f5; border-radius:10px; background:#fbfcff;
+}
+.page-flights .mn-ticket b { display:block; font-size:13px; letter-spacing:.02em; }
+/*
+  입장 코드는 길고 사람이 옮겨 적을 수 있어야 한다. 줄바꿈을 허용하고 고정폭으로 둔다.
+  실제 서비스라면 이 자리에 QR이 들어간다.
+*/
+.page-flights .mn-ticket-code {
+  display:block; margin-top:6px; padding:6px 8px;
+  font-family:ui-monospace, SFMono-Regular, Menlo, monospace; font-size:11.5px;
+  color:var(--navy); background:#fff; border:1px solid #e3e7f0; border-radius:8px;
+  overflow-wrap:anywhere;
+}
 .page-flights .mine-error {
   color:#b42318; background:#fff5f4; border:1px solid #fecdca;
   border-radius:10px; padding:10px 12px;

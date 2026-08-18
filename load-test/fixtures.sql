@@ -28,7 +28,21 @@
 -- 한 번 커밋되면 이력에 남아 되돌리기 어렵습니다. k6에는 실행할 때
 -- -e PASSWORD= 로 넘깁니다.
 
--- ── 1. 계정 29개 (2 ~ 30) ───────────────────────────────────────────────────
+-- ── 1. 계정 (2 ~ :accounts) ─────────────────────────────────────────────────
+--
+-- 기본 30개입니다. 더 큰 VU로 돌리려면 psql에 -v accounts=60 처럼 넘깁니다.
+-- k6의 VUS는 이 수를 넘기면 안 됩니다. VU 번호로 계정을 고르므로, 계정보다 VU가 많으면
+-- 없는 계정으로 로그인해 회차 전체가 실패합니다.
+--
+--   psql -v accounts=60 -f load-test/fixtures.sql
+--   k6 run -e VUS=60 -e SLOT_ID=<slot_id> load-test/booking-queue.js
+--
+-- 재고도 함께 올려야 의미가 있습니다. 아래 3번의 total_quantity를 -v stock= 으로 넘깁니다.
+\if :{?accounts}
+\else
+\set accounts 30
+\endif
+
 INSERT INTO users (email, password_hash, nickname, role, status)
 SELECT
     'loadtest' || i || '@example.com',
@@ -36,10 +50,10 @@ SELECT
     'loadtest' || i,
     'USER',
     'ACTIVE'
-FROM generate_series(2, 30) AS i
+FROM generate_series(2, :accounts) AS i
 ON CONFLICT (email) DO NOTHING;
 
--- 확인: 30개가 나와야 합니다.
+-- 확인: :accounts 개가 나와야 합니다.
 -- SELECT count(*) FROM users WHERE email LIKE 'loadtest%@example.com';
 
 -- ── 2. 계정마다 여행 1개 ────────────────────────────────────────────────────
@@ -70,6 +84,14 @@ WHERE u.email LIKE 'loadtest%@example.com'
 --
 -- 시드 데이터를 쓰지 않고 따로 만듭니다. 시드 상품에 부하를 걸면 재고가 실제로 깎여
 -- 다음 사람이 화면을 확인할 때 품절로 보입니다.
+--
+-- 재고 기본값은 10입니다. VU를 늘릴 때 함께 올립니다: -v stock=30
+-- 재고가 VU 수와 같아지면 아무도 못 사는 사람이 없어 "재고 소진" 경로를 확인하지 못합니다.
+-- 경쟁을 보려면 재고를 VU보다 적게 둡니다.
+\if :{?stock}
+\else
+\set stock 10
+\endif
 WITH new_place AS (
     INSERT INTO places (category, name, country_code, region, city, is_active)
     VALUES ('ACTIVITY', '부하테스트 체험장', 'KR', '부하테스트', '부하테스트', TRUE)
@@ -98,7 +120,7 @@ WITH new_place AS (
     RETURNING ticket_time_slot_id
 )
 INSERT INTO ticket_inventory (ticket_time_slot_id, total_quantity, reserved_quantity)
-SELECT ticket_time_slot_id, 10, 0 FROM new_slot;
+SELECT ticket_time_slot_id, :stock, 0 FROM new_slot;
 
 -- ── 4. k6에 넘길 값 확인 ────────────────────────────────────────────────────
 --

@@ -97,6 +97,21 @@ async function boot(options = {}) {
     if (/^\/api\/v1\/trips\/\d+\/booking-summary$/.test(url) && summary) {
       return json({ success: true, data: summary });
     }
+    if (/^\/api\/v1\/ticket-reservations\/\d+\/payment$/.test(url) && request.method === "POST") {
+      /* 멱등키가 실제로 실려 오는지 보려고 본문을 남긴다. */
+      w.__lastPaymentBody = request.body;
+      const id = url.split("/")[4];
+      summary = {
+        ...summary,
+        items: summary.items.map((item) => String(item.referenceId) === id
+          ? { ...item, status: "CONFIRMED", statusLabel: "결제 완료" }
+          : item)
+      };
+      return json({ success: true, data: options.payment || { payment: {}, tickets: [], replayed: false } });
+    }
+    if (/^\/api\/v1\/ticket-reservations\/\d+\/tickets$/.test(url)) {
+      return json({ success: true, data: options.tickets || [] });
+    }
     if (/^\/api\/v1\/ticket-reservations\/\d+$/.test(url) && request.method === "DELETE") {
       const id = url.split("/").pop();
       summary = {
@@ -135,6 +150,22 @@ async function boot(options = {}) {
 
 function json(body) {
   return { ok: true, status: 200, json: async () => body };
+}
+
+/** 티켓 한 건만 담긴 통합 조회 응답. 결제 전후를 상태만 바꿔 만든다. */
+function ticketSummary(status, statusLabel) {
+  return {
+    tripId: 10,
+    items: [
+      { type: "TICKET", referenceId: "30", title: "아쿠아리움", detail: "성인",
+        status, statusLabel, amount: 40000, currency: "KRW",
+        amountSource: "INTERNAL_MOCK", includedInEstimate: true, practice: true,
+        usageDate: "2026-08-18", quantity: 2 }
+    ],
+    money: { estimatedTotal: 40000, practiceTotal: 40000, currency: "KRW", actualPaymentConfirmed: false },
+    progress: { done: 1, total: 3 },
+    errors: []
+  };
 }
 
 function until(predicate, timeoutMs = 4000) {
@@ -409,6 +440,112 @@ async function run() {
     // tripId 없이 들어온 비교 전용 화면. 일정 API를 부르면 안 된다.
     const { urls } = await boot();
     T("tripId가 없으면 일정을 조회하지 않는다", !urls.some((u) => u.includes("/days") || u.includes("/items")));
+  }
+
+  /* ── 모의 결제와 발권 (#241) ── */
+  {
+    const { d } = await boot({ query: "?tripId=10&tab=mine", summary: ticketSummary("PENDING", "결제 대기") });
+    await until(() => d.querySelector("[data-mine-ticket-pay]"));
+
+    T("결제 전에는 결제 버튼이 보인다", Boolean(d.querySelector("[data-mine-ticket-pay]")));
+    T("결제 전에는 취소도 함께 할 수 있다", Boolean(d.querySelector("[data-mine-ticket-cancel]")));
+    T("결제 전에는 발급된 티켓 자리를 두지 않는다", !d.querySelector("[data-mine-tickets]"));
+  }
+  {
+    const { d } = await boot({ query: "?tripId=10&tab=mine", summary: ticketSummary("CONFIRMED", "결제 완료") });
+    await until(() => d.querySelector("[data-mine-ticket-show]"));
+
+    T("결제 후에는 결제 버튼이 사라진다", !d.querySelector("[data-mine-ticket-pay]"));
+    T("결제 후에도 취소할 수 있다", Boolean(d.querySelector("[data-mine-ticket-cancel]")));
+    /*
+     * 결제한 건은 취소하면 발급된 티켓이 무효가 된다. 결제 전 취소와 같은 문구를 쓰면
+     * 티켓이 사라지는 줄 모르고 누른다. 화면이 둘을 구분할 수 있어야 한다.
+     */
+    T("결제한 건임을 취소 버튼이 구분해 둔다",
+      d.querySelector("[data-mine-ticket-cancel]").dataset.mineTicketPaid === "1");
+    T("결제 후 취소 버튼은 결제 취소로 이름이 바뀐다",
+      d.querySelector("[data-mine-ticket-cancel]").textContent === "결제 취소");
+    T("결제 후에는 발급된 티켓을 볼 수 있다", Boolean(d.querySelector("[data-mine-ticket-show]")));
+  }
+  {
+    // 결제를 누르면 멱등키를 만들어 보내고, 응답의 티켓을 그 자리에 그린다.
+    const { d, w, calls } = await boot({
+      query: "?tripId=10&tab=mine",
+      summary: ticketSummary("PENDING", "결제 대기"),
+      payment: {
+        payment: { paymentId: 1, status: "PAID", method: "CARD", provider: "MOCK" },
+        tickets: [
+          { ticketNumber: "AMT-TKN-AAA", validFrom: "2026-08-18T10:00:00+09:00",
+            validUntil: "2026-08-19T00:00:00+09:00", verificationToken: "tok-aaa" },
+          { ticketNumber: "AMT-TKN-BBB", validFrom: "2026-08-18T10:00:00+09:00",
+            validUntil: "2026-08-19T00:00:00+09:00", verificationToken: "tok-bbb" }
+        ],
+        replayed: false
+      }
+    });
+    await until(() => d.querySelector("[data-mine-ticket-pay]"));
+
+    d.querySelector("[data-mine-ticket-pay]").click();
+    await until(() => calls.some((c) => c.includes("POST /api/v1/ticket-reservations/30/payment")));
+    await until(() => d.querySelectorAll(".mn-ticket").length === 2);
+
+    const body = JSON.parse(w.__lastPaymentBody || "{}");
+    T("결제는 결제 API로 보낸다",
+      calls.some((c) => c === "POST /api/v1/ticket-reservations/30/payment"));
+    T("결제 요청에 멱등키를 담는다", typeof body.idempotencyKey === "string" && body.idempotencyKey.length > 0);
+    T("발급된 티켓을 수량만큼 그린다", d.querySelectorAll(".mn-ticket").length === 2);
+    T("입장 코드를 화면에 보여준다",
+      d.querySelector(".mn-ticket-code")?.textContent === "tok-aaa");
+  }
+  {
+    /*
+     * 결제한 건을 취소하면 발급된 티켓이 무효가 된다. 누르기 전에 그 사실을 알려야 하고,
+     * 취소 뒤에는 화면에 남은 티켓도 지워야 한다. 무효가 된 코드를 계속 보여주면
+     * 손님이 그것을 들고 현장에 간다.
+     */
+    const asked = [];
+    const { d, w, calls } = await boot({
+      query: "?tripId=10&tab=mine",
+      summary: ticketSummary("CONFIRMED", "결제 완료"),
+      tickets: [{ ticketNumber: "AMT-TKN-AAA", validFrom: null, validUntil: null }]
+    });
+    await until(() => d.querySelector("[data-mine-ticket-show]"));
+
+    d.querySelector("[data-mine-ticket-show]").click();
+    await until(() => d.querySelector(".mn-ticket"));
+
+    w.confirm = (question) => { asked.push(question); return true; };
+    d.querySelector("[data-mine-ticket-cancel]").click();
+    await until(() => calls.some((c) => c.startsWith("DELETE /api/v1/ticket-reservations/30")));
+
+    T("결제 취소 전에 티켓이 무효가 된다고 알린다",
+      asked.length === 1 && asked[0].includes("사용할 수 없게"));
+    await until(() => !d.querySelector(".mn-ticket"));
+    T("취소하면 화면에 남은 티켓도 지운다", !d.querySelector(".mn-ticket"));
+  }
+  {
+    /*
+     * 목록 조회에는 입장 코드가 없다. 서버가 해시만 저장하기 때문이다.
+     * 코드가 사라진 것을 오류로 오해하지 않도록 화면이 그 사실을 밝혀야 한다.
+     */
+    const { d, calls } = await boot({
+      query: "?tripId=10&tab=mine",
+      summary: ticketSummary("CONFIRMED", "결제 완료"),
+      tickets: [
+        { ticketNumber: "AMT-TKN-AAA", validFrom: "2026-08-18T10:00:00+09:00",
+          validUntil: "2026-08-19T00:00:00+09:00" }
+      ]
+    });
+    await until(() => d.querySelector("[data-mine-ticket-show]"));
+
+    d.querySelector("[data-mine-ticket-show]").click();
+    await until(() => calls.some((c) => c.includes("GET /api/v1/ticket-reservations/30/tickets")));
+    await until(() => d.querySelector(".mn-ticket"));
+
+    T("발급된 티켓을 다시 불러올 수 있다", Boolean(d.querySelector(".mn-ticket")));
+    T("다시 부른 티켓에는 입장 코드가 없다", !d.querySelector(".mn-ticket-code"));
+    T("코드가 결제 직후에만 보인다는 것을 알린다",
+      d.querySelector(".mn-ticket")?.textContent.includes("결제 직후에만"));
   }
 
   console.log(`\n${passed} passed, ${failed} failed`);

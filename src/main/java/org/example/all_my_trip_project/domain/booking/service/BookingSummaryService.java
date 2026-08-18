@@ -151,11 +151,20 @@ public class BookingSummaryService {
         return !List.of("CANCELLED", "EXPIRED").contains(ticket.getStatus());
     }
 
+    /**
+     * 결제 전과 후를 반드시 구분한다.
+     *
+     * <p>{@code CONFIRMED}까지 "모의 예약"으로 보이면, 결제하고 티켓까지 받은 사람이 아직
+     * 결제하지 않은 것으로 읽는다. {@code PENDING}은 반대로 자리를 잡아 두었을 뿐이고 시간이
+     * 지나면 반납된다는 것이 드러나야 한다.
+     */
     private String ticketStatus(String status) {
         return switch (Objects.requireNonNullElse(status, "")) {
             case "CANCELLED" -> "취소됨";
             case "EXPIRED" -> "만료됨";
             case "USED" -> "사용 완료";
+            case "CONFIRMED" -> "결제 완료";
+            case "PENDING" -> "결제 대기";
             default -> "모의 예약";
         };
     }

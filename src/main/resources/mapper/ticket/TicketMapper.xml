@@ -121,4 +121,77 @@
         WHERE r.trip_id = #{tripId}
         ORDER BY r.created_at DESC
     </select>
+
+    <!--
+      만료 정리 대상. 시각이 지났는데도 PENDING인 예약이다.
+
+      취소와 같은 방식으로 예약 행과 재고 행을 함께 잠근다. 정리가 두 번 돌거나 사용자가
+      같은 순간에 취소를 눌러도 수량이 두 번 반납되지 않아야 한다.
+
+      SKIP LOCKED를 쓰는 이유는 정리가 사용자 동작을 막지 않게 하기 위해서다. 지금 누군가
+      결제·취소 중인 예약은 이번 회차에서 건너뛰고 다음 회차에 가져간다. 정리는 급하지 않다.
+
+      한 번에 가져오는 수를 제한한다. 오래 방치돼 밀린 건이 많을 때 한 트랜잭션이 재고 행을
+      통째로 잠그면, 그동안 아무도 예약하지 못한다.
+    -->
+    <select id="findExpiredPendingReservations"
+            resultType="org.example.all_my_trip_project.domain.ticket.dto.TicketReservationDTO">
+        SELECT <include refid="reservationColumns"/>
+        FROM reservations r
+        JOIN reservation_items ri ON ri.reservation_id = r.reservation_id
+        JOIN ticket_inventory ti ON ti.ticket_time_slot_id = ri.ticket_time_slot_id
+        WHERE r.status = 'PENDING'
+          AND r.expires_at IS NOT NULL
+          AND r.expires_at &lt;= CURRENT_TIMESTAMP
+        ORDER BY r.expires_at
+        LIMIT #{limit}
+        FOR UPDATE OF r, ti SKIP LOCKED
+    </select>
+
+    <update id="expireReservation">
+        UPDATE reservations
+        SET status = 'EXPIRED'
+        WHERE reservation_id = #{reservationId} AND status = 'PENDING'
+    </update>
+
+    <!--
+      환불 대상 티켓을 잠그고 상태를 읽는다.
+
+      잠그지 않으면 상태를 읽은 뒤 환불을 끝내기 전에 검표가 들어와 그 티켓이 USED가 될 수
+      있다. 손님이 입장하고 환불도 받는 셈이다. 검표도 같은 행을 잠그므로 둘은 줄을 선다.
+    -->
+    <select id="lockIssuedTicketStatuses" resultType="string">
+        SELECT t.status
+        FROM issued_tickets t
+        JOIN reservation_items ri ON ri.reservation_item_id = t.reservation_item_id
+        WHERE ri.reservation_id = #{reservationId}
+        ORDER BY t.issued_ticket_id
+        FOR UPDATE OF t
+    </select>
+
+    <!--
+      발급된 티켓을 무효로 만든다. 이것을 빠뜨리면 환불받고도 입장할 수 있다.
+      이미 취소된 것은 건드리지 않는다.
+    -->
+    <update id="cancelIssuedTickets">
+        UPDATE issued_tickets t
+        SET status = 'CANCELLED', cancelled_at = CURRENT_TIMESTAMP
+        FROM reservation_items ri
+        WHERE ri.reservation_item_id = t.reservation_item_id
+          AND ri.reservation_id = #{reservationId}
+          AND t.status = 'ISSUED'
+    </update>
+
+    <!-- 모의 결제라 상태만 바꾼다. 실제 PG를 붙이면 여기서 취소를 요청하게 된다. -->
+    <update id="refundPayments">
+        UPDATE payments
+        SET status = 'REFUNDED', cancelled_at = CURRENT_TIMESTAMP
+        WHERE reservation_id = #{reservationId} AND status = 'PAID'
+    </update>
+
+    <update id="cancelConfirmedReservation">
+        UPDATE reservations
+        SET status = 'CANCELLED', cancelled_at = CURRENT_TIMESTAMP
+        WHERE reservation_id = #{reservationId} AND status = 'CONFIRMED'
+    </update>
 </mapper>
