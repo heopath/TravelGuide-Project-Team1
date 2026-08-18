@@ -3,6 +3,10 @@ import {
     showToast,
 } from "./mypage-common.js";
 
+import {
+    createQrSvg,
+} from "../../core/qr-encoder.js";
+
 /*
  * 마이페이지 · 내 티켓 (#253)
  *
@@ -431,7 +435,332 @@ export function initTickets() {
             tripControl(ticket),
         );
 
+        /*
+         * 결제를 마친 예약에만 입장 QR을 둔다. 결제 전에는 티켓이 아직 없고, 취소·사용
+         * 완료된 티켓은 서버가 발급을 거부한다.
+         */
+        if (ticket.status === "CONFIRMED") {
+            item.appendChild(
+                qrSection(ticket),
+            );
+        }
+
         return item;
+    }
+
+    /* ── 입장 QR ── */
+
+    function qrSection(
+        ticket,
+    ) {
+        const wrap =
+            document.createElement(
+                "div",
+            );
+
+        wrap.className =
+            "mypage-ticket-qr";
+
+        const button =
+            document.createElement(
+                "button",
+            );
+
+        button.type = "button";
+        button.className =
+            "text-button";
+        button.dataset.ticketQrOpen =
+            String(
+                ticket.reservationId,
+            );
+        button.textContent =
+            "입장 QR 보기";
+
+        const panel =
+            document.createElement(
+                "div",
+            );
+
+        panel.dataset.ticketQrPanel =
+            String(
+                ticket.reservationId,
+            );
+
+        panel.hidden = true;
+
+        button.addEventListener(
+            "click",
+            () => {
+                if (!panel.hidden) {
+                    closeQr(panel);
+
+                    button.textContent =
+                        "입장 QR 보기";
+
+                    return;
+                }
+
+                button.textContent =
+                    "QR 닫기";
+
+                openQr(
+                    ticket,
+                    panel,
+                );
+            },
+        );
+
+        wrap.append(button, panel);
+
+        return wrap;
+    }
+
+    /* 타이머를 걸어둔 채 화면을 지우면 계속 돈다. 닫을 때 반드시 멈춘다. */
+    function closeQr(
+        panel,
+    ) {
+        const timer =
+            Number(
+                panel.dataset.qrTimer ||
+                0,
+            );
+
+        if (timer) {
+            window.clearInterval(timer);
+        }
+
+        delete panel.dataset.qrTimer;
+
+        panel.replaceChildren();
+        panel.hidden = true;
+    }
+
+    async function openQr(
+        ticket,
+        panel,
+    ) {
+        closeQr(panel);
+        panel.hidden = false;
+
+        const notice =
+            document.createElement(
+                "p",
+            );
+
+        notice.className =
+            "mypage-ticket-qr-note";
+
+        notice.textContent =
+            "입장 코드를 불러오는 중이에요.";
+
+        panel.appendChild(notice);
+
+        let tickets;
+
+        try {
+            tickets = await request(
+                `/api/v1/ticket-reservations/${ticket.reservationId}/tickets`,
+            );
+        } catch (error) {
+            notice.textContent =
+                error.message ||
+                "입장 코드를 불러오지 못했어요.";
+
+            return;
+        }
+
+        /*
+         * 수량만큼 티켓이 따로 발급된다. 2매면 QR도 2개다. 한 장만 보여주면 일행 중
+         * 한 명이 못 들어간다.
+         */
+        const usable =
+            (Array.isArray(tickets)
+                ? tickets
+                : []).filter(
+                (item) =>
+                    item.status ===
+                    "ISSUED",
+            );
+
+        if (!usable.length) {
+            notice.textContent =
+                "쓸 수 있는 티켓이 없어요.";
+
+            return;
+        }
+
+        const issued = [];
+
+        for (const item of usable) {
+            try {
+                issued.push(
+                    await request(
+                        `/api/v1/ticket-reservations/${ticket.reservationId}`
+                        + `/tickets/${item.issuedTicketId}/qr`,
+                        {
+                            method: "POST",
+                        },
+                    ),
+                );
+            } catch (error) {
+                notice.textContent =
+                    error.message ||
+                    "입장 코드를 발급하지 못했어요.";
+
+                return;
+            }
+        }
+
+        panel.replaceChildren();
+
+        issued.forEach(
+            (qr) => {
+                panel.appendChild(
+                    qrCard(qr),
+                );
+            },
+        );
+
+        const remain =
+            document.createElement(
+                "p",
+            );
+
+        remain.className =
+            "mypage-ticket-qr-note";
+
+        remain.dataset.qrRemain = "";
+
+        panel.appendChild(remain);
+
+        startCountdown(
+            panel,
+            remain,
+            issued[0],
+        );
+    }
+
+    function qrCard(
+        qr,
+    ) {
+        const card =
+            document.createElement(
+                "div",
+            );
+
+        card.className =
+            "mypage-ticket-qr-card";
+
+        card.dataset.qrCard =
+            String(
+                qr.issuedTicketId,
+            );
+
+        try {
+            card.appendChild(
+                createQrSvg(
+                    qr.token,
+                    {
+                        label:
+                            `${qr.ticketNumber} 입장 코드`,
+                    },
+                ),
+            );
+        } catch (error) {
+            const failed =
+                document.createElement(
+                    "p",
+                );
+
+            failed.textContent =
+                "QR을 그리지 못했어요.";
+
+            card.appendChild(failed);
+        }
+
+        const number =
+            document.createElement(
+                "small",
+            );
+
+        number.textContent =
+            qr.ticketNumber;
+
+        card.appendChild(number);
+
+        return card;
+    }
+
+    /*
+     * 남은 시간은 서버가 준 두 값의 차이로 센다. 손님 기기 시계로 계산하면 시계가 틀어진
+     * 기기에서 아직 유효한 QR을 만료로 표시하거나 그 반대가 된다.
+     */
+    function startCountdown(
+        panel,
+        target,
+        qr,
+    ) {
+        const total =
+            new Date(qr.expiresAt).getTime() -
+            new Date(qr.serverTime).getTime();
+
+        const startedAt = Date.now();
+
+        const tick = () => {
+            const left = Math.max(
+                0,
+                total -
+                (Date.now() - startedAt),
+            );
+
+            if (left === 0) {
+                target.textContent =
+                    "입장 코드가 만료됐어요. 다시 열면 새로 발급돼요.";
+
+                closeQrKeepingMessage(
+                    panel,
+                    target,
+                );
+
+                return;
+            }
+
+            const seconds =
+                Math.ceil(left / 1000);
+
+            target.textContent =
+                `${Math.floor(seconds / 60)}분 ${String(seconds % 60).padStart(2, "0")}초 뒤 만료돼요.`;
+        };
+
+        tick();
+
+        panel.dataset.qrTimer =
+            String(
+                window.setInterval(
+                    tick,
+                    1000,
+                ),
+            );
+    }
+
+    /* 만료되면 QR만 지우고 안내는 남긴다. 통하지 않는 QR을 들고 서 있지 않게 한다. */
+    function closeQrKeepingMessage(
+        panel,
+        message,
+    ) {
+        const timer =
+            Number(
+                panel.dataset.qrTimer ||
+                0,
+            );
+
+        if (timer) {
+            window.clearInterval(timer);
+        }
+
+        delete panel.dataset.qrTimer;
+
+        panel.replaceChildren(message);
     }
 
     function render() {

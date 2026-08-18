@@ -513,6 +513,39 @@ body.page-mypage main#page-content > .page-shell {
 /* 여행에 안 붙은 티켓은 눈에 띄어야 붙일 생각을 한다. */
 .page-mypage .mypage-ticket-trip [data-ticket-unlinked] { color: #a3abbf; }
 
+/* 입장 QR (#265) */
+.page-mypage .mypage-ticket-qr { margin-top: 8px; }
+.page-mypage .mypage-ticket-qr > button { font-size: 12px; font-weight: 700; }
+.page-mypage .mypage-ticket-qr > div[hidden] { display: none; }
+
+.page-mypage .mypage-ticket-qr-card {
+  margin-top: 10px;
+  padding: 12px;
+  border: 1px solid #e4e8f4;
+  border-radius: 12px;
+  background: #fff;
+  text-align: center;
+}
+/* 현장에서 스캐너에 대는 그림이라 너무 작으면 안 읽힌다. 화면 폭이 좁아도 220px은 준다. */
+.page-mypage .mypage-ticket-qr-card svg {
+  width: 100%;
+  max-width: 220px;
+  margin: 0 auto;
+}
+.page-mypage .mypage-ticket-qr-card small {
+  display: block;
+  margin-top: 8px;
+  color: #7a8499;
+  font-size: 11px;
+  letter-spacing: 0.02em;
+}
+
+.page-mypage .mypage-ticket-qr-note {
+  margin: 8px 0 0;
+  color: #7a8499;
+  font-size: 12px;
+}
+
 
 /* =========================================================
    FULL VIEW
