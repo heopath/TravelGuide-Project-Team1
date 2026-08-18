@@ -250,8 +250,13 @@ class RedisBookingQueueStore implements BookingQueueStore {
         }
         boolean claimed = json.path("claimed").asBoolean(false);
         if (!claimed) return new BookingQueueClaim(queueState, false, null, null);
+        /*
+         * tripId는 asLong()으로 읽으면 안 된다. 값이 없을 때 0을 돌려주는데, 0은 어느
+         * 여행도 아니라 예약이 "여행을 찾을 수 없습니다"로 막힌다. 여행 없이 사는 길이
+         * 생기면서(#255) 실제로 그렇게 됐다. slotId·quantity는 항상 값이 있어 그대로 둔다.
+         */
         return new BookingQueueClaim(queueState, true, new CreateTicketReservationRequest(
-                json.path("tripId").asLong(), json.path("slotId").asLong(),
+                nullableLong(json, "tripId"), json.path("slotId").asLong(),
                 json.path("quantity").asInt(), text(json, "requestKey")
         ), null);
     }
@@ -316,7 +321,7 @@ class RedisBookingQueueStore implements BookingQueueStore {
 
     private String execute(DefaultRedisScript<String> script, List<String> keys, Object... arguments) {
         try {
-            String[] values = java.util.Arrays.stream(arguments).map(String::valueOf).toArray(String[]::new);
+            String[] values = java.util.Arrays.stream(arguments).map(RedisBookingQueueStore::argument).toArray(String[]::new);
             String result = redisTemplate.execute(script, keys, (Object[]) values);
             if (result == null) throw new IllegalStateException("Redis script returned no result");
             return result;
@@ -329,7 +334,7 @@ class RedisBookingQueueStore implements BookingQueueStore {
 
     private Long executeLong(DefaultRedisScript<Long> script, List<String> keys, Object... arguments) {
         try {
-            String[] values = java.util.Arrays.stream(arguments).map(String::valueOf).toArray(String[]::new);
+            String[] values = java.util.Arrays.stream(arguments).map(RedisBookingQueueStore::argument).toArray(String[]::new);
             return redisTemplate.execute(script, keys, (Object[]) values);
         } catch (Exception exception) {
             throw unavailable(exception);
@@ -361,9 +366,29 @@ class RedisBookingQueueStore implements BookingQueueStore {
         return value == null || value.isNull() ? null : value.asText();
     }
 
-    private Long nullableLong(JsonNode json, String field) {
+    /**
+     * Lua로 넘길 인자를 문자열로 만든다.
+     *
+     * <p>{@code String.valueOf(null)}은 문자열 {@code "null"}을 만든다. 그 값이 Redis에
+     * 그대로 저장되면 읽을 때 "값이 없음"과 구분되지 않는다. 여행 없는 예약이 생기면서(#255)
+     * {@code tripId}가 실제로 null로 들어오게 됐고, 그때 {@code "null"}이 저장돼 0으로
+     * 되살아났다. 비어 있는 값은 빈 문자열로 넘긴다.
+     */
+    static String argument(Object value) {
+        return value == null ? "" : String.valueOf(value);
+    }
+
+    /**
+     * 없는 값을 {@code null}로 돌려준다.
+     *
+     * <p>문자열 {@code "null"}도 없는 값으로 본다. 예전에 그렇게 저장된 항목이 Redis에
+     * 남아 있을 수 있고, TTL이 지나기 전까지는 계속 읽힌다.
+     */
+    static Long nullableLong(JsonNode json, String field) {
         JsonNode value = json.get(field);
-        return value == null || value.isNull() || value.asText().isBlank() ? null : value.asLong();
+        if (value == null || value.isNull()) return null;
+        String text = value.asText();
+        return text.isBlank() || "null".equals(text) ? null : value.asLong();
     }
 
     private void checkExceptionalState(String state) {
