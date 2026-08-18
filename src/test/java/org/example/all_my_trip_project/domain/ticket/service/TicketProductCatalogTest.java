@@ -23,6 +23,8 @@ import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -59,8 +61,8 @@ class TicketProductCatalogTest {
     @Test
     @DisplayName("날짜 없이 판매 중인 상품을 준다")
     void listsProductsWithoutDateRange() {
-        when(ticketDAO.countSellableProducts(isNull())).thenReturn(20L);
-        when(ticketDAO.findSellableProducts(isNull(), eq(0), eq(20))).thenReturn(List.of(summary()));
+        when(ticketDAO.countSellableProducts(eq(""))).thenReturn(20L);
+        when(ticketDAO.findSellableProducts(eq(""), eq(0), eq(20))).thenReturn(List.of(summary()));
 
         TicketProductPage page = service.products(0, 20, null);
 
@@ -70,15 +72,28 @@ class TicketProductCatalogTest {
         assertThat(page.items().get(0).getFirstUsageDate()).isEqualTo(LocalDate.of(2026, 9, 15));
     }
 
+    /**
+     * 빈 검색어를 {@code null}이 아니라 빈 문자열로 넘기는지 본다.
+     *
+     * <p>질의가 {@code #{keyword}}를 {@code IS NULL} 비교에 쓰는데, 타입 없는 null 파라미터가
+     * 들어가면 PostgreSQL이 파라미터 타입을 정하지 못해 질의가 통째로 실패한다. 실제로 운영에서
+     * 500으로 드러났다.
+     *
+     * <p>DAO를 흉내 내는 시험이라 SQL 자체는 보지 못한다. 여기서 못 박는 것은 <b>질의가
+     * 기대하는 입력 모양</b>이다.
+     */
     @Test
-    @DisplayName("빈 검색어는 조건 없음으로 넘긴다")
-    void treatsBlankKeywordAsNoFilter() {
-        when(ticketDAO.countSellableProducts(isNull())).thenReturn(0L);
-        when(ticketDAO.findSellableProducts(isNull(), anyInt(), anyInt())).thenReturn(List.of());
+    @DisplayName("빈 검색어는 null이 아니라 빈 문자열로 넘긴다")
+    void passesEmptyStringNotNullForBlankKeyword() {
+        when(ticketDAO.countSellableProducts(eq(""))).thenReturn(0L);
+        when(ticketDAO.findSellableProducts(eq(""), anyInt(), anyInt())).thenReturn(List.of());
 
         service.products(0, 20, "   ");
+        service.products(0, 20, null);
 
-        verify(ticketDAO).countSellableProducts(isNull());
+        verify(ticketDAO, times(2)).countSellableProducts(eq(""));
+        verify(ticketDAO, never()).countSellableProducts(isNull());
+        verify(ticketDAO, never()).findSellableProducts(isNull(), anyInt(), anyInt());
     }
 
     @Test
