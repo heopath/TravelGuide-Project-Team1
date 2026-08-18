@@ -544,8 +544,13 @@ async function run() {
 
     T("발급된 티켓을 다시 불러올 수 있다", Boolean(d.querySelector(".mn-ticket")));
     T("다시 부른 티켓에는 입장 코드가 없다", !d.querySelector(".mn-ticket-code"));
-    T("코드가 결제 직후에만 보인다는 것을 알린다",
-      d.querySelector(".mn-ticket")?.textContent.includes("결제 직후에만"));
+    /*
+     * 예전에는 "결제 직후에만 표시됩니다"라고 안내했다. #265로 마이페이지에서 QR을 언제든
+     * 다시 발급받을 수 있게 되어 그 문구는 사실이 아니게 됐다. 그대로 두면 손님이 코드를
+     * 놓친 줄 알고 포기한다. (#276)
+     */
+    T("코드를 다시 볼 수 있는 곳을 알린다",
+      d.querySelector(".mn-ticket")?.textContent.includes("마이페이지"));
   }
 
   console.log(`\n${passed} passed, ${failed} failed`);
