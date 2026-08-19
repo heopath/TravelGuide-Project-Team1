@@ -496,6 +496,11 @@ document.addEventListener("DOMContentLoaded", function () {
       && String(item.scheduleDayIdentity) === String(targetDayIdentity);
   }
 
+  function isTimeConflictCandidate(other, item, targetDayIdentity, isAllScheduleVisible) {
+    if (String(other?.itineraryItemId) === String(item?.itineraryItemId)) return false;
+    return !isAllScheduleVisible || isSameScheduleDay(other, targetDayIdentity);
+  }
+
   function readScheduleTimeOverrides() {
     try {
       return JSON.parse(sessionStorage.getItem(scheduleTimeStorageKey) || "{}");
@@ -543,9 +548,8 @@ document.addEventListener("DOMContentLoaded", function () {
     const targetDayIdentity = item?.scheduleDayIdentity || scheduleDayIdentity(targetDay || activeDay);
     const hasLocalTimeConflict = (activeItems || [])
       .filter(function (other) {
-        if (String(other?.itineraryItemId) === String(item?.itineraryItemId)) return false;
         // 전체 보기에서는 DAY별 항목을 한 배열로 보여주므로, 같은 DAY의 일정만 비교한다.
-        return !allScheduleVisible || isSameScheduleDay(other, targetDayIdentity);
+        return isTimeConflictCandidate(other, item, targetDayIdentity, allScheduleVisible);
       })
       .map(getScheduledItemTimeWindow)
       .filter(Boolean)

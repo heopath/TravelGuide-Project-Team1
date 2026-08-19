@@ -22,10 +22,11 @@ assert.match(scheduleSource, /storedEnd !== null && storedEnd > start \? storedE
 assert.match(scheduleSource, /endMinutes >= 24 \* 60/);
 assert.match(scheduleSource, /endTime,/);
 assert.match(scheduleSource, /기존 일정과 시간이 겹칩니다\. 다른 시간을 선택해 주세요\./);
-assert.match(scheduleSource, /String\(other\?\.itineraryItemId\) !== String\(item\?\.itineraryItemId\)/);
+assert.match(scheduleSource, /function isTimeConflictCandidate\(other, item, targetDayIdentity, isAllScheduleVisible\)/);
+assert.match(scheduleSource, /String\(other\?\.itineraryItemId\) === String\(item\?\.itineraryItemId\)/);
 assert.match(scheduleSource, /function attachScheduleDayIdentity\(items, day\)/);
 assert.match(scheduleSource, /draft-day:/);
-assert.match(scheduleSource, /!allScheduleVisible \|\| isSameScheduleDay\(other, targetDayIdentity\)/);
+assert.match(scheduleSource, /return !isAllScheduleVisible \|\| isSameScheduleDay\(other, targetDayIdentity\)/);
 assert.match(scheduleSource, /openTimeEditor\(item, timeButton, day\)/);
 
 // 전체 보기에서는 저장 일정과 초안 일정 모두 DAY별로만 충돌을 판단한다.
@@ -36,6 +37,16 @@ assert.equal(isSameScheduleDay({scheduleDayIdentity: "trip-day:1"}, "trip-day:1"
 assert.equal(isSameScheduleDay({scheduleDayIdentity: "trip-day:2"}, "trip-day:1"), false);
 assert.equal(isSameScheduleDay({scheduleDayIdentity: "draft-day:2026-09-01"}, "draft-day:2026-09-01"), true);
 assert.equal(isSameScheduleDay({scheduleDayIdentity: "draft-day:2026-09-02"}, "draft-day:2026-09-01"), false);
+
+// 자기 일정은 제외하고, 전체 보기에서는 같은 DAY의 다른 일정만 충돌 대상으로 삼는다.
+const conflictCandidateFunction = scheduleSource.match(/function isTimeConflictCandidate\(other, item, targetDayIdentity, isAllScheduleVisible\) \{[\s\S]*?\n  \}/)?.[0];
+assert.ok(conflictCandidateFunction, "시간 충돌 비교 함수가 있어야 한다");
+const isTimeConflictCandidate = Function("isSameScheduleDay", conflictCandidateFunction + "; return isTimeConflictCandidate;")(isSameScheduleDay);
+const dayOneItem = {itineraryItemId: 1, scheduleDayIdentity: "trip-day:1"};
+assert.equal(isTimeConflictCandidate(dayOneItem, dayOneItem, "trip-day:1", true), false);
+assert.equal(isTimeConflictCandidate({itineraryItemId: 2, scheduleDayIdentity: "trip-day:1"}, dayOneItem, "trip-day:1", true), true);
+assert.equal(isTimeConflictCandidate({itineraryItemId: 3, scheduleDayIdentity: "trip-day:2"}, dayOneItem, "trip-day:1", true), false);
+assert.equal(isTimeConflictCandidate({itineraryItemId: 3, scheduleDayIdentity: "trip-day:2"}, dayOneItem, "trip-day:1", false), true);
 
 // 자정 초과 추천은 추가 버튼과 DAY 일괄 추가에서 모두 막고 이유를 표시한다.
 assert.match(guideSource, /시간 조정 필요/);
