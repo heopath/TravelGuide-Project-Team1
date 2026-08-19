@@ -63,7 +63,15 @@ jobs:
           # 잘렸는지 여부를 원격에서 직접 알려주도록 한다.
           MAX_BYTES=18000
 
-          # 조회별 필터. TARGET은 choice라 아래 목록 밖의 값이 들어올 수 없다.
+          # 두 입력 모두 원격 셸 명령 문자열에 들어간다.
+          # 화면에서 choice로 보이는 것과 무관하게 실행 요청은 API/CLI로도 오므로,
+          # UI 선택지를 보안 경계로 삼지 않고 여기서 허용 목록을 다시 확인한다.
+          case "$LINES" in
+            100|200|500) ;;
+            *) echo "::error::허용되지 않은 줄 수: $LINES"; exit 1 ;;
+          esac
+
+          # 조회별 필터. 목록 밖의 TARGET은 아래 기본 분기에서 거절한다.
           case "$TARGET" in
             gemini)
               FILTER="grep -i -E 'gemini|여행 초안' || echo '(Gemini 관련 로그 없음)'" ;;
