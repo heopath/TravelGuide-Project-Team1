@@ -10,7 +10,7 @@ import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
 
 import java.util.List;
-import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -28,16 +28,25 @@ import java.util.concurrent.ConcurrentHashMap;
  *
  * <p><b>한 방에서는 한 번에 하나만 부른다.</b> 손님이 여러 탭을 열어 두거나 대기 표시가
  * 복원되지 않은 창에서 연달아 보내면 같은 방에 Gemini 호출이 겹칠 수 있고, 그러면 답이
- * 중복되거나 순서가 뒤바뀐다. 이미 이 방의 답을 만드는 중이면 새 요청은 "끝나고 한 번 더"
- * 표시만 남기고 빠진다 — 이어지는 실행이 그 사이 쌓인 메시지까지 포함한 대화 내역을 다시
- * 읽으므로 늦게 온 질문이 묻히지 않는다. 지금은 단일 인스턴스 전제라(내장 심플 브로커와 같은
- * 전제) 프로세스 안의 표시로 충분하다.
+ * 중복되거나 순서가 뒤바뀐다. 지금은 단일 인스턴스 전제라(내장 심플 브로커와 같은 전제)
+ * 방 번호를 담은 {@link #inFlight}만으로 충분하다.
  *
- * <p><b>하지만 재실행 표시만으로 "다시 부를지"를 정하지 않는다.</b> 재실행 표시는 "그사이
- * 트리거가 한 번 더 왔다"만 알 뿐, 그 트리거의 메시지가 이미 직전 호출의 대화 스냅샷에
- * 포함됐는지는 모른다. 그래서 매 회차 {@link #respond}가 실제로 대화를 다시 읽어, 마지막
- * 메시지가 여전히 손님(USER)일 때만 Gemini를 부른다 — 이미 답한 뒤라면 재실행 표시가 남아
- * 있어도 조용히 끝난다(heopath 3차 리뷰).
+ * <p><b>"다시 부를지"는 트리거 개수가 아니라 메시지 ID로 정한다.</b> 처음에는 "트리거가
+ * 그사이 한 번 더 왔는가"를 표시로 남겨 재실행 여부를 정했지만, 이 판단은 두 방향 모두
+ * 틀릴 수 있었다(heopath 3·4차 리뷰).
+ * <ul>
+ *   <li>트리거가 또 왔어도 그 메시지가 이미 직전 스냅샷에 포함돼 있었을 수 있다 —
+ *   재실행하면 같은 내용에 답이 두 번 저장된다.</li>
+ *   <li>반대로, 손님 메시지가 직전 스냅샷 이후·이번 답변 저장 이전에 커밋되면 실제 저장
+ *   순서는 {@code USER1 → USER2 → BOT1}이 된다. "마지막 메시지가 손님인가"로 판단하면
+ *   마지막이 {@code BOT1}이므로 재실행하지 않는데, {@code USER2}는 어떤 호출의 스냅샷에도
+ *   포함된 적이 없어 영영 답을 못 받는다 — 메시지 ID 순서상 더 뒤에 저장된 봇 응답이
+ *   그보다 앞선 손님 메시지를 "가린" 것뿐, 실제로 답한 것이 아니다.</li>
+ * </ul>
+ * 그래서 {@link #respond}는 자신이 Gemini에 넘긴 스냅샷의 <b>가장 최근 손님 메시지 ID</b>를
+ * 기억해 두고, 답을 저장한 뒤 그 ID보다 큰 손님 메시지가 실제로 있는지 DB에서 다시 확인한다.
+ * 있으면 그 메시지는 이번 호출에 포함되지 않았다는 뜻이므로 — 마지막 메시지가 무엇이든 —
+ * 다시 돈다. 이미 만든 답은 그대로 두고 새 메시지에 대한 답만 추가로 만들므로 낭비도 없다.
  */
 @Component
 @Profile("!ui")
@@ -51,67 +60,70 @@ public class SupportChatBotOrchestrator {
     private final SupportChatService supportChatService;
     private final SupportChatBotClient supportChatBotClient;
 
-    /**
-     * 지금 답을 만들고 있는 방들. 값은 "끝나면 한 번 더 돌아야 한다"는 표시다.
-     *
-     * <p>키가 있으면 진행 중이라는 뜻이라 {@code Boolean.FALSE}도 의미가 있다 — 그래서
-     * {@code Set}이 아니라 {@code Map}이다.
-     */
-    private final Map<Long, Boolean> inFlight = new ConcurrentHashMap<>();
+    /** 지금 답을 만들고 있는 방들. 방 번호가 있으면 진행 중이라는 뜻이다. */
+    private final Set<Long> inFlight = ConcurrentHashMap.newKeySet();
 
     @Async
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void onTrigger(SupportChatBotTriggerEvent event) {
         Long roomId = event.roomId();
-        if (inFlight.putIfAbsent(roomId, Boolean.FALSE) != null) {
-            /* 이미 이 방을 처리 중이다. 재실행 표시만 남기고 빠진다 — 겹쳐 부르지 않는다. */
-            inFlight.put(roomId, Boolean.TRUE);
+        if (!inFlight.add(roomId)) {
+            /*
+             * 이미 이 방을 처리 중이다. 이 트리거는 조용히 버려도 된다 — 지금 도는 실행이
+             * respond()에서 저장 직후 DB를 다시 확인해 새 손님 메시지를 스스로 찾아내므로,
+             * 이 트리거가 알리려던 내용도 결국 반영된다.
+             */
             return;
         }
         try {
-            /*
-             * 도는 동안 새 요청이 들어왔으면(표시가 TRUE라 remove가 실패하면) 한 번 더 돈다.
-             * 다음 회차는 recentMessages를 다시 읽으므로 그 사이 온 질문까지 함께 본다.
-             */
+            boolean runAgain;
             do {
-                inFlight.put(roomId, Boolean.FALSE);
-                respond(roomId);
-            } while (!inFlight.remove(roomId, Boolean.FALSE));
+                runAgain = respond(roomId);
+            } while (runAgain);
         } finally {
-            /* 예외로 빠져나가도 방이 잠긴 채 남지 않게 한다. */
             inFlight.remove(roomId);
         }
     }
 
-    private void respond(Long roomId) {
+    /** @return 이번에 답한 스냅샷 이후 새로 온 손님 메시지가 있어 다시 돌아야 하면 {@code true}. */
+    private boolean respond(Long roomId) {
         /*
          * Gemini를 부르기 전에 먼저 값싸게 한 번 거른다. 그 사이 관리자가 이미 가져갔다면
          * 굳이 API를 호출할 이유가 없다 — 최종 저장 직전에 다시 한번 잠그고 확인하는 것과는
          * 별개의, 비용을 아끼기 위한 사전 검사다.
          */
-        if (!supportChatService.isStillBot(roomId)) return;
+        if (!supportChatService.isStillBot(roomId)) return false;
 
         List<SupportChatMessageDTO> conversation = supportChatService.recentMessages(roomId);
-        /*
-         * 재실행 표시(inFlight)만으로는 "정말 새로 답할 게 있는지"를 모른다. 새 트리거가
-         * recentMessages() 조회 전에 들어오면 이번 호출이 이미 그 메시지까지 포함해 답하고,
-         * 재실행 표시는 남아 있으니 다음 회차가 또 Gemini를 부른다 — 같은 질문에 답이 두 번
-         * 저장되거나, 답할 게 없는데도 실패로 오인돼 WAITING으로 넘어갈 수 있다(heopath 3차
-         * 리뷰). 빈 대화(첫 인사)이거나 마지막 메시지가 아직 손님(USER)일 때만 실제로 답할
-         * 게 있는 것이므로, 그 밖의 경우(이미 BOT/ADMIN이 답한 뒤)는 호출 없이 조용히 끝낸다.
-         */
-        SupportChatMessageDTO last = conversation.isEmpty() ? null : conversation.get(conversation.size() - 1);
-        if (last != null && !"USER".equals(last.getSenderType())) return;
+        Long snapshotUserMessageId = latestUserMessageId(conversation);
+        /* 대화는 있는데 손님 메시지가 하나도 없으면(봇 인사만 있고 아직 질문이 없음) 답할 게 없다. */
+        if (!conversation.isEmpty() && snapshotUserMessageId == null) return false;
+
         try {
             SupportChatBotReply reply = supportChatBotClient.reply(conversation);
             if (reply.handoff()) {
                 supportChatService.recordBotHandoff(roomId, reply.content());
-            } else {
-                supportChatService.recordBotReply(roomId, reply.content());
+                return false; /* 상담원 대기로 넘어갔다 — 봇이 더 돌 이유가 없다. */
             }
+            supportChatService.recordBotReply(roomId, reply.content());
         } catch (SupportChatBotException exception) {
             log.warn("상담 봇 응답 생성에 실패해 상담원 대기로 넘깁니다. roomId={}", roomId, exception);
             supportChatService.recordBotHandoff(roomId, GEMINI_FAILURE_MESSAGE);
+            return false;
         }
+
+        long watermark = snapshotUserMessageId == null ? 0L : snapshotUserMessageId;
+        return supportChatService.hasUserMessageAfter(roomId, watermark);
+    }
+
+    /** 대화에서 가장 나중에 온 손님(USER) 메시지 ID. 손님 메시지가 없으면 {@code null}. */
+    private static Long latestUserMessageId(List<SupportChatMessageDTO> conversation) {
+        Long latest = null;
+        for (SupportChatMessageDTO message : conversation) {
+            if ("USER".equals(message.getSenderType())) {
+                latest = message.getSupportChatMessageId();
+            }
+        }
+        return latest;
     }
 }

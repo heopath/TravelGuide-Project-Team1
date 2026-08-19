@@ -162,6 +162,21 @@ public class SupportChatService {
     }
 
     /**
+     * 방금 답한 스냅샷 이후 손님 메시지가 실제로 더 왔는지 DB에서 다시 확인한다.
+     *
+     * <p>{@link SupportChatBotOrchestrator}가 "다시 돌아야 하는지"를 판단하는 유일한 근거다.
+     * 재실행 트리거가 왔는지(개수)가 아니라 이 메시지 ID 비교(내용)로 판단해야, 트리거가 왔지만
+     * 이미 반영된 경우와 트리거 없이도 실제로 새 메시지가 낀 경우 모두 정확히 걸러진다
+     * (heopath 4차 리뷰 — {@code USER1 → USER2 → BOT1} 순서로 저장되면 마지막 메시지만 보고는
+     * {@code USER2}를 놓친다).
+     */
+    @Transactional(readOnly = true)
+    public boolean hasUserMessageAfter(Long roomId, long afterMessageId) {
+        return supportChatDAO.findMessages(roomId, MAX_MESSAGES).stream()
+                .anyMatch(m -> "USER".equals(m.getSenderType()) && m.getSupportChatMessageId() > afterMessageId);
+    }
+
+    /**
      * 봇의 답을 저장한다.
      *
      * <p>저장 직전 방을 잠그고 여전히 {@code BOT}인지 다시 본다. Gemini를 부르는 동안 관리자가

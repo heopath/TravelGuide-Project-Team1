@@ -48,10 +48,10 @@ class SupportChatBotOrchestratorTest {
     }
 
     /*
-     * 재실행 표시는 "그사이 트리거가 한 번 더 왔다"만 알 뿐, 그 트리거의 메시지가 이미 직전
-     * 호출의 대화 스냅샷에 포함됐는지는 모른다(heopath 3차 리뷰). 두 번째 트리거가 도착했을
-     * 때 이미 그 메시지까지 반영된 상태라면(마지막 메시지가 이미 BOT), 재실행 표시가 남아
-     * 있어도 다시 Gemini를 부르면 안 된다 — 같은 질문에 답이 두 번 저장된다.
+     * 재실행 여부는 트리거가 왔는지가 아니라, 방금 답한 스냅샷 이후 실제로 새 손님 메시지가
+     * DB에 있는지로 정한다(heopath 3·4차 리뷰). 두 번째 트리거가 왔더라도 그 메시지가 이미
+     * 첫 스냅샷에 포함돼 있었다면(= 워터마크 이후 새 메시지가 없다면) 다시 Gemini를 부르면
+     * 안 된다 — 같은 질문에 답이 두 번 저장된다.
      */
     @Test
     @DisplayName("두 번째 트리거의 메시지가 첫 스냅샷에 이미 포함됐으면 답은 한 번만 저장된다")
@@ -63,8 +63,9 @@ class SupportChatBotOrchestratorTest {
         AtomicInteger peak = new AtomicInteger();
 
         SupportChatMessageDTO question = message(1L, "USER");
-        SupportChatMessageDTO answer = message(2L, "BOT");
         when(service.recentMessages(ROOM_ID)).thenReturn(List.of(question));
+        /* 워터마크(질문 ID=1) 이후로 새 손님 메시지는 없다 — 이미 반영된 상태였다는 뜻. */
+        when(service.hasUserMessageAfter(ROOM_ID, 1L)).thenReturn(false);
 
         when(client.reply(any())).thenAnswer(invocation -> {
             peak.accumulateAndGet(inFlight.incrementAndGet(), Math::max);
@@ -82,15 +83,9 @@ class SupportChatBotOrchestratorTest {
         first.start();
         assertThat(entered.await(2, TimeUnit.SECONDS)).isTrue();
 
-        /* 두 번째 트리거가 온다 — 재실행 표시만 남고 겹쳐 부르지는 않는다. */
+        /* 두 번째 트리거가 온다 — 이미 처리 중이므로 조용히 버려진다. */
         orchestrator.onTrigger(new SupportChatBotTriggerEvent(ROOM_ID));
         assertThat(replyCalls.get()).isEqualTo(1);
-
-        /*
-         * 그 사이 실제로는 이미 답이 저장된 상태였다고 가정한다(첫 조회가 질문까지 포함해
-         * 답을 준비 중이었을 뿐). 재실행 회차가 다시 조회하면 이미 BOT이 마지막이다.
-         */
-        when(service.recentMessages(ROOM_ID)).thenReturn(List.of(question, answer));
 
         release.countDown();
         first.join(3000);
@@ -100,20 +95,30 @@ class SupportChatBotOrchestratorTest {
         verify(service, times(1)).recordBotReply(eq(ROOM_ID), any());
     }
 
-    /* 첫 스냅샷 이후에 손님이 정말로 새 질문을 보냈다면, 재실행 회차가 그 질문에 답해야 한다. */
+    /*
+     * heopath 4차 리뷰가 지적한 정확한 시나리오: 첫 호출이 USER1까지만 읽고 Gemini를 부르는
+     * 동안 USER2가 커밋되지만, 답(BOT1)은 그보다 늦게 저장된다. 그래서 실제 저장 순서는
+     * USER1 → USER2 → BOT1이 되어 "마지막 메시지가 손님인가"로는 판단할 수 없다 — 마지막은
+     * BOT1이다. 워터마크(스냅샷의 마지막 USER ID)와 비교해야 USER2를 놓치지 않는다.
+     */
     @Test
-    @DisplayName("첫 스냅샷 이후 새 사용자 메시지가 도착했으면 한 번 더 답한다")
-    void answersAgainWhenNewUserMessageArrivesAfterFirstSnapshot() throws Exception {
+    @DisplayName("첫 스냅샷 처리 중에 온 사용자 메시지는 봇 답변 뒤에 저장돼도 놓치지 않는다")
+    void answersUserMessageThatArrivesBeforeFirstReplyIsSaved() throws Exception {
         CountDownLatch entered = new CountDownLatch(1);
         CountDownLatch release = new CountDownLatch(1);
         AtomicInteger replyCalls = new AtomicInteger();
         AtomicInteger inFlight = new AtomicInteger();
         AtomicInteger peak = new AtomicInteger();
 
-        SupportChatMessageDTO firstQuestion = message(1L, "USER");
-        SupportChatMessageDTO firstAnswer = message(2L, "BOT");
-        SupportChatMessageDTO secondQuestion = message(3L, "USER");
-        when(service.recentMessages(ROOM_ID)).thenReturn(List.of(firstQuestion));
+        SupportChatMessageDTO user1 = message(1L, "USER");
+        SupportChatMessageDTO user2 = message(2L, "USER");
+        SupportChatMessageDTO bot1 = message(3L, "BOT");
+        /* 1회차: USER1까지만 보인다. 2회차: 실제 저장 순서 USER1 → USER2 → BOT1을 그대로 재현. */
+        when(service.recentMessages(ROOM_ID))
+                .thenReturn(List.of(user1))
+                .thenReturn(List.of(user1, user2, bot1));
+        when(service.hasUserMessageAfter(ROOM_ID, 1L)).thenReturn(true);  /* USER2가 워터마크 이후에 있다 */
+        when(service.hasUserMessageAfter(ROOM_ID, 2L)).thenReturn(false); /* USER2까지 답했으니 더는 없다 */
 
         when(client.reply(any())).thenAnswer(invocation -> {
             peak.accumulateAndGet(inFlight.incrementAndGet(), Math::max);
@@ -133,17 +138,14 @@ class SupportChatBotOrchestratorTest {
         first.start();
         assertThat(entered.await(2, TimeUnit.SECONDS)).isTrue();
 
-        /* 아직 첫 호출이 돌고 있다. 이 요청은 겹쳐 부르지 않고 재실행 표시만 남기고 빠진다. */
+        /* 이 시점에 실제로는 USER2가 이미 커밋됐다 — 두 번째 트리거가 발행되지만 이미 처리 중이라 버려진다. */
         orchestrator.onTrigger(new SupportChatBotTriggerEvent(ROOM_ID));
         assertThat(replyCalls.get()).isEqualTo(1);
-
-        /* 첫 답변이 저장된 뒤, 손님이 진짜 새 질문을 보냈다고 가정한다. */
-        when(service.recentMessages(ROOM_ID)).thenReturn(List.of(firstQuestion, firstAnswer, secondQuestion));
 
         release.countDown();
         first.join(3000);
 
-        assertThat(replyCalls.get()).isEqualTo(2); /* 처음 한 번 + 새 질문에 답하는 재실행 한 번 */
+        assertThat(replyCalls.get()).isEqualTo(2); /* USER1에 한 번, USER2에 한 번 */
         assertThat(peak.get()).isEqualTo(1);        /* 같은 방에 동시 호출은 없었다 */
         verify(service, times(2)).recordBotReply(eq(ROOM_ID), any());
     }
