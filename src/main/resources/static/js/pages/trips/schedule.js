@@ -789,6 +789,80 @@ document.addEventListener("DOMContentLoaded", function () {
     sessionStorage.setItem(scheduleDayStartStorageKey, JSON.stringify(startTimes));
   }
 
+  // 서버 저장 전 초안도 전체 보기에서는 DAY별로 구분해야 한다.
+  function scheduleDayIdentity(day) {
+    return day?.tripDayId
+      ? "trip-day:" + day.tripDayId
+      : "draft-day:" + draftDayKey(day);
+  }
+
+  function attachScheduleDayIdentity(items, day) {
+    const dayIdentity = scheduleDayIdentity(day);
+    return (items || []).map(function (item) {
+      return {
+        ...item,
+        tripDayId: item.tripDayId || day?.tripDayId,
+        scheduleDayIdentity: item.scheduleDayIdentity || dayIdentity,
+      };
+    });
+  }
+
+  function isSameScheduleDay(item, targetDayIdentity) {
+    return Boolean(item?.scheduleDayIdentity)
+      && String(item.scheduleDayIdentity) === String(targetDayIdentity);
+  }
+
+  function isTimeConflictCandidate(other, item, targetDayIdentity, isAllScheduleVisible) {
+    if (String(other?.itineraryItemId) === String(item?.itineraryItemId)) return false;
+    return !isAllScheduleVisible || isSameScheduleDay(other, targetDayIdentity);
+  }
+
+  // 서버 저장 전 초안도 전체 보기에서는 DAY별로 구분해야 한다.
+  function scheduleDayIdentity(day) {
+    return day?.tripDayId
+      ? "trip-day:" + day.tripDayId
+      : "draft-day:" + draftDayKey(day);
+  }
+
+  function attachScheduleDayIdentity(items, day) {
+    const dayIdentity = scheduleDayIdentity(day);
+    return (items || []).map(function (item) {
+      return {
+        ...item,
+        tripDayId: item.tripDayId || day?.tripDayId,
+        scheduleDayIdentity: item.scheduleDayIdentity || dayIdentity,
+      };
+    });
+  }
+
+  function isSameScheduleDay(item, targetDayIdentity) {
+    return Boolean(item?.scheduleDayIdentity)
+      && String(item.scheduleDayIdentity) === String(targetDayIdentity);
+  }
+
+  function isTimeConflictCandidate(other, item, targetDayIdentity, isAllScheduleVisible) {
+    if (String(other?.itineraryItemId) === String(item?.itineraryItemId)) return false;
+    return !isAllScheduleVisible || isSameScheduleDay(other, targetDayIdentity);
+  }
+
+  /*
+   * 시간은 DAY 시작시각부터 순차로 계산되지만, 교통수단이 없거나 이동시간을 구하지 못하면
+   * calculateScheduleTimes가 중간에 멈춰 뒤 일정은 저장된 값을 그대로 쓴다. 그때 겹칠 수 있어
+   * 저장 직전에 한 번 더 확인한다. 전체 보기에서는 DAY를 섞어 보여주므로 같은 DAY만 비교한다.
+   */
+  function hasScheduleTimeConflict(item, startMinutes, endMinutes, targetDay) {
+    const targetDayIdentity = item?.scheduleDayIdentity || scheduleDayIdentity(targetDay || activeDay);
+    return (activeItems || [])
+      .filter(function (other) {
+        return isTimeConflictCandidate(other, item, targetDayIdentity, allScheduleVisible);
+      })
+      .map(getScheduledItemTimeWindow)
+      .filter(Boolean)
+      .some(function (otherWindow) {
+        return startMinutes < otherWindow.end && otherWindow.start < endMinutes;
+      });
+  }
+
   function readScheduleTimeOverrides() {
     try {
       return JSON.parse(sessionStorage.getItem(scheduleTimeStorageKey) || "{}");
@@ -1012,7 +1086,10 @@ document.addEventListener("DOMContentLoaded", function () {
     positionDurationGuide();
   }
 
-  function openTimeEditor(item, timeButton, index) {
+  function openTimeEditor(item, timeButton, day) {
+    // 순번은 DAY 안에서의 순서다. 전체 보기에서는 activeItems가 여러 DAY를 합친 배열이라
+    // 거기서 찾으면 DAY 2의 첫 일정이 첫 번째가 아니게 된다. 그려질 때의 순번을 그대로 쓴다.
+    const index = Number(timeButton.dataset.itemIndex || 0);
     // 교통수단을 먼저 선택해야 시간 설정 가능
     if (!globalTransportMode) {
       toast("교통수단을 먼저 설정해 주세요.");
@@ -1234,6 +1311,11 @@ document.addEventListener("DOMContentLoaded", function () {
       }
 
       const endTime = minutesToTime(endMinutes);
+
+      if (hasScheduleTimeConflict(item, startMinutes, endMinutes, day)) {
+        toast("기존 일정과 시간이 겹칩니다. 다른 시간을 선택해 주세요.");
+        return;
+      }
 
       saveTimeButton.disabled = true;
       saveTimeButton.textContent = "저장 중...";
@@ -1738,7 +1820,8 @@ document.addEventListener("DOMContentLoaded", function () {
     meta.textContent = [item.memo].filter(Boolean).join(" · ");
     timeButton.type = "button";
     timeButton.className = "schedule-item-time";
-    timeButton.addEventListener("click", function () { openTimeEditor(item, timeButton, index); });
+    timeButton.dataset.itemIndex = String(index);
+    timeButton.addEventListener("click", function () { openTimeEditor(item, timeButton, day); });
     timeControl.className = "schedule-time-control";
     timeControl.appendChild(timeButton);
     updateScheduleTimeControl(timeControl, item, index, day);
@@ -2190,9 +2273,11 @@ document.addEventListener("DOMContentLoaded", function () {
     showEmpty(timeline, "전체 일정을 불러오는 중입니다.");
     try {
       overviewGroups = await Promise.all(days.map(async function (day) {
-        const items = day.tripDayId
+        const loadedItems = day.tripDayId
           ? await hydrateItems(await api("/api/v1/trip-days/" + day.tripDayId + "/items"))
           : (readDraft().scheduleItems?.[draftDayKey(day)] || []);
+        // 전체 보기는 여러 DAY를 한 배열로 합치므로 어느 DAY의 일정인지 표시해 둔다.
+        const items = attachScheduleDayIdentity(loadedItems, day);
         restorePendingDayState(day, items);
         return {day, items};
       }));
@@ -3055,6 +3140,7 @@ document.addEventListener("DOMContentLoaded", function () {
   window.AllMyTripsSchedule = {
     getAiRecommendationStates,
     getAiRecommendationTimeConflicts,
+    isAiRecommendationOutsideDay,
     getAiRecommendationUnavailableTimePlaceIds,
     addAiRecommendations,
     addAiRecommendation: async function (recommendation, recommendedDayNumber) {
