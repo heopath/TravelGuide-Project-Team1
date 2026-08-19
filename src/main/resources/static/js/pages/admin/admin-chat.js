@@ -4,9 +4,11 @@
  * 보게 되고 누가 맡았는지도 흐려진다. `내가 응대하기`를 눌러야 입력창이 열린다.
  *
  * 갱신은 WebSocket이다(설계 문서 docs/support-chat-ai-websocket.md). 보내는 것(답장·맡기·종료)은
- * 그대로 REST POST고, 새 메시지·상태 변경을 "받는" 것만 STOMP 구독으로 바뀌었다 — 폴링은
- * 더 이상 쓰지 않는다. `/webjars/sockjs-client`·`/webjars/stomp-websocket`가
- * 없는 환경(정적 미리보기, 테스트)에서는 조용히 건너뛴다 — REST 흐름은 그대로 된다.
+ * 그대로 REST POST고, 새 메시지·상태 변경을 "받는" 것만 STOMP 구독이다. 연결돼 있는 동안은
+ * 폴링을 쓰지 않지만, `/webjars/sockjs-client`·`/webjars/stomp-websocket`가 없거나(정적
+ * 미리보기, 테스트) 핸드셰이크·nginx Upgrade 설정이 실패해 연결이 계속 안 되면, 새 상담도
+ * 대기열에 못 뜨고 비동기로 저장되는 봇 답변도 알 길이 없어진다. 그래서 연결돼 있지 않은
+ * 동안에는 제한적으로 REST 폴링을 대신 돌린다(연결되면 자동으로 멈춘다).
  *
  * 구독은 두 갈래다. 열어 둔 대화방 토픽은 그 방의 메시지·상태를 받고, 관리자 대기열
  * 토픽(`/topic/support-chat/admin/rooms`)은 "목록이 달라졌다"를 받는다. 대기열 토픽이 없으면
@@ -27,6 +29,8 @@
   const RECONNECT_DELAY_MS = 3000;
   /* 한 방에서 말이 몇 마디 연달아 오가도 목록 조회는 한 번만 나가게 묶는다. */
   const ROOM_LIST_REFRESH_DELAY_MS = 300;
+  /* 연결이 안 되는 동안만 도는 대체 경로. WebSocket이 정상이면 이 주기는 의미가 없다. */
+  const FALLBACK_POLL_INTERVAL_MS = 5000;
 
   function readCsrfCookie() {
     const match = document.cookie.match(/(?:^|;\s*)CSRF-TOKEN=([^;]*)/);
@@ -37,6 +41,7 @@
     return typeof window.SockJS === "function"
       && typeof window.Stomp === "object" && typeof window.Stomp.over === "function";
   }
+
 
   const statusLabels = {
     BOT: "봇 응대 중",
@@ -75,6 +80,16 @@
   let errorSubscription = null;
   let reconnectTimer = null;
   let roomListTimer = null;
+  let pollTimer = null;
+  /*
+   * loadRooms()/syncThread()를 부를 때마다 하나씩 늘린다. 응답이 도착했을 때 이 값과
+   * 다르면(그 사이 더 최신 조회가 시작됐다는 뜻) 화면에 반영하지 않고 버린다 — 느리게 온
+   * 옛 응답이 빠른 새 응답을 뒤늦게 덮어써 목록·대화창이 다시 낡은 상태로 되돌아가는 것을
+   * 막는다. 구독을 REST보다 먼저 거는 것과는 별개의 문제다(그건 "이벤트를 놓치지 않는다",
+   * 이건 "응답이 순서대로 안 와도 최신이 이긴다").
+   */
+  let roomsGeneration = 0;
+  let threadGeneration = 0;
 
   async function request(url, options) {
     const response = await fetch(url, Object.assign({
@@ -127,11 +142,13 @@
   }
 
   async function loadRooms() {
+    const generation = ++roomsGeneration;
     const query = new URLSearchParams({ limit: String(ROOM_LIMIT) });
     if (statusFilter) query.set("status", statusFilter);
     if (keyword) query.set("keyword", keyword);
     try {
       const rooms = await request(`/api/v1/admin/support-chats?${query}`);
+      if (generation !== roomsGeneration) return; /* 그 사이 더 최신 조회가 시작됐다 — 낡은 응답은 버린다. */
       roomList.replaceChildren();
       if (!rooms || !rooms.length) {
         roomEmpty.hidden = false;
@@ -143,6 +160,7 @@
       roomEmpty.hidden = true;
       rooms.forEach(function (room) { roomList.appendChild(roomRow(room)); });
     } catch (error) {
+      if (generation !== roomsGeneration) return;
       roomEmpty.hidden = false;
       roomEmpty.textContent = error.message || "상담 목록을 불러오지 못했어요.";
     }
@@ -212,14 +230,17 @@
   }
 
   async function openRoom(roomId) {
-    openRoomId = Number(roomId);
+    const targetRoomId = Number(roomId);
+    openRoomId = targetRoomId;
     connectSocket();
+    ensureFallbackPolling();
     /* 먼저 구독하고 그다음에 읽는다 — 읽는 사이에 저장된 메시지를 놓치지 않도록. */
     subscribeRoom();
     try {
-      renderThread(await request(`/api/v1/admin/support-chats/${roomId}`));
+      await syncThread(targetRoomId);
       await loadRooms();
     } catch (error) {
+      if (openRoomId !== targetRoomId) return; /* 그 사이 다른 방으로 옮겼다 — 낡은 오류다. */
       messageEmpty.hidden = false;
       messageEmpty.textContent = error.message || "대화를 불러오지 못했어요.";
     }
@@ -274,7 +295,7 @@
     subscribeAdminRooms();
     subscribeErrors();
     subscribeRoom();
-    refreshThread();
+    if (openRoomId) syncThread(openRoomId).catch(function () { /* 다음 이벤트나 재연결에서 다시 시도된다. */ });
     loadRooms();
   }
 
@@ -304,20 +325,24 @@
     );
   }
 
-  function refreshThread() {
-    if (!openRoomId) return;
-    const roomId = openRoomId;
-    request(`/api/v1/admin/support-chats/${roomId}`)
-      .then(function (view) {
-        if (openRoomId !== roomId) return; /* 그 사이 다른 방을 열었다. */
-        renderThread(view);
-      })
-      .catch(function () { /* 다음 이벤트나 재연결에서 다시 시도된다. */ });
+  /**
+   * 지금 열어 둔 방을 REST로 다시 읽어 그린다.
+   *
+   * <p>여러 경로(재구독, 방 토픽 이벤트, 폴백 폴링)가 동시에 이 방을 다시 읽을 수 있다.
+   * 응답이 도착한 시점에 이미 다른 방으로 옮겼거나, 그 사이 더 최신 조회가 시작됐으면
+   * (느리게 온 응답이라는 뜻) 반영하지 않는다.
+   */
+  function syncThread(roomId) {
+    const generation = ++threadGeneration;
+    return request(`/api/v1/admin/support-chats/${roomId}`).then(function (view) {
+      if (roomId !== openRoomId || generation !== threadGeneration) return;
+      renderThread(view);
+    });
   }
 
   function handleRoomEvent(roomId) {
     if (roomId !== openRoomId) return; /* 이미 다른 방으로 옮겼다. */
-    refreshThread();
+    syncThread(roomId).catch(function () { /* 무시 — 다음 이벤트가 다시 맞춰 준다. */ });
   }
 
   function refreshRoomsSoon() {
@@ -328,7 +353,30 @@
     }, ROOM_LIST_REFRESH_DELAY_MS);
   }
 
+  /**
+   * WebSocket이 안 붙어 있는 동안만 도는 대체 경로.
+   *
+   * <p>스크립트가 아예 없거나(정적 미리보기) 핸드셰이크·nginx Upgrade 설정이 실패해 연결이
+   * 계속 안 되면, 새 상담이 대기열에 뜨지도 않고 비동기로 저장되는 봇 답변도 알 길이 없다.
+   * 매 틱마다 연결 상태를 다시 확인하므로 시작·중지를 이벤트마다 정교하게 맞출 필요 없이,
+   * 연결되면 스스로 조용해진다.
+   */
+  function ensureFallbackPolling() {
+    if (pollTimer) return;
+    pollTimer = window.setInterval(function () {
+      if (stompClient && stompClient.connected) return;
+      loadRooms();
+      if (openRoomId) syncThread(openRoomId).catch(function () { /* 다음 폴링에서 다시 시도된다. */ });
+    }, FALLBACK_POLL_INTERVAL_MS);
+  }
+
+  function stopFallbackPolling() {
+    if (pollTimer) window.clearInterval(pollTimer);
+    pollTimer = null;
+  }
+
   function stopPolling() {
+    stopFallbackPolling();
     if (reconnectTimer) window.clearTimeout(reconnectTimer);
     reconnectTimer = null;
     if (roomListTimer) window.clearTimeout(roomListTimer);
@@ -416,6 +464,7 @@
     loadRooms();
     /* 방을 고르기 전에도 연결해 둔다 — 새 상담이 들어오면 바로 목록에 뜨도록. */
     connectSocket();
+    ensureFallbackPolling();
   }
 
   if (document.readyState === "loading") {

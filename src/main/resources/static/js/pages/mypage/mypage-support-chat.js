@@ -6,15 +6,19 @@
  * 열린 상담은 하나뿐이다. 서버가 손님당 하나로 제한하고 있어, 이미 열려 있으면 그 방을 준다.
  *
  * 갱신은 WebSocket이다(설계 문서 docs/support-chat-ai-websocket.md). 보내는 것(메시지 전송)은
- * 그대로 REST POST고, 새 메시지·방 상태 변경을 "받는" 것만 STOMP 구독으로 바뀌었다 — 폴링은
- * 더 이상 쓰지 않는다. `/webjars/sockjs-client`·`/webjars/stomp-websocket`가 없는 환경
- * (정적 미리보기, 테스트)에서는 조용히 건너뛴다 — REST 흐름(열기·보내기·새로고침)은 그대로 된다.
+ * 그대로 REST POST고, 새 메시지·방 상태 변경을 "받는" 것만 STOMP 구독이다. 연결돼 있는 동안은
+ * 폴링을 쓰지 않지만, `/webjars/sockjs-client`·`/webjars/stomp-websocket`가 없거나(정적
+ * 미리보기, 테스트) 핸드셰이크·nginx Upgrade 설정이 실패해 연결이 계속 안 되면, 봇의 첫
+ * 인사·후속 답변은 비동기로 저장되므로 받을 방법이 아예 없어져 입력창이 잠긴 채 멈춘다.
+ * 그래서 연결돼 있지 않은 동안에는 제한적으로 REST 폴링을 대신 돌린다(연결되면 자동으로 멈춘다).
  */
 const SOCKET_ENDPOINT = "/ws/support-chat";
 const ROOM_TOPIC_PREFIX = "/topic/support-chat/rooms/";
 /* 서버가 복구 가능한 오류를 보내는 본인 전용 큐(설계 문서 §3). */
 const ERROR_QUEUE = "/user/queue/support-chat/errors";
 const RECONNECT_DELAY_MS = 3000;
+/* 연결이 안 되는 동안만 도는 대체 경로. WebSocket이 정상이면 이 주기는 의미가 없다. */
+const FALLBACK_POLL_INTERVAL_MS = 5000;
 
 const statusLabels = {
   BOT: "상담원을 연결하고 있어요",
@@ -33,6 +37,7 @@ function socketAvailable() {
   return typeof window.SockJS === "function"
     && typeof window.Stomp === "object" && typeof window.Stomp.over === "function";
 }
+
 
 export function initSupportChat() {
   const panel = document.querySelector('[data-support-panel="chat"]');
@@ -62,9 +67,15 @@ export function initSupportChat() {
   let subscription = null;
   let errorSubscription = null;
   let reconnectTimer = null;
-  /* 구독을 먼저 걸고 REST로 맞추는 동안 도착한 이벤트는 동기화가 끝난 뒤 한 번에 반영한다. */
-  let syncing = false;
-  let resyncPending = false;
+  let pollTimer = null;
+  /*
+   * load()를 부를 때마다 하나 늘린다. 응답이 도착했을 때 이 값과 다르면(그 사이 더 최신
+   * 조회가 시작됐다는 뜻) 화면에 반영하지 않고 버린다 — 느린 옛 응답이 빠른 새 응답을
+   * 뒤늦게 덮어써 화면이 다시 낡은 상태로 되돌아가는 것을 막는다. 구독을 REST 동기화보다
+   * 먼저 걸어 두는 것과는 별개의 문제다(그건 "이벤트를 놓치지 않는다", 이건 "응답 순서가
+   * 뒤바뀌어도 최신이 이긴다").
+   */
+  let loadGeneration = 0;
 
   async function request(url, options) {
     const response = await fetch(url, Object.assign({
@@ -149,14 +160,22 @@ export function initSupportChat() {
     });
     messages.scrollTop = messages.scrollHeight;
 
-    if (closed) disconnectSocket();
-    else connectSocket();
+    if (closed) {
+      disconnectSocket();
+    } else {
+      connectSocket();
+      ensureFallbackPolling();
+    }
   }
 
   async function load() {
+    const generation = ++loadGeneration;
     try {
-      render(await request("/api/v1/support/chat"));
+      const view = await request("/api/v1/support/chat");
+      if (generation !== loadGeneration) return; /* 그 사이 더 최신 조회가 시작됐다 — 낡은 응답은 버린다. */
+      render(view);
     } catch (error) {
+      if (generation !== loadGeneration) return;
       /* 아직 상담을 연 적이 없으면 404다. 오류가 아니라 시작 전 상태다. */
       if (error.status === 404) {
         chat.hidden = true;
@@ -217,28 +236,18 @@ export function initSupportChat() {
    *
    * <p>순서가 반대면 REST 응답과 SUBSCRIBE 사이에 저장된 봇 답변을 아무도 받지 못한다.
    * 화면은 계속 "답변을 준비하고 있습니다..."인 채 입력창이 잠겨 손님이 빠져나올 수 없다.
-   * 먼저 구독해 두면 그 틈이 없고, 동기화 도중 도착한 이벤트는 끝난 뒤 한 번 더 불러
-   * 반영한다(구독 시점과 REST 시점이 겹쳐 같은 메시지를 두 번 봐도 REST 결과로 다시 그리므로
-   * 중복은 남지 않는다).
+   * 먼저 구독해 두면 그 틈이 없다. 동기화 도중 이벤트가 와서 load()가 겹쳐 불려도
+   * loadGeneration이 응답 순서를 정리해 준다 — 느리게 온 옛 응답이 화면을 되돌리지 않는다.
    */
   function resubscribe() {
     if (!currentRoomId || !stompClient || !stompClient.connected) return;
     const roomId = currentRoomId;
     if (subscription) { try { subscription.unsubscribe(); } catch (error) { /* 이미 끊긴 연결. */ } }
-    syncing = true;
-    resyncPending = false;
     subscription = stompClient.subscribe(
       ROOM_TOPIC_PREFIX + roomId,
       function (frame) { handleSocketEvent(JSON.parse(frame.body)); }
     );
     subscribeErrors();
-    load().then(finishSync, finishSync);
-  }
-
-  function finishSync() {
-    syncing = false;
-    if (!resyncPending) return;
-    resyncPending = false;
     load();
   }
 
@@ -281,15 +290,32 @@ export function initSupportChat() {
       disconnectSocket();
       return;
     }
-    /* 동기화 중이면 지금 부르지 않는다 — 끝난 직후 한 번만 다시 부른다. */
-    if (syncing) {
-      resyncPending = true;
-      return;
-    }
     load();
   }
 
+  /**
+   * WebSocket이 안 붙어 있는 동안만 도는 대체 경로.
+   *
+   * <p>스크립트가 아예 없거나(정적 미리보기) 핸드셰이크·nginx Upgrade 설정이 실패해 연결이
+   * 계속 안 되면, 비동기로 저장되는 봇 첫 인사·후속 답변을 받을 방법이 하나도 없어 손님
+   * 화면이 "답변을 준비하고 있습니다..."에 갇힌다. 매 틱마다 연결 상태를 다시 확인하므로
+   * 시작·중지를 이벤트마다 정교하게 맞출 필요 없이, 연결되면 스스로 조용해진다.
+   */
+  function ensureFallbackPolling() {
+    if (pollTimer || !opened || !currentRoomId) return;
+    pollTimer = window.setInterval(function () {
+      if (!currentRoomId || (stompClient && stompClient.connected)) return;
+      load();
+    }, FALLBACK_POLL_INTERVAL_MS);
+  }
+
+  function stopFallbackPolling() {
+    if (pollTimer) window.clearInterval(pollTimer);
+    pollTimer = null;
+  }
+
   function disconnectSocket() {
+    stopFallbackPolling();
     if (reconnectTimer) window.clearTimeout(reconnectTimer);
     reconnectTimer = null;
     if (subscription) { try { subscription.unsubscribe(); } catch (error) { /* 이미 끊긴 연결. */ } }
@@ -309,7 +335,9 @@ export function initSupportChat() {
   openButton.addEventListener("click", async function () {
     openButton.disabled = true;
     try {
-      render(await request("/api/v1/support/chat", { method: "POST" }));
+      const view = await request("/api/v1/support/chat", { method: "POST" });
+      loadGeneration++; /* 이 결과가 최신이다 — 그 사이 시작된 배경 조회는 도착해도 버려진다. */
+      render(view);
       input.focus();
     } catch (error) {
       emptyText.textContent = error.message || "상담을 시작하지 못했어요.";
@@ -328,6 +356,7 @@ export function initSupportChat() {
         method: "POST",
         body: JSON.stringify({ content }),
       });
+      loadGeneration++; /* 이 결과가 최신이다 — 그 사이 시작된 배경 조회는 도착해도 버려진다. */
       /* 대기 여부는 render가 방 상태와 마지막 메시지로 판단한다(설계 문서 §7). */
       render(view);
       input.value = "";
