@@ -78,6 +78,31 @@ class SupportChatSubscriptionAuthorizerTest {
         assertThat(authorizer.canSubscribe(null, ROOM_ID)).isFalse();
     }
 
+    /* 관리자 대기열 토픽은 방 하나가 아니라 목록 전체의 변화를 받는 자리다. */
+    @Test
+    @DisplayName("관리자 대기열 토픽은 관리자만 구독할 수 있다")
+    void onlyAdminCanSubscribeAdminQueue() {
+        AuthenticatedUser admin = new AuthenticatedUser(90L, "admin@example.com", "ADMIN");
+        AuthenticatedUser user = new AuthenticatedUser(OWNER_ID, "user@example.com", "USER");
+
+        assertThat(authorizer.canSubscribeAdminRooms(admin)).isTrue();
+        assertThat(authorizer.canSubscribeAdminRooms(user)).isFalse();
+        assertThat(authorizer.canSubscribeAdminRooms(null)).isFalse();
+    }
+
+    /*
+     * 오류 큐는 스프링이 세션별로 목적지를 갈라 준다. 로그인만 확인하면 되고, 여기서 막으면
+     * 설계 문서 §3에서 확정한 오류 전달 경로가 통째로 사라진다.
+     */
+    @Test
+    @DisplayName("본인 오류 큐는 로그인한 사용자면 구독할 수 있다")
+    void authenticatedUserCanSubscribeOwnErrorQueue() {
+        AuthenticatedUser user = new AuthenticatedUser(OWNER_ID, "user@example.com", "USER");
+
+        assertThat(authorizer.canSubscribeUserErrors(user)).isTrue();
+        assertThat(authorizer.canSubscribeUserErrors(null)).isFalse();
+    }
+
     @Test
     @DisplayName("방 번호가 없으면 거부한다")
     void rejectsMissingRoomId() {

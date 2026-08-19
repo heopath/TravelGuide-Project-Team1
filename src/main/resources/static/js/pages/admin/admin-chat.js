@@ -4,12 +4,15 @@
  * 보게 되고 누가 맡았는지도 흐려진다. `내가 응대하기`를 눌러야 입력창이 열린다.
  *
  * 갱신은 WebSocket이다(설계 문서 docs/support-chat-ai-websocket.md). 보내는 것(답장·맡기·종료)은
- * 그대로 REST POST고, 열어 둔 대화방의 새 메시지·상태 변경을 "받는" 것만 STOMP 구독으로
- * 바뀌었다 — 폴링은 더 이상 쓰지 않는다. `/webjars/sockjs-client`·`/webjars/stomp-websocket`가
+ * 그대로 REST POST고, 새 메시지·상태 변경을 "받는" 것만 STOMP 구독으로 바뀌었다 — 폴링은
+ * 더 이상 쓰지 않는다. `/webjars/sockjs-client`·`/webjars/stomp-websocket`가
  * 없는 환경(정적 미리보기, 테스트)에서는 조용히 건너뛴다 — REST 흐름은 그대로 된다.
  *
- * 챗봇이 붙었다. 방 상태 BOT과 보낸이 BOT은 서버가 처음부터 다뤘으므로 이 화면은 고칠 것이
- * 없었다 — 그대로다.
+ * 구독은 두 갈래다. 열어 둔 대화방 토픽은 그 방의 메시지·상태를 받고, 관리자 대기열
+ * 토픽(`/topic/support-chat/admin/rooms`)은 "목록이 달라졌다"를 받는다. 대기열 토픽이 없으면
+ * 새 상담이 들어오거나 다른 방이 대기로 넘어가도 새로고침 전까지 목록이 멈춰 있다.
+ *
+ * 챗봇이 붙었다. 방 상태 BOT과 보낸이 BOT은 서버가 처음부터 다뤘으므로 표시 규칙은 그대로다.
  */
 (function () {
   "use strict";
@@ -17,7 +20,13 @@
   const ROOM_LIMIT = 30;
   const SOCKET_ENDPOINT = "/ws/support-chat";
   const ROOM_TOPIC_PREFIX = "/topic/support-chat/rooms/";
+  /* 방 목록에 영향을 주는 변화(새 상담, 상태 전환, 마지막 메시지)를 모아 받는 자리. */
+  const ADMIN_ROOMS_TOPIC = "/topic/support-chat/admin/rooms";
+  /* 서버가 복구 가능한 오류를 보내는 본인 전용 큐(설계 문서 §3). */
+  const ERROR_QUEUE = "/user/queue/support-chat/errors";
   const RECONNECT_DELAY_MS = 3000;
+  /* 한 방에서 말이 몇 마디 연달아 오가도 목록 조회는 한 번만 나가게 묶는다. */
+  const ROOM_LIST_REFRESH_DELAY_MS = 300;
 
   function readCsrfCookie() {
     const match = document.cookie.match(/(?:^|;\s*)CSRF-TOKEN=([^;]*)/);
@@ -62,7 +71,10 @@
 
   let stompClient = null;
   let subscription = null;
+  let adminSubscription = null;
+  let errorSubscription = null;
   let reconnectTimer = null;
+  let roomListTimer = null;
 
   async function request(url, options) {
     const response = await fetch(url, Object.assign({
@@ -201,11 +213,12 @@
 
   async function openRoom(roomId) {
     openRoomId = Number(roomId);
+    connectSocket();
+    /* 먼저 구독하고 그다음에 읽는다 — 읽는 사이에 저장된 메시지를 놓치지 않도록. */
+    subscribeRoom();
     try {
       renderThread(await request(`/api/v1/admin/support-chats/${roomId}`));
       await loadRooms();
-      connectSocket();
-      resubscribe();
     } catch (error) {
       messageEmpty.hidden = false;
       messageEmpty.textContent = error.message || "대화를 불러오지 못했어요.";
@@ -216,6 +229,7 @@
 
   function connectSocket() {
     if (!socketAvailable() || stompClient) return;
+    /* 방을 열지 않아도 연결한다 — 대기열 갱신은 어떤 방을 보고 있는지와 무관하다. */
     let socket;
     try {
       socket = new window.SockJS(SOCKET_ENDPOINT);
@@ -235,47 +249,96 @@
   function onSocketDown() {
     stompClient = null;
     subscription = null;
+    /* 끊긴 연결의 구독은 남겨 두면 재연결 뒤 다시 걸지 않는다. */
+    adminSubscription = null;
+    errorSubscription = null;
     scheduleReconnect();
   }
 
+  /* 방을 열어 두지 않아도 다시 붙는다 — 대기열 갱신이 연결에 달려 있다. */
   function scheduleReconnect() {
-    if (reconnectTimer || panel.hidden || !openRoomId) return;
+    if (reconnectTimer) return;
     reconnectTimer = window.setTimeout(function () {
       reconnectTimer = null;
       connectSocket();
     }, RECONNECT_DELAY_MS);
   }
 
-  /* 재연결 뒤에는 그 사이 놓친 이벤트가 있을 수 있으므로, 다시 구독하기 전에 REST로 먼저 맞춘다. */
+  /**
+   * 연결이 서면 필요한 구독을 모두 건다.
+   *
+   * <p>열어 둔 방이 있으면 그 방 토픽을 먼저 걸고 나서 REST로 대화를 다시 읽는다. 순서가
+   * 반대면 REST 응답과 SUBSCRIBE 사이에 저장된 메시지를 아무도 받지 못한다.
+   */
   function resubscribe() {
+    subscribeAdminRooms();
+    subscribeErrors();
+    subscribeRoom();
+    refreshThread();
+    loadRooms();
+  }
+
+  function subscribeAdminRooms() {
+    if (adminSubscription || !stompClient || !stompClient.connected) return;
+    adminSubscription = stompClient.subscribe(ADMIN_ROOMS_TOPIC, refreshRoomsSoon);
+  }
+
+  /* 서버가 보내는 복구 가능한 오류를 받을 자리(설계 문서 §3). 없으면 오류가 조용히 사라진다. */
+  function subscribeErrors() {
+    if (errorSubscription || !stompClient || !stompClient.connected) return;
+    errorSubscription = stompClient.subscribe(ERROR_QUEUE, function (frame) {
+      const error = JSON.parse(frame.body);
+      if (!error) return;
+      messageEmpty.hidden = false;
+      messageEmpty.textContent = error.message || "실시간 갱신에 문제가 생겼어요.";
+    });
+  }
+
+  function subscribeRoom() {
     if (!openRoomId || !stompClient || !stompClient.connected) return;
+    const roomId = openRoomId;
+    if (subscription) { try { subscription.unsubscribe(); } catch (error) { /* 이미 끊긴 연결. */ } }
+    subscription = stompClient.subscribe(
+      ROOM_TOPIC_PREFIX + roomId,
+      function () { handleRoomEvent(roomId); }
+    );
+  }
+
+  function refreshThread() {
+    if (!openRoomId) return;
     const roomId = openRoomId;
     request(`/api/v1/admin/support-chats/${roomId}`)
       .then(function (view) {
         if (openRoomId !== roomId) return; /* 그 사이 다른 방을 열었다. */
         renderThread(view);
-        if (subscription) subscription.unsubscribe();
-        subscription = stompClient.subscribe(
-          ROOM_TOPIC_PREFIX + roomId,
-          function (frame) { handleSocketEvent(roomId, JSON.parse(frame.body)); }
-        );
       })
       .catch(function () { /* 다음 이벤트나 재연결에서 다시 시도된다. */ });
   }
 
-  function handleSocketEvent(roomId, event) {
+  function handleRoomEvent(roomId) {
     if (roomId !== openRoomId) return; /* 이미 다른 방으로 옮겼다. */
-    request(`/api/v1/admin/support-chats/${roomId}`)
-      .then(renderThread)
-      .catch(function () { /* 무시 — 다음 이벤트가 다시 맞춰 준다. */ });
-    if (event.type === "MESSAGE") loadRooms();
+    refreshThread();
+  }
+
+  function refreshRoomsSoon() {
+    if (roomListTimer) return;
+    roomListTimer = window.setTimeout(function () {
+      roomListTimer = null;
+      loadRooms();
+    }, ROOM_LIST_REFRESH_DELAY_MS);
   }
 
   function stopPolling() {
     if (reconnectTimer) window.clearTimeout(reconnectTimer);
     reconnectTimer = null;
-    if (subscription) { try { subscription.unsubscribe(); } catch (error) { /* 이미 끊긴 연결. */ } }
+    if (roomListTimer) window.clearTimeout(roomListTimer);
+    roomListTimer = null;
+    [subscription, adminSubscription, errorSubscription].forEach(function (each) {
+      if (each) { try { each.unsubscribe(); } catch (error) { /* 이미 끊긴 연결. */ } }
+    });
     subscription = null;
+    adminSubscription = null;
+    errorSubscription = null;
     if (stompClient) { try { stompClient.disconnect(); } catch (error) { /* 이미 끊긴 연결. */ } }
     stompClient = null;
   }
@@ -349,10 +412,16 @@
     });
   }
 
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", loadRooms);
-  } else {
+  function boot() {
     loadRooms();
+    /* 방을 고르기 전에도 연결해 둔다 — 새 상담이 들어오면 바로 목록에 뜨도록. */
+    connectSocket();
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", boot);
+  } else {
+    boot();
   }
 
   window.__adminChat = { loadRooms: loadRooms, openRoom: openRoom, stopPolling: stopPolling };

@@ -46,6 +46,14 @@ public class SupportChatService {
     private static final int MAX_ROOMS = 100;
 
     private static final String ROOM_TOPIC_PREFIX = "/topic/support-chat/rooms/";
+    /**
+     * 관리자 대기열용 토픽. 방 하나가 아니라 "목록이 달라졌다"를 알리는 자리다.
+     *
+     * <p>관리자는 열어 둔 방만 구독하므로, 그것만으로는 새 상담이 들어오거나 다른 방이
+     * {@code WAITING}으로 넘어간 것을 알 수 없다. 폴링을 걷어낸 뒤 목록이 새로고침 전까지
+     * 멈춰 있던 이유다. 목록에 영향을 주는 변화는 모두 이 토픽에도 함께 내보낸다.
+     */
+    private static final String ADMIN_ROOMS_TOPIC = "/topic/support-chat/admin/rooms";
 
     /** 봇 호출 없이 곧장 사람을 붙여도 되는, 손님이 명시적으로 상담원을 찾는 표현들. */
     private static final List<String> HUMAN_HANDOFF_KEYWORDS =
@@ -84,6 +92,8 @@ public class SupportChatService {
                 return view(requireOpenRoom(userId));
             }
             room = requireRoom(created.getSupportChatRoomId());
+            /* 새 방은 관리자 대기열에도 바로 나타나야 한다 — 첫 인사(봇)를 기다리는 동안에도. */
+            broadcastRoomStatus(room.getSupportChatRoomId());
             eventPublisher.publishEvent(new SupportChatBotTriggerEvent(room.getSupportChatRoomId()));
         }
         return view(room);
@@ -280,15 +290,20 @@ public class SupportChatService {
      * 구독자가 존재하지 않는 메시지를 이미 화면에 그린 상태가 된다.
      */
     private void broadcastMessage(Long roomId, Long messageId) {
-        afterCommit(() -> supportChatDAO.findMessage(messageId).ifPresent(message ->
-                messagingTemplate.convertAndSend(
-                        ROOM_TOPIC_PREFIX + roomId, SupportChatSocketEvent.message(message))));
+        afterCommit(() -> supportChatDAO.findMessage(messageId).ifPresent(message -> {
+            SupportChatSocketEvent event = SupportChatSocketEvent.message(message);
+            messagingTemplate.convertAndSend(ROOM_TOPIC_PREFIX + roomId, event);
+            /* 마지막 한 줄과 정렬 순서가 바뀌므로 관리자 목록도 다시 그려야 한다. */
+            messagingTemplate.convertAndSend(ADMIN_ROOMS_TOPIC, event);
+        }));
     }
 
     private void broadcastRoomStatus(Long roomId) {
-        afterCommit(() -> supportChatDAO.findRoom(roomId).ifPresent(room ->
-                messagingTemplate.convertAndSend(
-                        ROOM_TOPIC_PREFIX + roomId, SupportChatSocketEvent.roomStatus(room))));
+        afterCommit(() -> supportChatDAO.findRoom(roomId).ifPresent(room -> {
+            SupportChatSocketEvent event = SupportChatSocketEvent.roomStatus(room);
+            messagingTemplate.convertAndSend(ROOM_TOPIC_PREFIX + roomId, event);
+            messagingTemplate.convertAndSend(ADMIN_ROOMS_TOPIC, event);
+        }));
     }
 
     /** 활성 트랜잭션이 있으면 커밋 후로 미루고, 없으면(단위 테스트 등) 곧바로 실행한다. */

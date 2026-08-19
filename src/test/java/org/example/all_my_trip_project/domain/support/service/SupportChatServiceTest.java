@@ -36,6 +36,9 @@ class SupportChatServiceTest {
     private static final long ADMIN_ID = 90L;
     private static final long OTHER_ADMIN_ID = 91L;
     private static final long ROOM_ID = 5L;
+    private static final long MESSAGE_ID = 123L;
+    private static final String ROOM_TOPIC = "/topic/support-chat/rooms/" + ROOM_ID;
+    private static final String ADMIN_ROOMS_TOPIC = "/topic/support-chat/admin/rooms";
 
     private SupportChatDAO dao;
     private SimpMessagingTemplate messagingTemplate;
@@ -121,6 +124,53 @@ class SupportChatServiceTest {
         service.openMyRoom(USER_ID);
 
         verify(eventPublisher).publishEvent(any(SupportChatBotTriggerEvent.class));
+    }
+
+    /*
+     * 관리자는 열어 둔 방만 구독한다. 새 상담이 들어온 것을 알리는 자리는 대기열 토픽뿐이라,
+     * 여기서 빠지면 관리자 목록은 새로고침 전까지 그 상담을 보여주지 못한다.
+     */
+    @Test
+    @DisplayName("방을 새로 열면 관리자 대기열 토픽에도 알린다")
+    void announcesNewRoomToAdminQueue() {
+        when(dao.findOpenRoomByUser(USER_ID)).thenReturn(Optional.empty());
+        when(dao.insertRoom(any())).thenAnswer(invocation -> {
+            SupportChatRoomDTO created = invocation.getArgument(0);
+            created.setSupportChatRoomId(ROOM_ID);
+            return 1;
+        });
+        when(dao.findRoom(ROOM_ID)).thenReturn(Optional.of(room("BOT", null)));
+
+        service.openMyRoom(USER_ID);
+
+        ArgumentCaptor<SupportChatSocketEvent> event = ArgumentCaptor.forClass(SupportChatSocketEvent.class);
+        verify(messagingTemplate).convertAndSend(eq(ADMIN_ROOMS_TOPIC), event.capture());
+        assertThat(event.getValue().type()).isEqualTo("ROOM_STATUS");
+    }
+
+    @Test
+    @DisplayName("새 메시지는 방 토픽과 관리자 대기열 토픽 양쪽으로 나간다")
+    void broadcastsMessageToRoomAndAdminQueue() {
+        when(dao.findOpenRoomByUser(USER_ID)).thenReturn(Optional.of(room("WAITING", null)));
+        when(dao.findRoom(ROOM_ID)).thenReturn(Optional.of(room("WAITING", null)));
+        when(dao.insertMessage(any())).thenAnswer(invocation -> {
+            SupportChatMessageDTO saved = invocation.getArgument(0);
+            saved.setSupportChatMessageId(MESSAGE_ID);
+            return 1;
+        });
+        when(dao.findMessage(MESSAGE_ID)).thenReturn(Optional.of(
+                SupportChatMessageDTO.builder()
+                        .supportChatMessageId(MESSAGE_ID).supportChatRoomId(ROOM_ID)
+                        .senderType("USER").senderUserId(USER_ID).content("환불 문의드립니다").build()));
+
+        service.sendAsUser(USER_ID, "환불 문의드립니다");
+
+        ArgumentCaptor<SupportChatSocketEvent> roomEvent = ArgumentCaptor.forClass(SupportChatSocketEvent.class);
+        verify(messagingTemplate).convertAndSend(eq(ROOM_TOPIC), roomEvent.capture());
+        assertThat(roomEvent.getValue().type()).isEqualTo("MESSAGE");
+        ArgumentCaptor<SupportChatSocketEvent> adminEvent = ArgumentCaptor.forClass(SupportChatSocketEvent.class);
+        verify(messagingTemplate).convertAndSend(eq(ADMIN_ROOMS_TOPIC), adminEvent.capture());
+        assertThat(adminEvent.getValue().type()).isEqualTo("MESSAGE");
     }
 
     @Test
@@ -212,8 +262,9 @@ class SupportChatServiceTest {
         verify(dao).insertMessage(any());
         verify(dao).markWaiting(ROOM_ID);
         ArgumentCaptor<SupportChatSocketEvent> event = ArgumentCaptor.forClass(SupportChatSocketEvent.class);
-        verify(messagingTemplate).convertAndSend(eq("/topic/support-chat/rooms/" + ROOM_ID), event.capture());
+        verify(messagingTemplate).convertAndSend(eq(ROOM_TOPIC), event.capture());
         assertThat(event.getValue().type()).isEqualTo("ROOM_STATUS");
+        verify(messagingTemplate).convertAndSend(eq(ADMIN_ROOMS_TOPIC), any(SupportChatSocketEvent.class));
     }
 
     @Test

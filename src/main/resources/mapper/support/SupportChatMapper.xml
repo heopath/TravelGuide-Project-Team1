@@ -135,15 +135,24 @@
         WHERE support_chat_room_id = #{roomId}
     </update>
 
+    <!--
+      한도를 넘는 대화에서는 "가장 오래된 N개"가 아니라 "가장 최근 N개"를 남긴다. 오름차순으로
+      자르면 방금 들어온 사용자 메시지가 잘려 나가, 화면에도 봇에게 넘기는 대화 내역에도
+      빠진다. 안쪽에서 내림차순으로 최근 것을 고르고, 바깥에서 다시 시간순으로 세운다.
+    -->
     <select id="findMessages"
             resultType="org.example.all_my_trip_project.domain.support.dto.SupportChatMessageDTO">
         SELECT m.support_chat_message_id, m.support_chat_room_id, m.sender_type,
                m.sender_user_id, s.nickname AS sender_nickname, m.content, m.created_at
-        FROM support_chat_messages m
+        FROM (
+            SELECT *
+            FROM support_chat_messages
+            WHERE support_chat_room_id = #{roomId}
+            ORDER BY support_chat_message_id DESC
+            LIMIT #{limit}
+        ) m
         LEFT JOIN users s ON s.user_id = m.sender_user_id
-        WHERE m.support_chat_room_id = #{roomId}
         ORDER BY m.support_chat_message_id
-        LIMIT #{limit}
     </select>
 
 </mapper>

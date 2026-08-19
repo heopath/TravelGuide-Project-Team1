@@ -12,6 +12,8 @@
  */
 const SOCKET_ENDPOINT = "/ws/support-chat";
 const ROOM_TOPIC_PREFIX = "/topic/support-chat/rooms/";
+/* 서버가 복구 가능한 오류를 보내는 본인 전용 큐(설계 문서 §3). */
+const ERROR_QUEUE = "/user/queue/support-chat/errors";
 const RECONNECT_DELAY_MS = 3000;
 
 const statusLabels = {
@@ -49,13 +51,20 @@ export function initSupportChat() {
 
   let opened = false;
   let currentRoomId = null;
-  /* 봇 응답을 기다리는 동안 로컬로만 관리한다 — 서버 이벤트나 DB 저장 없음(1차 범위, 설계 문서 §7). */
+  /*
+   * 봇 응답 대기는 별도 서버 이벤트나 DB 저장 없이 화면에서만 다룬다(1차 범위, 설계 문서 §7).
+   * 다만 값을 들고 다니지는 않는다 — render가 방 상태와 마지막 메시지로 매번 다시 판단한다.
+   */
   let waitingForBot = false;
   let socketDegraded = false;
 
   let stompClient = null;
   let subscription = null;
+  let errorSubscription = null;
   let reconnectTimer = null;
+  /* 구독을 먼저 걸고 REST로 맞추는 동안 도착한 이벤트는 동기화가 끝난 뒤 한 번에 반영한다. */
+  let syncing = false;
+  let resyncPending = false;
 
   async function request(url, options) {
     const response = await fetch(url, Object.assign({
@@ -121,17 +130,17 @@ export function initSupportChat() {
     const closed = room.status === "CLOSED";
     const latestMessage = roomMessages[roomMessages.length - 1];
     /*
-     * 새 방의 첫 인사도 일반 봇 답변과 같은 대기 상태로 취급한다. 재연결 중 이벤트를 놓쳤어도
-     * REST 동기화 결과의 마지막 메시지가 BOT이면 대기를 풀어 중복 질문 전송을 막는다.
+     * 대기 여부는 로컬 플래그를 이어 붙이지 않고 서버가 준 방 상태에서 매번 다시 판단한다.
+     * 그래야 새로고침하거나 다른 탭에서 열어도 같은 결론이 나온다 — 봇 차례(BOT 상태에서
+     * 아직 아무 말도 없거나 마지막 말이 손님)면 대기, 봇이 답했으면 해제다. 플래그를 들고
+     * 다니면 방금 질문을 보낸 창을 새로 열었을 때 입력창이 열려 같은 방에 봇 호출이 겹친다.
      */
-    if (room.status === "BOT" && roomMessages.length === 0) waitingForBot = true;
-    if (waitingForBot && latestMessage && latestMessage.senderType === "BOT") waitingForBot = false;
-    if (room.status !== "BOT") waitingForBot = false;
+    waitingForBot = room.status === "BOT"
+      && (!latestMessage || latestMessage.senderType === "USER");
     statusText.textContent = statusLabel(room);
 
-    const waiting = waitingForBot && room.status === "BOT";
-    input.disabled = closed || waiting;
-    send.disabled = closed || waiting;
+    input.disabled = closed || waitingForBot;
+    send.disabled = closed || waitingForBot;
     input.placeholder = closed ? "종료된 상담이에요" : "궁금한 내용을 입력하세요";
 
     messages.replaceChildren();
@@ -189,6 +198,7 @@ export function initSupportChat() {
   function onSocketDown() {
     stompClient = null;
     subscription = null;
+    errorSubscription = null; /* 끊긴 연결의 구독은 남겨 두면 재연결 뒤 다시 걸지 않는다. */
     socketDegraded = true;
     if (waitingForBot) statusText.textContent = statusLabel({ status: "BOT" });
     scheduleReconnect();
@@ -202,17 +212,53 @@ export function initSupportChat() {
     }, RECONNECT_DELAY_MS);
   }
 
-  /* 재연결 뒤에는 그 사이 놓친 이벤트가 있을 수 있으므로, 다시 구독하기 전에 REST로 먼저 맞춘다. */
+  /**
+   * 구독을 먼저 걸고, 그다음에 REST로 방 전체를 맞춘다.
+   *
+   * <p>순서가 반대면 REST 응답과 SUBSCRIBE 사이에 저장된 봇 답변을 아무도 받지 못한다.
+   * 화면은 계속 "답변을 준비하고 있습니다..."인 채 입력창이 잠겨 손님이 빠져나올 수 없다.
+   * 먼저 구독해 두면 그 틈이 없고, 동기화 도중 도착한 이벤트는 끝난 뒤 한 번 더 불러
+   * 반영한다(구독 시점과 REST 시점이 겹쳐 같은 메시지를 두 번 봐도 REST 결과로 다시 그리므로
+   * 중복은 남지 않는다).
+   */
   function resubscribe() {
-    if (!currentRoomId) return;
-    load().then(function () {
-      if (!stompClient || !stompClient.connected || !currentRoomId) return;
-      if (subscription) subscription.unsubscribe();
-      subscription = stompClient.subscribe(
-        ROOM_TOPIC_PREFIX + currentRoomId,
-        function (frame) { handleSocketEvent(JSON.parse(frame.body)); }
-      );
-    });
+    if (!currentRoomId || !stompClient || !stompClient.connected) return;
+    const roomId = currentRoomId;
+    if (subscription) { try { subscription.unsubscribe(); } catch (error) { /* 이미 끊긴 연결. */ } }
+    syncing = true;
+    resyncPending = false;
+    subscription = stompClient.subscribe(
+      ROOM_TOPIC_PREFIX + roomId,
+      function (frame) { handleSocketEvent(JSON.parse(frame.body)); }
+    );
+    subscribeErrors();
+    load().then(finishSync, finishSync);
+  }
+
+  function finishSync() {
+    syncing = false;
+    if (!resyncPending) return;
+    resyncPending = false;
+    load();
+  }
+
+  /* 서버가 보내는 복구 가능한 오류를 받을 자리(설계 문서 §3). 없으면 오류가 조용히 사라진다. */
+  function subscribeErrors() {
+    if (errorSubscription || !stompClient || !stompClient.connected) return;
+    errorSubscription = stompClient.subscribe(
+      ERROR_QUEUE,
+      function (frame) { showSocketError(JSON.parse(frame.body)); }
+    );
+  }
+
+  function showSocketError(error) {
+    if (!error) return;
+    statusText.textContent = error.message || "연결에 문제가 생겼어요.";
+    /* 다시 시도할 수 없는 오류라면 대기 표시를 풀어 준다 — 잠긴 입력창에 갇히지 않게. */
+    if (error.retryable === true || !waitingForBot) return;
+    waitingForBot = false;
+    input.disabled = false;
+    send.disabled = false;
   }
 
   function handleSocketEvent(event) {
@@ -235,6 +281,11 @@ export function initSupportChat() {
       disconnectSocket();
       return;
     }
+    /* 동기화 중이면 지금 부르지 않는다 — 끝난 직후 한 번만 다시 부른다. */
+    if (syncing) {
+      resyncPending = true;
+      return;
+    }
     load();
   }
 
@@ -243,6 +294,8 @@ export function initSupportChat() {
     reconnectTimer = null;
     if (subscription) { try { subscription.unsubscribe(); } catch (error) { /* 이미 끊긴 연결. */ } }
     subscription = null;
+    if (errorSubscription) { try { errorSubscription.unsubscribe(); } catch (error) { /* 이미 끊긴 연결. */ } }
+    errorSubscription = null;
     if (stompClient) { try { stompClient.disconnect(); } catch (error) { /* 이미 끊긴 연결. */ } }
     stompClient = null;
   }
@@ -275,8 +328,7 @@ export function initSupportChat() {
         method: "POST",
         body: JSON.stringify({ content }),
       });
-      /* 방이 여전히 BOT이면 봇 응답이 WebSocket으로 올 때까지 기다린다(설계 문서 §7). */
-      waitingForBot = view.room.status === "BOT";
+      /* 대기 여부는 render가 방 상태와 마지막 메시지로 판단한다(설계 문서 §7). */
       render(view);
       input.value = "";
     } catch (error) {
