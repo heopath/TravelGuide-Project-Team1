@@ -79,6 +79,24 @@ class CohereAiModelClientTest {
     }
 
     @Test
+    void retriesOnceWhenCohereReturnsAnInvalidScheduleItem() throws Exception {
+        stubResponses(200,
+                """
+                        {"message":{"content":[{"type":"text","text":"{\\"answer\\":\\"추천 일정\\",\\"days\\":[{\\"day\\":1,\\"title\\":\\"DAY 1\\",\\"items\\":[{\\"time\\":\\"\\",\\"name\\":\\"카페\\",\\"reason\\":\\"휴식\\"}]}]}"}]} }
+                        """,
+                """
+                        {"message":{"content":[{"type":"text","text":"{\\"answer\\":\\"추천 일정\\",\\"days\\":[{\\"day\\":1,\\"title\\":\\"DAY 1\\",\\"items\\":[{\\"time\\":\\"14:00\\",\\"name\\":\\"실제 카페\\",\\"reason\\":\\"휴식에 좋아요\\"}]}]}"}]}}
+                        """);
+
+        AiGuideResponse response = client.generate(new AiGuideRequest("카페 추천", null),
+                List.of(), new AiGuideContext(null, List.of()));
+
+        assertThat(response.days().getFirst().items().getFirst().time()).isEqualTo("14:00");
+        org.mockito.Mockito.verify(httpClient, org.mockito.Mockito.times(2)).send(
+                any(HttpRequest.class), org.mockito.ArgumentMatchers.<HttpResponse.BodyHandler<String>>any());
+    }
+
+    @Test
     void createPromptIncludesExistingScheduleAndTwoHourReservationRule() {
         AiGuideContext.Item existingItem = new AiGuideContext.Item(
                 1L, "기존 점심", LocalTime.of(10, 0), null, "PLACE", null);
@@ -95,7 +113,9 @@ class CohereAiModelClientTest {
                 .contains("기존 점심 (10:00-12:00)")
                 .contains("Treat every listed window as unavailable")
                 .contains("reserve two hours after its start time")
-                .contains("nearest later available HH:mm time");
+                .contains("nearest later available HH:mm time")
+                .contains("Never return an existing itinerary venue as a new recommendation item")
+                .contains("never return a real venue already named");
     }
 
     @Test
@@ -152,9 +172,14 @@ class CohereAiModelClientTest {
 
     @SuppressWarnings("unchecked")
     private void stubResponse(int status, String body) throws Exception {
+        stubResponses(status, body);
+    }
+
+    @SuppressWarnings("unchecked")
+    private void stubResponses(int status, String... bodies) throws Exception {
         HttpResponse<String> response = mock(HttpResponse.class);
         when(response.statusCode()).thenReturn(status);
-        when(response.body()).thenReturn(body);
+        when(response.body()).thenReturn(bodies[0], java.util.Arrays.copyOfRange(bodies, 1, bodies.length));
         when(httpClient.send(
                 any(HttpRequest.class),
                 org.mockito.ArgumentMatchers.<HttpResponse.BodyHandler<String>>any()

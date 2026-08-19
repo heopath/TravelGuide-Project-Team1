@@ -177,6 +177,35 @@ class AiGuideServiceTest {
     }
 
     @Test
+    void matchesRestaurantAndCafeCardsToTheirOwnCategoriesWhenQuestionRequestsBoth() {
+        AiGuideRequest request = new AiGuideRequest("성수 점심 식당과 카페를 추천해줘", 12L);
+        AiGuideContext context = new AiGuideContext(null, List.of());
+        RagSearchResult restaurant = new RagSearchResult("place:51", "verified", 51L,
+                "실제 식당", "RESTAURANT", "서울 성동구", "https://place.map.kakao.com/51");
+        RagSearchResult cafe = new RagSearchResult("place:52", "verified", 52L,
+                "실제 카페", "CAFE", "서울 성동구", "https://place.map.kakao.com/52");
+        AiGuideResponse response = new AiGuideResponse("추천", List.of(new AiGuideDayResponse(1, "DAY 1",
+                List.of(
+                        new AiGuideItemResponse("12:00", "점심 식사", "근처 맛집에서 식사하세요"),
+                        new AiGuideItemResponse("14:00", "카페 탐방", "커피를 마시며 쉬세요")
+                ))), List.of(), List.of());
+        org.example.all_my_trip_project.domain.rag.service.PlaceRagService ragService = mock(org.example.all_my_trip_project.domain.rag.service.PlaceRagService.class);
+
+        when(conversationHistoryService.load(1L, 12L)).thenReturn(List.of());
+        when(contextService.load(1L, request)).thenReturn(context);
+        when(ragServiceProvider.getIfAvailable()).thenReturn(ragService);
+        when(ragService.search(request.question())).thenReturn(List.of(restaurant, cafe));
+        when(aiModelClient.generate(request, List.of(), context, List.of(restaurant, cafe))).thenReturn(response);
+
+        List<AiGuideItemResponse> items = service.generate(request, false, 1L).days().getFirst().items();
+
+        assertThat(items).extracting(AiGuideItemResponse::name)
+                .containsExactly("실제 식당", "실제 카페");
+        assertThat(items).extracting(AiGuideItemResponse::placeCategory)
+                .containsExactly("RESTAURANT", "CAFE");
+    }
+
+    @Test
     void replacesGenericShoppingItemWithAnUnusedVerifiedAttraction() {
         AiGuideRequest request = new AiGuideRequest("\uad11\ubcf5\ub85c\uc5d0\uc11c \uad6c\uacbd\ud560 \uacf3\uc744 \ucd94\ucc9c\ud574\uc918", 12L);
         AiGuideContext context = new AiGuideContext(null, List.of());
@@ -337,6 +366,40 @@ class AiGuideServiceTest {
 
         verify(discoveryService).discoverAndIndex(previousTurn.question(), null);
         verify(aiModelClient).generate(request, List.of(previousTurn), context, List.of(anotherCafe));
+    }
+
+    @Test
+    void excludesPlacesAlreadySavedInTheCurrentTripFromRecommendationCandidates() {
+        AiGuideRequest request = new AiGuideRequest("근처 카페 추천", 12L);
+        AiGuideContext.Item scheduledItem = new AiGuideContext.Item(
+                77L, "이미 저장된 카페", null, null, "CAFE", null);
+        AiGuideContext context = new AiGuideContext(
+                new AiGuideContext.Trip(12L, "부산 여행", "부산", null, null,
+                        null, null, null, null, null, null, null, null, null,
+                        List.of(new AiGuideContext.Day(1, null, "DAY 1", null, List.of(scheduledItem)))),
+                List.of());
+        RagSearchResult alreadySavedFromKakao = new RagSearchResult("kakao:77", "candidate", 77L,
+                "이미 저장된 카페", "CAFE", "부산 중구", "https://place.map.kakao.com/77");
+        RagSearchResult alreadySavedFromRagByName = new RagSearchResult("rag:99", "indexed", 99L,
+                "이미 저장된 카페", "CAFE", "부산 중구", "https://place.map.kakao.com/99");
+        RagSearchResult alternative = new RagSearchResult("place:88", "candidate", 88L,
+                "새로운 카페", "CAFE", "부산 중구", "https://place.map.kakao.com/88");
+        AiGuideResponse response = new AiGuideResponse("추천", List.of(), List.of(), List.of());
+        org.example.all_my_trip_project.domain.rag.service.PlaceRagService ragService = mock(org.example.all_my_trip_project.domain.rag.service.PlaceRagService.class);
+        KakaoPlaceDiscoveryService discoveryService = mock(KakaoPlaceDiscoveryService.class);
+
+        when(conversationHistoryService.load(1L, 12L)).thenReturn(List.of());
+        when(contextService.load(1L, request)).thenReturn(context);
+        when(ragServiceProvider.getIfAvailable()).thenReturn(ragService);
+        when(ragService.search(request.question())).thenReturn(List.of(alreadySavedFromRagByName));
+        when(kakaoPlaceDiscoveryServiceProvider.getIfAvailable()).thenReturn(discoveryService);
+        when(discoveryService.discoverAndIndex(request.question(), "부산"))
+                .thenReturn(List.of(alreadySavedFromKakao, alternative));
+        when(aiModelClient.generate(request, List.of(), context, List.of(alternative))).thenReturn(response);
+
+        service.generate(request, false, 1L);
+
+        verify(aiModelClient).generate(request, List.of(), context, List.of(alternative));
     }
 
     @Test
