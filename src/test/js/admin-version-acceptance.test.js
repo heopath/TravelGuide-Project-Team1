@@ -56,10 +56,13 @@ async function boot(responder) {
 async function run() {
   {
     const markup = fs.readFileSync(HTML, "utf8");
+    const script = fs.readFileSync(JS, "utf8");
     T("사이드바에 서비스 버전 메뉴가 있다", markup.includes('data-admin-panel="version"'));
     T("서비스 버전 패널이 실연동이다",
       /data-admin-section="version"[\s\S]*?data-admin-state="version">실연동/.test(markup));
     T("페이지 스크립트를 실제로 불러온다", markup.includes("/js/pages/admin/admin-version.js"));
+    T("401 로그인 복귀 주소에 버전 패널 쿼리까지 인코딩한다",
+      script.includes('encodeURIComponent("/admin?panel=version")'));
   }
 
   {

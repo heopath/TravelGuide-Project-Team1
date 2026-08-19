@@ -22,7 +22,9 @@
     }, options || {}));
     const payload = await response.json().catch(function () { return null; });
     if (!response.ok || payload?.success === false) {
-      if (response.status === 401) window.location.href = "/auth/login?redirect=/admin?panel=version";
+      if (response.status === 401) {
+        window.location.href = "/auth/login?redirect=" + encodeURIComponent("/admin?panel=version");
+      }
       if (response.status === 403) throw new Error("관리자만 변경할 수 있습니다.");
       throw new Error(payload?.message || "서비스 버전을 처리하지 못했습니다.");
     }

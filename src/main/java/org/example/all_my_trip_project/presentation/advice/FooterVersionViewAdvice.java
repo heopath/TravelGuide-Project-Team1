@@ -8,7 +8,7 @@ import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ModelAttribute;
 
 @Slf4j
-@ControllerAdvice
+@ControllerAdvice(basePackages = "org.example.all_my_trip_project.presentation.page")
 @RequiredArgsConstructor
 public class FooterVersionViewAdvice {
 
