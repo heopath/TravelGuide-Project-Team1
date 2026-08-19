@@ -265,6 +265,50 @@ body.page-admin #page-content {
   gap: 8px;
 }
 
+/* 서비스 표시 버전은 짧은 단일 값이라 상품 폼과 분리해 한 줄로 둔다. */
+.page-admin .admin-version-panel { max-width: 680px; }
+.page-admin .admin-version-current {
+  margin: 0 0 18px;
+  color: var(--muted);
+  font-size: 13px;
+}
+.page-admin .admin-version-current strong {
+  display: block;
+  margin-top: 6px;
+  color: var(--navy);
+  font-size: 24px;
+  letter-spacing: -0.02em;
+}
+.page-admin .admin-version-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 10px;
+}
+.page-admin .admin-version-form label {
+  display: grid;
+  gap: 6px;
+  color: #475467;
+  font-size: 12px;
+  font-weight: 700;
+}
+.page-admin .admin-version-form input {
+  min-height: 42px;
+  padding: 8px 11px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: #fff;
+  font-size: 14px;
+}
+.page-admin .admin-version-form .primary-button { min-height: 42px; }
+.page-admin .admin-version-message {
+  min-height: 20px;
+  margin: 10px 0 0;
+  color: var(--primary);
+  font-size: 12px;
+  font-weight: 700;
+}
+
 .page-admin .admin-slot-panel { margin-top: 16px; }
 .page-admin .admin-slot-panel[hidden] { display: none; }
 .page-admin .admin-slot-row { grid-template-columns: 1fr 70px 110px 76px; }
@@ -685,6 +729,8 @@ body.page-admin #page-content {
 }
 
 @media (max-width: 620px) {
+  .page-admin .admin-version-form { grid-template-columns: 1fr; }
+  .page-admin .admin-version-form .primary-button { width: 100%; }
   .page-admin .admin-metric-row { grid-template-columns: 1fr; }
 
   /*
