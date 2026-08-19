@@ -114,12 +114,12 @@ document.addEventListener("DOMContentLoaded", function () {
     const ai = isAiPlan();
     const aiStep = document.querySelector("[data-ai-step]");
     const finalStep = document.querySelector("[data-final-step]");
-    if (aiStep) aiStep.hidden = !ai;
+    if (aiStep) aiStep.hidden = false;
     if (finalStep) {
-      finalStep.querySelector("span").textContent = ai ? "4" : "3";
+      finalStep.querySelector("span").textContent = "4";
       finalStep.querySelector("b").textContent = ai ? "추천 결과" : "여행 일정";
     }
-    fields.nextButton.textContent = ai ? "여행 스타일 설정 →" : "여행 일정 만들기 →";
+    fields.nextButton.textContent = "여행 스타일 설정 →";
   }
 
   function buildAutoTitle(destinationLabel, startDate) {
@@ -458,34 +458,111 @@ document.addEventListener("DOMContentLoaded", function () {
     fields.nextButton.disabled = active;
     fields.nextButton.setAttribute("aria-busy", String(active));
     fields.nextButton.textContent = active
-      ? (isAiPlan() ? "입력 내용 저장 중..." : "여행 생성 중...")
-      : (isAiPlan() ? "여행 스타일 설정 →" : "여행 일정 만들기 →");
+      ? (isAiPlan() ? "입력 내용 저장 중..." : "여행 정보 저장 중...")
+      : "여행 스타일 설정 →";
   }
 
-  async function createManualTrip(draft) {
+  function manualTripPayload(draft) {
     const basic = draft.basic || {};
-    const response = await fetch("/api/v1/trips", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Accept: "application/json" },
-      body: JSON.stringify({
-        title: basic.title || buildAutoTitle(basic.destinationLabel, basic.startDate),
-        destinationName: basic.destinationLabel || basic.destination,
-        startDate: basic.startDate,
-        endDate: basic.endDate,
-        companionType: companionTypeMap[basic.companion] || "OTHER",
-        companionCount: Number(basic.travelerCount || 1),
-        budgetAmount: Number(basic.totalBudget || 0),
-      }),
-    });
+
+    return {
+      title:
+          basic.title ||
+          buildAutoTitle(
+              basic.destinationLabel,
+              basic.startDate
+          ),
+
+      destinationName:
+          basic.destinationLabel ||
+          basic.destination,
+
+      startDate: basic.startDate,
+      endDate: basic.endDate,
+
+      companionType:
+          companionTypeMap[basic.companion] ||
+          "OTHER",
+
+      companionCount:
+          Number(basic.travelerCount || 1),
+
+      // 직접 계획하기에서는 스타일 입력 단계를 거치지 않음
+      purpose: null,
+
+      budgetAmount:
+          Number(basic.totalBudget || 0),
+
+      currencyCode: "KRW",
+
+      transportPreference: null,
+      foodPreference: null,
+      pace: null,
+      accommodationStyle: null,
+
+      status: "DRAFT",
+    };
+  }
+
+  async function saveManualTrip(draft) {
+    const response = await fetch(
+        "/api/v1/trips",
+        {
+          method: "POST",
+
+          headers: {
+            "Content-Type": "application/json",
+            Accept: "application/json",
+          },
+
+          body: JSON.stringify(
+              manualTripPayload(draft)
+          ),
+        }
+    );
+
     if (response.status === 401) {
-      const unauthorized = new Error("로그인이 필요합니다.");
+      const unauthorized =
+          new Error("로그인이 필요합니다.");
+
       unauthorized.unauthorized = true;
+
       throw unauthorized;
     }
-    const body = await response.json().catch(function () { return {}; });
-    if (!response.ok) throw new Error(body.message || "여행 정보를 저장하지 못했습니다.");
-    const tripId = Number(body.data && body.data.tripId);
-    if (!Number.isInteger(tripId) || tripId < 1) throw new Error("생성된 여행 ID를 확인할 수 없습니다.");
+
+    const body = await response
+        .json()
+        .catch(function () {
+          return {};
+        });
+
+    if (!response.ok) {
+      console.error(
+          "여행 생성 실패:",
+          response.status,
+          body
+      );
+
+      throw new Error(
+          body.message ||
+          body.detail ||
+          "서버에서 오류가 발생했습니다."
+      );
+    }
+
+    const tripId = Number(
+        body.data && body.data.tripId
+    );
+
+    if (
+        !Number.isInteger(tripId) ||
+        tripId < 1
+    ) {
+      throw new Error(
+          "생성된 여행 ID를 확인할 수 없습니다."
+      );
+    }
+
     return tripId;
   }
 
@@ -653,16 +730,46 @@ document.addEventListener("DOMContentLoaded", function () {
 
     try {
       if (!isAiPlan()) {
-        const tripId = await createManualTrip(draft);
-        window.location.href = "/trips/" + tripId + "/schedule";
+        const tripId =
+            await saveManualTrip(draft);
+
+        draft.trip = {
+          tripId: tripId,
+          source: "MANUAL",
+          status: "DRAFT",
+        };
+
+        // 직접 계획에서는 이전 스타일 정보 사용 안 함
+        delete draft.style;
+
+        writeDraft(draft);
+
+        // 기본정보 저장 후 바로 일정 화면으로 이동
+        window.location.href =
+            "/trips/" +
+            tripId +
+            "/schedule";
+
         return;
       }
-      const response = await saveDraft(draft);
+
+      // AI 계획은 기존대로 style 화면으로 진행
+      const response =
+          await saveDraft(draft);
+
       fields.message.textContent = "";
-      fields.message.classList.remove("is-success", "is-error");
+      fields.message.classList.remove(
+          "is-success",
+          "is-error"
+      );
+
       window.setTimeout(function () {
-        window.location.href = (response.data && response.data.nextUrl) || "/trips/new/style";
+        window.location.href =
+            (response.data &&
+                response.data.nextUrl) ||
+            "/trips/new/style";
       }, 350);
+
     } catch (error) {
       setSaving(false);
       if (error && error.unauthorized) {

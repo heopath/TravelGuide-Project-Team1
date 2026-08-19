@@ -6,6 +6,7 @@ import org.example.all_my_trip_project.domain.trip.dto.TripCreateRequest;
 import org.example.all_my_trip_project.domain.trip.dto.TripCreateResult;
 import org.example.all_my_trip_project.domain.trip.dto.TripDayDTO;
 import org.example.all_my_trip_project.domain.trip.dto.ItineraryItemDTO;
+import org.example.all_my_trip_project.domain.trip.dto.ItineraryTimeBatchUpdateRequest;
 import org.example.all_my_trip_project.domain.trip.service.TripService;
 import org.example.all_my_trip_project.global.exception.BusinessException;
 import org.example.all_my_trip_project.global.exception.ErrorCode;
@@ -103,6 +104,16 @@ public class TripController {
         item.setItineraryItemId(itemId);
         tripService.updateItem(requireUserId(principal), item);
         return ApiResponse.success("일정 항목이 수정되었습니다.", item);
+    }
+
+    @PutMapping("/api/v1/trip-days/{tripDayId}/schedule-times")
+    public ApiResponse<List<ItineraryItemDTO>> updateScheduleTimes(
+            @AuthenticationPrincipal AuthenticatedUser principal,
+            @PathVariable Long tripDayId,
+            @Valid @RequestBody ItineraryTimeBatchUpdateRequest request) {
+        List<ItineraryItemDTO> items = tripService.updateScheduleTimes(
+                requireUserId(principal), tripDayId, request);
+        return ApiResponse.success("하루 일정 시간이 저장되었습니다.", items);
     }
 
     @DeleteMapping("/api/v1/trip-days/{tripDayId}/items/{itemId}")
