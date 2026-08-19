@@ -36,6 +36,25 @@ final class ItineraryItemTimeConflictValidator {
                 .anyMatch(candidateRange::overlaps);
     }
 
+    /**
+     * 수정 중인 항목 자신은 비교 대상에서 제외한다.
+     * 새 시간 범위가 같은 DAY의 다른 일정과 겹치는지만 검사한다.
+     */
+    boolean hasConflictExcludingSameItem(ItineraryItemDTO candidate, List<ItineraryItemDTO> existingItems) {
+        if (candidate.getStartTime() == null || existingItems == null) {
+            return false;
+        }
+
+        TimeRange candidateRange = rangeOf(candidate);
+        return existingItems.stream()
+                .filter(existing -> candidate.getItineraryItemId() == null
+                        || !java.util.Objects.equals(
+                        existing.getItineraryItemId(), candidate.getItineraryItemId()))
+                .filter(existing -> existing.getStartTime() != null)
+                .map(this::rangeOf)
+                .anyMatch(candidateRange::overlaps);
+    }
+
     private TimeRange rangeOf(ItineraryItemDTO item) {
         LocalTime start = item.getStartTime();
         LocalTime end = item.getEndTime();

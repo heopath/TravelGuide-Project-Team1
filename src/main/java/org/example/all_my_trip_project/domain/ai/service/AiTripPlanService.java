@@ -87,12 +87,13 @@ public class AiTripPlanService {
                     ? ""
                     : response.at("/candidates/0/content/parts/0/text").asText();
             if (generatedJson.isBlank()) {
-                throw new IllegalStateException("Gemini가 여행 초안을 반환하지 않았습니다.");
+                throw new AiTripPlanGenerationException("Gemini가 여행 초안을 반환하지 않았습니다.");
             }
-            GeminiTripPlan generated = objectMapper.readValue(generatedJson, GeminiTripPlan.class);
+            GeminiTripPlan generated =
+                    objectMapper.readValue(stripCodeFence(generatedJson), GeminiTripPlan.class);
             if (generated.days() == null || generated.days().size() != totalDays
                     || generated.recommendedPlaces() == null || generated.recommendedPlaces().size() < 4) {
-                throw new IllegalStateException("Gemini 응답의 일정 형식이 올바르지 않습니다.");
+                throw new AiTripPlanGenerationException("Gemini 응답의 일정 형식이 올바르지 않습니다.");
             }
             AiTripPlanResponse plan = toResponse(generated);
             validateDayItemPlaceCounts(plan);
@@ -100,11 +101,37 @@ public class AiTripPlanService {
         } catch (RestClientResponseException exception) {
             log.warn("Gemini API 응답 오류: status={}, body={}",
                     exception.getStatusCode(), exception.getResponseBodyAsString());
-            throw new IllegalStateException(geminiErrorMessage(exception.getStatusCode()));
+            throw new AiTripPlanGenerationException(geminiErrorMessage(exception.getStatusCode()), exception);
+        } catch (AiTripPlanGenerationException exception) {
+            // 이미 구체적인 사유가 담겨 있다. 아래 catch가 일반 문구로 덮어쓰지 않게 그대로 올린다.
+            log.warn("Gemini 여행 초안 생성에 실패했습니다: {}", exception.getMessage());
+            throw exception;
         } catch (Exception exception) {
             log.warn("Gemini 여행 초안 생성에 실패했습니다.", exception);
-            throw new IllegalStateException("AI 여행 초안을 생성하지 못했습니다. 잠시 후 다시 시도해 주세요.");
+            throw new AiTripPlanGenerationException("AI 여행 초안을 생성하지 못했습니다. 잠시 후 다시 시도해 주세요.", exception);
         }
+    }
+
+    /**
+     * Gemini가 JSON을 마크다운 코드펜스로 감싸 보내는 경우를 벗겨낸다.
+     *
+     * <p>프롬프트에서 코드 블록을 넣지 말라고 지시하지만 모델이 항상 지키지는 않는다.
+     * 같은 요청에도 붙었다 안 붙었다 하므로, 운영에서만 재현되고 로컬에서는 멀쩡해 보인다.
+     * 실제로 운영에서 {@code Unexpected character ('`' (code 96))}로 500이 났다.
+     */
+    String stripCodeFence(String text) {
+        String trimmed = text.strip();
+        if (!trimmed.startsWith("```")) {
+            return trimmed;
+        }
+        // ```json / ``` 로 시작하는 첫 줄과 닫는 ``` 사이만 남긴다.
+        int firstLineEnd = trimmed.indexOf('\n');
+        if (firstLineEnd < 0) {
+            return trimmed;
+        }
+        String body = trimmed.substring(firstLineEnd + 1);
+        int closing = body.lastIndexOf("```");
+        return (closing < 0 ? body : body.substring(0, closing)).strip();
     }
 
     private String geminiErrorMessage(HttpStatusCode statusCode) {
@@ -188,7 +215,7 @@ public class AiTripPlanService {
             int itemCount = day.items() == null ? 0 : day.items().size();
             int placeCount = day.places() == null ? 0 : day.places().size();
             if (itemCount != placeCount || itemCount < 1) {
-                throw new IllegalStateException("Gemini 응답의 일정과 장소 개수가 일치하지 않습니다.");
+                throw new AiTripPlanGenerationException("Gemini 응답의 일정과 장소 개수가 일치하지 않습니다.");
             }
         }
     }
