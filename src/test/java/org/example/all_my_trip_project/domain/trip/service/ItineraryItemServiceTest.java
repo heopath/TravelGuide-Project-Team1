@@ -4,6 +4,7 @@ import org.example.all_my_trip_project.domain.trip.dao.ItineraryItemDAO;
 import org.example.all_my_trip_project.domain.trip.dao.TripDAO;
 import org.example.all_my_trip_project.domain.trip.dao.TripDayDAO;
 import org.example.all_my_trip_project.domain.trip.dto.ItineraryItemDTO;
+import org.example.all_my_trip_project.domain.trip.dto.ItineraryTimeBatchUpdateRequest;
 import org.example.all_my_trip_project.domain.trip.dto.TripDTO;
 import org.example.all_my_trip_project.domain.trip.dto.TripDayDTO;
 import org.example.all_my_trip_project.global.exception.BusinessException;
@@ -303,6 +304,59 @@ class ItineraryItemServiceTest {
         assertThatThrownBy(() -> new ItineraryItemValidator().validate(update))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("일정 종료 시각은 시작 시각보다 빠를 수 없습니다.");
+    }
+
+    @Test
+    void updateScheduleTimesUpdatesEveryItemInOwnedDay() {
+        TripDayDTO day = TripDayDTO.builder().tripDayId(20L).tripId(10L).build();
+        TripDTO trip = TripDTO.builder().tripId(10L).userId(42L).build();
+        ItineraryItemDTO first = ItineraryItemDTO.builder()
+                .itineraryItemId(30L).tripDayId(20L).title("첫 장소").sortOrder(0).build();
+        ItineraryItemDTO second = ItineraryItemDTO.builder()
+                .itineraryItemId(31L).tripDayId(20L).title("둘째 장소").sortOrder(1).build();
+        ItineraryTimeBatchUpdateRequest request = new ItineraryTimeBatchUpdateRequest(List.of(
+                new ItineraryTimeBatchUpdateRequest.ItemTime(
+                        30L, LocalTime.of(9, 0), LocalTime.of(10, 30)),
+                new ItineraryTimeBatchUpdateRequest.ItemTime(
+                        31L, LocalTime.of(11, 0), LocalTime.of(12, 0))));
+        when(tripDayDAO.findById(20L)).thenReturn(Optional.of(day));
+        when(tripDAO.findById(10L)).thenReturn(Optional.of(trip));
+        when(itemDAO.findByTripDayId(20L)).thenReturn(List.of(first, second));
+        when(itemDAO.update(first)).thenReturn(1);
+        when(itemDAO.update(second)).thenReturn(1);
+
+        List<ItineraryItemDTO> updated = itineraryItemService.updateScheduleTimes(42L, 20L, request);
+
+        assertThat(updated).containsExactly(first, second);
+        assertThat(first.getStartTime()).isEqualTo(LocalTime.of(9, 0));
+        assertThat(first.getEndTime()).isEqualTo(LocalTime.of(10, 30));
+        assertThat(second.getStartTime()).isEqualTo(LocalTime.of(11, 0));
+        assertThat(second.getEndTime()).isEqualTo(LocalTime.of(12, 0));
+        verify(itemDAO).update(first);
+        verify(itemDAO).update(second);
+    }
+
+    @Test
+    void updateScheduleTimesRejectsPartialDayBeforeUpdatingAnything() {
+        TripDayDTO day = TripDayDTO.builder().tripDayId(20L).tripId(10L).build();
+        TripDTO trip = TripDTO.builder().tripId(10L).userId(42L).build();
+        ItineraryItemDTO first = ItineraryItemDTO.builder()
+                .itineraryItemId(30L).tripDayId(20L).title("첫 장소").sortOrder(0).build();
+        ItineraryItemDTO second = ItineraryItemDTO.builder()
+                .itineraryItemId(31L).tripDayId(20L).title("둘째 장소").sortOrder(1).build();
+        ItineraryTimeBatchUpdateRequest partialRequest = new ItineraryTimeBatchUpdateRequest(List.of(
+                new ItineraryTimeBatchUpdateRequest.ItemTime(
+                        30L, LocalTime.of(9, 0), LocalTime.of(10, 30))));
+        when(tripDayDAO.findById(20L)).thenReturn(Optional.of(day));
+        when(tripDAO.findById(10L)).thenReturn(Optional.of(trip));
+        when(itemDAO.findByTripDayId(20L)).thenReturn(List.of(first, second));
+
+        assertThatThrownBy(() -> itineraryItemService.updateScheduleTimes(42L, 20L, partialRequest))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("해당 일자의 모든 일정 시간을 보내야 합니다.");
+
+        verify(itemDAO, never()).update(first);
+        verify(itemDAO, never()).update(second);
     }
 
     @Test

@@ -159,7 +159,7 @@ body.page-schedule #page-content {
 
 .schedule-center { min-width: 0; display: grid; gap: 18px; }
 
-.schedule-title-row, .panel-title-row, .parking-heading {
+.schedule-title-row, .panel-title-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -171,8 +171,7 @@ body.page-schedule #page-content {
 .panel-title-row p { margin: 5px 0 0; color: var(--muted); font-size: 11px; }
 .panel-title-row > span { color: var(--primary); font-size: 10px; font-weight: 800; }
 
-.schedule-side { display: grid; gap: 16px; }
-.map-panel, .place-search-panel, .detail-panel { padding: 20px; }
+.map-panel, .place-search-panel { padding: 20px; }
 .schedule-map {
   height: 330px;
   margin-top: 16px;
@@ -186,16 +185,15 @@ body.page-schedule #page-content {
 .schedule-search input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-soft); }
 .schedule-search button { min-height: 44px; }
 .place-search-results { max-height: 320px; margin-top: 12px; overflow: auto; display: grid; gap: 8px; }
-.place-result, .parking-result {
+.place-result {
   width: 100%; padding: 12px; display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 10px;
   border: 1px solid var(--border); border-radius: 12px; background: #fff; text-align: left;
 }
-.place-result strong, .place-result small, .parking-result strong, .parking-result small { display: block; }
-.place-result small, .parking-result small { margin-top: 4px; color: var(--muted); font-size: 10px; line-height: 1.45; }
+.place-result strong, .place-result small { display: block; }
+.place-result small { margin-top: 4px; color: var(--muted); font-size: 10px; line-height: 1.45; }
 .place-result button { min-height: 34px; padding: 0 11px; border: 0; border-radius: 9px; background: var(--primary); color: #fff; font-size: 11px; font-weight: 800; }
 .place-result button:disabled { background: #d8deeb; }
-.number-map-marker, .parking-map-marker { min-width: 28px; height: 28px; padding: 0 8px; display: grid; place-items: center; border: 3px solid #fff; border-radius: 999px; background: var(--primary); color: #fff; box-shadow: 0 5px 14px rgba(24,36,82,.28); font-size: 11px; font-weight: 900; }
-.parking-map-marker { background: #1f9d75; }
+.number-map-marker { min-width: 28px; height: 28px; padding: 0 8px; display: grid; place-items: center; border: 3px solid #fff; border-radius: 999px; background: var(--primary); color: #fff; box-shadow: 0 5px 14px rgba(24,36,82,.28); font-size: 11px; font-weight: 900; }
 .search-preview-map-marker { min-width: 42px; height: 30px; padding: 0 10px; display: grid; place-items: center; transform: translateY(-4px); border: 3px solid #fff; border-radius: 999px; background: #ff6678; color: #fff; box-shadow: 0 6px 16px rgba(91,34,48,.28); font-size: 10px; font-weight: 900; }
 .place-result { cursor: pointer; transition: border-color .16s ease, background .16s ease, transform .16s ease; }
 .place-result:hover, .place-result:focus-visible { transform: translateY(-1px); border-color: var(--primary); background: var(--primary-soft); outline: none; }
@@ -203,16 +201,6 @@ body.page-schedule #page-content {
 .schedule-item-actions { display: flex !important; gap: 6px !important; }
 .timeline .schedule-item-actions button { position: static; width: auto; min-height: 30px; padding: 0 9px; display: inline-flex; grid-template-columns: none; align-items: center; border: 1px solid var(--border); border-radius: 8px; background: #fff; color: var(--primary); font-size: 10px; font-weight: 800; cursor: pointer; }
 .timeline .schedule-item-actions button::after { display: none; }
-.detail-panel[data-place-insight] { display: block; }
-.weather-box, .parking-box { margin-top: 14px; padding: 14px; border-radius: 13px; background: var(--surface); }
-.weather-box p, .parking-box p { margin: 0; color: var(--muted); font-size: 10px; line-height: 1.5; }
-.weather-main { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 10px; }
-.weather-icon { font-size: 30px; }
-.weather-main strong, .weather-main small { display: block; }
-.weather-main small, .weather-box p, .parking-box p { margin: 4px 0 0; color: var(--muted); font-size: 10px; line-height: 1.5; }
-.weather-temp { color: var(--navy); font-size: 20px; font-weight: 900; }
-.parking-heading .text-button { min-height: 28px; }
-.parking-results { display: grid; gap: 7px; margin-top: 10px; }
 
 .trip-sidebar [data-trip-list] button {
   min-height: 104px;
@@ -234,8 +222,7 @@ body.page-schedule #page-content {
 
 @media (max-width: 1180px) {
   .schedule-planner-layout { grid-template-columns: 210px minmax(0, 1fr); }
-  .schedule-planner-layout .schedule-side { grid-column: 1 / -1; grid-template-columns: 1fr 1fr; }
-  .schedule-planner-layout .detail-panel, .schedule-planner-layout .memo-card { grid-column: span 1; }
+  .schedule-planner-layout .memo-card { grid-column: span 1; }
 }
 
 @media (max-width: 760px) {
@@ -244,7 +231,6 @@ body.page-schedule #page-content {
   }
   .schedule-planner-layout { grid-template-columns: 1fr; }
   .schedule-center { grid-column: auto; }
-  .schedule-planner-layout .schedule-side { grid-column: auto; grid-template-columns: 1fr; }
   .schedule-map { height: 280px; }
 }
 
@@ -323,141 +309,6 @@ body.page-schedule #page-content {
 
 .schedule-sidebar .white-panel {
   padding: 20px;
-}
-
-.featured-places h3 {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin: 0 0 14px;
-  font-size: 15px;
-}
-
-.featured-heart {
-  display: inline-grid;
-  width: 22px;
-  height: 22px;
-  place-items: center;
-  border-radius: 50%;
-  background: #ffe6ee;
-  color: #ff5b83;
-  font-size: 12px;
-}
-
-.featured-place-list {
-  display: grid;
-  gap: 1px;
-  overflow: hidden;
-  border: 1px solid #edf0f8;
-  border-radius: 14px;
-}
-.featured-place {
-  min-height: 62px;
-  padding: 7px;
-  display: grid;
-  grid-template-columns: 44px 1fr auto;
-  align-items: center;
-  gap: 10px;
-  border: 0;
-  border-bottom: 1px solid #edf0f8;
-  background: #fff;
-  color: var(--navy);
-  text-align: left;
-  cursor: pointer;
-}
-.featured-place:last-child {
-  border-bottom: 0;
-}
-
-.featured-place:hover {
-  background: var(--primary-soft);
-}
-
-.featured-place strong {
-  font-size: 12px;
-}
-
-.featured-place em {
-  color: #53618f;
-  font-size: 11px;
-  font-style: normal;
-  font-weight: 800;
-}
-
-.featured-place em::first-letter {
-  color: #ff9e23;
-}
-.featured-place-add {
-  grid-column: 1 / -1;
-  justify-self: start;
-  box-sizing: border-box;
-  width: max-content;
-  max-width: 100%;
-  min-height: 30px;
-  padding: 0 8px;
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  border: 1px solid #d9def8;
-  border-radius: 999px;
-  background: #fff;
-  color: var(--primary);
-  font-size: 9px;
-  font-weight: 700;
-  line-height: 1;
-  white-space: nowrap;
-  overflow: hidden;
-  cursor: pointer;
-  transition: color .16s ease, background .16s ease, transform .16s ease;
-}
-.featured-place-add-icon {
-  font-size: 17px;
-  font-weight: 700;
-}
-
-.featured-place-add-label {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.featured-place-add:hover {
-  transform: scale(1.08);
-  background: var(--primary);
-  color: #fff;
-}
-
-.featured-place-add:disabled {
-  border-color: #dfe3ed;
-  background: #edf0f7;
-  color: #8993a8;
-  cursor: default;
-  transform: none;
-}
-
-.place-thumb {
-  width: 44px;
-  height: 42px;
-  display: block;
-  border-radius: 10px;
-  background: linear-gradient(135deg, #c7daf1, #edf1fb);
-}
-
-.palace-thumb { background: linear-gradient(135deg, #d7e7f8 30%, #afc3dc 31% 50%, #e9d6b8 51%); }
-.tower-thumb { background: linear-gradient(160deg, #b8defb 0 46%, #79a1b9 47% 58%, #6e91a6 59%); }
-.mall-thumb { background: linear-gradient(135deg, #86c8e3 0 45%, #5471a2 46% 65%, #db8291 66%); }
-.village-thumb { background: linear-gradient(135deg, #f1c28e 0 35%, #85b08d 36% 65%, #dbe7de 66%); }
-.river-thumb { background: linear-gradient(160deg, #bde0f0 0 53%, #659bc1 54% 70%, #7eaa75 71%); }
-
-.more-places {
-  width: 100%;
-  margin-top: 13px;
-  border: 0;
-  background: transparent;
-  color: #68748b;
-  font-size: 12px;
-  font-weight: 800;
-  cursor: pointer;
 }
 
 .map-expand-button {
@@ -822,16 +673,6 @@ body.map-modal-open {
   display: contents;
 }
 
-.schedule-side {
-  position: sticky;
-  top: 96px;
-  align-self: start;
-  display: grid;
-  grid-column: 2;
-  grid-row: 1;
-  gap: 16px;
-}
-
 .schedule-sidebar .trip-sidebar {
   display: none;
 }
@@ -846,9 +687,7 @@ body.map-modal-open {
 
 .map-panel,
 .schedule-main,
-.place-search-panel,
-.featured-places,
-.detail-panel {
+.place-search-panel {
   border-radius: 18px;
 }
 
@@ -862,11 +701,6 @@ body.map-modal-open {
   justify-content: flex-end;
   flex-wrap: wrap;
   gap: 8px;
-}
-
-.route-optimization-picker {
-  position: relative;
-  z-index: 30;
 }
 
 .route-optimization-trigger {
@@ -883,90 +717,6 @@ body.map-modal-open {
 
 .route-optimization-trigger::-webkit-details-marker {
   display: none;
-}
-
-.route-optimization-picker[open] .route-optimization-trigger {
-  border-color: var(--primary);
-  background: var(--primary-soft);
-  color: var(--primary);
-}
-
-.route-optimization-picker.is-loading .route-optimization-trigger {
-  pointer-events: none;
-  opacity: .68;
-}
-
-.route-optimization-options {
-  position: absolute;
-  top: calc(100% + 8px);
-  right: 0;
-  width: 260px;
-  max-width: calc(100vw - 32px);
-  padding: 7px;
-  display: grid;
-  gap: 5px;
-  border: 1px solid #dfe4f4;
-  border-radius: 14px;
-  background: #fff;
-  box-shadow: 0 14px 34px rgba(40, 51, 105, .18);
-}
-
-.route-optimization-option {
-  width: 100%;
-  min-height: 58px;
-  padding: 10px 11px;
-  display: grid;
-  grid-template-columns: 30px minmax(0, 1fr);
-  align-items: center;
-  gap: 9px;
-  border: 1px solid transparent;
-  border-radius: 10px;
-  background: transparent;
-  color: var(--navy);
-  text-align: left;
-  cursor: pointer;
-}
-
-.route-optimization-option:hover,
-.route-optimization-option:focus-visible {
-  border-color: #cfd6ff;
-  background: #f7f8ff;
-  outline: none;
-}
-
-.route-optimization-option:disabled {
-  cursor: wait;
-  opacity: .55;
-}
-
-.route-optimization-option-icon {
-  width: 30px;
-  height: 30px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 9px;
-  background: #eef0ff;
-  color: var(--primary);
-  font-size: 15px;
-  font-weight: 900;
-}
-
-.route-optimization-option strong,
-.route-optimization-option small {
-  display: block;
-}
-
-.route-optimization-option strong {
-  font-size: 12px;
-  line-height: 1.35;
-}
-
-.route-optimization-option small {
-  margin-top: 3px;
-  color: #7b869e;
-  font-size: 10px;
-  line-height: 1.4;
 }
 
 .schedule-route-segment {
@@ -1210,16 +960,32 @@ body.map-modal-open {
 .schedule-item.is-dragging { opacity: .45; }
 .schedule-item.is-drag-over { border-color: var(--primary); }
 .schedule-drop-placeholder {
-  min-height: 48px;
+  position: absolute;
+  z-index: 8;
+  right: 12px;
+  left: 12px;
+  min-height: 34px;
+  padding: 0 12px;
   display: grid;
   place-items: center;
   border: 1px dashed var(--primary);
-  border-radius: 12px;
-  background: #f4f5ff;
+  border-radius: 10px;
+  background: #fff;
   color: var(--primary);
   font-size: 12px;
   font-weight: 800;
+  box-shadow: 0 5px 16px rgba(72, 76, 255, .14);
+  pointer-events: auto;
 }
+.schedule-item.is-drop-before .schedule-drop-placeholder {
+  top: 0;
+  transform: translateY(-58%);
+}
+.schedule-item.is-drop-after .schedule-drop-placeholder {
+  bottom: 0;
+  transform: translateY(58%);
+}
+.timeline.is-reordering .schedule-route-segment { pointer-events: none; }
 .schedule-drag-hint { margin: 12px 4px 0; color: #8793a8; font-size: 12px; }
 
 .timeline .schedule-item > div:first-of-type {
@@ -1258,66 +1024,11 @@ body.map-modal-open {
   font-size: 10px;
 }
 
-.featured-places {
-  padding: 18px;
-}
-
-.featured-places h3 {
-  margin-bottom: 12px;
-  font-size: 20px;
-}
-
 /* 주요 박스 제목을 장소 추가 제목 크기에 맞춰 통일 */
 .map-panel .panel-title-row h2,
 .place-search-panel .panel-title-row h2,
-.schedule-title-row h2,
-.featured-places h3 {
+.schedule-title-row h2 {
   font-size: 20px;
-}
-
-.featured-place-list {
-  gap: 0;
-  border-radius: 12px;
-}
-
-.featured-place {
-  min-height: 78px;
-  padding: 9px;
-  grid-template-columns: 42px minmax(0, 1fr) auto;
-  gap: 8px;
-}
-
-.featured-place strong {
-  align-self: start;
-  padding-top: 4px;
-  font-size: 11px;
-}
-
-.featured-place em {
-  align-self: start;
-  padding-top: 5px;
-  font-size: 10px;
-}
-
-.featured-place-add {
-  grid-column: 2 / -1;
-  min-height: 24px;
-  padding: 0 7px;
-  font-size: 9px;
-}
-
-.featured-place-add-icon {
-  font-size: 14px;
-}
-
-.place-thumb {
-  width: 42px;
-  height: 42px;
-  grid-row: 1 / span 2;
-}
-
-.more-places {
-  margin-top: 10px;
 }
 
 @media (max-width: 1180px) {
@@ -1334,19 +1045,13 @@ body.map-modal-open {
     grid-template-columns: 1fr;
   }
 
-  .schedule-center,
-  .schedule-side {
+  .schedule-center {
     grid-column: 1;
   }
 
   .schedule-center {
     grid-row: 1;
     width: 100%;
-  }
-
-  .schedule-side {
-    position: static;
-    grid-row: 2;
   }
 
   .schedule-map {
@@ -1373,19 +1078,6 @@ body.map-modal-open {
 
 .schedule-heading-actions .schedule-back-button:hover {
   border-color: var(--primary);
-  background: var(--primary-soft);
-  color: var(--primary);
-}
-
-.day-tabs button.selected {
-  border-color: var(--primary);
-  background: linear-gradient(135deg, #6372df 0%, #7358ee 100%);
-  color: #fff;
-  box-shadow: 0 8px 18px rgba(99, 114, 223, .2);
-}
-
-.day-tabs button:not(.selected):hover {
-  border-color: #aeb8f7;
   background: var(--primary-soft);
   color: var(--primary);
 }
@@ -1441,11 +1133,6 @@ body.map-modal-open {
     min-height: 42px;
     padding: 0 8px;
   }
-}
-
-/* 일정 항목 정보·삭제 UI */
-.detail-panel {
-  display: none !important;
 }
 
 .timeline {
@@ -1517,11 +1204,6 @@ body.map-modal-open {
 .timeline .schedule-item {
   grid-template-columns: 112px minmax(0, 1fr) auto;
   align-items: start;
-  overflow: visible;
-}
-
-.timeline .schedule-item.time-editor-open {
-  z-index: 30;
 }
 
 .schedule-item-title-line .schedule-item-location {
@@ -1583,6 +1265,81 @@ body.map-modal-open {
 
 .timeline .schedule-item.time-editor-open {
   z-index: 100;
+}
+
+/* 다음 미설정 장소의 체류시간을 안내하는 좌측 말풍선 */
+.schedule-duration-guide[hidden] {
+  display: none;
+}
+
+.schedule-duration-guide {
+  position: absolute;
+  z-index: 240;
+  box-sizing: border-box;
+  width: max-content;
+  max-width: calc(100vw - 24px);
+  padding: 12px 34px 12px 14px;
+  border: 1px solid #dfe5f5;
+  border-radius: 10px;
+  background: #fff;
+  color: #1f2949;
+  box-shadow: 0 10px 26px rgba(40, 55, 120, .14);
+}
+
+.schedule-duration-guide::after {
+  position: absolute;
+  top: 50%;
+  right: -6px;
+  width: 11px;
+  height: 11px;
+  content: "";
+  transform: translateY(-50%) rotate(45deg);
+  border-top: 1px solid #dfe5f5;
+  border-right: 1px solid #dfe5f5;
+  background: #fff;
+}
+
+.schedule-duration-guide p {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.35;
+  white-space: nowrap;
+}
+
+.schedule-duration-guide-close {
+  position: absolute;
+  top: 5px;
+  right: 7px;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: #7c869d;
+  font-family: inherit;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.schedule-duration-guide-close:hover {
+  background: #f2f4fb;
+  color: #303b61;
+}
+
+.timeline .schedule-item.has-duration-guide {
+  border-color: #8c83ff;
+  box-shadow: 0 0 0 2px rgba(104, 96, 255, .1), 0 5px 16px rgba(45, 61, 126, .04);
+}
+
+@media (max-width: 1100px) {
+  .schedule-duration-guide {
+    display: none;
+  }
 }
 
 .timeline .schedule-item .schedule-time-control {
@@ -1972,80 +1729,6 @@ body.map-modal-open {
   color: var(--primary);
 }
 
-.schedule-info-modal[hidden] {
-  display: none;
-}
-
-.schedule-info-modal {
-  position: fixed;
-  z-index: 400;
-  inset: 0;
-  display: grid;
-  place-items: center;
-  padding: 24px;
-}
-
-.schedule-info-modal-backdrop {
-  position: absolute;
-  inset: 0;
-  background: rgba(13, 24, 62, .48);
-}
-
-.schedule-info-modal-dialog {
-  position: relative;
-  z-index: 1;
-  width: min(440px, 100%);
-  max-height: min(680px, calc(100vh - 48px));
-  overflow-y: auto;
-  padding: 24px;
-  border: 1px solid #dfe5f5;
-  border-radius: 20px;
-  background: #fff;
-  box-shadow: 0 24px 70px rgba(30, 45, 105, .2);
-}
-
-.schedule-info-modal-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-}
-
-.schedule-info-modal-header h2 {
-  margin: 0;
-  color: var(--navy);
-  font-size: 20px;
-}
-
-.schedule-info-modal-description {
-  margin: 8px 0 0;
-  color: var(--muted);
-  font-size: 12px;
-}
-
-.schedule-info-modal-close {
-  width: 34px;
-  height: 34px;
-  display: grid;
-  place-items: center;
-  border: 1px solid #dfe5f5;
-  border-radius: 50%;
-  background: #fff;
-  color: var(--navy);
-  font-size: 22px;
-  cursor: pointer;
-}
-
-.schedule-info-modal-close:hover {
-  border-color: var(--primary);
-  background: var(--primary);
-  color: #fff;
-}
-
-body.schedule-info-modal-open {
-  overflow: hidden;
-}
-
 .timeline.all-days-view {
   gap: 20px;
 }
@@ -2086,16 +1769,6 @@ body.schedule-info-modal-open {
 
   .timeline .schedule-item > span {
     left: 10px;
-  }
-
-  .schedule-info-modal {
-    padding: 12px;
-  }
-
-  .schedule-info-modal-dialog {
-    max-height: calc(100vh - 24px);
-    padding: 18px;
-    border-radius: 18px;
   }
 
   .map-panel-actions {
@@ -2232,4 +1905,2837 @@ body.schedule-info-modal-open {
   .timeline .schedule-item > .schedule-time-control { width: 130px !important; min-width: 130px !important; }
   .timeline .schedule-item > .schedule-time-control .schedule-item-time { margin-left: 20px; }
   .timeline .schedule-item > span { left: 38px !important; }
+}
+
+/* 전체 일정 보기: 3일 단위 카드 캐러셀 */
+.schedule-overview-carousel {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr) 42px;
+  align-items: center;
+  gap: 10px;
+}
+
+.schedule-overview-carousel[hidden],
+.schedule-overview-pager[hidden] {
+  display: none !important;
+}
+
+.schedule-overview-carousel:not(.is-overview) {
+  display: block;
+}
+
+.schedule-overview-carousel:not(.is-overview) .schedule-overview-nav {
+  display: none;
+}
+
+.schedule-overview-carousel:not(.is-overview) .timeline {
+  display: grid;
+  grid-template-columns: 1fr;
+}
+
+.schedule-overview-carousel.is-overview .timeline {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.schedule-overview-carousel.is-overview .timeline::before {
+  display: none;
+}
+
+.schedule-overview-nav {
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  border: 1px solid #d7ddff;
+  border-radius: 50%;
+  background: #fff;
+  color: var(--primary);
+  font-size: 30px;
+  font-weight: 400;
+  line-height: 1;
+  cursor: pointer;
+  box-shadow: 0 7px 18px rgba(67, 79, 151, .1);
+  transition: transform .18s ease, box-shadow .18s ease, background .18s ease;
+}
+
+.schedule-overview-nav:hover:not(:disabled),
+.schedule-overview-nav:focus-visible:not(:disabled) {
+  transform: translateY(-2px);
+  background: var(--primary);
+  color: #fff;
+  box-shadow: 0 11px 24px rgba(67, 79, 151, .2);
+  outline: none;
+}
+
+.schedule-overview-nav:disabled {
+  cursor: default;
+  color: #b4bdd3;
+  border-color: #e2e6f2;
+  box-shadow: none;
+}
+
+.schedule-overview-nav-next {
+  border-color: var(--primary);
+  background: var(--primary);
+  color: #fff;
+}
+
+.schedule-overview-card {
+  min-width: 0;
+  min-height: 262px;
+  padding: 18px 16px 15px;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid #e1e6f3;
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 6px 18px rgba(31, 43, 88, .035);
+}
+
+.schedule-overview-card.is-selected {
+  border-color: #aeb8ff;
+  box-shadow: 0 8px 22px rgba(91, 104, 255, .1);
+}
+
+.schedule-overview-card-header {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 5px 10px;
+  padding-bottom: 13px;
+  border-bottom: 1px solid #edf0f8;
+}
+
+.schedule-overview-card-heading {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.schedule-overview-day-label {
+  color: var(--navy);
+  font-size: 16px;
+  letter-spacing: .01em;
+}
+
+.schedule-overview-card.is-selected .schedule-overview-day-label {
+  color: var(--primary);
+}
+
+.schedule-overview-date,
+.schedule-overview-summary {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.schedule-overview-summary {
+  align-self: center;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.schedule-overview-edit {
+  grid-column: 1 / -1;
+  justify-self: start;
+  min-height: 26px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--primary);
+  font-size: 10px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.schedule-overview-edit:hover,
+.schedule-overview-edit:focus-visible {
+  text-decoration: underline;
+  outline: none;
+}
+
+.schedule-overview-items {
+  position: relative;
+  flex: 1;
+  display: grid;
+  align-content: start;
+  gap: 7px;
+  padding-top: 14px;
+}
+
+.schedule-overview-item {
+  position: relative;
+  z-index: 1;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  align-items: center;
+  gap: 9px;
+}
+
+.schedule-overview-item-order {
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--primary);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.schedule-overview-item-copy {
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 9px;
+}
+
+.schedule-overview-item-copy time {
+  flex: 0 0 42px;
+  color: var(--navy);
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.schedule-overview-item-copy strong {
+  overflow: hidden;
+  color: var(--navy);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.schedule-overview-item-route {
+  margin-left: 9px;
+  padding-left: 28px;
+  color: #6c7896;
+  font-size: 10px;
+}
+
+.schedule-overview-empty {
+  margin: 12px 0 0;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.schedule-overview-pager {
+  margin-top: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  color: #697597;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.schedule-overview-pager-dots {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.schedule-overview-pager-dots i {
+  width: 7px;
+  height: 7px;
+  display: block;
+  border-radius: 50%;
+  background: #c8cee2;
+}
+
+.schedule-overview-pager-dots i.is-active {
+  background: var(--primary);
+}
+
+@media (max-width: 940px) {
+  .schedule-overview-carousel {
+    grid-template-columns: 34px minmax(0, 1fr) 34px;
+    gap: 7px;
+  }
+
+  .schedule-overview-nav {
+    width: 34px;
+    height: 34px;
+    font-size: 25px;
+  }
+
+  .schedule-overview-carousel.is-overview .timeline {
+    gap: 10px;
+  }
+
+  .schedule-overview-card {
+    padding: 15px 12px 13px;
+  }
+
+  .schedule-overview-item-copy {
+    display: grid;
+    gap: 2px;
+  }
+}
+
+/* 최종 목업 보정: DAY 탭은 한 줄로 유지하고 3일 초과 일정은 좌우로 이동 */
+.page-schedule .schedule-day-tabs-shell {
+  width: min(430px, 100%);
+  min-width: 0;
+  margin: 0 0 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.page-schedule .schedule-day-tabs-shell[hidden] {
+  display: none !important;
+}
+
+.page-schedule .schedule-day-tabs-shell .day-tabs {
+  min-width: 0;
+  flex: 1 1 auto;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+}
+
+.page-schedule .schedule-day-tabs-shell .day-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.page-schedule .schedule-day-tabs-shell .day-tabs button {
+  flex: 0 0 104px;
+  width: 104px;
+  min-height: 36px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  background: transparent;
+  color: #65708e;
+  box-shadow: none;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.page-schedule .schedule-day-tabs-shell .day-tabs button.selected {
+  border-bottom-color: var(--primary);
+  background: transparent;
+  color: var(--primary);
+  box-shadow: none;
+  transform: none;
+}
+
+.page-schedule .schedule-day-nav {
+  flex: 0 0 32px;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border: 1px solid #dce3fb;
+  border-radius: 50%;
+  background: #fff;
+  color: var(--primary);
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.page-schedule .schedule-day-nav:hover:not(:disabled),
+.page-schedule .schedule-day-nav:focus-visible {
+  border-color: var(--primary);
+  background: var(--primary-soft);
+  outline: none;
+}
+
+.page-schedule .schedule-day-nav:disabled {
+  cursor: default;
+  opacity: .35;
+}
+
+/* sr-only가 공통 스타일에 없는 일정 페이지에서도 제목이 화면에 중복되지 않도록 한다. */
+.page-schedule .sr-only {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+}
+
+@media (max-width: 760px) {
+  .schedule-overview-carousel {
+    grid-template-columns: 32px minmax(0, 1fr) 32px;
+  }
+
+  .schedule-overview-carousel.is-overview .timeline {
+    grid-template-columns: 1fr;
+  }
+
+  .schedule-overview-card:not(:first-child) {
+    display: none;
+  }
+}
+
+/* 일정 화면 상단 보조 액션: 기존 전체 보기·지도·AI 동작을 한 곳에 연결 */
+.schedule-title-row-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.schedule-place-add-trigger {
+  min-height: 36px;
+  padding: 0 14px;
+  color: var(--primary);
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.schedule-more-menu {
+  position: relative;
+  z-index: 80;
+}
+
+.schedule-more-menu > summary {
+  min-height: 36px;
+  padding: 0 13px;
+  display: inline-flex;
+  align-items: center;
+  list-style: none;
+  color: var(--navy);
+  font-size: 11px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.schedule-more-menu > summary::-webkit-details-marker {
+  display: none;
+}
+
+.schedule-more-menu[open] > summary {
+  border-color: var(--primary);
+  background: var(--primary-soft);
+  color: var(--primary);
+}
+
+.schedule-more-menu-panel {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  width: 248px;
+  padding: 6px;
+  display: grid;
+  gap: 2px;
+  border: 1px solid #e0e5f4;
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 16px 34px rgba(35, 48, 103, .16);
+}
+
+.schedule-more-menu-panel button {
+  min-width: 0;
+  padding: 10px 11px;
+  display: grid;
+  gap: 3px;
+  border: 0;
+  border-radius: 10px;
+  background: #fff;
+  color: var(--navy);
+  text-align: left;
+  cursor: pointer;
+}
+
+.schedule-more-menu-panel button:hover,
+.schedule-more-menu-panel button:focus-visible {
+  background: var(--primary-soft);
+  outline: none;
+}
+
+.schedule-more-menu-panel button strong {
+  font-size: 11px;
+}
+
+.schedule-more-menu-panel button small {
+  color: var(--muted);
+  font-size: 9px;
+}
+
+.schedule-more-menu-panel button + button {
+  border-top: 1px solid #eef1f8;
+  border-radius: 0 0 10px 10px;
+}
+
+.schedule-planner-layout {
+  position: relative;
+}
+
+.place-search-panel[data-place-add-popover] {
+  position: absolute;
+  top: 0;
+  right: 0;
+  z-index: 70;
+  width: min(380px, calc(100% - 24px));
+  max-height: min(620px, calc(100vh - 120px));
+  overflow: auto;
+  border-color: #dfe4ff;
+  box-shadow: 0 18px 40px rgba(35, 48, 103, .17);
+}
+
+.place-search-panel[data-place-add-popover][hidden] {
+  display: none !important;
+}
+
+.place-search-close {
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--navy);
+  font-size: 22px;
+  cursor: pointer;
+}
+
+.place-search-close:hover,
+.place-search-close:focus-visible {
+  background: var(--primary-soft);
+  color: var(--primary);
+  outline: none;
+}
+
+@media (max-width: 760px) {
+  .schedule-title-row {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .schedule-title-row-actions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .place-search-panel[data-place-add-popover] {
+    position: fixed;
+    top: 80px;
+    right: 12px;
+    left: 12px;
+    width: auto;
+    max-height: calc(100vh - 104px);
+  }
+}
+
+/* 최종 일정 편집 화면: 일정과 지도를 한 카드의 2열 작업 영역으로 배치 */
+@media (min-width: 761px) {
+  .page-schedule .basic-wizard-heading {
+    min-height: 0;
+    margin-bottom: 14px;
+  }
+
+  .page-schedule .basic-wizard-heading .wizard,
+  .page-schedule .schedule-heading-actions .schedule-back-button {
+    display: none;
+  }
+
+  .page-schedule .schedule-heading-actions {
+    justify-content: flex-end;
+  }
+
+  .page-schedule .schedule-heading-actions .schedule-save-button {
+    min-width: 150px;
+    min-height: 44px;
+    border-radius: 12px;
+    font-size: 11px;
+  }
+
+  .page-schedule .schedule-planner-layout {
+    width: min(1160px, 100%);
+    display: block;
+  }
+
+  .page-schedule .schedule-sidebar {
+    display: none;
+  }
+
+  .page-schedule .schedule-center {
+    position: relative;
+    width: 100%;
+    min-height: 470px;
+    display: grid;
+    grid-template-columns: minmax(330px, .88fr) minmax(470px, 1.12fr);
+    gap: 0;
+    padding: 82px 18px 18px;
+    border: 1px solid #e0e5f3;
+    border-radius: 18px;
+    background: #fff;
+    box-shadow: 0 10px 28px rgba(31, 43, 88, .06);
+  }
+
+  .page-schedule .schedule-center > .schedule-main,
+  .page-schedule .schedule-center > .map-panel {
+    min-width: 0;
+    min-height: 0;
+    margin: 0;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    background: transparent;
+  }
+
+  .page-schedule .schedule-center > .schedule-main {
+    grid-column: 1;
+    grid-row: 1;
+    padding: 0 16px 0 0;
+  }
+
+  .page-schedule .schedule-center > .map-panel {
+    grid-column: 2;
+    grid-row: 1;
+    padding: 0 0 0 16px;
+  }
+
+  .page-schedule .schedule-title-row {
+    position: absolute;
+    top: 16px;
+    right: 18px;
+    left: 18px;
+    display: flex;
+    align-items: center;
+  }
+
+  .page-schedule .schedule-title-row > div:first-child {
+    min-width: 0;
+  }
+
+  .page-schedule .schedule-title-row h2 {
+    margin: 0;
+    color: var(--navy);
+    font-size: 14px;
+    font-weight: 900;
+  }
+
+  .page-schedule .schedule-title-row p {
+    display: none;
+  }
+
+  .page-schedule .schedule-title-row-actions {
+    margin-left: auto;
+  }
+
+  .page-schedule .day-tabs {
+    margin-top: 0;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .page-schedule .day-tabs button {
+    min-height: 34px;
+    background: #fff;
+    color: #63708d;
+    box-shadow: none;
+  }
+
+  .page-schedule .day-tabs button.selected {
+    border-color: var(--primary);
+    background: #fff;
+    color: var(--primary);
+    box-shadow: none;
+  }
+
+  .page-schedule .map-panel .panel-title-row {
+    display: none;
+  }
+
+  .page-schedule .map-panel .schedule-map {
+    height: 100%;
+    min-height: 370px;
+    margin-top: 0;
+    border-radius: 14px;
+  }
+
+  .page-schedule .map-panel .map-panel-actions {
+    position: absolute;
+    top: 16px;
+    right: 18px;
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .page-schedule .schedule-drag-hint,
+  .page-schedule .schedule-ai-empty-cta {
+    display: none;
+  }
+
+  .page-schedule .place-search-panel[data-place-add-popover] {
+    top: 0;
+    right: 0;
+  }
+}
+
+@media (max-width: 760px) {
+  .page-schedule .basic-wizard-heading .wizard,
+  .page-schedule .schedule-heading-actions .schedule-back-button {
+    display: none;
+  }
+
+  .page-schedule .schedule-heading-actions {
+    justify-content: flex-end;
+  }
+
+  .page-schedule .schedule-heading-actions .schedule-save-button {
+    min-width: 150px;
+    min-height: 42px;
+    border-radius: 12px;
+    font-size: 11px;
+  }
+}
+
+/* 최종 목업 기준 공통 작업 카드 */
+.page-schedule .schedule-center {
+  position: relative;
+  width: 100%;
+  min-height: 0;
+  display: block;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.schedule-workspace {
+  position: relative;
+  padding: 16px 18px 18px;
+  border: 1px solid #e0e5f3;
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: 0 10px 28px rgba(31, 43, 88, .06);
+}
+
+.page-schedule .schedule-center > .day-tabs {
+  width: min(310px, 100%);
+  margin: 0 0 10px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.page-schedule .schedule-center > .day-tabs button {
+  min-height: 34px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  background: transparent;
+  color: #65708e;
+  box-shadow: none;
+  font-size: 11px;
+}
+
+.page-schedule .schedule-center > .day-tabs button.selected {
+  border-bottom-color: var(--primary);
+  background: transparent;
+  color: var(--primary);
+  box-shadow: none;
+  transform: none;
+}
+
+.schedule-workspace-toolbar {
+  min-height: 42px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.schedule-trip-meta {
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--navy);
+  font-size: 13px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.schedule-trip-meta::before,
+.schedule-trip-meta::after {
+  color: var(--primary);
+}
+
+.schedule-trip-meta strong {
+  color: var(--navy);
+}
+
+.schedule-trip-meta span:last-child {
+  color: var(--navy);
+  font-weight: 800;
+}
+
+.schedule-workspace-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.schedule-workspace .route-optimization-trigger {
+  min-height: 38px;
+  padding: 0 17px;
+  border-radius: 10px;
+  font-size: 11px;
+}
+
+.schedule-workspace .schedule-place-add-trigger,
+.schedule-workspace .schedule-more-menu > summary {
+  min-height: 38px;
+  border-radius: 10px;
+}
+
+.schedule-workspace .schedule-more-menu-panel {
+  top: calc(100% + 7px);
+}
+
+.schedule-workspace > .day-tabs {
+  width: min(310px, 100%);
+  margin: 14px 0 10px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.schedule-workspace > .day-tabs button {
+  min-height: 34px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  background: transparent;
+  color: #65708e;
+  box-shadow: none;
+  font-size: 11px;
+}
+
+.schedule-workspace > .day-tabs button.selected {
+  border-bottom-color: var(--primary);
+  background: transparent;
+  color: var(--primary);
+  box-shadow: none;
+  transform: none;
+}
+
+.schedule-workspace-body {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(300px, .88fr) minmax(430px, 1.12fr);
+  gap: 16px;
+  align-items: stretch;
+}
+
+.schedule-workspace-body > .schedule-main,
+.schedule-workspace-body > .map-panel {
+  min-width: 0;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.schedule-workspace-body > .map-panel {
+  padding-left: 0;
+}
+
+.schedule-workspace-body .map-panel .panel-title-row,
+.schedule-workspace-body .map-panel .map-panel-actions {
+  display: none;
+}
+
+.schedule-workspace-body .schedule-map {
+  height: 100%;
+  min-height: 372px;
+  margin-top: 0;
+  border-radius: 14px;
+}
+
+.schedule-workspace-body .schedule-overview-carousel {
+  margin-top: 0;
+}
+
+.schedule-workspace-body .timeline {
+  margin-top: 0;
+}
+
+.schedule-workspace-body .schedule-drag-hint {
+  display: none;
+}
+
+.schedule-workspace-body .schedule-item {
+  min-height: 74px !important;
+}
+
+.page-schedule .place-search-panel[data-place-add-popover] {
+  top: 112px;
+  right: 0;
+  z-index: 230;
+}
+
+.page-schedule .schedule-heading-actions {
+  position: fixed;
+  right: 28px;
+  bottom: 24px;
+  z-index: 205;
+}
+
+.page-schedule .schedule-ai-fab {
+  right: auto;
+  left: 28px;
+  bottom: 24px;
+}
+
+@media (max-width: 760px) {
+  .page-schedule .schedule-center > .day-tabs {
+    width: 100%;
+    margin-bottom: 8px;
+  }
+
+  .schedule-workspace {
+    padding: 14px;
+  }
+
+  .schedule-workspace-toolbar {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .schedule-workspace-actions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .schedule-workspace-body {
+    grid-template-columns: 1fr;
+  }
+
+  .schedule-workspace-body > .map-panel {
+    grid-row: 1;
+  }
+
+  .schedule-workspace-body > .schedule-main {
+    grid-row: 2;
+  }
+
+  .schedule-workspace-body .schedule-map {
+    min-height: 260px;
+  }
+
+  .page-schedule .schedule-heading-actions {
+    right: 12px;
+    bottom: 12px;
+  }
+
+  .page-schedule .schedule-ai-fab {
+    left: 12px;
+    bottom: 12px;
+  }
+
+  .page-schedule .place-search-panel[data-place-add-popover] {
+    position: fixed;
+    top: 80px;
+    right: 12px;
+    left: 12px;
+    width: auto;
+    max-height: calc(100vh - 104px);
+  }
+}
+
+/* 일정 화면 최종 폭·지도·DAY 이동 보정 */
+@media (min-width: 761px) {
+  .page-schedule .page-shell {
+    padding-left: max(24px, calc((100vw - 1440px) / 2));
+    padding-right: max(24px, calc((100vw - 1440px) / 2));
+  }
+
+  .page-schedule .schedule-planner-layout {
+    width: min(1360px, 100%);
+  }
+
+  .page-schedule .schedule-workspace {
+    width: 100%;
+  }
+
+  .page-schedule .schedule-workspace-body {
+    grid-template-columns: minmax(520px, .95fr) minmax(560px, 1.05fr);
+  }
+
+  .page-schedule .schedule-workspace-body .schedule-map {
+    height: 372px !important;
+    min-height: 372px;
+    align-self: start;
+  }
+
+  .page-schedule .schedule-item-title-line strong {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .page-schedule .schedule-heading-actions {
+    right: max(24px, calc((100vw - 1440px) / 2));
+    bottom: 24px;
+  }
+
+  .page-schedule .schedule-ai-fab {
+    left: max(24px, calc((100vw - 1440px) / 2));
+    bottom: 24px;
+  }
+}
+
+@media (max-width: 760px) {
+  .page-schedule .schedule-day-tabs-shell {
+    width: 100%;
+  }
+
+  .page-schedule .schedule-day-tabs-shell .day-tabs button {
+    flex-basis: 92px;
+    width: 92px;
+  }
+
+  .page-schedule .schedule-day-nav {
+    flex-basis: 30px;
+    width: 30px;
+  }
+}
+
+/* 최종 상태 보정: 최적화 요약·저장 버튼·지도 높이 */
+.page-schedule .route-optimization-summary {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  margin: 6px 0 10px !important;
+  padding: 8px 12px !important;
+  font-size: 11px !important;
+  line-height: 1.4 !important;
+}
+
+.page-schedule .route-optimization-summary strong {
+  margin: 0 8px 0 0 !important;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.page-schedule .route-optimization-summary > div {
+  display: inline;
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+@media (min-width: 761px) {
+  .page-schedule .schedule-heading-actions {
+    position: fixed !important;
+    top: auto !important;
+    right: max(24px, calc((100vw - 1440px) / 2)) !important;
+    bottom: 24px !important;
+    transform: none !important;
+    z-index: 205;
+  }
+
+  .page-schedule .schedule-workspace-body {
+    align-items: stretch;
+  }
+
+  .page-schedule .schedule-workspace-body > .map-panel {
+    align-self: stretch;
+  }
+
+  .page-schedule .schedule-workspace-body .schedule-map {
+    height: 100% !important;
+    min-height: 372px;
+  }
+}
+
+/* 목업 최종 구성: 상단 정보·주요 액션·더보기를 3영역으로 분리 */
+@media (min-width: 761px) {
+  .page-schedule .schedule-workspace-toolbar {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+    align-items: center;
+  }
+
+  .page-schedule .schedule-trip-meta {
+    grid-column: 1;
+  }
+
+  .page-schedule .schedule-workspace-actions {
+    grid-column: 2 / 4;
+    display: grid;
+    grid-template-columns: auto auto minmax(132px, 1fr);
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+  }
+
+  .page-schedule .schedule-more-menu {
+    justify-self: end;
+  }
+
+  .page-schedule .schedule-more-menu-panel {
+    width: 212px;
+  }
+
+  /* 최적화 결과는 기존 결과 데이터를 유지하면서 버튼 아래의 짧은 안내로 배치 */
+  .page-schedule .schedule-workspace-body {
+    align-items: start;
+  }
+
+  .page-schedule .schedule-workspace-body > .map-panel {
+    align-self: start;
+  }
+
+  .page-schedule .schedule-workspace-body .schedule-map {
+    height: 372px !important;
+    min-height: 372px;
+  }
+
+  .page-schedule .schedule-main {
+    position: static;
+  }
+
+  .page-schedule .route-optimization-summary {
+    position: absolute;
+    top: 58px;
+    left: 42%;
+    width: min(360px, 26%);
+    margin: 0 !important;
+    padding: 5px 9px !important;
+    overflow: hidden;
+    border: 0;
+    background: transparent;
+    color: #6873c7;
+    box-shadow: none;
+    white-space: nowrap;
+  }
+
+  .page-schedule .route-optimization-summary strong {
+    display: none !important;
+  }
+
+  .page-schedule .route-optimization-summary > div {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: #6873c7;
+  }
+
+  .page-schedule .schedule-heading-actions {
+    position: fixed !important;
+    top: auto !important;
+    right: max(24px, calc((100vw - 1440px) / 2)) !important;
+    bottom: 24px !important;
+    transform: none !important;
+  }
+}
+
+@media (max-width: 760px) {
+  .page-schedule .route-optimization-summary {
+    position: static;
+    width: auto;
+    margin: 6px 0 10px !important;
+    padding: 8px 12px !important;
+    white-space: normal;
+  }
+
+  .page-schedule .schedule-workspace-body .schedule-map {
+    height: 260px !important;
+    min-height: 260px;
+  }
+}
+
+/* 저장 버튼은 viewport가 아니라 일정·지도 작업 카드의 우측 하단을 기준으로 고정 */
+@media (min-width: 761px) {
+  .page-schedule .schedule-workspace {
+    padding-bottom: 78px;
+  }
+
+  .page-schedule .schedule-workspace-footer {
+    position: absolute !important;
+    top: auto !important;
+    right: 18px !important;
+    bottom: 18px !important;
+    left: auto !important;
+    transform: none !important;
+    z-index: 205;
+  }
+}
+
+@media (max-width: 760px) {
+  .page-schedule .schedule-workspace-footer {
+    position: static !important;
+    margin-top: 14px;
+    justify-content: flex-end;
+    transform: none !important;
+  }
+}
+
+/* 목업 기준 일정 화면 타이포그래피 보정 */
+@media (min-width: 761px) {
+  .page-schedule .schedule-trip-meta {
+    font-size: 16px;
+  }
+
+  .page-schedule .schedule-trip-meta strong,
+  .page-schedule .schedule-trip-meta span:last-child {
+    font-size: 16px;
+  }
+
+  .page-schedule .schedule-day-tabs-shell .day-tabs button {
+    min-height: 40px;
+    font-size: 14px;
+    font-weight: 800;
+  }
+
+  .page-schedule .schedule-workspace .route-optimization-trigger,
+  .page-schedule .schedule-workspace .schedule-place-add-trigger,
+  .page-schedule .schedule-workspace .schedule-more-menu > summary {
+    min-height: 42px;
+    font-size: 13px;
+  }
+
+  .page-schedule .schedule-item-title-line strong {
+    font-size: 15px;
+    line-height: 1.35;
+  }
+
+  .page-schedule .schedule-item-time {
+    font-size: 13px;
+  }
+
+  .page-schedule .schedule-item-tags {
+    gap: 6px;
+  }
+
+  .page-schedule .schedule-item-tag,
+  .page-schedule .schedule-item-duration,
+  .page-schedule .schedule-item-address-toggle,
+  .page-schedule .timeline .schedule-item-delete {
+    min-height: 28px;
+    padding-left: 10px;
+    padding-right: 10px;
+    font-size: 11px;
+  }
+
+  .page-schedule .schedule-route-segment .schedule-route-segment-summary {
+    min-height: 42px;
+    font-size: 13px;
+  }
+
+  .page-schedule .schedule-more-menu-panel button strong {
+    font-size: 13px;
+  }
+
+  .page-schedule .schedule-more-menu-panel button small {
+    font-size: 11px;
+  }
+
+  .page-schedule .schedule-heading-actions .schedule-save-button {
+    min-height: 48px;
+    min-width: 164px;
+    font-size: 13px;
+  }
+
+  .page-schedule .schedule-ai-fab-label {
+    font-size: 15px;
+  }
+}
+
+@media (min-width: 761px) {
+  /* 목업처럼 여행 정보와 실제 일정 목록 사이에 여백을 둔다. */
+  .page-schedule .schedule-workspace-body {
+    margin-top: 24px;
+  }
+
+.page-schedule .route-optimization-preview {
+  display: inline-block;
+  color: var(--primary);
+  font-size: 12px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+/* 최적화 버튼과 예상 절약 시간을 한 묶음으로 세로 정렬 */
+.page-schedule .route-optimization-action-stack {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  align-self: flex-start;
+  gap: 5px;
+}
+
+.page-schedule .route-optimization-action-stack .route-optimization-summary {
+  position: static !important;
+  inset: auto !important;
+  width: auto !important;
+  min-width: 0;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  overflow: visible;
+  color: var(--primary) !important;
+  font-size: 12px !important;
+  font-weight: 900;
+  line-height: 1.4 !important;
+  white-space: nowrap;
+}
+
+.page-schedule .route-optimization-action-stack .route-optimization-summary > span {
+  display: block;
+}
+}
+
+/* 목업형 더보기 메뉴: 기존 기능만 아이콘·설명·상태와 함께 표시 */
+.page-schedule .schedule-more-menu-panel {
+  width: 212px;
+  padding: 6px;
+  border-radius: 14px;
+}
+
+.page-schedule .schedule-more-menu-panel button {
+  min-height: 62px;
+  padding: 10px 12px;
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: 9px;
+  text-align: left;
+}
+
+.page-schedule .schedule-more-menu-icon {
+  width: 26px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  color: var(--navy);
+  font-size: 20px;
+  line-height: 1;
+}
+
+.page-schedule .schedule-more-menu-copy {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.page-schedule .schedule-more-menu-panel button strong {
+  font-size: 13px;
+  line-height: 1.3;
+}
+
+.page-schedule .schedule-more-menu-panel button small {
+  font-size: 11px;
+  line-height: 1.3;
+}
+
+.page-schedule .schedule-more-route-state {
+  position: relative;
+  min-width: 38px;
+  height: 20px;
+  padding: 0 7px 0 5px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  border-radius: 999px;
+  background: var(--primary);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 900;
+}
+
+.page-schedule .schedule-more-route-state::before {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(35, 48, 103, .24);
+}
+
+.page-schedule .schedule-more-route-state.is-off {
+  background: #e6e9f3;
+  color: #66718c;
+  justify-content: flex-start;
+  padding: 0 5px 0 7px;
+}
+
+.page-schedule .schedule-more-route-state.is-off::before {
+  left: auto;
+  right: 3px;
+}
+
+/* 전체 일정 교통수단 설정 팝업 */
+.page-schedule .schedule-more-menu {
+  position: relative;
+}
+
+.page-schedule .schedule-transport-settings-panel {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  z-index: 95;
+  width: 330px;
+  padding: 18px;
+  border: 1px solid #e0e5f4;
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 18px 38px rgba(35, 48, 103, .18);
+}
+
+/* 목업 상단 흐름: 여행 정보 옆에서 전역 교통수단을 바로 변경 */
+@media (min-width: 761px) {
+  .page-schedule .schedule-workspace-toolbar {
+    position: relative;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1.2fr);
+    column-gap: 12px;
+  }
+
+  .page-schedule .schedule-trip-meta {
+    grid-column: 1;
+  }
+
+  .page-schedule .schedule-transport-trigger {
+    grid-column: 2;
+    min-height: 42px;
+    padding: 0 12px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    border-radius: 10px;
+    color: var(--navy);
+    font-size: 12px;
+    font-weight: 900;
+    white-space: nowrap;
+  }
+
+  .page-schedule .schedule-transport-trigger:hover,
+  .page-schedule .schedule-transport-trigger[aria-expanded="true"] {
+    border-color: var(--primary);
+    color: var(--primary);
+    background: #f7f6ff;
+  }
+
+  .page-schedule .schedule-transport-trigger-icon {
+    width: 20px;
+    height: 20px;
+    display: grid;
+    place-items: center;
+    color: currentColor;
+    font-family: "Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
+    font-size: 18px;
+    line-height: 1;
+  }
+
+  .page-schedule .schedule-transport-trigger-icon svg {
+    width: 19px;
+    height: 19px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.65;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  .page-schedule .schedule-transport-trigger-chevron {
+    margin-left: 1px;
+    font-size: 14px;
+    line-height: 1;
+  }
+
+  .page-schedule .schedule-workspace-actions {
+    grid-column: 3;
+    grid-template-columns: auto auto auto;
+    width: auto;
+    justify-content: end;
+  }
+
+  .page-schedule .schedule-transport-settings-panel {
+    top: 0;
+    left: auto;
+    right: auto;
+    width: 330px;
+    z-index: 220;
+  }
+
+  .page-schedule .schedule-workspace .schedule-transport-trigger + .schedule-workspace-actions {
+    min-width: 0;
+  }
+}
+
+@media (max-width: 760px) {
+  .page-schedule .schedule-transport-trigger {
+    width: 100%;
+    min-height: 40px;
+    justify-content: center;
+    font-size: 12px;
+  }
+
+  .page-schedule .schedule-transport-settings-panel {
+    top: calc(100% + 8px);
+    right: 0;
+    left: auto;
+    width: min(330px, calc(100vw - 32px));
+    z-index: 220;
+  }
+}
+
+.page-schedule .schedule-transport-settings-heading h2 {
+  margin: 0;
+  color: var(--navy);
+  font-size: 16px;
+  line-height: 1.35;
+}
+
+.page-schedule .schedule-transport-settings-heading p {
+  margin: 6px 0 16px;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.page-schedule .schedule-transport-options {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.page-schedule .schedule-transport-option {
+  min-width: 0;
+  min-height: 106px;
+  padding: 11px 7px 9px;
+  display: grid;
+  justify-items: center;
+  align-content: center;
+  gap: 6px;
+  border: 1px solid #e0e5f4;
+  border-radius: 10px;
+  background: #fff;
+  color: var(--navy);
+  cursor: pointer;
+}
+
+.page-schedule .schedule-transport-option:hover,
+.page-schedule .schedule-transport-option.is-selected {
+  border-color: var(--primary);
+  background: #f3f2ff;
+  color: var(--primary);
+}
+
+.page-schedule .schedule-transport-option-icon {
+  min-height: 30px;
+  display: grid;
+  place-items: center;
+  font-size: 24px;
+  line-height: 1;
+  font-family: "Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
+}
+
+.page-schedule .schedule-transport-option strong {
+  font-size: 12px;
+  line-height: 1.3;
+  white-space: nowrap;
+}
+
+.page-schedule .schedule-transport-option-radio {
+  position: relative;
+  width: 16px;
+  height: 16px;
+  display: block;
+  border: 1px solid #cbd2e7;
+  border-radius: 50%;
+  background: #fff;
+}
+
+.page-schedule .schedule-transport-option.is-selected .schedule-transport-option-radio {
+  border-color: var(--primary);
+}
+
+.page-schedule .schedule-transport-option.is-selected .schedule-transport-option-radio::after {
+  content: "";
+  position: absolute;
+  inset: 3px;
+  border-radius: 50%;
+  background: var(--primary);
+}
+
+.page-schedule .schedule-transport-settings-actions {
+  margin-top: 15px;
+  display: grid;
+  grid-template-columns: 1fr 1.45fr;
+  gap: 8px;
+}
+
+.page-schedule .schedule-transport-settings-actions button {
+  min-height: 38px;
+  border-radius: 9px;
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.page-schedule .schedule-transport-cancel {
+  border: 1px solid #dfe3f1;
+  background: #fff;
+  color: var(--navy);
+  cursor: pointer;
+}
+
+/* 일정카드 내부에는 선택 UI 없이 적용된 교통수단 결과만 표시 */
+.page-schedule .schedule-route-segment-summary {
+  cursor: default !important;
+}
+
+.page-schedule .schedule-route-segment-summary:hover {
+  border-color: #dfe3ff !important;
+  box-shadow: none !important;
+}
+
+@media (max-width: 760px) {
+  .page-schedule .schedule-transport-settings-panel {
+    top: calc(100% + 4px);
+    right: -8px;
+    width: min(330px, calc(100vw - 32px));
+  }
+}
+
+/* 더보기 메뉴의 버튼 규칙이 팝업 안쪽까지 상속되지 않도록 재정렬 */
+.page-schedule .schedule-more-menu-panel .schedule-transport-settings-panel button {
+  min-width: 0;
+  padding: 0;
+  border-top: 0;
+  border-radius: 9px;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.page-schedule .schedule-more-menu-panel .schedule-transport-option {
+  min-height: 106px;
+  padding: 11px 7px 9px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: center;
+  justify-items: center;
+  gap: 6px;
+  text-align: center;
+  border: 1px solid #dfe3f1 !important;
+  border-radius: 10px !important;
+}
+
+.page-schedule .schedule-more-menu-panel .schedule-transport-option strong {
+  min-width: 0;
+  display: block;
+  font-size: 12px;
+  line-height: 1.3;
+  white-space: nowrap;
+}
+
+.page-schedule .schedule-more-menu-panel .schedule-transport-option:hover,
+.page-schedule .schedule-more-menu-panel .schedule-transport-option.is-selected {
+  border: 1px solid var(--primary) !important;
+  border-radius: 10px !important;
+}
+
+.page-schedule .schedule-more-menu-panel .schedule-transport-option-icon {
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  color: currentColor;
+  font-family: "Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
+  font-size: 24px;
+  line-height: 1;
+}
+
+.page-schedule .schedule-more-menu-panel .schedule-transport-option-icon svg {
+  width: 25px;
+  height: 25px;
+  display: block;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.55;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.page-schedule .schedule-more-menu-panel .schedule-transport-settings-actions {
+  display: grid;
+  grid-template-columns: 1fr 1.45fr;
+  align-items: stretch;
+  gap: 8px;
+}
+
+.page-schedule .schedule-more-menu-panel .schedule-transport-settings-actions button {
+  min-height: 38px;
+  padding: 0 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  line-height: 1.2;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.page-schedule .schedule-more-menu-panel .schedule-transport-settings-actions button + button {
+  border-top: 0;
+  border-radius: 9px;
+}
+
+/* 자동 계산된 방문 시간과 하루 합계 */
+.page-schedule .schedule-item-time.is-auto {
+  background: #f8f9ff;
+  color: #5d6788;
+  cursor: default;
+}
+
+.page-schedule .schedule-time-auto-note {
+  display: block;
+  margin: 2px 0 8px;
+  color: #69749a;
+  font-size: 10px;
+  line-height: 1.4;
+}
+
+.page-schedule .schedule-time-input:disabled,
+.page-schedule .schedule-time-adjust:disabled {
+  opacity: .55;
+  cursor: not-allowed;
+}
+
+.page-schedule .schedule-time-total-summary {
+  margin: 8px 0 10px;
+  padding: 9px 12px;
+  border: 1px solid #dfe3ff;
+  border-radius: 10px;
+  background: #f8f9ff;
+  color: #4f5c9e;
+  font-size: 12px;
+  font-weight: 800;
+  text-align: center;
+}
+
+/* 목업 반영: 이동 구간은 박스·상태색 없이 타임라인 사이에 표시 */
+.page-schedule .timeline::before {
+  left: 61px;
+  width: 0;
+  border-left: 2px dotted #b7c0de;
+  background: transparent;
+}
+
+.page-schedule .timeline.has-reorder-hint::before {
+  bottom: 82px;
+}
+
+.page-schedule .schedule-route-segment {
+  z-index: 1;
+  min-height: 38px;
+  margin: 0 16px 12px 62px;
+  display: flex;
+  align-items: center;
+}
+
+.page-schedule .timeline .schedule-route-segment .schedule-route-segment-summary,
+.page-schedule .timeline .schedule-route-segment .schedule-route-segment-summary:hover,
+.page-schedule .timeline .schedule-route-segment .schedule-route-segment-summary[aria-expanded="true"] {
+  width: auto;
+  min-height: 32px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 10px;
+  border: 0;
+  border-radius: 0;
+  background: transparent !important;
+  box-shadow: none;
+  color: #64708f;
+  font-size: 13px;
+  font-weight: 700;
+  text-align: left;
+  cursor: default;
+}
+
+.page-schedule .schedule-route-segment[data-route-status="error"] .schedule-route-segment-summary {
+  border: 0;
+  background: transparent !important;
+  color: #64708f;
+}
+
+.page-schedule .schedule-route-segment-icon {
+  width: 20px;
+  height: 20px;
+  flex: 0 0 20px;
+  display: inline-grid;
+  place-items: center;
+  color: #52617f;
+  font-family: "Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
+  font-size: 18px;
+  line-height: 1;
+}
+
+.page-schedule .schedule-route-segment-icon svg {
+  width: 19px;
+  height: 19px;
+  display: block;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.65;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.page-schedule .schedule-route-segment-text {
+  min-width: 0;
+  color: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.35;
+  white-space: nowrap;
+}
+
+.page-schedule .timeline .schedule-item .schedule-time-control.is-complete {
+  position: relative;
+  justify-content: center;
+}
+
+.page-schedule .timeline .schedule-item .schedule-time-control.is-complete::after {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  bottom: 6px;
+  width: 1px;
+  background: #e5e8f1;
+  content: "";
+}
+
+.page-schedule .timeline .schedule-item .schedule-item-time.is-complete,
+.page-schedule .timeline .schedule-item .schedule-item-time.is-complete:hover,
+.page-schedule .timeline .schedule-item .schedule-item-time.is-complete.is-auto {
+  width: 100px;
+  min-width: 100px;
+  margin-left: 28px;
+  padding: 0 18px 0 0;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  border: 0;
+  border-radius: 0;
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  box-shadow: none;
+  color: #172344;
+  font-family: inherit;
+  font-size: 16px;
+  font-weight: 800;
+  line-height: 1.15;
+  text-align: left;
+  cursor: pointer;
+}
+
+.page-schedule .timeline .schedule-item .schedule-item-time.is-complete .schedule-time-start {
+  color: #172344;
+  font-size: 16px;
+  font-weight: 800;
+  line-height: 1.15;
+}
+
+.page-schedule .timeline .schedule-item .schedule-item-time.is-complete .schedule-time-end {
+  color: #64708f;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.page-schedule .timeline .schedule-item .schedule-item-time.is-complete:hover {
+  color: #172344;
+}
+
+/* 목업에는 별도 색상 요약 박스를 노출하지 않고 실제 구간 데이터만 유지 */
+.page-schedule .segment-route-total-summary {
+  display: none !important;
+}
+
+@media (max-width: 760px) {
+  .page-schedule .timeline::before { left: 48px; }
+
+  .page-schedule .schedule-route-segment {
+    margin-left: 48px;
+    margin-right: 10px;
+  }
+
+  .page-schedule .timeline .schedule-item .schedule-item-time.is-complete,
+  .page-schedule .timeline .schedule-item .schedule-item-time.is-complete:hover,
+  .page-schedule .timeline .schedule-item .schedule-item-time.is-complete.is-auto {
+    margin-left: 20px;
+  }
+}
+
+/* 두 번째 방문지부터는 자동 시작시간을 숨기고 체류시간만 편집 */
+.page-schedule .timeline .schedule-time-editor.is-auto-start {
+  width: 238px;
+  min-width: 238px;
+  padding: 14px;
+}
+
+.page-schedule .timeline .schedule-time-editor.is-auto-start .schedule-time-editor-header {
+  margin-bottom: 10px;
+}
+
+.page-schedule .timeline .schedule-time-editor.is-auto-start .schedule-time-auto-note {
+  width: 100%;
+  max-width: none;
+  box-sizing: border-box;
+  overflow: visible !important;
+  margin: 0 0 11px;
+  color: #69749a;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.45;
+  text-overflow: clip;
+  white-space: normal !important;
+  word-break: keep-all;
+}
+
+.page-schedule .timeline .schedule-time-editor.is-auto-start .schedule-time-options {
+  width: 100%;
+  margin: 0 0 12px;
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0;
+}
+
+.page-schedule .timeline .schedule-time-editor.is-auto-start .schedule-duration-select {
+  width: 100%;
+  height: 34px;
+  min-height: 34px;
+  padding: 0 28px 0 10px;
+  font-size: 11px;
+  line-height: 1;
+}
+
+.page-schedule .timeline .schedule-time-editor.is-auto-start .schedule-time-actions {
+  width: 100%;
+  min-height: 34px;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.page-schedule .timeline .schedule-time-editor.is-auto-start .schedule-time-cancel,
+.page-schedule .timeline .schedule-time-editor.is-auto-start .schedule-time-save {
+  height: 34px;
+  min-height: 34px;
+  font-size: 10px;
+}
+
+@media (max-width: 760px) {
+  .page-schedule .timeline .schedule-time-editor.is-auto-start {
+    width: min(238px, calc(100vw - 32px));
+    min-width: 0;
+  }
+}
+
+/* 목업 흐름: 여행 정보 → 자동 계산 안내 → 교통수단 → 일정 목록 */
+.page-schedule .schedule-overview-carousel:not(.is-overview) > .schedule-trip-meta {
+  min-height: 22px;
+  margin: 0 0 34px;
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--navy);
+  font-size: 16px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.page-schedule .schedule-transport-inline {
+  position: relative;
+  width: max-content;
+  margin: 0;
+  display: inline-flex;
+  vertical-align: middle;
+  z-index: 230;
+}
+
+.page-schedule .schedule-transport-inline .schedule-transport-trigger {
+  width: auto;
+  min-height: 42px;
+  padding: 0 13px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border-radius: 10px;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.page-schedule .schedule-transport-inline .schedule-transport-settings-panel {
+  top: 0;
+  left: calc(100% + 8px);
+  right: auto;
+}
+
+.page-schedule .schedule-overview-carousel.is-overview > .schedule-trip-meta,
+.page-schedule .schedule-overview-carousel.is-overview > .schedule-transport-inline {
+  display: none;
+}
+
+.page-schedule .schedule-time-total-summary {
+  width: auto;
+  min-width: 0;
+  margin: 0;
+  display: flex;
+  min-height: 36px;
+  box-sizing: border-box;
+  align-items: center;
+  justify-content: center;
+  vertical-align: middle;
+}
+
+/* 교통수단 버튼의 라벨 폭이 바뀌어도 안내 문구가 아래 행으로 밀리지 않게 고정 */
+@media (min-width: 761px) {
+  .page-schedule .schedule-overview-carousel:not(.is-overview) {
+    display: grid;
+    grid-template-columns: max-content minmax(0, 1fr);
+    column-gap: 10px;
+    row-gap: 24px;
+    align-items: start;
+  }
+
+  .page-schedule .schedule-overview-carousel:not(.is-overview) > .schedule-transport-inline {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .page-schedule .schedule-overview-carousel:not(.is-overview) > .schedule-time-total-summary {
+    grid-column: 2;
+    grid-row: 1;
+    width: 100%;
+  }
+
+  .page-schedule .schedule-overview-carousel:not(.is-overview) > .timeline {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    width: 100%;
+    margin: 0;
+  }
+}
+
+@media (max-width: 760px) {
+  .page-schedule .schedule-overview-carousel:not(.is-overview) > .schedule-trip-meta {
+    margin-bottom: 30px;
+    font-size: 15px;
+  }
+
+  .page-schedule .schedule-transport-inline .schedule-transport-trigger {
+    width: auto;
+  }
+
+  .page-schedule .schedule-transport-inline .schedule-transport-settings-panel {
+    left: calc(100% + 8px);
+    right: auto;
+  }
+}
+
+/* 일정 카드: 관광지명과 분류 정보를 한 줄에 배치하고 세로 중앙 정렬 */
+.page-schedule .timeline .schedule-item {
+  align-items: center;
+}
+
+.page-schedule .timeline .schedule-item > div:first-of-type {
+  align-content: center;
+  justify-items: start;
+}
+
+.page-schedule .timeline .schedule-item .schedule-item-title-line {
+  width: 100%;
+  min-width: 0;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+}
+
+.page-schedule .timeline .schedule-item .schedule-item-title-line > strong {
+  min-width: 0;
+  flex: 0 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.page-schedule .timeline .schedule-item .schedule-item-title-line .schedule-item-tags {
+  flex: 0 0 auto;
+  width: auto;
+  margin-top: 0;
+  align-items: center;
+  flex-wrap: nowrap;
+}
+
+/* 최종 목업 정렬: 메타는 상단, 액션은 지도 위, 지도는 첫 카드와 같은 높이 */
+@media (min-width: 761px) {
+  .page-schedule .schedule-workspace-toolbar {
+    position: relative;
+    display: block;
+    min-height: 42px;
+  }
+
+  .page-schedule .schedule-workspace-toolbar > .schedule-trip-meta {
+    position: relative;
+    min-height: 42px;
+    display: inline-flex;
+    align-items: center;
+  }
+
+  .page-schedule .schedule-workspace-actions {
+    position: absolute;
+    top: 117px;
+    right: 0;
+    z-index: 225;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    width: auto;
+  }
+
+  .page-schedule .schedule-workspace-body {
+    margin-top: 24px;
+  }
+
+.page-schedule .schedule-workspace-body > .map-panel {
+  margin-top: var(--schedule-map-top-offset, 121px);
+  display: block;
+  /* 액션은 헤더에 두고, 지도만 첫 번째 일정 카드 높이에 맞춘다. */
+  padding-top: 0;
+}
+
+  .page-schedule .schedule-workspace-body .schedule-map {
+    width: 100%;
+    height: 372px !important;
+    min-height: 372px;
+    margin-top: 0;
+  }
+
+  .page-schedule .schedule-workspace-body > .schedule-main {
+    min-width: 0;
+  }
+}
+
+/* 교통수단 팝업: 목업처럼 선택 칸 간격과 내부 여백을 compact하게 유지 */
+.page-schedule .schedule-transport-settings-panel {
+  padding: 16px;
+}
+
+.page-schedule .schedule-transport-settings-heading p {
+  margin-bottom: 12px;
+}
+
+.page-schedule .schedule-transport-options {
+  gap: 6px;
+}
+
+.page-schedule .schedule-transport-option {
+  min-height: 92px;
+  padding: 8px 6px;
+  gap: 4px;
+}
+
+.page-schedule .schedule-transport-settings-actions {
+  margin-top: 12px;
+  gap: 6px;
+}
+
+/* 시간 표시에는 텍스트 외의 채움색을 사용하지 않는다. */
+.page-schedule .timeline .schedule-item .schedule-item-time,
+.page-schedule .timeline .schedule-item .schedule-item-time:hover,
+.page-schedule .timeline .schedule-item .schedule-item-time:focus-visible,
+.page-schedule .timeline .schedule-item .schedule-item-time .schedule-time-start,
+.page-schedule .timeline .schedule-item .schedule-item-time .schedule-time-end {
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  box-shadow: none !important;
+}
+
+.page-schedule .timeline .schedule-item .schedule-item-time .schedule-time-start,
+.page-schedule .timeline .schedule-item .schedule-item-time .schedule-time-end {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+}
+
+.page-schedule .timeline .schedule-item .schedule-item-time,
+.page-schedule .timeline .schedule-item .schedule-item-time * {
+  user-select: none;
+}
+
+/* 공통 timeline 버튼 스타일이 시간 두 줄을 각각 40px 박스로 만드는 것을 해제한다. */
+.page-schedule .timeline .schedule-item .schedule-time-control.is-complete {
+  min-height: 50px;
+}
+
+.page-schedule .timeline .schedule-item .schedule-item-time.is-complete,
+.page-schedule .timeline .schedule-item .schedule-item-time.is-complete:hover,
+.page-schedule .timeline .schedule-item .schedule-item-time.is-complete.is-auto {
+  height: 50px;
+  min-height: 50px;
+  gap: 5px;
+}
+
+.page-schedule .timeline .schedule-item .schedule-item-time > .schedule-time-start,
+.page-schedule .timeline .schedule-item .schedule-item-time > .schedule-time-end {
+  width: auto !important;
+  min-width: 0 !important;
+  height: auto !important;
+  min-height: 0 !important;
+  display: block !important;
+  place-items: initial !important;
+  flex: 0 0 auto;
+}
+
+.page-schedule .timeline .schedule-item .schedule-item-time > .schedule-time-start {
+  line-height: 1.1;
+}
+
+.page-schedule .timeline .schedule-item .schedule-item-time > .schedule-time-end {
+  line-height: 1.15;
+}
+
+/* 상단 액션은 지도 위의 전용 행에 두어 지도와 겹치지 않게 한다. */
+@media (min-width: 761px) {
+  .page-schedule .schedule-workspace-actions {
+    top: 62px;
+    align-items: flex-start;
+  }
+
+  .page-schedule .route-optimization-action-stack {
+    flex: 0 0 auto;
+    min-width: max-content;
+    align-items: center;
+  }
+
+  .page-schedule .route-optimization-action-stack .route-optimization-summary {
+    max-width: none;
+    text-align: center;
+  }
+}
+
+/* 최적화 결과가 생겨도 버튼은 장소 추가 왼쪽의 원래 위치를 유지한다. */
+.page-schedule .schedule-workspace-actions > .route-optimization-action-stack {
+  position: relative;
+  width: 120px;
+  min-width: 0;
+  flex: 0 0 120px;
+  display: block;
+}
+
+.page-schedule .schedule-workspace-actions > .route-optimization-action-stack > .route-optimization-trigger {
+  width: 120px;
+  min-width: 120px;
+}
+
+.page-schedule .route-optimization-summary-slot {
+  position: absolute;
+  z-index: 2;
+  top: calc(100% + 4px);
+  left: 50%;
+  width: max-content;
+  max-width: 220px;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.page-schedule .route-optimization-summary-slot:empty {
+  display: none;
+}
+
+.page-schedule .route-optimization-summary-slot .route-optimization-summary {
+  width: max-content !important;
+  max-width: 220px !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: var(--primary) !important;
+  font-size: 11px !important;
+  font-weight: 900;
+  line-height: 1.35 !important;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.page-schedule .route-optimization-trigger:disabled {
+  cursor: wait;
+  opacity: .68;
+}
+
+/* 항공권형 일정 카드 최종 시안 */
+@media (min-width: 761px) {
+  .page-schedule .schedule-workspace {
+    position: relative;
+    isolation: isolate;
+    overflow: hidden;
+    padding: 0 18px 78px;
+    border: 1px solid #d9e2f2;
+    border-radius: 20px;
+    background: #fff;
+    box-shadow: 0 12px 32px rgba(35, 49, 92, .08);
+  }
+
+  /* 중앙 절취선 */
+  .page-schedule .schedule-workspace::before {
+    content: "";
+    position: absolute;
+    z-index: 3;
+    top: 0;
+    bottom: 0;
+    left: 50%;
+    border-left: 1px dashed #bfcbe0;
+    pointer-events: none;
+  }
+
+  /* 상단의 작고 얕은 티켓 홈 */
+  .page-schedule .schedule-workspace::after {
+    content: none;
+    display: none;
+  }
+
+  .page-schedule .schedule-workspace-toolbar {
+    position: relative;
+    /* 툴바에서 펼쳐지는 더보기 메뉴가 지도 레이어보다 항상 앞에 온다. */
+    z-index: 300;
+    min-height: 66px;
+    margin: 0 -18px;
+    padding: 12px 42px;
+    display: flex;
+    align-items: center;
+    border-bottom: 1px solid #becbf2;
+    border-radius: 19px 19px 0 0;
+    background: linear-gradient(100deg, #d7e5ff 0%, #dde2ff 100%);
+  }
+
+  .page-schedule .schedule-workspace-toolbar > .schedule-trip-meta {
+    position: relative;
+    min-height: 42px;
+    padding-top: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    color: #172653;
+    font-size: 22px;
+    font-weight: 900;
+    letter-spacing: -.02em;
+  }
+
+  .page-schedule .schedule-workspace-toolbar > .schedule-trip-meta::before {
+    content: none;
+    display: none;
+  }
+
+  .page-schedule .schedule-workspace-toolbar > .schedule-trip-meta::after {
+    display: none;
+  }
+
+  .page-schedule .schedule-workspace-toolbar > .schedule-trip-meta strong,
+  .page-schedule .schedule-workspace-toolbar > .schedule-trip-meta span:last-child {
+    color: #172653;
+    font-size: 22px;
+    font-weight: 900;
+  }
+
+  .page-schedule .schedule-workspace-body {
+    position: relative;
+    z-index: 2;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 52px;
+    /* 좌측 교통수단 버튼을 우측 액션 행과 같은 높이에 맞춘다. */
+    margin-top: 24px;
+    align-items: start;
+  }
+
+  /* 하단 절취 홈은 카드 높이에 맞춰 중앙선 끝에 배치한다. */
+  .page-schedule .schedule-workspace-body::after {
+    content: none;
+    display: none;
+  }
+
+  .page-schedule .schedule-workspace-body > .schedule-main,
+  .page-schedule .schedule-workspace-body > .map-panel {
+    position: relative;
+    z-index: 4;
+    min-width: 0;
+  }
+
+  /* 지도는 첫 번째 일정 카드 높이에 맞추되 티켓 내부를 과하게 차지하지 않는다. */
+  .page-schedule .schedule-workspace-body > .map-panel {
+    margin-top: var(--schedule-map-top-offset, 92px);
+    align-self: start;
+  }
+
+  .page-schedule .schedule-workspace-body .schedule-map {
+    width: 100%;
+    height: 340px !important;
+    min-height: 340px;
+    max-height: 340px;
+    border: 1px solid #e1e7f2;
+    border-radius: 14px;
+    overflow: hidden;
+  }
+
+  /* 액션 버튼은 우측 지도 영역 위에 고정한다. */
+  .page-schedule .schedule-workspace-actions {
+    position: absolute;
+    z-index: 225;
+    top: 92px;
+    right: 18px;
+    display: flex;
+    align-items: flex-start;
+    justify-content: flex-end;
+    gap: 8px;
+    width: auto;
+  }
+
+  .page-schedule .schedule-workspace-actions .schedule-more-menu {
+    z-index: 310;
+  }
+
+  .page-schedule .schedule-workspace-actions .schedule-more-menu-panel {
+    z-index: 320;
+  }
+
+  .page-schedule .schedule-workspace-actions > .route-optimization-action-stack {
+    width: 120px;
+    flex: 0 0 120px;
+  }
+
+  .page-schedule .schedule-workspace-actions .route-optimization-trigger,
+  .page-schedule .schedule-workspace-actions .schedule-place-add-trigger,
+  .page-schedule .schedule-workspace-actions .schedule-more-menu > summary {
+    min-height: 42px;
+    border: 1px solid #cbd5ee !important;
+    border-radius: 10px;
+    background: #fff !important;
+    color: #4159d5 !important;
+    box-shadow: none !important;
+    font-size: 12px;
+    font-weight: 900;
+  }
+
+  .page-schedule .schedule-workspace-actions .route-optimization-trigger:hover,
+  .page-schedule .schedule-workspace-actions .schedule-place-add-trigger:hover,
+  .page-schedule .schedule-workspace-actions .schedule-more-menu > summary:hover {
+    border-color: #8ea1ec !important;
+    background: #f7f9ff !important;
+  }
+
+  .page-schedule .schedule-workspace-actions .schedule-more-menu > summary {
+    color: #172653 !important;
+  }
+
+  .page-schedule .schedule-workspace-footer {
+    z-index: 6;
+  }
+}
+
+/* DAY 편집과 전체 일정 보기의 순번을 동일한 연한 블루로 통일한다. */
+.page-schedule .timeline .schedule-item > span,
+.page-schedule .schedule-overview-item-order {
+  background: #8397f3 !important;
+  color: #fff !important;
+  box-shadow: 0 3px 8px rgba(86, 109, 205, .14);
+}
+
+.page-schedule .schedule-reorder-hint {
+  margin: 24px 0 0 26px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: #7b87a6;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.5;
+}
+
+.page-schedule .schedule-reorder-hint-icon {
+  color: #8397f3;
+  font-size: 16px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+/* 장소 추가 패널: 검색·찜 목록·추천 장소를 같은 패널에서 전환한다. */
+.page-schedule .place-add-source-tabs {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-top: 14px;
+  border-bottom: 1px solid #e3e8f4;
+}
+
+.page-schedule .place-add-source-tabs button {
+  position: relative;
+  min-height: 40px;
+  padding: 8px 12px;
+  border: 0;
+  background: transparent;
+  color: #68728a;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.page-schedule .place-add-source-tabs button::after {
+  content: "";
+  position: absolute;
+  right: 0;
+  bottom: -1px;
+  left: 0;
+  height: 2px;
+  background: transparent;
+}
+
+.page-schedule .place-add-source-tabs button.selected {
+  color: var(--primary);
+}
+
+.page-schedule .place-add-source-tabs button.selected::after {
+  background: var(--primary);
+}
+
+.page-schedule .place-search-panel .schedule-search[hidden] {
+  display: none !important;
+}
+
+.page-schedule .place-favorite-result > div {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.page-schedule .place-favorite-result .place-favorite-rating {
+  color: #17213a;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.page-schedule .place-favorite-result > button {
+  min-width: 104px;
+  white-space: nowrap;
+}
+
+.page-schedule .place-result > div {
+  min-width: 0;
+}
+
+.page-schedule .place-route-preview {
+  display: block;
+  margin-top: 5px;
+  color: #61708f;
+  font-size: 10px;
+  font-weight: 750;
+  line-height: 1.4;
+  white-space: normal;
+}
+
+.page-schedule .place-route-preview[data-route-preview-state="loading"] {
+  color: #8b95aa;
+}
+
+.page-schedule .place-route-preview[data-route-preview-state="success"] {
+  color: #4d5f85;
+}
+
+.page-schedule .place-route-preview[data-route-preview-state="added"] {
+  color: var(--primary);
+}
+
+/* 장소 추가 패널 하단 안내: 탭과 검색 결과가 바뀌어도 항상 같은 위치에 유지한다. */
+.page-schedule .place-add-footer-hint {
+  margin: 12px -2px -2px;
+  padding: 12px 2px 2px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  border-top: 1px solid #e7ebf4;
+  color: #78839c;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.page-schedule .place-add-footer-hint > span:first-child {
+  flex: 0 0 auto;
+  color: #6574a8;
+  font-size: 13px;
+  line-height: 1;
+}
+
+/* 전체 일정 보기 전용 배치
+   편집 화면의 2열(일정/지도) 규칙과 직접 자식 보조 UI가 카드 캐러셀의
+   세 열을 밀어내지 않도록 전체 일정 상태를 별도 레이아웃으로 분리한다. */
+.page-schedule .schedule-overview-carousel.is-overview > .schedule-trip-meta,
+.page-schedule .schedule-overview-carousel.is-overview > .schedule-transport-inline,
+.page-schedule .schedule-overview-carousel.is-overview > .schedule-time-total-summary,
+.page-schedule .schedule-overview-carousel.is-overview > .route-optimization-summary {
+  display: none !important;
+}
+
+.page-schedule .schedule-overview-carousel.is-overview > .schedule-overview-nav-prev {
+  grid-column: 1;
+  grid-row: 1;
+}
+
+.page-schedule .schedule-overview-carousel.is-overview > .timeline {
+  grid-column: 2;
+  grid-row: 1;
+  width: 100%;
+  min-width: 0;
+  margin: 0;
+}
+
+.page-schedule .schedule-overview-carousel.is-overview > .schedule-overview-nav-next {
+  grid-column: 3;
+  grid-row: 1;
+}
+
+.page-schedule .schedule-overview-nav[hidden] {
+  display: none !important;
+}
+
+.page-schedule .schedule-workspace-body.is-overview-mode > .map-panel {
+  display: none !important;
+}
+
+@media (min-width: 761px) {
+  .page-schedule .schedule-workspace.is-overview-mode::before {
+    display: none;
+  }
+
+  .page-schedule .schedule-workspace-body.is-overview-mode {
+    width: 100%;
+    margin-top: 78px;
+    display: block;
+  }
+
+  .page-schedule .schedule-workspace-body.is-overview-mode > .schedule-main {
+    width: 100%;
+    max-width: none;
+    display: block;
+  }
+
+  .page-schedule .schedule-workspace-body.is-overview-mode .schedule-overview-carousel.is-overview {
+    width: 100%;
+    display: grid;
+    grid-template-columns: 42px minmax(0, 1fr) 42px;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .page-schedule .schedule-workspace-body.is-overview-mode .schedule-overview-carousel.is-overview > .timeline {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 14px;
+  }
+
+  .page-schedule .schedule-workspace-body.is-overview-mode .schedule-overview-card {
+    width: auto;
+    min-width: 0;
+    min-height: 300px;
+  }
+}
+
+@media (max-width: 760px) {
+  .page-schedule .schedule-workspace-body.is-overview-mode {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .page-schedule .schedule-workspace-body.is-overview-mode > .schedule-main {
+    grid-column: 1;
+    grid-row: 1;
+  }
+}
+
+/* 저장 액션: 이전 단계 버튼을 저장 버튼 바로 왼쪽에 항상 노출한다. */
+.page-schedule .schedule-workspace-footer {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.page-schedule .schedule-workspace-footer .schedule-back-button {
+  min-width: 112px;
+  min-height: 44px;
+  padding: 0 18px;
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #cfd7ec;
+  border-radius: 12px;
+  background: #fff;
+  color: #4f5d7e;
+  box-shadow: 0 8px 20px rgba(43, 57, 108, .08);
+  font-size: 12px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.page-schedule .schedule-workspace-footer .schedule-back-button:hover,
+.page-schedule .schedule-workspace-footer .schedule-back-button:focus-visible {
+  border-color: #8595ec;
+  background: #f6f8ff;
+  color: var(--primary);
+  outline: none;
+}
+
+@media (max-width: 760px) {
+  .page-schedule .schedule-workspace-footer {
+    gap: 8px;
+  }
+
+  .page-schedule .schedule-workspace-footer .schedule-back-button {
+    min-width: 96px;
+    min-height: 42px;
+    padding-inline: 13px;
+    font-size: 11px;
+  }
+}
+
+/* 전체 일정 카드 가독성: 현재 확대값의 2/3로 축소하고 핵심 정보는 한 줄 유지 */
+@media (min-width: 761px) {
+  .page-schedule .schedule-overview-carousel.is-overview .schedule-overview-card {
+    min-height: 320px;
+    padding: 20px 16px 16px;
+  }
+
+  .page-schedule .schedule-overview-carousel.is-overview .schedule-overview-card-header {
+    grid-template-columns: minmax(0, 1fr) max-content;
+    gap: 10px 16px;
+    padding-bottom: 18px;
+  }
+
+  .page-schedule .schedule-overview-carousel.is-overview .schedule-overview-card-heading {
+    gap: 7px;
+  }
+
+  .page-schedule .schedule-overview-carousel.is-overview .schedule-overview-day-label {
+    font-size: 19px;
+    line-height: 1.1;
+    white-space: nowrap;
+  }
+
+  .page-schedule .schedule-overview-carousel.is-overview .schedule-overview-date,
+  .page-schedule .schedule-overview-carousel.is-overview .schedule-overview-summary {
+    font-size: 15px;
+    line-height: 1.2;
+    white-space: nowrap;
+  }
+
+  .page-schedule .schedule-overview-carousel.is-overview .schedule-overview-edit {
+    width: max-content !important;
+    min-width: max-content !important;
+    min-height: 28px;
+    display: inline-flex !important;
+    align-items: center;
+    font-size: 14px;
+    line-height: 1;
+    white-space: nowrap !important;
+  }
+
+  .page-schedule .schedule-overview-carousel.is-overview .schedule-overview-items {
+    gap: 10px;
+    padding-top: 18px;
+  }
+
+  .page-schedule .schedule-overview-carousel.is-overview .schedule-overview-item {
+    grid-template-columns: 34px minmax(0, 1fr);
+    gap: 10px;
+  }
+
+  .page-schedule .schedule-overview-carousel.is-overview .schedule-overview-item-order {
+    width: 30px;
+    height: 30px;
+    font-size: 15px;
+    line-height: 1;
+  }
+
+  .page-schedule .schedule-overview-carousel.is-overview .schedule-overview-item-copy {
+    display: grid;
+    grid-template-columns: 70px minmax(0, 1fr);
+    align-items: center;
+    gap: 10px;
+  }
+
+  .page-schedule .schedule-overview-carousel.is-overview .schedule-overview-item-copy time {
+    min-width: 0;
+    font-size: 15px;
+    line-height: 1.15;
+    white-space: nowrap !important;
+  }
+
+  .page-schedule .schedule-overview-carousel.is-overview .schedule-overview-item-copy strong {
+    min-width: 0;
+    overflow: hidden;
+    font-size: 16px;
+    line-height: 1.2;
+    text-overflow: ellipsis;
+    white-space: nowrap !important;
+  }
+
+  .page-schedule .schedule-overview-carousel.is-overview .schedule-overview-empty {
+    overflow: hidden;
+    font-size: 15px;
+    line-height: 1.3;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+/* 전체 일정에서는 편집 전용 액션을 감추고, DAY별 편집 진입용 더보기만 유지한다. */
+.page-schedule .schedule-workspace.is-overview-mode .schedule-workspace-actions > .route-optimization-action-stack,
+.page-schedule .schedule-workspace.is-overview-mode .schedule-workspace-actions > .schedule-place-add-trigger {
+  display: none !important;
+}
+
+/* AI 일정 가이드 버튼은 화면 우측 하단에 고정한다. */
+.page-schedule .schedule-ai-fab {
+  right: 28px !important;
+  bottom: 24px;
+  left: auto !important;
+}
+
+@media (max-width: 760px) {
+  .page-schedule .schedule-ai-fab {
+    right: 12px !important;
+    bottom: 12px;
+    left: auto !important;
+  }
 }
