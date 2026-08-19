@@ -473,6 +473,29 @@ document.addEventListener("DOMContentLoaded", function () {
     return String(item.itineraryItemId || item.place?.externalPlaceId || item.title || "");
   }
 
+  // 서버 저장 전 초안도 전체 보기에서는 DAY별로 구분해야 한다.
+  function scheduleDayIdentity(day) {
+    return day?.tripDayId
+      ? "trip-day:" + day.tripDayId
+      : "draft-day:" + draftDayKey(day);
+  }
+
+  function attachScheduleDayIdentity(items, day) {
+    const dayIdentity = scheduleDayIdentity(day);
+    return (items || []).map(function (item) {
+      return {
+        ...item,
+        tripDayId: item.tripDayId || day?.tripDayId,
+        scheduleDayIdentity: item.scheduleDayIdentity || dayIdentity,
+      };
+    });
+  }
+
+  function isSameScheduleDay(item, targetDayIdentity) {
+    return Boolean(item?.scheduleDayIdentity)
+      && String(item.scheduleDayIdentity) === String(targetDayIdentity);
+  }
+
   function readScheduleTimeOverrides() {
     try {
       return JSON.parse(sessionStorage.getItem(scheduleTimeStorageKey) || "{}");
@@ -517,12 +540,12 @@ document.addEventListener("DOMContentLoaded", function () {
     const endTime = String(Math.floor(endMinutes / 60)).padStart(2, "0") + ":"
       + String(endMinutes % 60).padStart(2, "0");
     const requestedWindow = {start: startMinutes, end: endMinutes};
-    const targetTripDayId = targetDay?.tripDayId || item?.tripDayId || activeDay?.tripDayId;
+    const targetDayIdentity = item?.scheduleDayIdentity || scheduleDayIdentity(targetDay || activeDay);
     const hasLocalTimeConflict = (activeItems || [])
       .filter(function (other) {
         if (String(other?.itineraryItemId) === String(item?.itineraryItemId)) return false;
         // 전체 보기에서는 DAY별 항목을 한 배열로 보여주므로, 같은 DAY의 일정만 비교한다.
-        return !allScheduleVisible || String(other?.tripDayId) === String(targetTripDayId);
+        return !allScheduleVisible || isSameScheduleDay(other, targetDayIdentity);
       })
       .map(getScheduledItemTimeWindow)
       .filter(Boolean)
@@ -1222,10 +1245,10 @@ document.addEventListener("DOMContentLoaded", function () {
     showEmpty(timeline, "전체 일정을 불러오는 중입니다.");
     try {
       const groups = await Promise.all(days.map(async function (day) {
-        const items = day.tripDayId
+        const loadedItems = day.tripDayId
           ? (await hydrateItems(await api("/api/v1/trip-days/" + day.tripDayId + "/items")))
-            .map(function (item) { return {...item, tripDayId: item.tripDayId || day.tripDayId}; })
           : (readDraft().scheduleItems?.[draftDayKey(day)] || []);
+        const items = attachScheduleDayIdentity(loadedItems, day);
         return {day, items};
       }));
       timeline.replaceChildren();
