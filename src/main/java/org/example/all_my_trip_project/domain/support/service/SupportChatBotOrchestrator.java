@@ -32,6 +32,12 @@ import java.util.concurrent.ConcurrentHashMap;
  * 표시만 남기고 빠진다 — 이어지는 실행이 그 사이 쌓인 메시지까지 포함한 대화 내역을 다시
  * 읽으므로 늦게 온 질문이 묻히지 않는다. 지금은 단일 인스턴스 전제라(내장 심플 브로커와 같은
  * 전제) 프로세스 안의 표시로 충분하다.
+ *
+ * <p><b>하지만 재실행 표시만으로 "다시 부를지"를 정하지 않는다.</b> 재실행 표시는 "그사이
+ * 트리거가 한 번 더 왔다"만 알 뿐, 그 트리거의 메시지가 이미 직전 호출의 대화 스냅샷에
+ * 포함됐는지는 모른다. 그래서 매 회차 {@link #respond}가 실제로 대화를 다시 읽어, 마지막
+ * 메시지가 여전히 손님(USER)일 때만 Gemini를 부른다 — 이미 답한 뒤라면 재실행 표시가 남아
+ * 있어도 조용히 끝난다(heopath 3차 리뷰).
  */
 @Component
 @Profile("!ui")
@@ -86,6 +92,16 @@ public class SupportChatBotOrchestrator {
         if (!supportChatService.isStillBot(roomId)) return;
 
         List<SupportChatMessageDTO> conversation = supportChatService.recentMessages(roomId);
+        /*
+         * 재실행 표시(inFlight)만으로는 "정말 새로 답할 게 있는지"를 모른다. 새 트리거가
+         * recentMessages() 조회 전에 들어오면 이번 호출이 이미 그 메시지까지 포함해 답하고,
+         * 재실행 표시는 남아 있으니 다음 회차가 또 Gemini를 부른다 — 같은 질문에 답이 두 번
+         * 저장되거나, 답할 게 없는데도 실패로 오인돼 WAITING으로 넘어갈 수 있다(heopath 3차
+         * 리뷰). 빈 대화(첫 인사)이거나 마지막 메시지가 아직 손님(USER)일 때만 실제로 답할
+         * 게 있는 것이므로, 그 밖의 경우(이미 BOT/ADMIN이 답한 뒤)는 호출 없이 조용히 끝낸다.
+         */
+        SupportChatMessageDTO last = conversation.isEmpty() ? null : conversation.get(conversation.size() - 1);
+        if (last != null && !"USER".equals(last.getSenderType())) return;
         try {
             SupportChatBotReply reply = supportChatBotClient.reply(conversation);
             if (reply.handoff()) {

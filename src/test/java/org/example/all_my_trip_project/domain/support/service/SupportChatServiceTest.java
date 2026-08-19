@@ -15,6 +15,7 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -58,6 +59,18 @@ class SupportChatServiceTest {
         return SupportChatRoomDTO.builder()
                 .supportChatRoomId(ROOM_ID).userId(USER_ID)
                 .status(status).assignedAdminId(assignedAdminId).build();
+    }
+
+    private SupportChatRoomDTO room(String status, OffsetDateTime createdAt, OffsetDateTime lastMessageAt) {
+        return SupportChatRoomDTO.builder()
+                .supportChatRoomId(ROOM_ID).userId(USER_ID).status(status)
+                .createdAt(createdAt).lastMessageAt(lastMessageAt).build();
+    }
+
+    private SupportChatMessageDTO message(String senderType) {
+        return SupportChatMessageDTO.builder()
+                .supportChatMessageId(1L).supportChatRoomId(ROOM_ID)
+                .senderType(senderType).content("내용").build();
     }
 
     /* ── 손님 ── */
@@ -179,6 +192,63 @@ class SupportChatServiceTest {
         when(dao.findOpenRoomByUser(USER_ID)).thenReturn(Optional.of(room("BOT", null)));
 
         service.openMyRoom(USER_ID);
+
+        verify(eventPublisher, never()).publishEvent(any());
+    }
+
+    /*
+     * 서버가 재시작되면 인메모리 봇 트리거·재실행 표시가 통째로 사라진다(heopath 3차 리뷰).
+     * 그 뒤로 아무도 다시 부르지 않으면 방은 BOT 상태로 영구히 멈춘다 — 손님이 다시 방을
+     * 열어도(GET) 복구되지 않는다. 답을 못 받은 채 오래 멈춘 방을 발견하면 스스로 다시
+     * 트리거해야 한다.
+     */
+    @Test
+    @DisplayName("답을 못 받고 오래 멈춘 BOT 방은 다시 열 때 봇을 다시 부른다")
+    void retriggersBotForStaleUnansweredRoom() {
+        OffsetDateTime longAgo = OffsetDateTime.now().minusMinutes(5);
+        when(dao.findOpenRoomByUser(USER_ID))
+                .thenReturn(Optional.of(room("BOT", longAgo, longAgo)));
+        when(dao.findMessages(eq(ROOM_ID), anyInt())).thenReturn(List.of(message("USER")));
+
+        service.myRoom(USER_ID);
+
+        verify(eventPublisher).publishEvent(any(SupportChatBotTriggerEvent.class));
+    }
+
+    @Test
+    @DisplayName("메시지 하나 없이 오래 멈춘 새 BOT 방도 봇을 다시 부른다")
+    void retriggersBotForStaleEmptyRoom() {
+        OffsetDateTime longAgo = OffsetDateTime.now().minusMinutes(5);
+        when(dao.findOpenRoomByUser(USER_ID))
+                .thenReturn(Optional.of(room("BOT", longAgo, null)));
+        /* setUp()의 기본값(빈 목록)을 그대로 쓴다 — 첫 인사조차 못 받은 상태. */
+
+        service.myRoom(USER_ID);
+
+        verify(eventPublisher).publishEvent(any(SupportChatBotTriggerEvent.class));
+    }
+
+    @Test
+    @DisplayName("방금 만들어진 BOT 방은 아직 정상 처리 중일 수 있으니 다시 부르지 않는다")
+    void doesNotRetriggerBotForFreshRoom() {
+        OffsetDateTime justNow = OffsetDateTime.now();
+        when(dao.findOpenRoomByUser(USER_ID))
+                .thenReturn(Optional.of(room("BOT", justNow, null)));
+
+        service.myRoom(USER_ID);
+
+        verify(eventPublisher, never()).publishEvent(any());
+    }
+
+    @Test
+    @DisplayName("봇이 이미 답한 방은 오래 멈춰 있어도 다시 부르지 않는다")
+    void doesNotRetriggerBotWhenAlreadyAnswered() {
+        OffsetDateTime longAgo = OffsetDateTime.now().minusMinutes(5);
+        when(dao.findOpenRoomByUser(USER_ID))
+                .thenReturn(Optional.of(room("BOT", longAgo, longAgo)));
+        when(dao.findMessages(eq(ROOM_ID), anyInt())).thenReturn(List.of(message("BOT")));
+
+        service.myRoom(USER_ID);
 
         verify(eventPublisher, never()).publishEvent(any());
     }

@@ -17,6 +17,8 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
+import java.time.Duration;
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Locale;
 
@@ -35,6 +37,10 @@ import java.util.Locale;
  * (설계 문서 §5). 이 클래스는 그 결과를 저장하는 {@link #recordBotReply}/{@link #recordBotHandoff}만
  * 제공하며, 두 메서드 모두 저장 직전 방을 잠그고 상태를 다시 확인해 그 사이 관리자가
  * {@code takeover}로 가져간 방에 뒤늦게 봇 답변이 끼어들지 않게 한다.
+ *
+ * <p>봇 트리거는 인메모리 이벤트라 서버가 재시작되면 사라질 수 있다. {@link #view}가
+ * {@link #recoverIfStuck}로 그 상황을 발견해 스스로 복구한다 — 자세한 이유는 그 메서드
+ * 참고.
  */
 @Service
 @Profile("!ui")
@@ -60,6 +66,15 @@ public class SupportChatService {
             List.of("상담원", "상담사", "사람이랑", "사람과 얘기", "사람 연결", "직원 연결", "실제 사람");
 
     private static final String HUMAN_REQUEST_REPLY = "상담원에게 연결해 드릴게요. 잠시만 기다려 주세요.";
+
+    /**
+     * 봇 트리거·재실행 표시는 전부 애플리케이션 메모리에만 있다. 방 생성·손님 메시지 저장이
+     * 커밋된 뒤, 비동기 Gemini 응답이 저장되기 전에 서버가 재시작되면 그 이벤트는 사라지고
+     * 방은 {@code BOT} 상태로 영구히 멈춘다(heopath 3차 리뷰). 이 값보다 오래 답을 못 받은
+     * 방을 발견하면 트리거를 다시 발행한다 — 정상적으로 Gemini 호출이 진행 중인 짧은 창(보통
+     * 수 초)까지 재발행하지 않도록 충분히 여유를 둔다.
+     */
+    private static final Duration BOT_STALE_THRESHOLD = Duration.ofSeconds(20);
 
     private final SupportChatDAO supportChatDAO;
     private final SimpMessagingTemplate messagingTemplate;
@@ -321,8 +336,31 @@ public class SupportChatService {
     }
 
     private SupportChatViewResponse view(SupportChatRoomDTO room) {
-        return new SupportChatViewResponse(room,
-                supportChatDAO.findMessages(room.getSupportChatRoomId(), MAX_MESSAGES));
+        List<SupportChatMessageDTO> messages =
+                supportChatDAO.findMessages(room.getSupportChatRoomId(), MAX_MESSAGES);
+        recoverIfStuck(room, messages);
+        return new SupportChatViewResponse(room, messages);
+    }
+
+    /**
+     * 답을 못 받은 채 {@link #BOT_STALE_THRESHOLD}보다 오래 멈춰 있는 방을 발견하면 봇
+     * 트리거를 다시 발행한다.
+     *
+     * <p>서버가 재시작되면 인메모리 트리거·재실행 표시가 통째로 사라지므로, 그 사이 손님이
+     * 다시 방을 열어도({@code GET}은 물론 관리자가 방 목록·상세를 봐도) 아무도 다시 부르지
+     * 않으면 방은 영영 {@code BOT}에 머문다. 이 메서드가 {@link #view}를 통해 방을 보여주는
+     * 모든 경로에 걸리므로, 손님·관리자 어느 쪽이 다시 보더라도 스스로 복구된다.
+     *
+     * <p>중복 발행은 안전하다 — {@link SupportChatBotOrchestrator}가 방 단위로 겹쳐 부르지
+     * 않고, 실제로 답할 게 없으면(이미 답이 달렸으면) 호출 없이 조용히 끝난다.
+     */
+    private void recoverIfStuck(SupportChatRoomDTO room, List<SupportChatMessageDTO> messages) {
+        if (!"BOT".equals(room.getStatus())) return;
+        SupportChatMessageDTO last = messages.isEmpty() ? null : messages.get(messages.size() - 1);
+        if (last != null && !"USER".equals(last.getSenderType())) return;
+        OffsetDateTime reference = room.getLastMessageAt() != null ? room.getLastMessageAt() : room.getCreatedAt();
+        if (reference == null || reference.isAfter(OffsetDateTime.now().minus(BOT_STALE_THRESHOLD))) return;
+        eventPublisher.publishEvent(new SupportChatBotTriggerEvent(room.getSupportChatRoomId()));
     }
 
     private SupportChatRoomDTO requireOpenRoom(Long userId) {
