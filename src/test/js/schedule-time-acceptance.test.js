@@ -27,13 +27,14 @@ assert.match(scheduleSource, /String\(other\?\.itineraryItemId\) !== String\(ite
 // 자정 초과 추천은 추가 버튼과 DAY 일괄 추가에서 모두 막고 이유를 표시한다.
 assert.match(guideSource, /시간 조정 필요/);
 assert.match(guideSource, /자정을 넘어 추가할 수 없습니다/);
-assert.match(guideSource, /unavailableTimePlaceIds\.has/);
+assert.match(guideSource, /unavailableTimeKeys\.has\(recommendationKey\(item\)\)/);
 
 // 사용자는 추천 항목을 골라 일괄 추가할 수 있고, 충돌 항목은 다른 시간대로 다시 추천할 수 있다.
 assert.match(guideSource, /selectedPlaceIds/);
 assert.match(guideSource, /개 선택 추가/);
 assert.match(guideSource, /다른 시간 추천/);
 assert.match(guideSource, /현재 일정과 겹치지 않는 다른 시간대로 추천해줘/);
+assert.match(guideSource, /시작 시간은 21:30 이하로 추천해줘/);
 assert.match(guideSource, /예상 체류 2시간/);
 assert.match(guideSource, /recommendationKey\(item\)/);
 assert.match(guideSource, /filter\(isOutsideDay\)/);

@@ -25,7 +25,15 @@ final class ItineraryItemTimeConflictValidator {
     }
 
     boolean hasConflict(ItineraryItemDTO candidate, List<ItineraryItemDTO> existingItems) {
-        return hasConflictExcludingSameItem(candidate, existingItems);
+        if (candidate.getStartTime() == null || existingItems == null) {
+            return false;
+        }
+
+        TimeRange candidateRange = rangeOf(candidate);
+        return existingItems.stream()
+                .filter(existing -> existing.getStartTime() != null)
+                .map(this::rangeOf)
+                .anyMatch(candidateRange::overlaps);
     }
 
     /**

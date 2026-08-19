@@ -26,6 +26,8 @@ class ItineraryItemService {
     @Transactional
     public Long create(Long userId, ItineraryItemDTO item) {
         ownershipGuard.requireOwnedTripDay(userId, item.getTripDayId());
+        // 생성 API에서 전달한 ID는 신뢰하지 않는다. MyBatis가 INSERT 후 생성된 키만 설정한다.
+        item.setItineraryItemId(null);
         itineraryItemValidator.validate(item);
         int existingCount = itemDAO.countByTripDayId(item.getTripDayId());
         if (existingCount >= TripPolicy.MAX_ITINERARY_ITEMS_PER_DAY) {

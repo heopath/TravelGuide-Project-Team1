@@ -170,7 +170,7 @@ document.addEventListener("DOMContentLoaded", function () {
     const name = String(item?.name || "추천 장소").trim();
     const question = "DAY " + dayNumber + "의 " + name
       + "을(를) 현재 일정과 겹치지 않는 다른 시간대로 추천해줘. "
-      + "일정은 2시간 기준으로, 22:00 이후에는 시작하지 않게 해줘.";
+      + "일정은 2시간 기준으로, 시작 시간은 21:30 이하로 추천해줘.";
     input.value = "";
     submit(question);
   }
