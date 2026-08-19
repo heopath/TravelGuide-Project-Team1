@@ -340,6 +340,11 @@ public enum ErrorCode {
             "조회 조건이 올바르지 않습니다."
     ),
 
+    INVALID_SERVICE_VERSION(
+            HttpStatus.BAD_REQUEST,
+            "버전은 0.9.1 또는 v0.9.1 형식으로 입력해 주세요."
+    ),
+
     MEMBER_NOT_FOUND(
             HttpStatus.NOT_FOUND,
             "회원을 찾을 수 없습니다."

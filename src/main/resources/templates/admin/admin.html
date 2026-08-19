@@ -51,6 +51,9 @@
                 <button type="button" data-admin-panel="metrics">
                   <span aria-hidden="true">▦</span><span>운영 지표</span><em class="live">실연동</em>
                 </button>
+                <button type="button" data-admin-panel="version">
+                  <span aria-hidden="true">v</span><span>서비스 버전</span><em class="live">실연동</em>
+                </button>
                 <button type="button" data-admin-panel="products">
                   <span aria-hidden="true">▤</span><span>예약 상품·재고</span><em class="live">실연동</em>
                 </button>
@@ -209,6 +212,32 @@
                   </div>
                 </div>
                 <p class="admin-hint" data-metrics-note role="status"></p>
+              </section>
+
+              <section class="admin-section" data-admin-section="version" aria-labelledby="versionTitle" hidden>
+                <div class="admin-section-head">
+                  <h2 id="versionTitle">서비스 버전 관리</h2>
+                  <span class="admin-tag live" data-admin-state="version">실연동</span>
+                  <p class="admin-section-description">사이트 푸터에 표시할 운영 버전을 변경합니다.</p>
+                </div>
+                <div class="white-panel admin-panel admin-version-panel">
+                  <p class="admin-version-current">
+                    현재 푸터 표시 버전
+                    <strong data-version-current>불러오는 중</strong>
+                  </p>
+                  <form class="admin-version-form" data-version-form data-no-global-loading>
+                    <label for="footerVersionInput">
+                      표시 버전
+                      <input id="footerVersionInput" data-version-input name="version"
+                             inputmode="decimal" autocomplete="off" maxlength="40"
+                             pattern="v?[0-9]+\.[0-9]+\.[0-9]+"
+                             placeholder="예: v0.9.1" required />
+                    </label>
+                    <button type="submit" class="primary-button" data-version-submit>저장</button>
+                  </form>
+                  <p class="admin-hint">빌드 버전과 별개로 관리되며, 저장 즉시 모든 화면의 푸터에 적용됩니다.</p>
+                  <p class="admin-version-message" data-version-message role="status"></p>
+                </div>
               </section>
 
               <!--
@@ -658,6 +687,7 @@
     <script th:src="@{/js/pages/admin/admin-reservations.js}" src="../../static/js/pages/admin/admin-reservations.js"></script>
     <script th:src="@{/js/pages/admin/admin-chat.js}" src="../../static/js/pages/admin/admin-chat.js"></script>
     <script th:src="@{/js/pages/admin/admin-validation.js}" src="../../static/js/pages/admin/admin-validation.js"></script>
+    <script th:src="@{/js/pages/admin/admin-version.js}" src="../../static/js/pages/admin/admin-version.js"></script>
     <script th:src="@{/js/pages/admin/admin-members.js}" src="../../static/js/pages/admin/admin-members.js"></script>
     <script th:src="@{/js/pages/admin/admin-audit.js}" src="../../static/js/pages/admin/admin-audit.js"></script>
   </body>
