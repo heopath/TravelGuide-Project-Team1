@@ -1013,6 +1013,12 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   function openTimeEditor(item, timeButton, index) {
+    // 교통수단을 먼저 선택해야 시간 설정 가능
+    if (!globalTransportMode) {
+      toast("교통수단을 먼저 설정해 주세요.");
+      return;
+    }
+
     const clickedControl = timeButton.closest(".schedule-time-control");
 
     if (activeTimeEditor && activeTimeEditor.parentElement === clickedControl) {
@@ -1137,49 +1143,171 @@ document.addEventListener("DOMContentLoaded", function () {
     editor.querySelector(".schedule-time-save").addEventListener("click", async function () {
       const saveTimeButton = editor.querySelector(".schedule-time-save");
       const snapshot = snapshotScheduleTimeState(activeItems);
+
       normalizeHour();
       normalizeMinute();
-      const startTime = autoStart
-        ? calculated?.startTime || getItemStartTime(item)
-        : hourInput.value + ":" + minuteInput.value;
+
       const durationMinutes = Number(durationSelect.value);
-      const startMinutes = toMinutes(startTime);
-      const endMinutes = startMinutes === null ? null : startMinutes + durationMinutes;
-      if (startMinutes === null || !Number.isFinite(endMinutes) || endMinutes >= 24 * 60) {
-        toast("자정을 넘는 일정은 현재 저장할 수 없습니다. 종료 시각을 자정 이전으로 설정해 주세요.");
+
+      // 체류시간 자체가 올바른지 먼저 검사
+      if (!Number.isFinite(durationMinutes) || durationMinutes <= 0) {
+        toast("체류시간을 선택해 주세요.");
         return;
       }
+
+      /*
+       * 2번 이후 일정은 시작시간이 자동 계산된다.
+       *
+       * 아직 교통수단이 선택되지 않은 경우에는
+       * 이동시간을 알 수 없기 때문에 startTime이 없는 것이 정상이다.
+       *
+       * 이 경우 자정 초과 오류를 발생시키지 않고
+       * 체류시간만 먼저 저장한다.
+       */
+      if (autoStart) {
+        const calculatedStartTime =
+            calculated?.startTime || getItemStartTime(item) || "";
+
+        if (!calculatedStartTime) {
+          try {
+            saveTimeButton.disabled = true;
+            saveTimeButton.textContent = "저장 중...";
+
+            // 시작/종료시간 없이 체류시간만 저장
+            saveScheduleTime(item, "", durationMinutes, "");
+
+            item.startTime = null;
+            item.endTime = null;
+
+            // 현재 가능한 범위까지만 다시 계산
+            activeScheduleCalculation = calculateScheduleTimes(
+                activeItems,
+                activeDay
+            );
+
+            closeTimeEditor();
+            refreshScheduleTimeDisplay();
+
+            toast("체류시간이 저장되었습니다.");
+          } catch (error) {
+            restoreScheduleTimeState(snapshot);
+
+            activeScheduleCalculation = calculateScheduleTimes(
+                activeItems,
+                activeDay
+            );
+
+            saveTimeButton.disabled = false;
+            saveTimeButton.textContent = "저장";
+
+            toast(error.message || "체류시간을 저장하지 못했습니다.");
+          }
+
+          return;
+        }
+      }
+
+      /*
+       * 첫 장소는 사용자가 입력한 시작시간 사용.
+       * 2번 이후는 자동 계산된 시작시간 사용.
+       */
+      const startTime = autoStart
+          ? calculated?.startTime || getItemStartTime(item)
+          : hourInput.value + ":" + minuteInput.value;
+
+      const startMinutes = toMinutes(startTime);
+
+      // 시작시간 자체를 구하지 못한 경우
+      if (startMinutes === null) {
+        toast("시작시간을 계산할 수 없습니다.");
+        return;
+      }
+
+      const endMinutes = startMinutes + durationMinutes;
+
+      // 여기서부터 진짜 '자정 초과' 검사
+      if (!Number.isFinite(endMinutes) || endMinutes >= 24 * 60) {
+        toast(
+            "자정을 넘는 일정은 현재 저장할 수 없습니다. 종료 시각을 자정 이전으로 설정해 주세요."
+        );
+        return;
+      }
+
       const endTime = minutesToTime(endMinutes);
+
       saveTimeButton.disabled = true;
       saveTimeButton.textContent = "저장 중...";
+
       try {
         if (!autoStart) {
+          // 첫 장소의 시간을 변경하면 뒤 일정 전체를 다시 계산
           activeScheduleCalculation = reflowScheduleFromDayStart(
-            activeItems,
-            activeDay,
-            startTime,
-            durationMinutes
+              activeItems,
+              activeDay,
+              startTime,
+              durationMinutes
           );
         } else {
-          saveScheduleTime(item, startTime, durationMinutes, endTime);
+          // 자동 계산되는 일정의 체류시간 변경
+          saveScheduleTime(
+              item,
+              startTime,
+              durationMinutes,
+              endTime
+          );
+
           item.startTime = startTime || null;
           item.endTime = endTime || null;
-          activeScheduleCalculation = calculateScheduleTimes(activeItems, activeDay);
+
+          activeScheduleCalculation = calculateScheduleTimes(
+              activeItems,
+              activeDay
+          );
         }
+
+        /*
+         * 모든 장소의 시간 계산이 끝났으면
+         * 일괄 저장 API 사용.
+         */
         if (activeScheduleCalculation.size === activeItems.length) {
-          const persisted = await persistCalculatedScheduleTimes(activeItems, activeDay, activeScheduleCalculation);
-          if (!persisted) await persistScheduleItemTime(item, activeDay, startTime, endTime);
+          const persisted = await persistCalculatedScheduleTimes(
+              activeItems,
+              activeDay,
+              activeScheduleCalculation
+          );
+
+          if (!persisted) {
+            await persistScheduleItemTime(
+                item,
+                activeDay,
+                startTime,
+                endTime
+            );
+          }
         } else {
-          await persistScheduleItemTime(item, activeDay, startTime, endTime);
+          await persistScheduleItemTime(
+              item,
+              activeDay,
+              startTime,
+              endTime
+          );
         }
+
         closeTimeEditor();
         refreshScheduleTimeDisplay();
+
         toast("방문 시간이 저장되었습니다.");
       } catch (error) {
         restoreScheduleTimeState(snapshot);
-        activeScheduleCalculation = calculateScheduleTimes(activeItems, activeDay);
+
+        activeScheduleCalculation = calculateScheduleTimes(
+            activeItems,
+            activeDay
+        );
+
         saveTimeButton.disabled = false;
         saveTimeButton.textContent = "저장";
+
         toast(error.message || "시간 정보를 저장하지 못했습니다.");
       }
     });
@@ -2773,7 +2901,7 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   function toMinutes(value) {
-    const matched = String(value || "").trim().match(/^([01]\\d|2[0-3]):([0-5]\\d)(?::[0-5]\\d)?$/);
+    const matched = String(value || "").trim().match(/^([01]\d|2[0-3]):([0-5]\d)(?::[0-5]\d)?$/);
     if (!matched) return null;
     return Number(matched[1]) * 60 + Number(matched[2]);
   }
