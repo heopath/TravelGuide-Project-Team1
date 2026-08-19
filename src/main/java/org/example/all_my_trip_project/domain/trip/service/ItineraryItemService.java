@@ -26,6 +26,8 @@ class ItineraryItemService {
     @Transactional
     public Long create(Long userId, ItineraryItemDTO item) {
         ownershipGuard.requireOwnedTripDay(userId, item.getTripDayId());
+        // 생성 API에서 전달한 ID는 신뢰하지 않는다. MyBatis가 INSERT 후 생성된 키만 설정한다.
+        item.setItineraryItemId(null);
         itineraryItemValidator.validate(item);
         int existingCount = itemDAO.countByTripDayId(item.getTripDayId());
         if (existingCount >= TripPolicy.MAX_ITINERARY_ITEMS_PER_DAY) {
@@ -69,6 +71,10 @@ class ItineraryItemService {
         // 순서 변경은 별도 재정렬 기능(TRIP-06)의 책임이므로 일반 수정에서는 기존 sortOrder를 그대로 유지한다.
         item.setSortOrder(existing.getSortOrder());
         itineraryItemValidator.validate(item);
+        if (timeConflictValidator.hasConflictExcludingSameItem(
+                item, itemDAO.findByTripDayId(item.getTripDayId()))) {
+            throw new BusinessException(ErrorCode.ITINERARY_TIME_CONFLICT);
+        }
         if (itemDAO.update(item) == 0) {
             throw new IllegalArgumentException("수정할 일정 항목을 찾을 수 없습니다.");
         }

@@ -769,6 +769,13 @@ body.map-modal-open {
 .schedule-ai-add-item:hover:not(:disabled) { border-color: var(--primary); background: var(--primary-soft); }
 .schedule-ai-add-item:disabled { cursor: default; opacity: .7; }
 .schedule-ai-add-item.is-time-conflict { border-color: #f0ad57; background: #fff8ed; color: #a96512; opacity: 1; }
+.schedule-ai-add-item.is-time-unavailable { border-color: #e89a72; background: #fff3ec; color: #b75b2e; opacity: 1; }
+.schedule-ai-adjust-time { min-height: 25px; padding: 0 7px; border: 1px solid #f0ad57; border-radius: 8px; background: #fff8ed; color: #a96512; font-size: 9px; font-weight: 900; cursor: pointer; white-space: nowrap; }
+.schedule-ai-adjust-time:hover { background: #ffefda; }
+.schedule-ai-select-label { display: inline-flex; align-items: center; gap: 3px; color: #63708a; font-size: 9px; font-weight: 800; cursor: pointer; }
+.schedule-ai-select-label input { width: 13px; height: 13px; accent-color: var(--primary); cursor: pointer; }
+.schedule-ai-select-label input:disabled { cursor: default; }
+.schedule-ai-duration { color: #6e7bd8 !important; font-weight: 800; }
 .schedule-ai-links { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
 .schedule-ai-links a { padding: 7px 8px; border-radius: 8px; background: #fff; color: var(--primary); font-size: 10px; font-weight: 800; text-decoration: none; }
 .schedule-ai-error { margin: 0 16px 10px; padding: 11px 12px; border-radius: 10px; background: #fff0f2; color: #cb4b61; font-size: 11px; }
@@ -798,7 +805,7 @@ body.map-modal-open {
   .schedule-ai-modal { right: 12px; bottom: 82px; }
   .schedule-ai-dialog { width: calc(100vw - 24px); height: min(620px, calc(100vh - 106px)); border-radius: 20px; }
   .schedule-ai-day li { grid-template-columns: 38px minmax(0, 1fr); align-items: start; }
-  .schedule-ai-place-actions { grid-column: 2; grid-template-columns: repeat(2, max-content); justify-content: start; justify-items: start; }
+  .schedule-ai-place-actions { grid-column: 2; grid-template-columns: repeat(3, max-content); justify-content: start; justify-items: start; }
   .schedule-ai-place-meta small { max-width: 100%; }
   .schedule-ai-day-heading { align-items: flex-start; }
   .schedule-ai-add-all { max-width: 156px; white-space: normal; line-height: 1.25; }

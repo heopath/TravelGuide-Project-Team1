@@ -473,6 +473,34 @@ document.addEventListener("DOMContentLoaded", function () {
     return String(item.itineraryItemId || item.place?.externalPlaceId || item.title || "");
   }
 
+  // 서버 저장 전 초안도 전체 보기에서는 DAY별로 구분해야 한다.
+  function scheduleDayIdentity(day) {
+    return day?.tripDayId
+      ? "trip-day:" + day.tripDayId
+      : "draft-day:" + draftDayKey(day);
+  }
+
+  function attachScheduleDayIdentity(items, day) {
+    const dayIdentity = scheduleDayIdentity(day);
+    return (items || []).map(function (item) {
+      return {
+        ...item,
+        tripDayId: item.tripDayId || day?.tripDayId,
+        scheduleDayIdentity: item.scheduleDayIdentity || dayIdentity,
+      };
+    });
+  }
+
+  function isSameScheduleDay(item, targetDayIdentity) {
+    return Boolean(item?.scheduleDayIdentity)
+      && String(item.scheduleDayIdentity) === String(targetDayIdentity);
+  }
+
+  function isTimeConflictCandidate(other, item, targetDayIdentity, isAllScheduleVisible) {
+    if (String(other?.itineraryItemId) === String(item?.itineraryItemId)) return false;
+    return !isAllScheduleVisible || isSameScheduleDay(other, targetDayIdentity);
+  }
+
   function readScheduleTimeOverrides() {
     try {
       return JSON.parse(sessionStorage.getItem(scheduleTimeStorageKey) || "{}");
@@ -506,7 +534,7 @@ document.addEventListener("DOMContentLoaded", function () {
     return fallbackMinutes;
   }
 
-  async function saveScheduleTime(item, startTime, durationMinutes) {
+  async function saveScheduleTime(item, startTime, durationMinutes, targetDay) {
     const overrides = readScheduleTimeOverrides();
     const key = getScheduleTimeKey(item);
     const startMinutes = toMinutes(startTime);
@@ -516,6 +544,21 @@ document.addEventListener("DOMContentLoaded", function () {
     }
     const endTime = String(Math.floor(endMinutes / 60)).padStart(2, "0") + ":"
       + String(endMinutes % 60).padStart(2, "0");
+    const requestedWindow = {start: startMinutes, end: endMinutes};
+    const targetDayIdentity = item?.scheduleDayIdentity || scheduleDayIdentity(targetDay || activeDay);
+    const hasLocalTimeConflict = (activeItems || [])
+      .filter(function (other) {
+        // 전체 보기에서는 DAY별 항목을 한 배열로 보여주므로, 같은 DAY의 일정만 비교한다.
+        return isTimeConflictCandidate(other, item, targetDayIdentity, allScheduleVisible);
+      })
+      .map(getScheduledItemTimeWindow)
+      .filter(Boolean)
+      .some(function (otherWindow) {
+        return requestedWindow.start < otherWindow.end && otherWindow.start < requestedWindow.end;
+      });
+    if (hasLocalTimeConflict) {
+      throw new Error("기존 일정과 시간이 겹칩니다. 다른 시간을 선택해 주세요.");
+    }
 
     // 저장 전 초안 항목은 아직 서버 ID가 없으므로 화면에서만 시간을 유지한다.
     if (!item?.itineraryItemId || String(item.itineraryItemId).startsWith("draft-") || !item.tripDayId) {
@@ -583,7 +626,7 @@ document.addEventListener("DOMContentLoaded", function () {
     return "체류 " + hour + "시간 " + minute + "분";
   }
 
-  function openTimeEditor(item, timeButton) {
+  function openTimeEditor(item, timeButton, day) {
     const clickedControl = timeButton.closest(".schedule-time-control");
 
     if (activeTimeEditor && activeTimeEditor.parentElement === clickedControl) {
@@ -689,7 +732,7 @@ document.addEventListener("DOMContentLoaded", function () {
       const startTime = hourInput.value + ":" + minuteInput.value;
       const durationMinutes = Number(durationSelect.value);
       try {
-        await saveScheduleTime(item, startTime, durationMinutes);
+        await saveScheduleTime(item, startTime, durationMinutes, day);
         timeButton.innerHTML = `<span aria-hidden="true">◷</span><span>${startTime}</span>`;
         const durationTag = timeButton.closest(".schedule-item")?.querySelector(".schedule-item-duration");
         if (durationTag) durationTag.textContent = formatDuration(durationMinutes);
@@ -953,7 +996,7 @@ document.addEventListener("DOMContentLoaded", function () {
     timeButton.type = "button";
     timeButton.className = "schedule-item-time";
     timeButton.textContent = startTime ? "◷ " + formatTime(startTime) : "시간 설정";
-    timeButton.addEventListener("click", function () { openTimeEditor(item, timeButton); });
+    timeButton.addEventListener("click", function () { openTimeEditor(item, timeButton, day); });
     timeControl.className = "schedule-time-control";
     timeControl.appendChild(timeButton);
     infoButton.type = "button";
@@ -1206,9 +1249,10 @@ document.addEventListener("DOMContentLoaded", function () {
     showEmpty(timeline, "전체 일정을 불러오는 중입니다.");
     try {
       const groups = await Promise.all(days.map(async function (day) {
-        const items = day.tripDayId
-          ? await hydrateItems(await api("/api/v1/trip-days/" + day.tripDayId + "/items"))
+        const loadedItems = day.tripDayId
+          ? (await hydrateItems(await api("/api/v1/trip-days/" + day.tripDayId + "/items")))
           : (readDraft().scheduleItems?.[draftDayKey(day)] || []);
+        const items = attachScheduleDayIdentity(loadedItems, day);
         return {day, items};
       }));
       timeline.replaceChildren();
@@ -1526,7 +1570,7 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   function toMinutes(value) {
-    const matched = String(value || "").trim().match(/^([01]\\d|2[0-3]):([0-5]\\d)(?::[0-5]\\d)?$/);
+    const matched = String(value || "").trim().match(/^([01]\d|2[0-3]):([0-5]\d)(?::[0-5]\d)?$/);
     if (!matched) return null;
     return Number(matched[1]) * 60 + Number(matched[2]);
   }
@@ -1680,6 +1724,7 @@ document.addEventListener("DOMContentLoaded", function () {
   window.AllMyTripsSchedule = {
     getAiRecommendationStates,
     getAiRecommendationTimeConflicts,
+    isAiRecommendationOutsideDay,
     getAiRecommendationUnavailableTimePlaceIds,
     addAiRecommendations,
     addAiRecommendation: async function (recommendation, recommendedDayNumber) {
