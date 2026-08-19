@@ -23,6 +23,9 @@ assert.match(scheduleSource, /endMinutes >= 24 \* 60/);
 assert.match(scheduleSource, /endTime,/);
 assert.match(scheduleSource, /기존 일정과 시간이 겹칩니다\. 다른 시간을 선택해 주세요\./);
 assert.match(scheduleSource, /String\(other\?\.itineraryItemId\) !== String\(item\?\.itineraryItemId\)/);
+assert.match(scheduleSource, /!allScheduleVisible \|\| String\(other\?\.tripDayId\) === String\(targetTripDayId\)/);
+assert.match(scheduleSource, /openTimeEditor\(item, timeButton, day\)/);
+assert.match(scheduleSource, /tripDayId: item\.tripDayId \|\| day\.tripDayId/);
 
 // 자정 초과 추천은 추가 버튼과 DAY 일괄 추가에서 모두 막고 이유를 표시한다.
 assert.match(guideSource, /시간 조정 필요/);
@@ -38,5 +41,6 @@ assert.match(guideSource, /시작 시간은 21:30 이하로 추천해줘/);
 assert.match(guideSource, /예상 체류 2시간/);
 assert.match(guideSource, /recommendationKey\(item\)/);
 assert.match(guideSource, /filter\(isOutsideDay\)/);
+assert.match(guideSource, /entry\.adjustButton\.hidden = added \|\| \(!timeConflict && !unavailableTime\)/);
 
 console.log("schedule time acceptance checks passed");

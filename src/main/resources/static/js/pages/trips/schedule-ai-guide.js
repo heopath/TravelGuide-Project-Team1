@@ -148,7 +148,7 @@ document.addEventListener("DOMContentLoaded", function () {
         setAddButtonState(entry.button, added, timeConflict, unavailableTime);
         entry.checkbox.disabled = !isAddableItem(entry.item, addedPlaceIds, timeConflictPlaceIds, unavailableTimeKeys);
         entry.checkbox.checked = control.selectedPlaceIds.has(Number(entry.item.placeId)) && !entry.checkbox.disabled;
-        entry.adjustButton.hidden = !timeConflict && !unavailableTime;
+        entry.adjustButton.hidden = added || (!timeConflict && !unavailableTime);
       });
       updateBulkButton(control, addedPlaceIds, timeConflictPlaceIds, unavailableTimeKeys);
       if (timeConflictPlaceIds.size || unavailableTimeKeys.size) {
