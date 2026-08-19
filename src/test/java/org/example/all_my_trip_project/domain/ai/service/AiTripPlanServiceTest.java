@@ -71,4 +71,33 @@ class AiTripPlanServiceTest {
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("여행 기간은 최대 30일까지 선택할 수 있습니다.");
     }
+
+    /*
+     * 운영에서 Gemini가 JSON을 코드펜스로 감싸 보내 파싱이 500으로 실패했다(#234).
+     * 프롬프트로 막아도 모델이 지키지 않을 때가 있어 응답을 받는 쪽에서 벗겨낸다.
+     */
+    @Test
+    void stripsMarkdownCodeFenceFromGeminiResponse() {
+        String json = "{\"title\":\"부산 여행\"}";
+
+        assertThat(aiTripPlanService.stripCodeFence("```json\n" + json + "\n```")).isEqualTo(json);
+        assertThat(aiTripPlanService.stripCodeFence("```\n" + json + "\n```")).isEqualTo(json);
+        assertThat(aiTripPlanService.stripCodeFence("  ```json\n" + json + "\n```  ")).isEqualTo(json);
+    }
+
+    @Test
+    void keepsPlainJsonUnchanged() {
+        String json = "{\"title\":\"부산 여행\"}";
+
+        assertThat(aiTripPlanService.stripCodeFence(json)).isEqualTo(json);
+        assertThat(aiTripPlanService.stripCodeFence("  " + json + "  ")).isEqualTo(json);
+    }
+
+    @Test
+    void keepsBackticksInsideJsonValues() {
+        // 값 안의 백틱까지 건드리면 안 된다. 펜스로 시작할 때만 벗겨낸다.
+        String json = "{\"title\":\"``코드`` 여행\"}";
+
+        assertThat(aiTripPlanService.stripCodeFence(json)).isEqualTo(json);
+    }
 }
