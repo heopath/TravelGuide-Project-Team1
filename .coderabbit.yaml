@@ -11,7 +11,7 @@ reviews:
   review_status: true
   review_details: false
   auto_review:
-    enabled: true
+    enabled: false
     drafts: false
     base_branches:
       - "develop"
@@ -37,4 +37,4 @@ reviews:
       instructions: "중복 요청, 비동기 경쟁 조건, 오류 복구 및 모바일 화면 동작을 확인하세요."
 
 chat:
-  auto_reply: true
+  auto_reply: false
