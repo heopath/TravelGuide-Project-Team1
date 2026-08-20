@@ -646,12 +646,13 @@
     /**
      * 결제를 시작한 화면을 적어 둔다.
      *
-     * <p>토스에서 돌아오면 /pay/toss가 열린다. 그 화면은 손님이 어디서 결제를 시작했는지
-     * 알 방법이 없어서, 여기서 남겨 둬야 마이페이지든 예약 화면이든 제자리로 보낼 수 있다.
+     * <p>결제사에서 돌아오면 /pay/toss나 /pay/kakao가 열린다. 그 화면은 손님이 어디서
+     * 결제를 시작했는지 알 방법이 없어서, 여기서 남겨 둬야 마이페이지든 예약 화면이든
+     * 제자리로 보낼 수 있다. 결제사마다 칸을 만들 이유는 없다 — 한 번에 하나만 진행된다.
      */
     function rememberReturn() {
         try {
-            window.sessionStorage.setItem("allmytrips.tossReturnTo",
+            window.sessionStorage.setItem("allmytrips.payReturnTo",
                 window.location.pathname + window.location.search);
         } catch (error) {
             /* 저장을 막아둔 브라우저다. 돌아가는 화면이 기본 주소로 보낼 뿐 결제는 된다. */
@@ -675,8 +676,85 @@
         }
     }
 
+    /* ── 카카오페이 ── */
+
+    /** 카카오페이 결제가 켜져 있는지. 화면이 meta 태그로 실어 준다. */
+    function kakaoReady() {
+        const meta = document.querySelector('meta[name="kakao-pay-enabled"]');
+        return Boolean(meta && meta.content === "true");
+    }
+
+    /**
+     * 카카오페이로 결제한다.
+     *
+     * <p>토스와 달리 결제창을 우리 화면 안에 띄우지 못한다. 카카오가 준 주소로 손님을
+     * 아예 보냈다가 /pay/kakao로 돌려받는다. 그래서 여기서 돌아오지 않는다.
+     *
+     * <p>거래번호는 서버가 들고 있는다. 화면은 시작해 달라고 부르고, 받은 주소로 갈 뿐이다.
+     *
+     * @param settings.ready 결제 시작을 서버에 요청하는 함수. 화면마다 요청 도구가 달라
+     *                       부르는 쪽이 넘긴다. 결과의 redirectUrl로 이동한다.
+     */
+    function kakaoCheckout(settings) {
+        if (!kakaoReady()) return Promise.resolve(null);
+
+        const brand = BRANDS.KAKAO_PAY;
+        const root = overlay("카카오페이 결제");
+        const box = panel(brand);
+
+        box.append(head("카카오페이", settings.summary), amountRow(settings.amountText));
+
+        const guide = document.createElement("p");
+        guide.className = "pay-easy-guide";
+        guide.textContent = `${withRo(brand.app)} 결제하려면 카카오페이 결제 화면으로 이동해요.`;
+
+        const error = document.createElement("p");
+        error.className = "pay-checkout-error";
+        error.dataset.payError = "";
+        error.hidden = true;
+
+        box.append(guide, error,
+            notice("카카오페이 테스트 결제입니다. 실제 돈이 빠져나가지 않습니다."));
+
+        const buttons = actions("취소", "카카오페이로 이동");
+        box.appendChild(buttons.wrap);
+        root.appendChild(box);
+        document.body.appendChild(root);
+
+        return new Promise((resolve) => {
+            let closed = false;
+
+            buttons.cancel.addEventListener("click", () => finish(null));
+            buttons.confirm.addEventListener("click", async () => {
+                buttons.confirm.disabled = true;
+                error.hidden = true;
+                try {
+                    const started = await settings.ready();
+                    if (!started || !started.redirectUrl) {
+                        throw new Error("카카오페이 결제 주소를 받지 못했어요.");
+                    }
+                    rememberReturn();
+                    /* 여기서 화면이 카카오로 넘어간다. 돌아오는 곳은 /pay/kakao다. */
+                    window.location.href = started.redirectUrl;
+                } catch (exception) {
+                    error.textContent = exception?.message || "결제를 시작하지 못했어요.";
+                    error.hidden = false;
+                    buttons.confirm.disabled = false;
+                }
+            });
+
+            function finish(result) {
+                if (closed) return;
+                closed = true;
+                root.remove();
+                resolve(result);
+            }
+        });
+    }
+
     window.AllMyTripsCheckout = {
-        cardCheckout, transferCheckout, easyPayCheckout, tossCheckout, tossClientKey,
+        cardCheckout, transferCheckout, easyPayCheckout,
+        tossCheckout, tossClientKey, kakaoCheckout, kakaoReady,
         BRANDS, luhnValid, cardBrand, withRo
     };
 })();

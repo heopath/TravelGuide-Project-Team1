@@ -21,13 +21,25 @@ import org.springframework.web.bind.annotation.ModelAttribute;
 public class PaymentConfigAdvice {
 
     private final String tossClientKey;
+    private final boolean kakaoPayEnabled;
 
-    public PaymentConfigAdvice(@Value("${payment.toss.client-key:}") String tossClientKey) {
+    public PaymentConfigAdvice(@Value("${payment.toss.client-key:}") String tossClientKey,
+                               @Value("${payment.kakao.secret-key:}") String kakaoSecretKey) {
         this.tossClientKey = tossClientKey == null ? "" : tossClientKey.trim();
+        /*
+         * 카카오는 화면이 쓸 공개 키가 없다 — 결제 시작부터 서버가 부른다. 그래서 키가 아니라
+         * 켜졌는지만 내보낸다. 시크릿 키는 어떤 형태로도 화면에 실리지 않는다.
+         */
+        this.kakaoPayEnabled = kakaoSecretKey != null && !kakaoSecretKey.isBlank();
     }
 
     @ModelAttribute("tossClientKey")
     public String tossClientKey() {
         return tossClientKey;
+    }
+
+    @ModelAttribute("kakaoPayEnabled")
+    public boolean kakaoPayEnabled() {
+        return kakaoPayEnabled;
     }
 }

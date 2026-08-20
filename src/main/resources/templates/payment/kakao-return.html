@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="All My Trips 카카오페이 결제 결과" />
+    <title>결제 확인 — All My Trips</title>
+    <link rel="icon" th:href="@{/images/icons/app-icon.png}" href="../../static/images/icons/app-icon.png" />
+    <link rel="stylesheet" th:href="@{/css/common/reset.css}" href="../../static/css/common/reset.css" />
+    <link rel="stylesheet" th:href="@{/css/common/layout.css}" href="../../static/css/common/layout.css" />
+    <link rel="stylesheet" th:href="@{/css/common/components.css}" href="../../static/css/common/components.css" />
+  </head>
+  <body class="page-pay-kakao" data-route="/pay/kakao">
+    <div class="app">
+      <div th:replace="~{fragments/header :: header('')}"></div>
+      <main id="page-content">
+        <section class="page-shell">
+          <section class="page-heading">
+            <div>
+              <h1>결제 확인</h1>
+              <p>카카오페이에서 돌아온 결제를 확인하고 있어요.</p>
+            </div>
+          </section>
+
+          <!--
+            카카오는 승인에 필요한 값으로 pg_token 하나만 돌려준다. 어느 예약인지는 결제를
+            시작할 때 서버가 적어 뒀다 — 화면이 들고 있다가 되돌려주는 값이면 다른 결제에
+            승인을 붙일 수 있다.
+          -->
+          <section class="white-panel pay-approve" data-kakao-return>
+            <p data-kakao-state>결제를 확인하는 중입니다…</p>
+
+            <p class="pay-approve-notice" data-kakao-notice hidden>
+              카카오페이 테스트 결제입니다. 실제 돈이 빠져나가지 않습니다.
+            </p>
+
+            <a class="primary-button wide" data-kakao-back href="#" hidden>돌아가기</a>
+          </section>
+        </section>
+      </main>
+      <div th:replace="~{fragments/modals :: modalRoots}"></div>
+      <div th:replace="~{fragments/footer :: footer}"></div>
+    </div>
+    <div th:replace="~{fragments/scripts :: appScripts}"></div>
+    <script
+            type="module"
+            th:src="@{/js/pages/payment/kakao-return.js}"
+            src="../../static/js/pages/payment/kakao-return.js"
+    ></script>
+  </body>
+</html>
