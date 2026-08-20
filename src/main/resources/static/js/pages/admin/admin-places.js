@@ -9,13 +9,7 @@
     FESTIVAL: "축제", ACTIVITY: "액티비티", TRANSPORT: "교통"
   };
   // selectedId는 편집 중인 장소, selectedIds는 일괄 처리로 고른 장소다.
-  // backfillCursor는 이미지 채우기가 어디까지 훑었는지 기억한다.
-  const state = {
-    items: [], total: 0, selectedId: null, selectedIds: new Set(), loading: false, backfillCursor: 0
-  };
-
-  /* 한 번 누를 때 도는 묶음 수. 서버가 묶음마다 외부 API를 부르므로 무한정 돌지 않는다. */
-  const MAX_BACKFILL_BATCHES = 20;
+  const state = { items: [], total: 0, selectedId: null, selectedIds: new Set(), loading: false };
 
   function safeImageUrl(value) {
     if (!value) return "";
@@ -85,6 +79,7 @@
     $("placeSelectedCount").textContent = count + "곳 선택";
     $("placeBulkRecommend").disabled = count === 0;
     $("placeBulkUnrecommend").disabled = count === 0;
+    $("placeBulkFillImages").disabled = count === 0;
     // 이 페이지의 항목이 모두 선택됐을 때만 전체 선택을 켠다.
     $("placeSelectAll").checked = state.items.length > 0
       && state.items.every((item) => state.selectedIds.has(String(item.placeId)));
@@ -231,42 +226,34 @@
   }
 
   /*
-   * 대표 이미지가 비어 있는 장소를 훑어 채운다.
+   * 고른 장소의 대표 이미지를 채운다.
    *
-   * 장소마다 외부 API를 한 번씩 부르므로 서버가 한 묶음씩만 처리한다. 여기서 done이 될
-   * 때까지 이어 부르되, 커서(nextAfter)로 넘긴다. 이미지를 못 찾은 장소는 다음에도 결과가
-   * 비어 있어서, 커서 없이 "남은 개수"만 보고 돌면 영영 끝나지 않는다.
+   * 목록 전체를 훑지 않는다. 장소마다 외부 API를 부르므로 수백 곳을 한 번에 돌리면
+   * 몇 분을 기다려야 하고, 그동안 무엇이 되고 안 됐는지 알 수 없다. 골라서 누르면
+   * 결과가 바로 아래 목록에 보인다.
    */
-  async function backfillImages(button) {
-    const status = $("placeImageBackfillStatus");
+  async function fillImages(button) {
+    const placeIds = [...state.selectedIds].map(Number).filter(Number.isInteger);
+    if (!placeIds.length) return;
     button.disabled = true;
-    let scanned = 0;
-    let filled = 0;
+    setBulkStatus(`선택한 ${placeIds.length}곳의 사진을 찾는 중이에요.`);
     try {
-      for (let batch = 0; batch < MAX_BACKFILL_BATCHES; batch += 1) {
-        const result = await request("POST",
-          `/api/v1/admin/places/images/backfill?after=${state.backfillCursor}`);
-        scanned += Number(result?.scanned || 0);
-        filled += Number(result?.filled || 0);
-        // 커서는 state에 남긴다. 다시 눌렀을 때 0부터 시작하면 사진이 없는 장소를
-        // 매번 다시 조회하게 되고, 그 구간을 넘어가지 못한다.
-        state.backfillCursor = Number(result?.nextAfter ?? state.backfillCursor);
-        status.textContent = `${scanned}곳 확인, ${filled}곳에 이미지를 넣었습니다.`;
-        if (result?.done) {
-          state.backfillCursor = 0;
-          status.textContent = filled
-            ? `끝났습니다. ${scanned}곳을 확인해 ${filled}곳에 이미지를 넣었습니다.`
-            : `끝났습니다. ${scanned}곳을 확인했지만 확실한 사진을 찾지 못했습니다.`;
-          await load();
-          return;
-        }
-      }
-      // 여기까지 왔으면 아직 남았다. 한 번에 다 도는 것보다 다시 누르게 하는 편이 안전하다.
-      status.textContent = `${scanned}곳 확인, ${filled}곳 완료. 남은 장소가 있어 다시 눌러 주세요.`;
+      const result = await request("POST", "/api/v1/admin/places/images", { placeIds });
+      const parts = [`${result?.filled || 0}곳에 이미지를 넣었습니다`];
+      // 왜 안 들어갔는지 구분해서 보여준다. "안 됨"으로 뭉뚱그리면 원인을 알 수 없다.
+      if (result?.notFound) parts.push(`${result.notFound}곳은 관광정보에서 같은 장소를 찾지 못했습니다`);
+      if (result?.skipped) parts.push(`${result.skipped}곳은 이미 이미지가 있거나 좌표가 없습니다`);
+      setBulkStatus(parts.join(". ") + ".");
+      state.selectedIds.clear();
       await load();
     } catch (error) {
-      status.textContent = error.message || "이미지를 채우지 못했습니다.";
+      setBulkStatus(error.message || "이미지를 채우지 못했습니다.");
     } finally { button.disabled = false; }
+  }
+
+  function setBulkStatus(message) {
+    $("placeBulkStatus").textContent = message || "";
+    $("placeBulkStatus").hidden = !message;
   }
 
   async function toggleRecommended(placeId, button) {
@@ -369,11 +356,11 @@
       render();
     });
 
-    $("placeImageBackfill").addEventListener("click", (event) => backfillImages(event.target));
+    $("placeBulkFillImages").addEventListener("click", (event) => fillImages(event.target));
     $("placeBulkRecommend").addEventListener("click", (event) => bulkRecommend(true, event.target));
     $("placeBulkUnrecommend").addEventListener("click", (event) => bulkRecommend(false, event.target));
   }
 
   document.addEventListener("DOMContentLoaded", () => { bind(); resetEditor(); load(); });
-  window.__adminPlaces = { state, load, edit, resetEditor, payload, geocodeAddress, backfillImages };
+  window.__adminPlaces = { state, load, edit, resetEditor, payload, geocodeAddress, fillImages };
 })();

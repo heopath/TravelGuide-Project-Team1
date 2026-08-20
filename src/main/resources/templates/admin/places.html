@@ -65,22 +65,18 @@
                 <div><h2 id="placeListTitle">등록된 추천 장소</h2><p id="placeCount">불러오는 중</p></div>
                 <a href="/guide" target="_blank" rel="noopener noreferrer">사용자 화면 보기 ↗</a>
               </div>
-              <!--
-                대표 이미지는 장소가 처음 저장될 때만 찾는다. 그전에 들어온 장소는
-                아무도 다시 채워주지 않으므로 여기서 한 번 훑는다. 선택과 무관한 동작이라
-                일괄 처리 줄에 두지 않는다.
-              -->
-              <div class="admin-place-bulk admin-place-maintenance">
-                <strong>대표 이미지 없는 장소</strong>
-                <button type="button" id="placeImageBackfill">이미지 채우기</button>
-                <span id="placeImageBackfillStatus" role="status">공공데이터에서 같은 장소의 사진만 가져옵니다.</span>
-              </div>
               <div class="admin-place-bulk" id="placeBulkBar" hidden>
                 <label class="admin-place-check"><input id="placeSelectAll" type="checkbox" /><span>이 페이지 전체 선택</span></label>
                 <strong id="placeSelectedCount">0곳 선택</strong>
                 <button type="button" id="placeBulkRecommend">추천 등록</button>
                 <button type="button" id="placeBulkUnrecommend">추천 내리기</button>
+                <!--
+                  대표 이미지는 장소가 처음 저장될 때만 찾는다. 그전에 들어온 장소는
+                  아무도 다시 채워주지 않으므로 여기서 골라 채운다.
+                -->
+                <button type="button" id="placeBulkFillImages">이미지 채우기</button>
               </div>
+              <p class="admin-place-bulk-status" id="placeBulkStatus" role="status" hidden></p>
               <div class="admin-place-list" id="placeList"></div>
               <p class="admin-place-empty" id="placeEmpty" role="status">장소를 불러오는 중입니다.</p>
             </section>

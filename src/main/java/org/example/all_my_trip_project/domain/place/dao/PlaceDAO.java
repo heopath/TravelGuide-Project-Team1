@@ -46,10 +46,6 @@ public class PlaceDAO {
     public int updateRecommendedAll(java.util.List<Long> placeIds, boolean recommended) {
         return placeMapper.updateRecommendedAll(placeIds, recommended);
     }
-    public List<PlaceDTO> findMissingImageCandidates(long afterPlaceId, int limit) {
-        return placeMapper.findMissingImageCandidates(afterPlaceId, limit);
-    }
-    public long countMissingImages() { return placeMapper.countMissingImages(); }
     public int updatePrimaryImage(Long placeId, String imageUrl, String altText) {
         return placeMapper.updatePrimaryImage(placeId, imageUrl, altText);
     }

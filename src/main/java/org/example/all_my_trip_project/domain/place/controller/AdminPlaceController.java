@@ -8,7 +8,8 @@ import org.example.all_my_trip_project.domain.place.dto.AdminPlaceRecommendation
 import org.example.all_my_trip_project.domain.place.dto.AdminPlaceRequest;
 import org.example.all_my_trip_project.domain.place.dto.AdminPlaceVisibilityRequest;
 import org.example.all_my_trip_project.domain.place.dto.PlaceDTO;
-import org.example.all_my_trip_project.domain.place.dto.PlaceImageBackfillResult;
+import org.example.all_my_trip_project.domain.place.dto.AdminPlaceImageFillRequest;
+import org.example.all_my_trip_project.domain.place.dto.PlaceImageFillResult;
 import org.example.all_my_trip_project.domain.place.service.AdminPlaceService;
 import org.example.all_my_trip_project.domain.place.service.PlaceImageBackfillService;
 import org.example.all_my_trip_project.global.response.ApiResponse;
@@ -33,18 +34,17 @@ public class AdminPlaceController {
     private final PlaceImageBackfillService placeImageBackfillService;
 
     /**
-     * 대표 이미지가 비어 있는 기존 장소를 한 묶음씩 채운다.
+     * 목록에서 고른 장소들의 대표 이미지를 채운다.
      *
-     * <p>장소마다 외부 API를 한 번씩 부르므로 한 요청에서 전부 처리하지 않는다. 응답의
-     * {@code nextAfter}를 {@code after}로 넘겨 {@code done}이 될 때까지 이어서 부른다.
+     * <p>목록 전체를 훑지 않는다. 장소마다 외부 API를 부르므로 수백 곳을 한 번에 돌리면
+     * 오래 걸리고 무엇이 되고 안 됐는지 알기 어렵다. 고른 것만 처리하고 결과를 돌려준다.
      */
-    @PostMapping("/images/backfill")
-    public ApiResponse<PlaceImageBackfillResult> backfillImages(
-            @RequestParam(defaultValue = "0") long after,
-            @RequestParam(required = false) Integer size) {
-        PlaceImageBackfillResult result = placeImageBackfillService.backfill(after, size);
+    @PostMapping("/images")
+    public ApiResponse<PlaceImageFillResult> fillImages(
+            @Valid @RequestBody AdminPlaceImageFillRequest request) {
+        PlaceImageFillResult result = placeImageBackfillService.fill(request.placeIds());
         return ApiResponse.success(
-                "장소 " + result.scanned() + "곳을 확인해 " + result.filled() + "곳에 대표 이미지를 넣었습니다.",
+                "선택한 " + result.requested() + "곳 중 " + result.filled() + "곳에 대표 이미지를 넣었습니다.",
                 result);
     }
 

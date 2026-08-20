@@ -1,7 +1,7 @@
 package org.example.all_my_trip_project.domain.place.controller;
 
 import org.example.all_my_trip_project.domain.place.dto.PlaceDTO;
-import org.example.all_my_trip_project.domain.place.dto.PlaceImageBackfillResult;
+import org.example.all_my_trip_project.domain.place.dto.PlaceImageFillResult;
 import org.example.all_my_trip_project.domain.place.service.AdminPlaceService;
 import org.example.all_my_trip_project.domain.place.service.PlaceImageBackfillService;
 import org.example.all_my_trip_project.global.config.ApiSecurityConfig;
@@ -45,26 +45,45 @@ class AdminPlaceSecurityTest {
     @MockitoBean
     private PlaceImageBackfillService placeImageBackfillService;
 
+    private static final String IMAGE_FILL_REQUEST = """
+            {"placeIds":[1,2,3]}
+            """;
+
     /* 이미지 채우기는 외부 API를 장소 수만큼 부른다. 아무나 누를 수 있으면 안 된다. */
     @Test
-    void rejectsNormalUserOnImageBackfill() throws Exception {
-        mockMvc.perform(post("/api/v1/admin/places/images/backfill")
+    void rejectsNormalUserOnImageFill() throws Exception {
+        mockMvc.perform(post("/api/v1/admin/places/images")
                         .with(authentication(user("USER")))
-                        .with(csrf().asHeader()))
+                        .with(csrf().asHeader())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(IMAGE_FILL_REQUEST))
                 .andExpect(status().isForbidden());
     }
 
     @Test
-    void allowsAdminOnImageBackfill() throws Exception {
-        when(placeImageBackfillService.backfill(0L, null))
-                .thenReturn(new PlaceImageBackfillResult(3, 2, 12L, true, 0));
+    void allowsAdminOnImageFill() throws Exception {
+        when(placeImageBackfillService.fill(List.of(1L, 2L, 3L)))
+                .thenReturn(new PlaceImageFillResult(3, 2, 0, 1));
 
-        mockMvc.perform(post("/api/v1/admin/places/images/backfill")
+        mockMvc.perform(post("/api/v1/admin/places/images")
                         .with(authentication(user("ADMIN")))
-                        .with(csrf().asHeader()))
+                        .with(csrf().asHeader())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(IMAGE_FILL_REQUEST))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.filled").value(2))
-                .andExpect(jsonPath("$.data.done").value(true));
+                .andExpect(jsonPath("$.data.notFound").value(1));
+    }
+
+    /* 빈 선택으로 부르면 외부 API를 헛돌린다. 컨트롤러에서 막는다. */
+    @Test
+    void rejectsEmptySelectionOnImageFill() throws Exception {
+        mockMvc.perform(post("/api/v1/admin/places/images")
+                        .with(authentication(user("ADMIN")))
+                        .with(csrf().asHeader())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"placeIds\":[]}"))
+                .andExpect(status().isBadRequest());
     }
 
     @Test

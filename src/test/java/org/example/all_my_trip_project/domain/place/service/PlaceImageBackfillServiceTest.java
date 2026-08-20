@@ -3,7 +3,7 @@ package org.example.all_my_trip_project.domain.place.service;
 import org.example.all_my_trip_project.domain.admin.service.AdminAuditService;
 import org.example.all_my_trip_project.domain.place.dao.PlaceDAO;
 import org.example.all_my_trip_project.domain.place.dto.PlaceDTO;
-import org.example.all_my_trip_project.domain.place.dto.PlaceImageBackfillResult;
+import org.example.all_my_trip_project.domain.place.dto.PlaceImageFillResult;
 import org.example.all_my_trip_project.global.exception.BusinessException;
 import org.example.all_my_trip_project.global.exception.ErrorCode;
 import org.junit.jupiter.api.BeforeEach;
@@ -13,11 +13,11 @@ import org.junit.jupiter.api.Test;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.IntStream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
@@ -41,90 +41,92 @@ class PlaceImageBackfillServiceTest {
     }
 
     @Test
-    @DisplayName("찾은 이미지만 대표 이미지로 넣는다")
-    void fillsOnlyPlacesWithFoundImage() {
-        when(placeDAO.findMissingImageCandidates(0L, 25))
-                .thenReturn(List.of(place(1L, "경복궁"), place(2L, "이름없는가게")));
+    @DisplayName("고른 장소 중 사진을 찾은 것만 채운다")
+    void fillsOnlySelectedPlacesWithFoundImage() {
+        given(1L, place(1L, "경복궁"));
+        given(2L, place(2L, "이름없는가게"));
         when(imageProvider.findImageUrl(eq("경복궁"), any(), any()))
                 .thenReturn(Optional.of("https://tour.example/gyeongbok.jpg"));
         when(imageProvider.findImageUrl(eq("이름없는가게"), any(), any())).thenReturn(Optional.empty());
 
-        PlaceImageBackfillResult result = service.backfill(0L, null);
+        PlaceImageFillResult result = service.fill(List.of(1L, 2L));
 
-        assertThat(result.scanned()).isEqualTo(2);
+        assertThat(result.requested()).isEqualTo(2);
         assertThat(result.filled()).isEqualTo(1);
+        assertThat(result.notFound()).isEqualTo(1);
         verify(placeDAO).insertPrimaryImage(1L, "https://tour.example/gyeongbok.jpg", "경복궁 대표 이미지");
         verify(placeDAO, never()).insertPrimaryImage(eq(2L), anyString(), anyString());
     }
 
-    /*
-     * 이 커서가 없으면 사진이 없는 장소 앞에서 계속 맴돈다. 그 장소들은 다음 조회에서도
-     * 여전히 "이미지 없음"이라 같은 묶음이 다시 나오고, 그 뒤 장소에는 영영 닿지 못한다.
-     */
+    /* 관리자가 직접 넣은 사진을 공공데이터 사진으로 갈아치우면 안 된다. */
     @Test
-    @DisplayName("이미지를 하나도 못 찾아도 커서는 마지막 장소까지 넘어간다")
-    void advancesCursorEvenWhenNothingFilled() {
-        when(placeDAO.findMissingImageCandidates(0L, 2))
-                .thenReturn(List.of(place(7L, "가"), place(9L, "나")));
-        when(imageProvider.findImageUrl(anyString(), any(), any())).thenReturn(Optional.empty());
+    @DisplayName("이미 이미지가 있는 장소는 건드리지 않는다")
+    void skipsPlacesThatAlreadyHaveImage() {
+        PlaceDTO existing = place(1L, "경복궁");
+        existing.setPrimaryImageUrl("https://admin.example/직접넣은사진.jpg");
+        given(1L, existing);
 
-        PlaceImageBackfillResult result = service.backfill(0L, 2);
+        PlaceImageFillResult result = service.fill(List.of(1L));
 
+        assertThat(result.skipped()).isEqualTo(1);
         assertThat(result.filled()).isZero();
-        assertThat(result.nextAfter()).isEqualTo(9L);
-        assertThat(result.done()).isFalse();
+        verify(imageProvider, never()).findImageUrl(anyString(), any(), any());
     }
 
     @Test
-    @DisplayName("묶음이 요청한 크기보다 작으면 끝난 것으로 본다")
-    void marksDoneWhenBatchIsNotFull() {
-        when(placeDAO.findMissingImageCandidates(5L, 10)).thenReturn(List.of(place(6L, "가")));
-        when(imageProvider.findImageUrl(anyString(), any(), any())).thenReturn(Optional.empty());
+    @DisplayName("좌표가 없으면 찾을 방법이 없으므로 건너뛴다")
+    void skipsPlacesWithoutCoordinates() {
+        PlaceDTO noCoordinates = PlaceDTO.builder().placeId(1L).name("좌표없음").build();
+        given(1L, noCoordinates);
 
-        assertThat(service.backfill(5L, 10).done()).isTrue();
-    }
-
-    @Test
-    @DisplayName("더 볼 장소가 없으면 커서를 그대로 두고 끝난다")
-    void stopsWhenNoCandidatesRemain() {
-        when(placeDAO.findMissingImageCandidates(30L, 25)).thenReturn(List.of());
-
-        PlaceImageBackfillResult result = service.backfill(30L, null);
-
-        assertThat(result.scanned()).isZero();
-        assertThat(result.nextAfter()).isEqualTo(30L);
-        assertThat(result.done()).isTrue();
+        assertThat(service.fill(List.of(1L)).skipped()).isEqualTo(1);
+        verify(imageProvider, never()).findImageUrl(anyString(), any(), any());
     }
 
     /* 한 장소가 실패했다고 나머지를 포기하면, 다시 눌러도 같은 자리에서 또 멈춘다. */
     @Test
     @DisplayName("한 장소가 실패해도 나머지는 계속 채운다")
     void keepsGoingAfterOneFailure() {
-        when(placeDAO.findMissingImageCandidates(0L, 25))
-                .thenReturn(List.of(place(1L, "터지는곳"), place(2L, "멀쩡한곳")));
+        given(1L, place(1L, "터지는곳"));
+        given(2L, place(2L, "멀쩡한곳"));
         when(imageProvider.findImageUrl(eq("터지는곳"), any(), any()))
                 .thenThrow(new IllegalStateException("boom"));
         when(imageProvider.findImageUrl(eq("멀쩡한곳"), any(), any()))
                 .thenReturn(Optional.of("https://tour.example/ok.jpg"));
 
-        PlaceImageBackfillResult result = service.backfill(0L, null);
+        PlaceImageFillResult result = service.fill(List.of(1L, 2L));
 
         assertThat(result.filled()).isEqualTo(1);
         verify(placeDAO).insertPrimaryImage(2L, "https://tour.example/ok.jpg", "멀쩡한곳 대표 이미지");
     }
 
     @Test
-    @DisplayName("커서와 묶음 크기가 범위를 벗어나면 조회하지 않는다")
-    void rejectsOutOfRangeArguments() {
-        assertThatThrownBy(() -> service.backfill(-1L, null))
+    @DisplayName("같은 장소를 두 번 골라도 한 번만 부른다")
+    void callsOnceForDuplicatedSelection() {
+        given(1L, place(1L, "경복궁"));
+        when(imageProvider.findImageUrl(anyString(), any(), any()))
+                .thenReturn(Optional.of("https://tour.example/gyeongbok.jpg"));
+
+        assertThat(service.fill(List.of(1L, 1L)).requested()).isEqualTo(1);
+        verify(imageProvider).findImageUrl(eq("경복궁"), any(), any());
+    }
+
+    @Test
+    @DisplayName("선택이 비었거나 한 페이지를 넘으면 거절한다")
+    void rejectsEmptyOrOversizedSelection() {
+        assertThatThrownBy(() -> service.fill(List.of()))
                 .isInstanceOfSatisfying(BusinessException.class, exception ->
                         assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.INVALID_PLACE_REQUEST));
-        assertThatThrownBy(() -> service.backfill(0L, 0))
-                .isInstanceOf(BusinessException.class);
-        assertThatThrownBy(() -> service.backfill(0L, 101))
+        assertThatThrownBy(() -> service.fill(null)).isInstanceOf(BusinessException.class);
+        assertThatThrownBy(() -> service.fill(
+                IntStream.rangeClosed(1, 101).mapToObj(Long::valueOf).toList()))
                 .isInstanceOf(BusinessException.class);
 
-        verify(placeDAO, never()).findMissingImageCandidates(anyLong(), anyInt());
+        verify(placeDAO, never()).findById(anyLong());
+    }
+
+    private void given(long placeId, PlaceDTO place) {
+        when(placeDAO.findById(placeId)).thenReturn(Optional.of(place));
     }
 
     private PlaceDTO place(long placeId, String name) {
