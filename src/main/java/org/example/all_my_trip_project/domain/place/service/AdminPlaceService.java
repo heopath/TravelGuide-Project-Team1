@@ -116,6 +116,9 @@ public class AdminPlaceService {
         place.setPhone(text(request.phone()));
         place.setWebsiteUrl(text(request.websiteUrl()));
         place.setActive(request.active() == null || request.active());
+        // 관리자가 등록·수정하는 장소는 추천장소 화면에 노출하는 것이 기본이다.
+        // 사용자가 일정에 담아서 생기는 장소는 이 경로를 타지 않아 FALSE로 남는다.
+        place.setRecommended(request.recommended() == null || request.recommended());
         return place;
     }
 

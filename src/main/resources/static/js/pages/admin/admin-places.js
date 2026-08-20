@@ -57,6 +57,7 @@
         : '<span aria-hidden="true">⌖</span>'}</div>
       <div class="admin-place-copy">
         <div><span class="admin-place-badge${place.active ? "" : " hidden"}">${place.active ? "공개" : "숨김"}</span>
+          <span class="admin-place-badge${place.recommended ? "" : " hidden"}">${place.recommended ? "추천중" : "추천 아님"}</span>
           <span class="admin-place-badge">${esc(categoryLabels[place.category] || place.category)}</span></div>
         <h3>${esc(place.name)}</h3>
         <p>${esc([place.region, place.city, place.address].filter(Boolean).join(" · ") || "주소 정보 없음")}</p>
@@ -64,6 +65,7 @@
       <div class="admin-place-row-actions">
         <button type="button" data-place-edit="${place.placeId}">수정</button>
         <button type="button" data-place-visible="${place.placeId}">${place.active ? "숨기기" : "공개하기"}</button>
+        <button type="button" data-place-recommended="${place.placeId}">${place.recommended ? "추천 내리기" : "추천 등록"}</button>
       </div>
     </article>`;
   }
@@ -197,6 +199,20 @@
     } finally { button.disabled = false; }
   }
 
+  /* 추천장소 화면 노출 여부. 공개/숨김(active)과 별개 값이라 토글도 따로 둔다. */
+  async function toggleRecommended(placeId, button) {
+    const place = state.items.find((item) => String(item.placeId) === String(placeId));
+    if (!place) return;
+    button.disabled = true;
+    try {
+      await request("PATCH", `/api/v1/admin/places/${placeId}/recommendation`,
+        { recommended: !place.recommended });
+      await load();
+    } catch (error) {
+      notice(error.message || "추천 상태를 바꾸지 못했습니다.");
+    } finally { button.disabled = false; }
+  }
+
   /**
    * 주소로 좌표를 찾아 위도·경도 칸을 채운다.
    *
@@ -264,6 +280,8 @@
       if (editButton) return edit(editButton.dataset.placeEdit);
       const visibleButton = event.target.closest("[data-place-visible]");
       if (visibleButton) toggle(visibleButton.dataset.placeVisible, visibleButton);
+      const recommendedButton = event.target.closest("[data-place-recommended]");
+      if (recommendedButton) toggleRecommended(recommendedButton.dataset.placeRecommended, recommendedButton);
     });
   }
 

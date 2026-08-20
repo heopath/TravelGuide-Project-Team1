@@ -19,12 +19,14 @@
         INSERT INTO places (
             external_provider, external_place_id, category, name, country_code,
             region, city, address, latitude, longitude, description, phone,
-            website_url, average_rating, is_active
+            website_url, average_rating, is_active, is_recommended
         ) VALUES (
             #{externalProvider}, #{externalPlaceId}, #{category}, #{name},
             COALESCE(#{countryCode}, 'KR'), #{region}, #{city}, #{address},
             #{latitude}, #{longitude}, #{description}, #{phone}, #{websiteUrl},
-            #{averageRating}, COALESCE(#{active}, TRUE)
+            #{averageRating}, COALESCE(#{active}, TRUE),
+            <!-- 관리자 등록 화면은 recommended를 켜서 넣는다. 사용자가 담는 경로는 값을 주지 않아 FALSE로 남는다. -->
+            COALESCE(#{recommended}, FALSE)
         )
     </insert>
 
