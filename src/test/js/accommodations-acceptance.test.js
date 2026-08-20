@@ -149,7 +149,8 @@ async function run() {
       && d.querySelector('[data-hotel-pick="tour:1"]').getAttribute("aria-pressed") === "true");
   T("오른쪽 예약 현황에 선택한 숙소가 표시된다",
     $("rows").textContent.includes("선택 완료 · 가나다 리조트") && $("rows").textContent.includes("요금 미정"));
-  T("숙소 선택 완료가 진행 현황에 반영된다", $("dn").textContent === "1" && $("fill").style.width === "33%");
+  /* 진행 현황은 네 칸이다 — 가는 편·오는 편·숙소·티켓. 숙소 하나면 25%다. (#281) */
+  T("숙소 선택 완료가 진행 현황에 반영된다", $("dn").textContent === "1" && $("fill").style.width === "25%");
   T("가격 없는 숙소는 예상 총액에 더하지 않고 안내한다",
     $("cTot").textContent === "200,000원" && $("costNote").textContent.includes("숙소 요금 제외"));
   T("선택은 브라우저 상태에만 있고 DB 저장 API를 호출하지 않는다",

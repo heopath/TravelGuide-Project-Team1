@@ -14,6 +14,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.net.URI;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
@@ -27,7 +28,7 @@ public class AdminPlaceService {
     private final PlaceDAO placeDAO;
     private final AdminAuditService adminAuditService;
 
-    public AdminPlacePage list(int page, int size, String keyword, String category, Boolean active) {
+    public AdminPlacePage list(int page, int size, String keyword, String category, Boolean recommended) {
         if (page < 0 || size < 1 || size > MAX_PAGE_SIZE) {
             throw new BusinessException(ErrorCode.INVALID_PLACE_REQUEST);
         }
@@ -40,10 +41,10 @@ public class AdminPlaceService {
         } catch (ArithmeticException exception) {
             throw new BusinessException(ErrorCode.INVALID_PLACE_REQUEST);
         }
-        long total = placeDAO.countAdmin(normalizedKeyword, normalizedCategory, active);
+        long total = placeDAO.countAdmin(normalizedKeyword, normalizedCategory, recommended);
         int totalPages = total == 0 ? 0 : (int) Math.ceil((double) total / size);
         return new AdminPlacePage(
-                placeDAO.findAdminPage(normalizedKeyword, normalizedCategory, active, offset, size),
+                placeDAO.findAdminPage(normalizedKeyword, normalizedCategory, recommended, offset, size),
                 page, size, total, totalPages);
     }
 
@@ -85,6 +86,45 @@ public class AdminPlaceService {
         return requirePlace(placeId);
     }
 
+    /*
+     * 추천장소 화면 노출 여부. is_active(데이터 유효성)와 분리된 값이라 별도 토글이다.
+     * 사용자가 일정에 담아서 생긴 장소는 기본값 FALSE로 들어오므로, 관리자가 켜야만 노출된다.
+     */
+    @Transactional
+    @CacheEvict(cacheNames = "placeDetail", key = "#placeId")
+    public PlaceDTO setRecommended(Long placeId, boolean recommended) {
+        PlaceDTO current = requirePlace(placeId);
+        if (placeDAO.updateRecommended(placeId, recommended) != 1) {
+            throw new BusinessException(ErrorCode.PLACE_NOT_FOUND);
+        }
+        adminAuditService.record("PLACE_RECOMMENDATION_CHANGE", "PLACE", placeId,
+                AdminAuditService.payload("recommended", current.getRecommended()),
+                AdminAuditService.payload("recommended", recommended, "name", current.getName()));
+        return requirePlace(placeId);
+    }
+
+    /*
+     * 목록에서 고른 여러 장소를 한 번에 처리한다. 하나씩 부르면 요청마다 목록이 새로 그려져
+     * 번거롭고, 중간에 실패하면 일부만 반영된 상태가 남는다. 한 트랜잭션으로 묶는다.
+     */
+    @Transactional
+    @CacheEvict(cacheNames = "placeDetail", allEntries = true)
+    public int setRecommendedAll(List<Long> placeIds, boolean recommended) {
+        if (placeIds == null || placeIds.isEmpty()) {
+            throw new BusinessException(ErrorCode.INVALID_PLACE_REQUEST);
+        }
+        List<Long> targets = placeIds.stream().filter(id -> id != null && id > 0).distinct().toList();
+        if (targets.isEmpty()) {
+            throw new BusinessException(ErrorCode.INVALID_PLACE_REQUEST);
+        }
+
+        int changed = placeDAO.updateRecommendedAll(targets, recommended);
+        adminAuditService.record("PLACE_RECOMMENDATION_BULK_CHANGE", "PLACE", null,
+                null,
+                AdminAuditService.payload("recommended", recommended, "count", changed));
+        return changed;
+    }
+
     private PlaceDTO apply(PlaceDTO place, AdminPlaceRequest request) {
         place.setCategory(request.category().trim().toUpperCase(Locale.ROOT));
         place.setName(request.name().trim());
@@ -99,6 +139,9 @@ public class AdminPlaceService {
         place.setPhone(text(request.phone()));
         place.setWebsiteUrl(text(request.websiteUrl()));
         place.setActive(request.active() == null || request.active());
+        // 관리자가 등록·수정하는 장소는 추천장소 화면에 노출하는 것이 기본이다.
+        // 사용자가 일정에 담아서 생기는 장소는 이 경로를 타지 않아 FALSE로 남는다.
+        place.setRecommended(request.recommended() == null || request.recommended());
         return place;
     }
 

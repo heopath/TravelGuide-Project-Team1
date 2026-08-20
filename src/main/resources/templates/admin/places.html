@@ -49,11 +49,11 @@
               </select>
             </label>
             <label>
-              <span>노출 상태</span>
-              <select id="placeActiveFilter">
+              <span>추천 상태</span>
+              <select id="placeRecommendedFilter">
                 <option value="">전체</option>
-                <option value="true">공개</option>
-                <option value="false">숨김</option>
+                <option value="true">추천중</option>
+                <option value="false">추천 아님</option>
               </select>
             </label>
             <button type="submit" class="primary-button">검색</button>
@@ -64,6 +64,12 @@
               <div class="admin-place-section-head">
                 <div><h2 id="placeListTitle">등록된 추천 장소</h2><p id="placeCount">불러오는 중</p></div>
                 <a href="/guide" target="_blank" rel="noopener noreferrer">사용자 화면 보기 ↗</a>
+              </div>
+              <div class="admin-place-bulk" id="placeBulkBar" hidden>
+                <label class="admin-place-check"><input id="placeSelectAll" type="checkbox" /><span>이 페이지 전체 선택</span></label>
+                <strong id="placeSelectedCount">0곳 선택</strong>
+                <button type="button" id="placeBulkRecommend">추천 등록</button>
+                <button type="button" id="placeBulkUnrecommend">추천 내리기</button>
               </div>
               <div class="admin-place-list" id="placeList"></div>
               <p class="admin-place-empty" id="placeEmpty" role="status">장소를 불러오는 중입니다.</p>
@@ -116,7 +122,7 @@
                   <label><span>전화번호</span><input id="placePhone" maxlength="50" /></label>
                   <label><span>웹사이트 URL</span><input id="placeWebsiteUrl" type="url" maxlength="500" placeholder="https://" /></label>
                   <label class="wide"><span>대표 이미지 URL</span><input id="placeImageUrl" type="url" maxlength="1000" placeholder="https://" /></label>
-                  <label class="admin-place-check wide"><input id="placeActive" type="checkbox" checked /><span>사용자 추천 장소 화면에 공개</span></label>
+                  <label class="admin-place-check wide"><input id="placeRecommended" type="checkbox" checked /><span>사용자 추천 장소 화면에 공개</span></label>
                 </div>
                 <div class="admin-place-form-actions">
                   <button type="button" class="outline-button" id="placeResetButton">입력 초기화</button>

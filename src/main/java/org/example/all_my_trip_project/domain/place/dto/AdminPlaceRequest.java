@@ -23,5 +23,7 @@ public record AdminPlaceRequest(
         @Size(max = 50) String phone,
         @Size(max = 500) String websiteUrl,
         @Size(max = 1000) String primaryImageUrl,
-        Boolean active
+        Boolean active,
+        // 추천장소 화면 노출 여부. 생략하면 관리자 등록이므로 노출하는 것으로 본다.
+        Boolean recommended
 ) {}

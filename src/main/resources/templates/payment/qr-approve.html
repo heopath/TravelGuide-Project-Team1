@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="All My Trips QR 결제 승인" />
+    <title>QR 결제 승인 — All My Trips</title>
+    <link rel="icon" th:href="@{/images/icons/app-icon.png}" href="../../static/images/icons/app-icon.png" />
+    <link rel="stylesheet" th:href="@{/css/common/reset.css}" href="../../static/css/common/reset.css" />
+    <link rel="stylesheet" th:href="@{/css/common/layout.css}" href="../../static/css/common/layout.css" />
+    <link rel="stylesheet" th:href="@{/css/common/components.css}" href="../../static/css/common/components.css" />
+  </head>
+  <body class="page-pay-qr" data-route="/pay/qr">
+    <div class="app">
+      <div th:replace="~{fragments/header :: header('')}"></div>
+      <main id="page-content">
+        <section class="page-shell">
+          <section class="page-heading">
+            <div>
+              <h1>결제 승인</h1>
+              <p>결제 내용을 확인하고 승인해 주세요.</p>
+              <i>✦</i>
+            </div>
+          </section>
+
+          <!--
+            토큰은 주소(?token=)에서 스크립트가 꺼낸다. 여기에 박아 두면 화면을 캡처하거나
+            저장한 파일에 결제 권한이 남는다. (#281)
+          -->
+          <section class="white-panel pay-approve" data-pay-approve>
+            <p data-pay-state>결제 내용을 불러오는 중입니다…</p>
+
+            <dl class="pay-approve-detail" data-pay-detail hidden>
+              <div><dt>상품</dt><dd data-pay-product>—</dd></div>
+              <div><dt>수량</dt><dd data-pay-quantity>—</dd></div>
+              <div><dt>예약번호</dt><dd data-pay-number>—</dd></div>
+              <div class="pay-approve-amount"><dt>결제 금액</dt><dd data-pay-amount>—</dd></div>
+            </dl>
+
+            <p class="pay-approve-remain" data-pay-remain hidden></p>
+
+            <p class="pay-approve-notice" data-pay-notice hidden>
+              모의 결제입니다. 실제 돈이 빠져나가지 않고, 승인하면 티켓이 발급됩니다.
+            </p>
+
+            <button type="button" class="primary-button wide" data-pay-approve-button hidden>
+              결제 승인하기
+            </button>
+
+            <a class="center-link" th:href="@{/mypage}" href="../../static/mypage.html" data-pay-mypage hidden>
+              내 티켓에서 확인하기
+            </a>
+          </section>
+        </section>
+      </main>
+      <div th:replace="~{fragments/modals :: modalRoots}"></div>
+      <div th:replace="~{fragments/footer :: footer}"></div>
+    </div>
+    <div th:replace="~{fragments/scripts :: appScripts}"></div>
+    <script
+            type="module"
+            th:src="@{/js/pages/payment/qr-approve.js}"
+            src="../../static/js/pages/payment/qr-approve.js"
+    ></script>
+  </body>
+</html>
