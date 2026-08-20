@@ -37,6 +37,22 @@
             label: "토스페이",
             hint: "간편결제 · 모의",
         },
+        /*
+         * QR 결제는 다른 것들과 달리 바로 결제되지 않는다. QR을 띄우고 손님이 폰으로
+         * 스캔해 승인해야 끝난다. 그래서 flow로 갈라 두고, 부르는 쪽이 분기한다.
+         *
+         * 예약 화면에서는 내주지 않는다(allowQr). QR을 그리는 core/qr-encoder.js가 ES
+         * 모듈인데 flights.js는 고전 스크립트라 불러올 수 없다. 고를 수는 있는데 QR이
+         * 안 그려지는 것보다 아예 안 보이는 편이 낫다.
+         */
+        {
+            id: "QR",
+            method: "EASY_PAY",
+            provider: "QR_PAY",
+            flow: "QR",
+            label: "QR 결제",
+            hint: "휴대폰으로 QR을 찍어 승인해요.",
+        },
         {
             id: "TRANSFER",
             method: "TRANSFER",
@@ -100,7 +116,10 @@
              * 방법이 없다. 고르고 나서 한 번 더 누르게 한다.
              */
             const groupName = `pay-method-${Date.now()}`;
-            METHODS.forEach((item) => {
+            const offered = METHODS.filter(
+                (item) => item.flow !== "QR" || settings.allowQr,
+            );
+            offered.forEach((item) => {
                 const row = document.createElement("label");
                 row.className = "pay-method-item";
 
@@ -156,9 +175,15 @@
             confirm.className = "primary-button";
             confirm.textContent = settings.confirmLabel || "결제하기";
             confirm.addEventListener("click", () => {
-                const picked = METHODS.find((item) => item.id === selectedId);
+                const picked = offered.find((item) => item.id === selectedId);
                 finish(picked
-                    ? { method: picked.method, easyPayProvider: picked.provider }
+                    ? {
+                        method: picked.method,
+                        easyPayProvider: picked.provider,
+                        /* QR은 바로 결제되지 않는다. 부르는 쪽이 이 값으로 갈라야 한다. */
+                        flow: picked.flow || "DIRECT",
+                        label: picked.label,
+                    }
                     : null);
             });
 
