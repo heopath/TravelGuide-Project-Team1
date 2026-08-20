@@ -148,11 +148,22 @@ async function run() {
     d.querySelector('[data-hotel-pick="tour:1"]').textContent.includes("선택 취소")
       && d.querySelector('[data-hotel-pick="tour:1"]').getAttribute("aria-pressed") === "true");
   T("오른쪽 예약 현황에 선택한 숙소가 표시된다",
-    $("rows").textContent.includes("선택 완료 · 가나다 리조트") && $("rows").textContent.includes("요금 미정"));
+    $("rows").textContent.includes("숙소 선택") && $("rows").textContent.includes("선택됨")
+      /* 고른 숙소 이름과 요금 상태는 예상 총액 내역 줄로 옮겼다. (#281 시안) */
+      && $("costLines").textContent.includes("가나다 리조트")
+      && $("costLines").textContent.includes("요금 미정"));
   /* 진행 현황은 네 칸이다 — 가는 편·오는 편·숙소·티켓. 숙소 하나면 25%다. (#281) */
   T("숙소 선택 완료가 진행 현황에 반영된다", $("dn").textContent === "1" && $("fill").style.width === "25%");
+  /*
+   * 하나라도 고르면 총액은 고른 것만 더한다. (#281 시안 2차) 지금은 요금을 모르는 숙소
+   * 하나뿐이라 더할 값이 없다. 0원이라고 쓰면 공짜처럼 읽히므로 금액을 비운다.
+   */
   T("가격 없는 숙소는 예상 총액에 더하지 않고 안내한다",
-    $("cTot").textContent === "200,000원" && $("costNote").textContent.includes("숙소 요금 제외"));
+    $("cTot").textContent === "—"
+      && $("cPer").textContent.includes("요금 정보가 없어요")
+      && $("costNote").textContent.includes("숙소 요금 제외"));
+  T("항공을 아직 안 골랐다는 사실을 기준 문구가 밝힌다",
+    $("costNote").textContent.includes("항공 미선택"));
   T("선택은 브라우저 상태에만 있고 DB 저장 API를 호출하지 않는다",
     !urls.some((url) => /\/trips\/\d+\/.*accommodation/.test(url)));
 
@@ -163,7 +174,7 @@ async function run() {
       && d.querySelector('[data-hotel-pick="tour:1"]').textContent.includes("이 숙소 선택")
       && d.querySelector('[data-hotel-pick="tour:1"]').getAttribute("aria-pressed") === "false");
   T("숙소 선택 해제가 예약 현황과 진행률에 반영된다",
-    $("rows").textContent.includes("선택 전") && $("dn").textContent === "0" && $("fill").style.width === "0%");
+    $("rows").textContent.includes("미선택") && $("dn").textContent === "0" && $("fill").style.width === "0%");
   T("숙소 선택 해제 후 예상 총액에서 숙소 금액이 빠진다",
     $("cTot").textContent === "200,000원" && $("costNote").textContent.includes("숙소 요금 제외"));
 
@@ -214,15 +225,16 @@ async function run() {
     d.querySelector(".hotel-card").dataset.hotelOffer === "tour:2");
 
   d.querySelector('[data-hotel-pick="tour:2"]').click();
+  /* 고른 것은 숙소뿐이라 항공 추천가는 총액에서 빠진다. (#281 시안 2차) */
   T("선택한 Sandbox KRW 요금은 예상 총액에 실습가로 반영한다",
-    $("cTot").textContent === "775,240원"
+    $("cTot").textContent === "575,240원"
       && $("costNote").textContent.includes("숙소 Sandbox 실습가")
-      && $("rows").textContent.includes("575,240원"));
+      && $("costLines").textContent.includes("575,240원"));
 
   d.querySelector('[data-hotel-pick="tour:2"]').click();
   T("가격이 있는 숙소도 선택 취소하면 예상 총액에서 제거된다",
     $("cTot").textContent === "200,000원"
-      && $("rows").textContent.includes("선택 전")
+      && $("rows").textContent.includes("미선택")
       && $("dn").textContent === "0");
 
 }
