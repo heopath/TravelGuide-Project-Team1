@@ -210,13 +210,30 @@ async function simulateReturn(w, d) {
 async function run() {
   /* ────────── 레이아웃 ────────── */
   {
-    const { w, d, staticTotal } = await boot();
+    const { w, d, staticTotal, calls } = await boot();
     const $ = (id) => d.getElementById(id);
 
-    T("검색 폼이 초기 렌더에서 닫혀 있다", !$("formwrap").classList.contains("open"));
-    $("chg").click();
-    T("조건 변경 클릭 시 열리고 캐럿이 회전한다",
-      $("formwrap").classList.contains("open") && $("chg").classList.contains("open"));
+    /*
+     * 검색 조건은 접지 않는다. (#281) 예전에는 요약 칩과 내용이 겹친다는 이유로 접어 두고
+     * `조건 변경`으로 폈는데, 조건을 고치려면 매번 한 번 더 눌러야 했다.
+     */
+    T("검색 조건이 처음부터 펴져 있다", $("formwrap").classList.contains("open"));
+    T("조건 변경 토글은 없앴다", $("chg") === null);
+    T("요약 칩은 제목 줄에 있다",
+      Boolean(d.querySelector(".page-heading .cond #cond-trip")));
+
+    /* 왕복은 방향을 자주 뒤집는다. 두 칸을 지웠다 다시 치게 두지 않는다. */
+    $("f-origin").value = "GMP";
+    $("f-destination").value = "CJU";
+    /* 부팅 때 이미 가는 편·오는 편을 조회한다. 그 뒤로 늘었는지만 본다. */
+    const searchesBeforeSwap = calls.filter((c) => c.includes("/flights/search")).length;
+    $("swap").click();
+    T("출발지와 도착지를 맞바꾼다",
+      $("f-origin").value === "CJU" && $("f-destination").value === "GMP");
+    /* 뒤집자마자 검색까지 나가면 날짜를 함께 고치려던 사람을 방해한다. */
+    T("맞바꾸기만으로는 검색하지 않는다",
+      calls.filter((c) => c.includes("/flights/search")).length === searchesBeforeSwap);
+    $("swap").click();
     T("정렬 버튼이 정확히 3개다", d.querySelectorAll(".sort .sc").length === 3);
     T("우측 패널이 1개다", d.querySelectorAll(".side .sc2").length === 1);
     T("카드 어디에도 `직항` 텍스트가 없다", !$("list").innerHTML.includes("직항"));

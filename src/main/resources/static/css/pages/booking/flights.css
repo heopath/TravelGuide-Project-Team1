@@ -35,14 +35,14 @@
 .page-flights .cond .chg .ca { transition: 0.2s; display: inline-block; font-size: 10px; }
 .page-flights .cond .chg.open .ca { transform: rotate(180deg); }
 
-/* 검색 폼은 기본으로 닫혀 있다. 조건 바에 같은 내용이 이미 있다. */
+/* 검색 폼은 늘 펴 둔다. 요약은 제목 옆 칩이 맡는다. (#281 시안) */
 .page-flights .formwrap {
   display: none; background: var(--white); border: 1px solid var(--line); border-radius: 14px;
   box-shadow: var(--card-shadow); padding: 16px 18px; margin-bottom: 12px;
 }
 .page-flights .formwrap.open { display: block; }
 .page-flights .form {
-  display: grid; grid-template-columns: 1fr 1fr 1.05fr 1.05fr 0.8fr auto; gap: 9px; align-items: end;
+  display: grid; grid-template-columns: 1fr auto 1fr 1.05fr 1.05fr 0.8fr auto; gap: 9px; align-items: end;
 }
 .page-flights .f {
   background: #fafbfe; border: 1px solid var(--line); border-radius: 11px;
@@ -580,3 +580,37 @@
 /* 항공사 로고는 원형이 항공권 화면의 관습이다. */
 .page-flights .lg { border-radius: 50%; }
 .page-flights .fl:hover { box-shadow: 0 6px 18px rgba(60, 72, 130, 0.08); }
+
+/* ── 검색 패널·요약 칩 (#281 시안) ── */
+/* 요약 칩은 제목 오른쪽으로 올라갔다. 조건 바가 아니라 제목 줄의 일부다. */
+.page-flights .page-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; }
+.page-flights .cond {
+  margin-bottom: 0;
+  padding: 11px 18px;
+  border-radius: 999px;
+  flex: 0 1 auto;
+}
+.page-flights .cond .cd { white-space: nowrap; }
+
+/* 출발지 ⇄ 도착지. 두 칸 사이에 놓여 어느 쪽을 바꾸는지 자리로 말한다. */
+.page-flights .swap {
+  align-self: center;
+  width: 38px;
+  height: 38px;
+  margin-bottom: 6px;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  background: var(--white);
+  color: var(--ink-2);
+  font-size: 15px;
+  cursor: pointer;
+  transition: 0.15s;
+}
+.page-flights .swap:hover { border-color: var(--primary); color: var(--primary); transform: rotate(180deg); }
+
+@media (max-width: 900px) {
+  .page-flights .page-heading { flex-direction: column; }
+  .page-flights .cond { align-self: stretch; border-radius: 14px; }
+  .page-flights .form { grid-template-columns: 1fr 1fr; }
+  .page-flights .swap { justify-self: center; grid-column: 1 / -1; }
+}

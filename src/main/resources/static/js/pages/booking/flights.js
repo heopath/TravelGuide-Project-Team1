@@ -1007,10 +1007,14 @@
   }
 
   function bind() {
-    $("chg").addEventListener("click", () => {
-      const open = $("formwrap").classList.toggle("open");
-      $("chg").classList.toggle("open", open);
-      $("chg").setAttribute("aria-expanded", String(open));
+    /*
+     * 출발지와 도착지를 맞바꾼다. 값만 바꾸고 검색하지는 않는다 — 날짜까지 함께 고치려던
+     * 사람이 있으면 뒤집자마자 결과가 갈리는 편이 오히려 방해된다. (#281 시안)
+     */
+    $("swap").addEventListener("click", () => {
+      const origin = $("f-origin").value;
+      $("f-origin").value = $("f-destination").value;
+      $("f-destination").value = origin;
     });
 
     $("searchForm").addEventListener("submit", (e) => {
