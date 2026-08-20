@@ -49,7 +49,7 @@ class PaymentServiceTest {
     }
 
     private PaymentRequest request() {
-        return new PaymentRequest("CARD", KEY);
+        return new PaymentRequest("CARD", KEY, null);
     }
 
     private PayableReservationDTO payable(String status, OffsetDateTime expiresAt, int quantity) {
@@ -128,6 +128,63 @@ class PaymentServiceTest {
 
         assertThat(tickets).extracting(IssuedTicketDTO::getTicketNumber).doesNotHaveDuplicates();
         assertThat(tickets).extracting(IssuedTicketDTO::getVerificationToken).doesNotHaveDuplicates();
+    }
+
+    /* ── 결제수단 (#281) ── */
+
+    /*
+     * 간편결제는 카카오페이든 토스든 method가 EASY_PAY로 같다. 사업자가 provider에 남지
+     * 않으면 어디로 결제됐는지 기록에서 사라지고, 환불·문의 때 갈 곳을 알 수 없다.
+     */
+    @Test
+    @DisplayName("간편결제는 사업자를 provider에 남긴다")
+    void keepsEasyPayProvider() {
+        when(paymentDAO.findByIdempotencyKey(USER_ID, KEY)).thenReturn(Optional.empty());
+        when(paymentDAO.lockPayableReservation(USER_ID, RESERVATION_ID))
+                .thenReturn(Optional.of(payable("PENDING", OffsetDateTime.now().plusMinutes(10), 1)));
+        when(paymentDAO.confirmReservation(RESERVATION_ID)).thenReturn(1);
+        reservationExists();
+
+        PaymentResultResponse result = service.pay(USER_ID, RESERVATION_ID,
+                new PaymentRequest("EASY_PAY", KEY, "KAKAO_PAY"));
+
+        assertThat(result.payment().getMethod()).isEqualTo("EASY_PAY");
+        /* MOCK_이 붙어야 나중에 진짜 카카오페이를 붙였을 때 기록으로 구분된다. */
+        assertThat(result.payment().getProvider()).isEqualTo("MOCK_KAKAO_PAY");
+    }
+
+    @Test
+    @DisplayName("간편결제인데 사업자가 없으면 결제하지 않는다")
+    void rejectsEasyPayWithoutProvider() {
+        assertThatThrownBy(() -> service.pay(USER_ID, RESERVATION_ID,
+                new PaymentRequest("EASY_PAY", KEY, null)))
+                .isInstanceOf(BusinessException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.INVALID_PAYMENT_REQUEST);
+        verify(paymentDAO, never()).insertPayment(any());
+    }
+
+    /* 화면이 고른 수단과 남는 기록이 어긋나는 요청이다. 조용히 무시하면 아무도 모른다. */
+    @Test
+    @DisplayName("간편결제가 아닌데 사업자를 보내면 결제하지 않는다")
+    void rejectsProviderOnOtherMethods() {
+        assertThatThrownBy(() -> service.pay(USER_ID, RESERVATION_ID,
+                new PaymentRequest("CARD", KEY, "TOSS_PAY")))
+                .isInstanceOf(BusinessException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.INVALID_PAYMENT_REQUEST);
+        verify(paymentDAO, never()).insertPayment(any());
+    }
+
+    /*
+     * 잘못된 요청은 예약을 잠그기 전에 걸러야 한다. 잠근 뒤에 400을 내면 그동안 같은 예약을
+     * 결제하려는 다른 요청이 이유 없이 기다린다.
+     */
+    @Test
+    @DisplayName("잘못된 결제수단 요청은 예약을 잠그기 전에 거부한다")
+    void rejectsBeforeLocking() {
+        assertThatThrownBy(() -> service.pay(USER_ID, RESERVATION_ID,
+                new PaymentRequest("EASY_PAY", KEY, null)))
+                .isInstanceOf(BusinessException.class);
+        verify(paymentDAO, never()).lockPayableReservation(any(), any());
     }
 
     /* ── 멱등 ── */

@@ -6,6 +6,7 @@ const path = require("path");
 const ROOT = path.resolve(__dirname, "../../..");
 const HTML = path.join(ROOT, "src/main/resources/templates/mypage/mypage.html");
 const JS = path.join(ROOT, "src/main/resources/static/js/pages/mypage/mypage-tickets.js");
+const PAYMENT_METHODS = path.join(ROOT, "src/main/resources/static/js/core/payment-methods.js");
 
 let passed = 0;
 let failed = 0;
@@ -66,6 +67,8 @@ async function boot(responder, toasts) {
     url: "http://localhost/mypage", runScripts: "outside-only",
   });
   const w = dom.window;
+  /* 결제수단 선택 창. 화면에서도 모듈보다 먼저 올라간다. (#281) */
+  w.eval(fs.readFileSync(PAYMENT_METHODS, "utf8"));
   const calls = [];
   const init = loadModule(w, {
     request: async (url, options = {}) => {
@@ -275,17 +278,137 @@ async function run() {
       /\d+분 안에 결제해야/.test(d.querySelector("[data-pay-remain]").textContent),
       d.querySelector("[data-pay-remain]")?.textContent);
 
-    d.defaultView.confirm = () => true;
     d.querySelector("[data-ticket-pay]").click();
+
+    /* 결제수단을 고르기 전에는 결제가 나가면 안 된다. (#281) */
+    await until(() => d.querySelector(".pay-method-overlay") !== null);
+    test("결제 전에 결제수단을 고르게 한다", d.querySelector(".pay-method-overlay") !== null);
+    test("고르기 전에는 결제하지 않는다", paid === null);
+    test("모의 결제라는 사실을 고르는 자리에서 밝힌다",
+      d.querySelector(".pay-method-notice")?.textContent.includes("실제 돈이 빠져나가지 않"));
+
+    d.querySelector('.pay-method-overlay input[value="EASY_PAY:TOSS_PAY"]').click();
+    d.querySelector(".pay-method-overlay .primary-button").click();
+
     await until(() => paid !== null);
     await until(() => listCalls > 1);
 
     test("결제는 POST로 보낸다",
       calls.some((c) => c.method === "POST" && c.url.includes("/ticket-reservations/5/payment")));
     test("멱등키를 담는다", typeof paid.idempotencyKey === "string" && paid.idempotencyKey.length > 0);
-    test("결제수단을 담는다", paid.method === "CARD");
+    test("고른 결제수단을 담는다", paid.method === "EASY_PAY");
+    /* 카카오페이·토스는 method가 같아서 사업자가 없으면 어디로 결제됐는지 남지 않는다. */
+    test("간편결제는 사업자도 담는다", paid.easyPayProvider === "TOSS_PAY");
+    test("결제하면 선택 창이 닫힌다", d.querySelector(".pay-method-overlay") === null);
     test("결제 후 목록을 다시 받는다", listCalls > 1);
     test("결제 결과를 알린다", toasts.some((m) => m.includes("결제가 완료")));
+  }
+
+  /* ── QR 결제 (#281) ── */
+  {
+    /*
+     * QR 결제는 다른 수단과 달리 이 화면에서 끝나지 않는다. QR을 띄우고, 손님이 폰으로
+     * 스캔해 승인해야 결제된다. 그래서 고른 즉시 결제가 나가면 안 되고, 승인이 끝났는지
+     * 물어보며 기다려야 한다.
+     */
+    const toasts = [];
+    let paidDirectly = false;
+    let qrIssued = 0;
+    let approved = false;
+    const { d } = await boot((url, options) => {
+      if (url.includes("/payment/qr") && options.method === "POST") {
+        qrIssued += 1;
+        const now = new Date();
+        return {
+          reservationId: 5,
+          token: "dGVzdA.c2lnbmF0dXJl",
+          expiresAt: new Date(now.getTime() + 5 * 60 * 1000).toISOString(),
+          serverTime: now.toISOString(),
+        };
+      }
+      if (url.includes("/payment") && options.method === "POST") {
+        paidDirectly = true;
+        return {};
+      }
+      if (url.endsWith("/tickets")) {
+        /* 폴링. 승인 전에는 비어 있고, 승인하면 발급된 티켓이 생긴다. */
+        return approved ? [{ issuedTicketId: 1, ticketNumber: "AMT-TKN-AAA", status: "ISSUED" }] : [];
+      }
+      if (url.startsWith("/api/v1/ticket-reservations")) {
+        return [ticket({ status: approved ? "CONFIRMED" : "PENDING" })];
+      }
+      if (url.startsWith("/api/v1/trips")) return { items: [] };
+      return null;
+    }, toasts);
+
+    d.querySelector("[data-ticket-pay]").click();
+    await until(() => d.querySelector(".pay-method-overlay") !== null);
+
+    test("마이페이지에서는 QR 결제도 고를 수 있다",
+      d.querySelector('.pay-method-overlay input[value="QR"]') !== null);
+
+    d.querySelector('.pay-method-overlay input[value="QR"]').click();
+    d.querySelector(".pay-method-overlay .primary-button").click();
+
+    await until(() => d.querySelector("[data-pay-qr]") !== null);
+
+    test("QR 결제를 고르면 결제 QR을 띄운다", qrIssued === 1);
+    /* 고른 순간 결제되면 폰으로 승인하는 흐름 자체가 의미가 없다. */
+    test("QR을 띄우는 것만으로는 결제되지 않는다", paidDirectly === false);
+
+    const drawn = d.querySelector("[data-pay-qr-code] svg");
+    test("QR에 승인 화면 주소를 담는다",
+      Boolean(drawn) && drawn.dataset.stubToken.includes("/pay/qr?token="),
+      drawn && drawn.dataset.stubToken);
+    /* 토큰만 담으면 찍어도 아무 데도 가지 않는다. */
+    test("QR 주소에 토큰이 붙는다",
+      Boolean(drawn) && drawn.dataset.stubToken.includes("dGVzdA"));
+    test("남은 시간을 밝힌다",
+      /\d+분 \d+초 뒤 만료/.test(d.querySelector("[data-pay-qr-remain]").textContent),
+      d.querySelector("[data-pay-qr-remain]")?.textContent);
+    test("승인을 기다리는 중이라고 알린다",
+      d.querySelector("[data-pay-qr-state]").textContent.includes("승인을 기다리는"));
+
+    /* 폰에서 승인된 상황. 화면은 물어보다가 티켓이 생긴 것을 보고 끝낸다. */
+    approved = true;
+    await until(() => d.querySelector("[data-pay-qr]") === null, 8000);
+
+    test("승인되면 QR 창을 닫는다", d.querySelector("[data-pay-qr]") === null);
+    test("승인 결과를 알린다", toasts.some((m) => m.includes("결제가 완료")));
+  }
+  {
+    /* 창을 닫으면 더 묻지 않는다. 남겨 두면 화면을 떠난 뒤에도 계속 요청이 나간다. */
+    const toasts = [];
+    let ticketCalls = 0;
+    const { d } = await boot((url, options) => {
+      if (url.includes("/payment/qr") && options.method === "POST") {
+        const now = new Date();
+        return {
+          reservationId: 5,
+          token: "dGVzdA.c2lnbmF0dXJl",
+          expiresAt: new Date(now.getTime() + 5 * 60 * 1000).toISOString(),
+          serverTime: now.toISOString(),
+        };
+      }
+      if (url.endsWith("/tickets")) { ticketCalls += 1; return []; }
+      if (url.startsWith("/api/v1/ticket-reservations")) return [ticket({ status: "PENDING" })];
+      if (url.startsWith("/api/v1/trips")) return { items: [] };
+      return null;
+    }, toasts);
+
+    d.querySelector("[data-ticket-pay]").click();
+    await until(() => d.querySelector(".pay-method-overlay") !== null);
+    d.querySelector('.pay-method-overlay input[value="QR"]').click();
+    d.querySelector(".pay-method-overlay .primary-button").click();
+    await until(() => d.querySelector("[data-pay-qr]") !== null);
+
+    d.querySelector("[data-pay-qr] .text-button").click();
+    const asked = ticketCalls;
+    await new Promise((resolve) => setTimeout(resolve, 3000));
+
+    test("QR 창을 닫으면 승인 확인을 멈춘다", ticketCalls === asked, `${asked} → ${ticketCalls}`);
+    test("닫으면 결제 버튼을 다시 누를 수 있다",
+      d.querySelector("[data-ticket-pay]")?.disabled === false);
   }
   {
     /* 만료 시각이 지난 예약은 자리가 이미 반납됐을 수 있다. 그 사실을 밝힌다. */

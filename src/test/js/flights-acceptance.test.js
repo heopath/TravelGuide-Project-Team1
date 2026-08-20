@@ -12,6 +12,8 @@ const path = require("path");
 const ROOT = path.resolve(__dirname, "../../..");
 const HTML = path.join(ROOT, "src/main/resources/templates/booking/flights.html");
 const SCRIPT = path.join(ROOT, "src/main/resources/static/js/pages/booking/flights.js");
+/* 결제수단 선택 창. 화면에서도 flights.js보다 먼저 올라간다. (#281) */
+const PAYMENT_METHODS = path.join(ROOT, "src/main/resources/static/js/core/payment-methods.js");
 
 let passed = 0;
 let failed = 0;
@@ -135,6 +137,7 @@ async function boot(options = {}) {
   // 정적 마크업이 금액처럼 보이는 값을 미리 박아두지 않았는지 먼저 확인한다.
   const staticTotal = d.getElementById("cTot").textContent.trim();
 
+  w.eval(fs.readFileSync(PAYMENT_METHODS, "utf8"));
   w.eval(fs.readFileSync(SCRIPT, "utf8"));
 
   // 파싱이 아직 끝나지 않았으면 jsdom이 DOMContentLoaded를 알아서 쏜다.
@@ -150,6 +153,18 @@ async function boot(options = {}) {
 
 function json(body) {
   return { ok: true, status: 200, json: async () => body };
+}
+
+/**
+ * 결제수단 선택 창에서 하나 고르고 결제한다. (#281)
+ *
+ * id를 주지 않으면 기본값(카드) 그대로 결제한다. 창이 안 뜨면 until이 시간 초과로 죽는다.
+ */
+async function pickPaymentMethod(d, id) {
+  await until(() => d.querySelector(".pay-method-overlay"));
+  const overlay = d.querySelector(".pay-method-overlay");
+  if (id) overlay.querySelector(`input[value="${id}"]`).click();
+  overlay.querySelector(".primary-button").click();
 }
 
 /** 티켓 한 건만 담긴 통합 조회 응답. 결제 전후를 상태만 바꿔 만든다. */
@@ -486,6 +501,12 @@ async function run() {
     await until(() => d.querySelector("[data-mine-ticket-pay]"));
 
     d.querySelector("[data-mine-ticket-pay]").click();
+    /* 결제수단을 고르기 전에는 결제가 나가면 안 된다. (#281) */
+    await until(() => d.querySelector(".pay-method-overlay"));
+    T("결제수단을 고르기 전에는 결제하지 않는다",
+      !calls.some((c) => c.includes("/payment")));
+
+    await pickPaymentMethod(d, "EASY_PAY:KAKAO_PAY");
     await until(() => calls.some((c) => c.includes("POST /api/v1/ticket-reservations/30/payment")));
     await until(() => d.querySelectorAll(".mn-ticket").length === 2);
 
@@ -493,9 +514,33 @@ async function run() {
     T("결제는 결제 API로 보낸다",
       calls.some((c) => c === "POST /api/v1/ticket-reservations/30/payment"));
     T("결제 요청에 멱등키를 담는다", typeof body.idempotencyKey === "string" && body.idempotencyKey.length > 0);
+    T("고른 결제수단을 그대로 보낸다", body.method === "EASY_PAY");
+    /* 카카오페이·토스는 method가 같아서 사업자를 함께 보내지 않으면 구분되지 않는다. */
+    T("간편결제는 사업자를 함께 보낸다", body.easyPayProvider === "KAKAO_PAY");
+    T("고른 뒤에는 선택 창이 닫힌다", !d.querySelector(".pay-method-overlay"));
     T("발급된 티켓을 수량만큼 그린다", d.querySelectorAll(".mn-ticket").length === 2);
     T("입장 코드를 화면에 보여준다",
       d.querySelector(".mn-ticket-code")?.textContent === "tok-aaa");
+  }
+  {
+    /*
+     * 선택 창을 닫으면 결제하지 않는다. (#281) 여기서 결제가 나가면 고르다 그만둔 손님의
+     * 돈이 나가는 셈이고, 결제 버튼도 눌린 채로 잠겨 다시 시도할 수 없다.
+     */
+    const { d, calls } = await boot({
+      query: "?tripId=10&tab=mine",
+      summary: ticketSummary("PENDING", "결제 대기")
+    });
+    await until(() => d.querySelector("[data-mine-ticket-pay]"));
+
+    d.querySelector("[data-mine-ticket-pay]").click();
+    await until(() => d.querySelector(".pay-method-overlay"));
+    d.querySelector(".pay-method-overlay .text-button").click();
+    await until(() => !d.querySelector(".pay-method-overlay"));
+
+    T("결제수단 선택을 취소하면 결제하지 않는다", !calls.some((c) => c.includes("/payment")));
+    T("취소해도 결제 버튼은 다시 누를 수 있다",
+      d.querySelector("[data-mine-ticket-pay]").disabled === false);
   }
   {
     /*

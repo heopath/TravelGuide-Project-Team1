@@ -119,6 +119,7 @@ const ALL_MY_TRIPS_TEMPLATE_ROUTES = {
   "/booking/hotels": "booking/hotels",
   "/booking/flights": "booking/flights",
   "/booking/queue": "booking/queue",
+  "/pay/qr": "payment/qr-approve",
   "/mypage": "mypage/mypage",
   "/trips/1/record": "trips/record",
   "/admin": "admin/admin",
@@ -300,6 +301,16 @@ const ALL_MY_TRIPS_SCREENS = [
   [
     "/booking/queue",
     "예약 대기열",
+    "booking"
+  ],
+  /*
+   * QR 결제 승인 화면. 보통은 결제 QR을 찍어서 들어오므로 주소에 토큰이 붙지만,
+   * 목록에서 그냥 열면 "결제 QR 정보가 없습니다" 안내가 뜬다. 화면이 있다는 사실과
+   * 생김새를 보는 자리라 토큰 없는 주소로 둔다. (#281)
+   */
+  [
+    "/pay/qr",
+    "QR 결제 승인",
     "booking"
   ],
   /*

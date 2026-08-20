@@ -31,7 +31,8 @@ public class SecurityConfig {
     };
 
     private static final String[] AUTHENTICATED_PAGES = {
-            "/trips/**", "/mypage"
+            // /pay/**는 QR 결제 승인 화면이다. 승인은 QR을 띄운 본인만 할 수 있어야 한다. (#281)
+            "/trips/**", "/mypage", "/pay/**"
     };
 
     @Bean
