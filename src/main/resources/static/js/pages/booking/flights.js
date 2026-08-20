@@ -463,7 +463,7 @@
         ? `<div class="mn-tickets" data-mine-tickets="${esc(item.referenceId)}"></div>`
         : ""}
       <div class="mn-a">${item.status === "PENDING"
-        ? `<button type="button" class="mn-b primary" data-mine-ticket-pay="${esc(item.referenceId)}">모의 결제하기</button>`
+        ? `<button type="button" class="mn-b primary" data-mine-ticket-pay="${esc(item.referenceId)}" data-mine-ticket-summary="${esc(`${item.title} · ${summaryAmount(item)}`)}">모의 결제하기</button>`
         : ""}${item.status === "CONFIRMED"
         ? `<button type="button" class="mn-b" data-mine-ticket-show="${esc(item.referenceId)}">발급된 티켓 보기</button>`
         : ""}${item.status === "PENDING" || item.status === "CONFIRMED"
@@ -1055,7 +1055,12 @@
       }
       const payTicket = e.target.closest("[data-mine-ticket-pay]");
       if (payTicket) {
-        if (!window.confirm("모의 결제를 진행할까요? 실제 결제는 이루어지지 않고, 결제하면 티켓이 발급됩니다.")) return;
+        /* 결제수단을 고르게 한다. (#281) 마이페이지 `내 티켓`과 같은 창을 쓴다. */
+        const picked = await window.AllMyTripsPayment.choose({
+          summary: payTicket.dataset.mineTicketSummary || "",
+          confirmLabel: "모의 결제하기",
+        });
+        if (!picked) return;
         payTicket.disabled = true;
         try {
           const reservationId = payTicket.dataset.mineTicketPay;
@@ -1067,7 +1072,7 @@
             ? crypto.randomUUID()
             : `pay-${reservationId}-${Date.now()}`;
           const result = await request("POST", `/api/v1/ticket-reservations/${reservationId}/payment`,
-            { method: "CARD", idempotencyKey });
+            { method: picked.method, idempotencyKey, easyPayProvider: picked.easyPayProvider });
           /* request()는 data가 아니라 응답 전체를 돌려준다. */
           issuedTickets[reservationId] = result?.data?.tickets || [];
           bookingSummary = null;

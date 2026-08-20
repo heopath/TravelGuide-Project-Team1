@@ -390,6 +390,20 @@ public enum ErrorCode {
             "결제 요청이 올바르지 않습니다."
     ),
 
+    /*
+     * 만료와 위조를 나눈다. 손님에게 해 줄 말이 다르다 — 하나는 "다시 띄우세요"이고
+     * 다른 하나는 "이 QR로는 결제할 수 없습니다"이다. (#281)
+     */
+    PAYMENT_QR_INVALID(
+            HttpStatus.BAD_REQUEST,
+            "결제 QR이 올바르지 않습니다. 결제 화면에서 다시 띄워 주세요."
+    ),
+
+    PAYMENT_QR_EXPIRED(
+            HttpStatus.GONE,
+            "결제 QR의 유효 시간이 지났습니다. 다시 띄워 주세요."
+    ),
+
     TICKET_ALREADY_USED(
             HttpStatus.CONFLICT,
             "이미 사용한 티켓이 있어 취소할 수 없습니다."
