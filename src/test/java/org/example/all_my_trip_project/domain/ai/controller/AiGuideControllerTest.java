@@ -100,6 +100,15 @@ class AiGuideControllerTest {
     }
 
     @Test
+    void generateRejectsNonPositiveSelectedDayNumber() throws Exception {
+        mockMvc.perform(post("/api/v1/ai-guides/generate").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"question\":\"Recommend dinner\",\"tripId\":1,\"selectedDayNumber\":0}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"))
+                .andExpect(jsonPath("$.errors[0].field").value("selectedDayNumber"));
+    }
+
+    @Test
     void generateRejectsMissingTripId() throws Exception {
         mockMvc.perform(post("/api/v1/ai-guides/generate").contentType(MediaType.APPLICATION_JSON)
                         .content("{\"question\":\"Recommend dinner\"}"))
