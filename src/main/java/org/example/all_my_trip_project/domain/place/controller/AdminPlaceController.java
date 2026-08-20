@@ -3,6 +3,7 @@ package org.example.all_my_trip_project.domain.place.controller;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.example.all_my_trip_project.domain.place.dto.AdminPlacePage;
+import org.example.all_my_trip_project.domain.place.dto.AdminPlaceRecommendationBulkRequest;
 import org.example.all_my_trip_project.domain.place.dto.AdminPlaceRecommendationRequest;
 import org.example.all_my_trip_project.domain.place.dto.AdminPlaceRequest;
 import org.example.all_my_trip_project.domain.place.dto.AdminPlaceVisibilityRequest;
@@ -57,6 +58,15 @@ public class AdminPlaceController {
         // 추천 노출은 is_recommended가 맡는다. 여기는 장소 데이터 자체의 사용 여부다.
         return ApiResponse.success(request.active() ? "장소를 사용 처리했습니다." : "장소를 미사용 처리했습니다.",
                 adminPlaceService.setVisibility(placeId, request.active()));
+    }
+
+    @PatchMapping("/recommendation")
+    public ApiResponse<Integer> recommendationBulk(
+            @Valid @RequestBody AdminPlaceRecommendationBulkRequest request) {
+        int changed = adminPlaceService.setRecommendedAll(request.placeIds(), request.recommended());
+        String message = "선택한 장소 " + changed
+                + (request.recommended() ? "곳을 추천장소에 노출합니다." : "곳을 추천장소에서 내렸습니다.");
+        return ApiResponse.success(message, changed);
     }
 
     @PatchMapping("/{placeId}/recommendation")
