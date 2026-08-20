@@ -24,6 +24,7 @@ import {
 
 import {
     initTickets,
+    initTicketHistory,
 } from "./mypage-tickets.js";
 
 document.addEventListener(
@@ -82,6 +83,22 @@ document.addEventListener(
         const openSupportButtons =
             document.querySelectorAll(
                 "[data-open-support]",
+            );
+
+        /* 예매한 티켓 화면 (#281) */
+        const ticketsView =
+            document.querySelector(
+                "[data-tickets-view]",
+            );
+
+        const openTicketButtons =
+            document.querySelectorAll(
+                "[data-open-tickets]",
+            );
+
+        const closeTicketsButton =
+            document.querySelector(
+                "[data-close-tickets]",
             );
 
         const openSettingsButton =
@@ -190,6 +207,16 @@ document.addEventListener(
                     },
                 );
 
+            openTicketButtons
+                .forEach(
+                    (button) => {
+                        setCurrent(
+                            button,
+                            view === "tickets",
+                        );
+                    },
+                );
+
             setCurrent(
                 openSettingsButton,
                 view ===
@@ -271,6 +298,21 @@ document.addEventListener(
                     "settings";
             }
 
+            if (ticketsView) {
+                ticketsView.hidden =
+                    view !== "tickets";
+
+                /*
+                 * 처음 열 때 한 번만 목록을 받는다. 대시보드와 함께 띄우면 숨어 있는
+                 * 화면 때문에 첫 화면이 같은 목록을 두 번 받는다. (#281)
+                 */
+                if (view === "tickets"
+                    && !ticketsView.dataset.ticketsReady) {
+                    ticketsView.dataset.ticketsReady = "1";
+                    initTicketHistory();
+                }
+            }
+
             setCurrentMenu(view);
 
             if (updateUrl) {
@@ -294,6 +336,8 @@ document.addEventListener(
                         : view ===
                         "settings"
                             ? settingsView
+                        : view === "tickets"
+                            ? ticketsView
                             : dashboardView;
 
             target?.scrollIntoView({
@@ -322,6 +366,7 @@ document.addEventListener(
                     "reviews",
                     "support",
                     "settings",
+                    "tickets",
                 ].includes(value)
                     ? value
                     : "dashboard";
@@ -398,6 +443,26 @@ document.addEventListener(
                             applyView("support");
                         },
                     );
+                },
+            );
+
+        openTicketButtons
+            .forEach(
+                (button) => {
+                    button.addEventListener(
+                        "click",
+                        () => {
+                            applyView("tickets");
+                        },
+                    );
+                },
+            );
+
+        closeTicketsButton
+            ?.addEventListener(
+                "click",
+                () => {
+                    applyView("dashboard");
                 },
             );
 

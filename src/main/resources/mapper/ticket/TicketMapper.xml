@@ -215,11 +215,36 @@
         FOR UPDATE OF r, ti
     </select>
 
-    <!-- 여행에 붙지 않은 티켓까지 포함한다. 마이페이지 "내 티켓"이 쓰는 길이다. (#255) -->
+    <!--
+      여행에 붙지 않은 티켓까지 포함한다. 마이페이지 "내 티켓"이 쓰는 길이다. (#255)
+
+      장소·이용 종료 시각·결제 정보를 함께 내린다. 예약 내역 화면이 티켓 한 장을 통째로
+      보여주는데(장소, 이용 시간, 결제 수단·결제일), 이것들이 없으면 화면에 빈칸이 남거나
+      화면이 지어내야 한다. (#281)
+
+      전부 LEFT JOIN이다. 상품·시간대·장소는 예약 뒤에 지워질 수 있고, 결제는 결제 전
+      예약에 아예 없다. INNER로 묶으면 그런 예약이 목록에서 오류 없이 사라진다 — 티켓
+      상품 조회가 4단 INNER JOIN이라 겪었던 것과 같은 함정이다.
+
+      결제는 PAID 한 건만 본다. 취소·환불된 결제까지 딸려 오면 한 예약이 여러 줄이 된다.
+    -->
     <select id="findReservationsByUser"
             resultType="org.example.all_my_trip_project.domain.ticket.dto.TicketReservationDTO">
-        SELECT <include refid="reservationColumns"/>
-        FROM reservations r JOIN reservation_items ri ON ri.reservation_id = r.reservation_id
+        SELECT <include refid="reservationColumns"/>,
+               ts.end_time AS usage_end_time,
+               pl.name AS place_name,
+               pay.method AS payment_method,
+               pay.provider AS payment_provider,
+               pay.approved_at AS paid_at
+        FROM reservations r
+        JOIN reservation_items ri ON ri.reservation_id = r.reservation_id
+        LEFT JOIN ticket_time_slots ts ON ts.ticket_time_slot_id = ri.ticket_time_slot_id
+        LEFT JOIN ticket_product_options po
+               ON po.ticket_product_option_id = ts.ticket_product_option_id
+        LEFT JOIN ticket_products tp ON tp.ticket_product_id = po.ticket_product_id
+        LEFT JOIN places pl ON pl.place_id = tp.place_id
+        LEFT JOIN payments pay
+               ON pay.reservation_id = r.reservation_id AND pay.status = 'PAID'
         WHERE r.user_id = #{userId}
         ORDER BY r.created_at DESC
     </select>
