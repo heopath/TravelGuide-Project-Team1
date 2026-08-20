@@ -1,0 +1,71 @@
+name-template: "v$RESOLVED_VERSION — 릴리스 초안"
+tag-template: "v$RESOLVED_VERSION"
+change-template: "- $TITLE (#$NUMBER) @$AUTHOR"
+change-title-escapes: "\\<*_&"
+
+categories:
+  - title: "새로운 기능"
+    semver-increment: minor
+    when:
+      conventional:
+        type: feat
+  - title: "오류 수정"
+    semver-increment: patch
+    when:
+      conventional:
+        type: fix
+  - title: "화면 및 디자인"
+    semver-increment: patch
+    when:
+      paths:
+        - "src/main/resources/templates/**"
+        - "src/main/resources/static/**"
+  - title: "데이터베이스"
+    semver-increment: patch
+    when:
+      paths:
+        - "database/**"
+  - title: "문서"
+    semver-increment: patch
+    when:
+      conventional:
+        type: docs
+  - title: "리팩터링 및 성능 개선"
+    semver-increment: patch
+    when:
+      conventional:
+        types:
+          - refactor
+          - perf
+  - title: "테스트 및 배포 설정"
+    semver-increment: patch
+    when:
+      conventional:
+        types:
+          - test
+          - ci
+          - build
+  - title: "기타 변경"
+  - type: pre-exclude
+    when:
+      label: skip-changelog
+  - type: version-resolver
+    semver-increment: patch
+
+template: |
+  ## 배포 전 확인
+
+  - [ ] 전체 테스트 통과
+  - [ ] 운영 환경 변수와 외부 API 설정 확인
+  - [ ] Flyway 마이그레이션 및 운영 DB 적용 순서 확인
+  - [ ] 푸터 표시 버전 확인
+
+  ## 변경 내용
+
+  $CHANGES
+
+  ## 참여자
+
+  $CONTRIBUTORS
+
+  > 이 문서는 자동 생성된 초안입니다. 배포 전에 제목, 버전, 변경 내용과 운영 확인 사항을 검토한 뒤 게시하세요.
