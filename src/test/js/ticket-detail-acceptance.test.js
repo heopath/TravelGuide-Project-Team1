@@ -45,6 +45,7 @@ function product(overrides) {
     productId: 7, productName: "제주 아쿠아리움 입장권", description: "돌고래를 볼 수 있어요.",
     placeId: 3, placeName: "아쿠아플라넷 제주", region: "제주특별자치도", city: "서귀포시",
     address: "제주특별자치도 서귀포시 성산읍 섭지코지로 95", category: "ATTRACTION",
+    imageUrl: "https://images.example.com/aquarium-ticket.jpg",
     minUnitPrice: 20000, currency: "KRW",
     firstUsageDate: "2026-09-15", lastUsageDate: "2026-09-16",
     availableSlotCount: 3, remainingQuantity: 30,
@@ -114,6 +115,9 @@ async function main() {
     T("상품 값을 마크업에 박아두지 않았다",
       !markup.includes("해운대") && !markup.includes("16,000원") && !markup.includes("블루라인"));
     T("상품 정보 자리가 있다", markup.includes("data-ticket-facts"));
+    T("실제 상품 이미지를 보여줄 자리가 있다", markup.includes("data-ticket-image"));
+    T("모의 예매임을 화면에서 알린다", markup.includes("포트폴리오용 모의 예매"));
+    T("예매 뒤 QR 발급 흐름을 설명한다", markup.includes("QR 티켓 발급"));
   }
 
   /* ── 상품 내용 ── */
@@ -123,6 +127,9 @@ async function main() {
 
     T("주소의 상품 번호로 조회한다", calls.some((c) => c.includes("/api/v1/tickets/products/7")));
     T("상품명을 보여준다", text(d, "[data-ticket-name]") === "제주 아쿠아리움 입장권");
+    T("상품 대표 이미지를 보여준다",
+      d.querySelector("[data-ticket-image]").hidden === false
+        && d.querySelector("[data-ticket-image]").src.includes("aquarium-ticket.jpg"));
     /* 분류 코드를 그대로 노출하면 손님에게는 뜻 없는 영어다. */
     T("분류를 사람이 쓰는 말로 보여준다", text(d, "[data-ticket-category]") === "관광지");
     T("지역을 보여준다", text(d, "[data-ticket-region]").includes("제주"));
@@ -131,10 +138,37 @@ async function main() {
       text(d, "[data-ticket-facts]").includes("성인 입장권 20,000원")
         && text(d, "[data-ticket-facts]").includes("성인 야간권 25,000원"));
     T("1인 최대 매수를 보여준다", text(d, "[data-ticket-facts]").includes("4매"));
+    T("최저가를 강조해서 보여준다", text(d, "[data-ticket-min-price]") === "20,000원");
     T("상품 소개를 보여준다", text(d, "[data-ticket-description]").includes("돌고래"));
     /* 어디로 가야 하는지가 상세에 없으면 손님이 지도를 따로 찾아야 한다. */
     T("장소와 주소를 보여준다",
       text(d, "[data-ticket-venue-address]").includes("섭지코지로"));
+  }
+
+  /* ── 관리자 입력값은 HTML로 실행하지 않는다 ── */
+  {
+    const attack = "<img src=x onerror=alert(1)>";
+    const { d } = boot({
+      product: product({ placeName: attack }),
+      slots: [slot(35, "2026-09-15", "10:00:00", 20000, attack)]
+    });
+    await until(() => !d.querySelector("[data-ticket-body]").hidden);
+
+    T("장소명을 HTML로 실행하지 않는다", d.querySelector("[data-ticket-facts] img") === null);
+    T("옵션명을 HTML로 실행하지 않는다", d.querySelector("[data-ticket-slots] img") === null);
+    T("입력값 자체는 글자로 확인할 수 있다", text(d, "[data-ticket-slots]").includes("<img"));
+  }
+
+  /* ── 매진 회차 ── */
+  {
+    const soldOut = slot(36, "2026-09-15", "17:00:00", 20000);
+    soldOut.remainingQuantity = 0;
+    const { d } = boot({ slots: [soldOut] });
+    await until(() => !d.querySelector("[data-ticket-body]").hidden);
+
+    T("매진 회차는 선택할 수 없다", d.querySelector("[data-ticket-slot]").disabled === true);
+    T("매진 회차에는 매진 표시가 있다", text(d, "[data-ticket-slot]").includes("매진"));
+    T("매진이면 예매 버튼이 잠겨 있다", d.querySelector("[data-ticket-reserve]").disabled === true);
   }
 
   /* ── 예매: 날짜 → 회차 → 매수 ── */
