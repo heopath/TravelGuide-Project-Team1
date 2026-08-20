@@ -45,7 +45,8 @@ class PaymentServiceTest {
     @BeforeEach
     void setUp() {
         paymentDAO = mock(PaymentDAO.class);
-        service = new PaymentService(paymentDAO);
+        service = new PaymentService(paymentDAO,
+                mock(org.example.all_my_trip_project.domain.notification.service.NotificationService.class));
     }
 
     private PaymentRequest request() {

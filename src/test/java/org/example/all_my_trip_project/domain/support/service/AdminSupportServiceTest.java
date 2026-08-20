@@ -25,6 +25,8 @@ class AdminSupportServiceTest {
     @Mock private AdminSupportDAO dao;
     /* 감사 기록은 이 테스트의 관심사가 아니지만 @InjectMocks가 채우려면 선언돼 있어야 한다. */
     @Mock private AdminAuditService adminAuditService;
+    /* 알림도 마찬가지다. 곁다리라 이 테스트가 보려는 것과 무관하다. */
+    @Mock private org.example.all_my_trip_project.domain.notification.service.NotificationService notificationService;
     @InjectMocks private AdminSupportService service;
 
     @Test

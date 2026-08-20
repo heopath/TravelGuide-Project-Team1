@@ -376,6 +376,11 @@ const ALL_MY_TRIPS_SCREENS = [
     "mypage"
   ],
   [
+    "/mypage?view=notifications",
+    "마이페이지 · 알림",
+    "mypage"
+  ],
+  [
     "/mypage?view=settings",
     "마이페이지 · 계정 설정",
     "mypage"

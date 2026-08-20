@@ -8,6 +8,7 @@ import org.example.all_my_trip_project.domain.support.dto.SupportInquiryDTO;
 import org.example.all_my_trip_project.domain.support.dto.SupportInquiryPage;
 import org.example.all_my_trip_project.domain.support.dto.SupportReplyDTO;
 import org.example.all_my_trip_project.domain.support.dto.SupportReplyRequest;
+import org.example.all_my_trip_project.domain.notification.service.NotificationService;
 import org.example.all_my_trip_project.global.exception.BusinessException;
 import org.example.all_my_trip_project.global.exception.ErrorCode;
 import org.springframework.context.annotation.Profile;
@@ -26,6 +27,7 @@ public class AdminSupportService {
     private static final Set<String> STATUSES = Set.of("OPEN", "IN_PROGRESS", "ANSWERED", "CLOSED");
     private final AdminSupportDAO dao;
     private final AdminAuditService adminAuditService;
+    private final NotificationService notificationService;
 
     public SupportInquiryPage getPage(String status, int page, int size) {
         validatePage(page, size);
@@ -59,6 +61,15 @@ public class AdminSupportService {
         adminAuditService.record("SUPPORT_REPLY", "SUPPORT_INQUIRY", inquiryId,
                 AdminAuditService.payload("status", inquiry.getStatus()),
                 AdminAuditService.payload("status", "ANSWERED", "replyLength", reply.getContent().length()));
+        /*
+         * 문의를 올린 사람에게 알린다. 답변 본문은 담지 않는다 — 알림 목록은 훑어보는
+         * 자리이고, 문의 내용이 그 자리에 펼쳐지면 어깨너머로 보이는 범위가 넓어진다.
+         */
+        notificationService.notify(inquiry.getUserId(), "SUPPORT_REPLIED",
+                "문의에 답변이 달렸어요",
+                "고객센터에서 답변을 남겼습니다. 확인해 주세요.",
+                "/mypage?view=support");
+
         return getDetail(inquiryId);
     }
 
