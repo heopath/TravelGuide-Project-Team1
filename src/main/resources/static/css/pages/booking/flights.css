@@ -834,3 +834,219 @@
   background: none;
   box-shadow: none;
 }
+
+/* =========================================================
+   시안 2차 — 단계 중심 화면 (#281)
+   ========================================================= */
+
+/* 조건 바: 노선·날짜·인원 + 변경하기 */
+.page-flights .cond { gap: 4px; }
+.page-flights .cond .sep { color: #dfe3ee; margin: 0 8px; font-weight: 400; }
+.page-flights .cond-edit {
+  border: 0;
+  background: none;
+  color: var(--primary);
+  font-size: 13.5px;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 0 2px;
+}
+.page-flights .cond-edit:hover { text-decoration: underline; }
+.page-flights .cond .cond-trip { display: none; }
+
+/* 검색 칸: 코드 옆에 공항 이름 */
+.page-flights .fvline { display: flex; align-items: baseline; gap: 7px; }
+.page-flights .fname { font-size: 16px; font-weight: 800; letter-spacing: -0.02em; }
+.page-flights .fvline .fv { flex: 1; min-width: 0; font-size: 14px; color: var(--muted); font-weight: 700; }
+.page-flights select.fv { appearance: none; cursor: pointer; }
+
+/* 편 선택: 두 단계를 나란히 */
+.page-flights .legbar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  padding: 0 0 16px;
+  border-bottom: 1px solid #eef1f7;
+  margin-bottom: 16px;
+}
+.page-flights .leg {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 4px;
+  border: 0;
+  border-radius: 12px;
+  background: none;
+  color: #9aa1b2;
+  font-size: 15px;
+  font-weight: 800;
+  text-align: left;
+  cursor: pointer;
+}
+.page-flights .leg i {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  flex: none;
+  border-radius: 50%;
+  background: #e6e9f2;
+  color: #fff;
+  font-size: 13px;
+  font-style: normal;
+  font-weight: 800;
+}
+.page-flights .leg.on { background: none; color: var(--ink); box-shadow: none; }
+.page-flights .leg.on i { background: var(--primary); }
+.page-flights .legname { white-space: nowrap; }
+.page-flights .legdetail { display: flex; align-items: baseline; gap: 10px; min-width: 0; }
+.page-flights .legdetail .lv { font-size: 14px; font-weight: 700; color: var(--ink-2); white-space: nowrap; }
+.page-flights .legdetail .lp { font-size: 13px; font-weight: 600; color: var(--muted); }
+.page-flights .legdetail .lp.sel { color: var(--ok); font-weight: 700; }
+/* 아직 오지 않은 단계는 값을 숨긴다. 두 단계 정보가 함께 보이면 지금 어디인지 흐려진다. */
+.page-flights .leg:not(.on) .legdetail { display: none; }
+
+/* 카드: 고른 것과 안 고른 것 */
+.page-flights #list .fl { position: relative; }
+.page-flights .fcheck {
+  position: absolute;
+  left: 18px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--primary);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 800;
+}
+.page-flights #list .fl.sel .fi { padding-left: 38px; }
+.page-flights .choose {
+  margin-top: 14px;
+  width: 100%;
+  height: 44px;
+  border: 1px solid #d7dcf0;
+  border-radius: 12px;
+  background: var(--white);
+  color: var(--primary);
+  font-size: 14px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: 0.15s;
+}
+.page-flights .choose:hover { border-color: var(--primary); background: var(--primary-soft); }
+/* 고른 카드에는 상태와 외부 이동을 함께 둔다. 항공권은 우리가 팔지 않는다. */
+.page-flights .picked {
+  display: inline-block;
+  margin-top: 12px;
+  padding: 5px 12px;
+  border-radius: 999px;
+  background: var(--ok-soft);
+  color: var(--ok);
+  font-size: 12px;
+  font-weight: 800;
+}
+.page-flights #list .fl.sel .pick { margin-top: 10px; }
+
+/* 진행 현황: 번호가 붙은 네 단계 */
+.page-flights .sr {
+  display: grid;
+  grid-template-columns: auto auto minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 10px;
+}
+.page-flights .sr .num {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 1.5px solid #e2e6f0;
+  color: #9aa1b2;
+  font-size: 12px;
+  font-weight: 800;
+}
+.page-flights .sr.done .num { border-color: var(--primary); background: var(--primary); color: #fff; }
+.page-flights .sr .ic { width: auto; height: auto; border: 0; background: none; color: #9aa1b2; font-size: 15px; }
+.page-flights .sr.done .ic { background: none; color: var(--primary); }
+.page-flights .sr .nm { font-size: 14px; font-weight: 700; }
+.page-flights .sr .ds { font-size: 12.5px; font-weight: 700; color: #9aa1b2; white-space: nowrap; }
+.page-flights .sr .ds.o { color: var(--primary); }
+.page-flights .sr .mk {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--primary);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+/* 예상 총액과 내역 */
+.page-flights .cost { display: block; }
+.page-flights .cost .lb { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; }
+.page-flights .cost .lb small { margin: 0; text-align: right; }
+.page-flights .cost > div:nth-of-type(2) { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+.page-flights .cost .n { text-align: right; }
+.page-flights .costlines { display: grid; gap: 8px; margin-top: 14px; }
+.page-flights .costline {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 8px;
+  padding-top: 10px;
+  border-top: 1px solid #e6eaf8;
+  font-size: 13px;
+}
+.page-flights .costline .ck { color: var(--primary); font-weight: 800; }
+.page-flights .costline .nm { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.page-flights .costline .pv { font-weight: 800; text-align: right; white-space: nowrap; }
+.page-flights .costline .pv small { display: block; font-size: 11px; font-weight: 600; color: var(--muted-2); }
+.page-flights .costempty { margin: 12px 0 0; font-size: 12px; color: var(--muted); line-height: 1.5; }
+
+/* 다음에 할 일 하나 */
+.page-flights .nextstep {
+  width: 100%;
+  margin-top: 16px;
+  height: 52px;
+  border: 0;
+  border-radius: 14px;
+  background: var(--gradient);
+  color: #fff;
+  font-size: 15px;
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow: 0 6px 16px rgba(91, 88, 232, 0.28);
+  transition: 0.15s;
+}
+.page-flights .nextstep:hover { transform: translateY(-1px); }
+.page-flights .nextstep[hidden] { display: none; }
+
+@media (max-width: 860px) {
+  .page-flights .legbar { grid-template-columns: minmax(0, 1fr); }
+  .page-flights .legdetail { flex-wrap: wrap; }
+}
+
+/*
+   예상 총액 카드. 라벨과 금액을 같은 줄에 두고, 기준 문구는 각각 아래에 붙인다.
+   앞서 라벨과 기준 문구를 한 줄에 나란히 뒀더니 `예상 총액`이 두 줄로 쪼개졌다 —
+   캡처에서 보고 고쳤다.
+*/
+.page-flights .cost {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  column-gap: 14px;
+  align-items: baseline;
+}
+.page-flights .cost .lb { display: block; grid-column: 1; white-space: nowrap; }
+.page-flights .cost .lb small { display: block; margin-top: 4px; white-space: normal; }
+.page-flights .cost > div:nth-of-type(2) { display: block; grid-column: 2; text-align: right; }
+.page-flights .costlines,
+.page-flights .costempty,
+.page-flights .nextstep { grid-column: 1 / -1; }

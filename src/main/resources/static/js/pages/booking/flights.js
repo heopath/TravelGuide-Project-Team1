@@ -18,6 +18,30 @@
 
   const EXT_NOTICE_KEY = "allmytrips.flightExtNoticeSeen";
 
+  /*
+   * 국내선 공항 이름. 코드만 보고 어디인지 아는 사람은 많지 않다.
+   *
+   * 모르는 코드는 이름 없이 코드만 보여준다. 여기 없는 공항을 억지로 채우면 화면이
+   * 틀린 지명을 말하게 된다.
+   */
+  const AIRPORT_NAMES = {
+    GMP: "김포", ICN: "인천", CJU: "제주", PUS: "부산", TAE: "대구",
+    KWJ: "광주", CJJ: "청주", USN: "울산", RSU: "여수", HIN: "사천",
+    KUV: "군산", WJU: "원주", YNY: "양양", MWX: "무안", KPO: "포항"
+  };
+
+  const airportName = (code) => AIRPORT_NAMES[String(code || "").toUpperCase()] || "";
+  const airportLabel = (code) => {
+    const name = airportName(code);
+    return name ? `${name} ${code}` : String(code || "");
+  };
+
+  /* `2026-08-27` → `8월 27일`. 연도는 조건에 이미 있고, 줄이 길어지면 노선이 밀린다. */
+  const dayLabel = (iso) => {
+    const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(iso || ""));
+    return match ? `${Number(match[2])}월 ${Number(match[3])}일` : String(iso || "");
+  };
+
   /* 외부 사이트에 이만큼도 머무르지 않았으면 복귀로 보지 않는다.
      오탐을 줄일 뿐 없애지는 못한다. 알림 확인·앱 전환에도 visibilitychange는 발생한다. */
   const MIN_AWAY_MS = 8000;
@@ -238,6 +262,14 @@
     list.innerHTML = SORTS[sortKey].sort(offers[leg]).map((offer) => {
       const on = state.picked[leg] === offer.offerId;
       const st = on ? status(leg) : "NONE";
+      /*
+       * 고르는 것과 예약하는 것을 나눈다. (#281 시안)
+       *
+       * 예전에는 카드를 누르면 곧바로 외부 예약 사이트 안내 창이 떴다. 비교하다 눌러
+       * 본 사람도 매번 그 창을 닫아야 했다. 이제 누르면 이 편으로 정해지고, 정해진
+       * 카드 안에서 예약 사이트로 넘어간다 — 우리는 항공권을 팔지 않으므로 그 단계는
+       * 사라질 수 없다.
+       */
       const label = st === "CONFIRMED" ? "✓ 예약 확정"
         : st === "USER_REPORTED" ? "✓ 예약함 (직접 표시)"
         : "예약 사이트로 이동 ↗";
@@ -249,6 +281,7 @@
         .map((b) => `<span class="${esc(b.tone)}">${esc(b.label)}</span>`).join("");
 
       return `<div class="fl${on ? " sel" : ""}" data-offer="${esc(offer.offerId)}">
+        ${on ? `<span class="fcheck" aria-hidden="true">✓</span>` : ""}
         ${tips ? `<div class="tip">${tips}</div>` : ""}
         <div class="fi">
           <div class="lg" data-carrier="${esc(offer.carrierCode)}">${esc(offer.carrierCode)}</div>
@@ -269,7 +302,10 @@
           <div class="per">${hasPrice(offer)
             ? `성인 ${search.adults}명 · 1인 ${won(offer.pricePerAdult)} · ${esc(offer.priceSourceLabel)}`
             : "예약 사이트에서 확인해 주세요"}</div>
-          <button type="button" class="pick${done}" data-pick="${esc(offer.offerId)}">${label}</button>
+          ${on
+            ? `<span class="picked">${st === "NONE" ? "선택됨" : label.replace("✓ ", "")}</span>
+               <button type="button" class="pick${done}" data-go="${esc(offer.offerId)}">${label}</button>`
+            : `<button type="button" class="choose" data-choose="${esc(offer.offerId)}">선택하기</button>`}
         </div>
       </div>`;
     }).join("");
@@ -291,20 +327,25 @@
   function legRow(leg) {
     const st = status(leg);
     const reported = state.userReportedBooked[leg];
-    const label = st === "CONFIRMED" ? ["확정", "o"]
-      : reported ? ["예약함 (직접 표시)", "o"]
-      : state.picked[leg] ? ["선택함", "w"]
-      : leg === INBOUND && !state.userReportedBooked[OUTBOUND] ? ["가는 편 먼저", ""]
-      : ["선택 대기", ""];
+    /*
+     * 단계가 끝났다는 기준은 `골랐는가`다. 예약 확정은 외부 사이트에서 일어나고 우리가
+     * 확인할 수 없어, 그것을 기준으로 삼으면 화면이 영원히 미완으로 남는다. 확정 여부는
+     * 같은 줄의 상태 문구로 따로 밝힌다. (#281 시안)
+     */
+    const chosen = Boolean(state.picked[leg]);
+    const label = st === "CONFIRMED" ? "예약 확정"
+      : reported ? "예약함"
+      : chosen ? "선택됨"
+      : leg === INBOUND && !state.picked[OUTBOUND] ? "가는 편 먼저"
+      : "미선택";
     const price = legPrice(leg);
 
     return {
-      tab: "flight", leg, done: reported,
-      ic: "✈", icc: reported ? "g" : "b",
-      nm: leg === OUTBOUND ? "가는 편 항공" : "오는 편 항공",
-      ds: label[0], dsc: label[1],
-      pv: hasOffers() && price > 0 ? won(price) : "—",
-      sub: reported ? `성인 ${search.adults}명 총액` : "예상",
+      tab: "flight", leg, done: chosen,
+      ic: "✈",
+      nm: leg === OUTBOUND ? "가는 편 선택" : "오는 편 선택",
+      ds: label,
+      pv: chosen && price > 0 ? won(price) : "",
       dim: !(hasOffers() && price > 0)
     };
   }
@@ -313,30 +354,25 @@
     const rows = [
       legRow(OUTBOUND),
       legRow(INBOUND),
-      { tab: "hotel", done: hotelDone(),
-        ic: "▤", icc: hotelDone() ? "g" : "n", nm: "숙소",
-        ds: hotelDone() ? `선택 완료 · ${hotelSelection.name}` : "선택 전", dsc: hotelDone() ? "o" : "",
-        pv: hotelDone() ? hotelPriceLabel() : "—",
-        sub: hotelHasDisplayPrice()
-          ? `${hotelSelection.nightsLabel}${hotelPriceNote()}${hotelCanAddToTotal() ? "" : " · 합계 제외"}`
-          : hotelDone() ? "요금 미제공" : "숙소에서 선택", dim: !hotelHasDisplayPrice() },
-      { tab: "ticket", done: ticketDone(),
-        ic: "◈", icc: ticketDone() ? "g" : "n", nm: "티켓·액티비티",
-        ds: ticketDone() ? `모의 예약 · ${ticketReservation.productName}` : "선택 전",
-        dsc: ticketDone() ? "o" : "", pv: ticketDone() ? won(ticketTotal()) : "—",
-        sub: ticketDone() ? "실습용 · 실제 결제 아님" : "티켓에서 선택", dim: !ticketDone() }
+      { tab: "hotel", done: hotelDone(), ic: "▤", nm: "숙소 선택",
+        ds: hotelDone() ? "선택됨" : "미선택",
+        pv: hotelDone() ? hotelPriceLabel() : "", dim: !hotelHasDisplayPrice() },
+      { tab: "ticket", done: ticketDone(), ic: "◈", nm: "티켓·액티비티 선택",
+        ds: ticketDone() ? "선택됨" : "미선택",
+        pv: ticketDone() ? won(ticketTotal()) : "", dim: !ticketDone() }
     ];
 
     /*
      * 행을 누르면 그 탭으로 간다. 진행 현황을 보다가 "숙소 선택 전"을 발견했을 때 위쪽
      * 탭을 다시 찾아 누르게 두지 않는다. 눌러도 되는 자리라는 표시로 오른쪽에 꺾쇠를 둔다.
      */
-    return rows.map((r) => `<button type="button" class="sr${r.done ? " done" : ""}" data-side-tab="${r.tab}"${
+    return rows.map((r, i) => `<button type="button" class="sr${r.done ? " done" : ""}" data-side-tab="${r.tab}"${
       r.leg === undefined ? "" : ` data-side-leg="${r.leg}"`}>
-      <div class="ic ${r.icc}" aria-hidden="true">${r.done ? "✓" : r.ic}</div>
-      <div class="tx"><div class="nm">${r.nm}</div><div class="ds ${r.dsc}">${r.ds}</div></div>
-      <div class="pv ${r.dim ? "n" : ""}">${r.pv}<small>${r.sub}</small></div>
-      <span class="ch" aria-hidden="true">›</span>
+      <span class="num" aria-hidden="true">${i + 1}</span>
+      <span class="ic" aria-hidden="true">${r.ic}</span>
+      <span class="nm">${r.nm}</span>
+      <span class="ds${r.done ? " o" : ""}">${r.ds}</span>
+      ${r.done ? `<span class="mk" aria-hidden="true">✓</span>` : `<span class="ch" aria-hidden="true">›</span>`}
     </button>`).join("");
   }
 
@@ -380,6 +416,8 @@
           : hotelCanAddToTotal() ? "숙소 선택가" : "숙소 요금 제외";
     const ticketLabel = ticketDone() ? "티켓 모의 예약가" : "티켓 미선택";
     text("costNote", `${airLabel} · ${hotelLabel} · ${ticketLabel}`);
+    renderCostLines();
+    renderNextStep();
 
     /*
      * 네 단계로 센다. 가는 편·오는 편·숙소·티켓. (#281 시안)
@@ -388,8 +426,8 @@
      * 나왔다. 절반을 끝냈는데 아무것도 안 한 것처럼 보였다.
      */
     const steps = [
-      state.userReportedBooked[OUTBOUND],
-      state.userReportedBooked[INBOUND],
+      Boolean(state.picked[OUTBOUND]),
+      Boolean(state.picked[INBOUND]),
       hotelDone(),
       ticketDone()
     ];
@@ -401,16 +439,91 @@
     renderMine();
   }
 
-  function renderConditionBar() {
-    text("cond-pax", `성인 ${search.adults}명`);
-    text("cond-route", `${search.origin} → ${search.destination}`);
-    if (search.departureDate && search.returnDate) {
-      text("cond-date", `${search.departureDate} ~ ${search.returnDate}`);
+  /**
+   * 예상 총액이 어디서 나온 값인지 줄로 남긴다. (#281 시안)
+   *
+   * <p>고른 것만 적는다. 총액만 크게 띄우면 무엇이 들어갔는지 알 수 없고, 숙소 요금이
+   * 빠졌다는 사실 같은 것이 숫자 뒤에 숨는다.
+   */
+  function renderCostLines() {
+    const lines = [];
+
+    [OUTBOUND, INBOUND].forEach((leg) => {
+      if (!state.picked[leg]) return;
+      const price = legPrice(leg);
+      lines.push({
+        nm: leg === OUTBOUND ? "가는 편 항공" : "오는 편 항공",
+        pv: price > 0 ? won(price) : "요금 미제공",
+        note: status(leg) === "NONE" ? "예상" : `성인 ${search.adults}명 총액`
+      });
+    });
+
+    if (hotelDone()) {
+      lines.push({
+        nm: `숙소 · ${hotelSelection.name}`,
+        pv: hotelHasDisplayPrice() ? hotelPriceLabel() : "요금 미정",
+        note: hotelHasDisplayPrice()
+          ? `${hotelSelection.nightsLabel}${hotelPriceNote()}${hotelCanAddToTotal() ? "" : " · 합계 제외"}`
+          : "요금 미제공"
+      });
     }
-    text("lv0", `${search.origin} → ${search.destination}`);
-    text("lv1", `${search.destination} → ${search.origin}`);
-    if (search.departureDate) text("lt0", `① 가는 편 · ${search.departureDate}`);
-    if (search.returnDate) text("lt1", `② 오는 편 · ${search.returnDate}`);
+
+    if (ticketDone()) {
+      lines.push({
+        nm: `티켓 · ${ticketReservation.productName}`,
+        pv: won(ticketTotal()),
+        note: "실제 결제 아님"
+      });
+    }
+
+    $("costLines").innerHTML = lines.length
+      ? lines.map((l) => `<div class="costline">
+          <span class="ck" aria-hidden="true">✓</span>
+          <span class="nm">${esc(l.nm)}</span>
+          <span class="pv">${esc(l.pv)}<small>${esc(l.note)}</small></span>
+        </div>`).join("")
+      : `<p class="costempty">아직 고른 항목이 없어요. 위 금액은 추천 항공편 기준입니다.</p>`;
+  }
+
+  /**
+   * 다음에 할 일 하나만 띄운다.
+   *
+   * <p>네 단계를 늘어놓고 무엇부터 할지는 안 알려주는 화면이 되지 않게 한다. 다 골랐으면
+   * 버튼을 감춘다 — 누를 것이 없는데 버튼이 남아 있으면 아직 할 일이 있는 줄 안다.
+   */
+  function renderNextStep() {
+    const next = !state.picked[OUTBOUND] ? { label: "다음 단계: 가는 편 선택", tab: "flight", leg: OUTBOUND }
+      : !state.picked[INBOUND] ? { label: "다음 단계: 오는 편 선택", tab: "flight", leg: INBOUND }
+      : !hotelDone() ? { label: "다음 단계: 숙소 선택", tab: "hotel" }
+      : !ticketDone() ? { label: "다음 단계: 티켓·액티비티 선택", tab: "ticket" }
+      : null;
+
+    const button = $("nextStep");
+    button.hidden = !next;
+    if (!next) return;
+
+    button.textContent = next.label;
+    button.dataset.nextTab = next.tab;
+    if (next.leg === undefined) delete button.dataset.nextLeg;
+    else button.dataset.nextLeg = String(next.leg);
+  }
+
+  function renderConditionBar() {
+    const from = airportLabel(search.origin);
+    const to = airportLabel(search.destination);
+
+    text("cond-pax", `성인 ${search.adults}명`);
+    text("cond-route", `${from} → ${to}`);
+    if (search.departureDate && search.returnDate) {
+      text("cond-date", `${dayLabel(search.departureDate)} – ${dayLabel(search.returnDate)}`);
+    }
+    text("lv0", `${from} → ${to}`);
+    text("lv1", `${to} → ${from}`);
+    /* 날짜는 위 조건 바가 이미 말한다. 편 헤더에 또 적으면 같은 값이 두 번 나온다. */
+
+    /* 검색 칸의 코드 옆 이름. 모르는 코드면 비운다. */
+    text("f-origin-name", airportName($("f-origin").value || search.origin));
+    text("f-destination-name", airportName($("f-destination").value || search.destination));
   }
 
   /* ────────── `내 예약` 탭 ──────────
@@ -1089,6 +1202,24 @@
     document.querySelectorAll(".tab").forEach((el) =>
       el.addEventListener("click", () => setTab(el.dataset.tab)));
 
+    $("nextStep").addEventListener("click", () => {
+      const button = $("nextStep");
+      setTab(button.dataset.nextTab);
+      if (button.dataset.nextLeg !== undefined) setLeg(Number(button.dataset.nextLeg));
+    });
+
+    /* 조건을 고치는 자리는 검색 패널이다. 여기서는 그 자리로 데려다 준다. */
+    $("condEdit").addEventListener("click", () => {
+      $("formwrap").scrollIntoView({ behavior: "smooth", block: "center" });
+      $("f-origin").focus();
+    });
+
+    ["f-origin", "f-destination"].forEach((id) => {
+      $(id).addEventListener("input", () => {
+        text(id + "-name", airportName($(id).value));
+      });
+    });
+
     /* 진행 현황의 행은 다시 그려지므로 개별 요소가 아니라 담는 칸에 한 번만 건다. */
     $("rows").addEventListener("click", (e) => {
       const row = e.target.closest("[data-side-tab]");
@@ -1100,8 +1231,17 @@
 
     /* 카드는 다시 그려지므로 개별 버튼이 아니라 컨테이너에 한 번만 건다. */
     $("list").addEventListener("click", (e) => {
-      const button = e.target.closest("[data-pick]");
-      if (button) openOut(button.dataset.pick);
+      /* 고르기: 이 편으로 정한다. 아직 아무 데도 가지 않는다. */
+      const choose = e.target.closest("[data-choose]");
+      if (choose) {
+        state.picked[state.leg] = choose.dataset.choose;
+        render();
+        sync();
+        return;
+      }
+      /* 예약: 여기서 외부 사이트로 넘어간다. */
+      const go = e.target.closest("[data-go]");
+      if (go) openOut(go.dataset.go);
     });
 
     $("m1go").addEventListener("click", goOut);

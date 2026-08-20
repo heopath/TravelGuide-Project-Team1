@@ -257,7 +257,9 @@ async function run() {
     T("1인 금액 = 총액 / 인원 (반올림)",
       $("cPer").textContent === "1인 " + won(Math.round(initial / PAX)));
     T("초기 진행 카운트 0", $("dn").textContent === "0" && $("tabCount").textContent === "0");
-    T("항공 행이 `예상`으로 표시된다", $("rows").innerHTML.includes("<small>예상</small>"));
+    /* 금액 내역은 진행 현황 줄이 아니라 예상 총액 아래에 붙는다. (#281 시안) */
+    T("고른 것이 없으면 금액이 추천가 기준임을 밝힌다",
+      $("costLines").textContent.includes("추천 항공편 기준"));
 
     // 다른 항공편 선택 시 총액 즉시 반영 (7C101 76,000원)
     w.__flightBooking.openOut("mock:7c101");
@@ -277,11 +279,14 @@ async function run() {
     } } }));
     T("티켓 모의 예약 금액이 예상 총액에 반영된다",
       $("cTot").textContent === won(76000 * PAX + 94000 * PAX + 40000));
-    /* 네 칸(가는 편·오는 편·숙소·티켓) 중 하나라 25%다. (#281) */
+    /*
+     * 앞에서 가는 편을 골랐고 여기서 티켓까지 잡았으니 네 칸 중 둘이다. 단계는 `골랐는가`로
+     * 센다 — 예약 확정은 외부 사이트 일이라 우리가 확인할 수 없다. (#281 시안)
+     */
     T("티켓 모의 예약이 진행률과 출처 안내에 반영된다",
-      $("dn").textContent === "1" && $("fill").style.width === "25%"
+      $("dn").textContent === "2" && $("fill").style.width === "50%"
         && $("costNote").textContent.includes("티켓 모의 예약가")
-        && $("rows").textContent.includes("실제 결제 아님"));
+        && $("costLines").textContent.includes("실제 결제 아님"));
 
     w.dispatchEvent(new w.CustomEvent("allmytrips:accommodation-selected", { detail: { offer: {
       name: "제주 테스트 호텔", totalPrice: null, currency: "KRW",
@@ -367,8 +372,8 @@ async function run() {
       $("dn").textContent === "1" && $("fill").style.width === "25%");
     T("진행 현황이 가는 편·오는 편을 따로 센다",
       d.querySelectorAll("#rows [data-side-leg]").length === 2
-      && $("rows").textContent.includes("가는 편 항공")
-      && $("rows").textContent.includes("오는 편 항공"));
+      && $("rows").textContent.includes("가는 편 선택")
+      && $("rows").textContent.includes("오는 편 선택"));
 
     // 오는 편: 예약번호 없이 `나중에`로 닫아도 자가 신고는 남는다
     api.openOut("mock:ke1284");
@@ -390,7 +395,8 @@ async function run() {
     // 숙소·티켓 행은 계속 `예상`이므로 항공 행(첫 행)만 본다.
     T("우측 항공 행에서 `예상` 라벨이 사라진다",
       !d.querySelector("#rows .sr").innerHTML.includes("<small>예상</small>"));
-    T("우측 항공 행이 성인 2명 총액으로 바뀐다", $("rows").innerHTML.includes("성인 2명 총액"));
+    T("예약 표시한 편은 금액 내역이 총액 기준으로 바뀐다",
+      $("costLines").innerHTML.includes("성인 2명 총액"));
   }
 
   /* ────────── 플로우: `나중에` 경로에서도 예약번호가 저장된다 ────────── */
@@ -430,7 +436,8 @@ async function run() {
     await api.reportLater();
     T("`나중에 확인할게요` → 선택은 유지된다", !!d.querySelector(".fl.sel"));
     T("`나중에 확인할게요` → 예약 표시는 되지 않는다", !$("list").innerHTML.includes("직접 표시"));
-    T("`나중에 확인할게요` → 카운트 0", $("tabCount").textContent === "0");
+    /* 단계는 `골랐는가`로 센다. 예약 확정은 외부 사이트 일이라 우리가 확인할 수 없다. */
+    T("`나중에 확인할게요` → 고른 상태이므로 단계는 그대로 1", $("tabCount").textContent === "1");
   }
 
   /* ────────── 일정 연동 (#133) ────────── */
