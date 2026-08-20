@@ -282,33 +282,62 @@
   }
 
   /* ────────── 우측 패널 ────────── */
-  function sideRows() {
-    const bothConfirmed = status(OUTBOUND) === "CONFIRMED" && status(INBOUND) === "CONFIRMED";
-    const air = bothConfirmed ? ["확정", "o", "g"]
-      : airDone() ? ["예약함 (직접 표시)", "o", "g"]
-      : state.userReportedBooked[OUTBOUND] ? ["오는 편 남음", "w", "b"]
-      : ["선택 중", "w", "b"];
+  /**
+   * 항공 한 편의 진행 현황 줄. (#281 시안)
+   *
+   * <p>가는 편과 오는 편을 따로 센다. 예전에는 `왕복 항공` 한 줄이라 가는 편만 표시한
+   * 상태가 진행률에 전혀 반영되지 않았다 — 절반을 끝냈는데 0/3이었다.
+   */
+  function legRow(leg) {
+    const st = status(leg);
+    const reported = state.userReportedBooked[leg];
+    const label = st === "CONFIRMED" ? ["확정", "o"]
+      : reported ? ["예약함 (직접 표시)", "o"]
+      : state.picked[leg] ? ["선택함", "w"]
+      : leg === INBOUND && !state.userReportedBooked[OUTBOUND] ? ["가는 편 먼저", ""]
+      : ["선택 대기", ""];
+    const price = legPrice(leg);
 
+    return {
+      tab: "flight", leg, done: reported,
+      ic: "✈", icc: reported ? "g" : "b",
+      nm: leg === OUTBOUND ? "가는 편 항공" : "오는 편 항공",
+      ds: label[0], dsc: label[1],
+      pv: hasOffers() && price > 0 ? won(price) : "—",
+      sub: reported ? `성인 ${search.adults}명 총액` : "예상",
+      dim: !(hasOffers() && price > 0)
+    };
+  }
+
+  function sideRows() {
     const rows = [
-      { ic: "✈", icc: air[2], nm: "왕복 항공", ds: air[0], dsc: air[1],
-        pv: hasOffers() ? (airTotal() > 0 ? won(airTotal()) : "미정") : "—", sub: airIsEstimate() ? "예상" : `성인 ${search.adults}명 총액`, dim: false },
-      { ic: "▤", icc: hotelDone() ? "g" : "n", nm: "숙소",
+      legRow(OUTBOUND),
+      legRow(INBOUND),
+      { tab: "hotel", done: hotelDone(),
+        ic: "▤", icc: hotelDone() ? "g" : "n", nm: "숙소",
         ds: hotelDone() ? `선택 완료 · ${hotelSelection.name}` : "선택 전", dsc: hotelDone() ? "o" : "",
         pv: hotelDone() ? hotelPriceLabel() : "—",
         sub: hotelHasDisplayPrice()
           ? `${hotelSelection.nightsLabel}${hotelPriceNote()}${hotelCanAddToTotal() ? "" : " · 합계 제외"}`
           : hotelDone() ? "요금 미제공" : "숙소에서 선택", dim: !hotelHasDisplayPrice() },
-      { ic: "◈", icc: ticketDone() ? "g" : "n", nm: "티켓·액티비티",
+      { tab: "ticket", done: ticketDone(),
+        ic: "◈", icc: ticketDone() ? "g" : "n", nm: "티켓·액티비티",
         ds: ticketDone() ? `모의 예약 · ${ticketReservation.productName}` : "선택 전",
         dsc: ticketDone() ? "o" : "", pv: ticketDone() ? won(ticketTotal()) : "—",
         sub: ticketDone() ? "실습용 · 실제 결제 아님" : "티켓에서 선택", dim: !ticketDone() }
     ];
 
-    return rows.map((r) => `<div class="sr">
-      <div class="ic ${r.icc}" aria-hidden="true">${r.ic}</div>
+    /*
+     * 행을 누르면 그 탭으로 간다. 진행 현황을 보다가 "숙소 선택 전"을 발견했을 때 위쪽
+     * 탭을 다시 찾아 누르게 두지 않는다. 눌러도 되는 자리라는 표시로 오른쪽에 꺾쇠를 둔다.
+     */
+    return rows.map((r) => `<button type="button" class="sr${r.done ? " done" : ""}" data-side-tab="${r.tab}"${
+      r.leg === undefined ? "" : ` data-side-leg="${r.leg}"`}>
+      <div class="ic ${r.icc}" aria-hidden="true">${r.done ? "✓" : r.ic}</div>
       <div class="tx"><div class="nm">${r.nm}</div><div class="ds ${r.dsc}">${r.ds}</div></div>
       <div class="pv ${r.dim ? "n" : ""}">${r.pv}<small>${r.sub}</small></div>
-    </div>`).join("");
+      <span class="ch" aria-hidden="true">›</span>
+    </button>`).join("");
   }
 
   function sync() {
@@ -352,10 +381,22 @@
     const ticketLabel = ticketDone() ? "티켓 모의 예약가" : "티켓 미선택";
     text("costNote", `${airLabel} · ${hotelLabel} · ${ticketLabel}`);
 
-    const done = (airDone() ? 1 : 0) + (hotelDone() ? 1 : 0) + (ticketDone() ? 1 : 0);
+    /*
+     * 네 단계로 센다. 가는 편·오는 편·숙소·티켓. (#281 시안)
+     *
+     * 예전에는 왕복 항공을 한 칸으로 묶어 셋이었는데, 가는 편만 표시한 사람에게 0/3이
+     * 나왔다. 절반을 끝냈는데 아무것도 안 한 것처럼 보였다.
+     */
+    const steps = [
+      state.userReportedBooked[OUTBOUND],
+      state.userReportedBooked[INBOUND],
+      hotelDone(),
+      ticketDone()
+    ];
+    const done = steps.filter(Boolean).length;
     text("dn", done);
     text("tabCount", done);
-    $("fill").style.width = Math.round((done / 3) * 100) + "%";
+    $("fill").style.width = Math.round((done / steps.length) * 100) + "%";
 
     renderMine();
   }
@@ -822,7 +863,21 @@
 
   function setLeg(next) {
     state.leg = next;
-    document.querySelectorAll(".leg").forEach((el, i) => el.classList.toggle("on", i === next));
+    document.querySelectorAll(".leg").forEach((el, i) => {
+      const on = i === next;
+      el.classList.toggle("on", on);
+      el.setAttribute("aria-selected", String(on));
+    });
+    /*
+     * 편 이름·노선·상태는 편마다 한 벌씩 있고 고르는 편의 것만 보인다. 두 벌을 동시에
+     * 보여주면 어느 편을 고르는 중인지가 흐려진다. (#281 시안)
+     */
+    [0, 1].forEach((leg) => {
+      ["lt", "lv", "lp"].forEach((key) => {
+        const el = document.getElementById(key + leg);
+        if (el) el.hidden = leg !== next;
+      });
+    });
     render();
     sync();
   }
@@ -930,7 +985,12 @@
     try {
       const payload = await request("GET", `/api/v1/trips/${tripId}`);
       const trip = payload.data;
-      if (trip?.title) text("cond-trip", trip.title);
+      if (trip?.title) {
+        text("cond-trip", trip.title);
+        /* 제목에도 얹는다. 여행을 여러 개 굴릴 때 어느 여행인지가 화면 맨 위에 보여야 한다. */
+        text("hdTitle", `${trip.title} 예약`);
+        document.title = `${trip.title} 예약 · 항공 — All My Trips`;
+      }
       if (trip?.startDate) { search.departureDate = trip.startDate; $("f-depart").value = trip.startDate; }
       if (trip?.endDate) { search.returnDate = trip.endDate; $("f-return").value = trip.endDate; }
       if (trip?.companionCount) { search.adults = trip.companionCount; $("f-adults").value = String(trip.companionCount); }
@@ -994,10 +1054,14 @@
   }
 
   function bind() {
-    $("chg").addEventListener("click", () => {
-      const open = $("formwrap").classList.toggle("open");
-      $("chg").classList.toggle("open", open);
-      $("chg").setAttribute("aria-expanded", String(open));
+    /*
+     * 출발지와 도착지를 맞바꾼다. 값만 바꾸고 검색하지는 않는다 — 날짜까지 함께 고치려던
+     * 사람이 있으면 뒤집자마자 결과가 갈리는 편이 오히려 방해된다. (#281 시안)
+     */
+    $("swap").addEventListener("click", () => {
+      const origin = $("f-origin").value;
+      $("f-origin").value = $("f-destination").value;
+      $("f-destination").value = origin;
     });
 
     $("searchForm").addEventListener("submit", (e) => {
@@ -1024,6 +1088,15 @@
 
     document.querySelectorAll(".tab").forEach((el) =>
       el.addEventListener("click", () => setTab(el.dataset.tab)));
+
+    /* 진행 현황의 행은 다시 그려지므로 개별 요소가 아니라 담는 칸에 한 번만 건다. */
+    $("rows").addEventListener("click", (e) => {
+      const row = e.target.closest("[data-side-tab]");
+      if (!row) return;
+      setTab(row.dataset.sideTab);
+      /* 항공은 어느 편 줄을 눌렀는지까지 따라간다. 탭만 바꾸면 다시 편을 골라야 한다. */
+      if (row.dataset.sideLeg !== undefined) setLeg(Number(row.dataset.sideLeg));
+    });
 
     /* 카드는 다시 그려지므로 개별 버튼이 아니라 컨테이너에 한 번만 건다. */
     $("list").addEventListener("click", (e) => {

@@ -19,32 +19,43 @@
         <section class="page-shell">
           <section class="page-heading">
             <div>
-              <h1><span>04 </span>여행 예약</h1>
+              <!--
+                여행을 고르면 그 여행 이름으로 바뀐다(`제주 여행 예약`). 어떤 여행을 예약하는
+                중인지가 제목에 있어야 여행을 여러 개 굴릴 때 헷갈리지 않는다.
+              -->
+              <h1><span>04 </span><span id="hdTitle">여행 예약</span></h1>
               <p>일정에 필요한 항공·숙박·티켓을 비교하고 관리하세요.</p>
               <i>✦</i>
             </div>
+
+            <!-- 지금 어떤 조건으로 보고 있는지. 고치는 곳은 아래 검색 패널이다. -->
+            <div class="cond">
+              <span class="cd"><span class="i">▦</span><span id="cond-trip">여행을 선택하세요</span></span>
+              <span class="sep">·</span>
+              <span class="cd"><span id="cond-date">날짜 미정</span></span>
+              <span class="sep">·</span>
+              <span class="cd"><span id="cond-pax">성인 2명</span></span>
+              <span class="sep">·</span>
+              <span class="cd"><span id="cond-route">김포 → 제주</span></span>
+            </div>
           </section>
 
-          <!-- 조건 요약. 검색 폼은 여기 있는 내용을 반복하므로 기본으로 접어둔다. -->
-          <div class="cond">
-            <span class="cd"><span class="i">▦</span><span id="cond-trip">여행을 선택하세요</span></span>
-            <span class="sep">·</span>
-            <span class="cd"><span class="i">◉</span><span id="cond-date">날짜 미정</span></span>
-            <span class="sep">·</span>
-            <span class="cd"><span class="i">◍</span><span id="cond-pax">성인 2명</span></span>
-            <span class="sep">·</span>
-            <span class="cd"><span class="i">✈</span><span id="cond-route">김포 → 제주</span></span>
-            <button type="button" class="chg" id="chg" aria-expanded="false" aria-controls="formwrap">
-              조건 변경 <span class="ca" aria-hidden="true">▾</span>
-            </button>
-          </div>
+          <!--
+            검색 조건은 접지 않고 늘 펴 둔다. (#281 시안)
 
-          <div class="formwrap" id="formwrap">
+            예전에는 요약 칩 아래에 접어 두고 `조건 변경`으로 폈다. 같은 내용이 두 번
+            나오는 것을 피하려던 것인데, 조건을 바꾸려면 매번 한 번 더 눌러야 했다.
+            요약은 제목 옆 칩으로 올리고 여기서는 바로 고칠 수 있게 둔다.
+          -->
+          <div class="formwrap open" id="formwrap">
             <form class="form" id="searchForm">
               <label class="f">
                 <span class="fl">출발지</span>
                 <input class="fv" id="f-origin" name="origin" value="GMP" maxlength="3" autocomplete="off" />
               </label>
+              <!-- 왕복은 방향을 자주 뒤집는다. 두 칸을 지웠다 다시 치게 두지 않는다. -->
+              <button type="button" class="swap" id="swap" title="출발지와 도착지 바꾸기"
+                      aria-label="출발지와 도착지 바꾸기">⇄</button>
               <label class="f">
                 <span class="fl">도착지</span>
                 <input class="fv" id="f-destination" name="destination" value="CJU" maxlength="3" autocomplete="off" />
@@ -61,7 +72,7 @@
                 <span class="fl">인원</span>
                 <input class="fv" id="f-adults" name="adults" type="number" min="1" max="9" value="2" />
               </label>
-              <button type="submit" class="go">항공편 비교</button>
+              <button type="submit" class="go">항공편 검색</button>
             </form>
           </div>
 
@@ -95,17 +106,32 @@
                   <button type="button" class="rc-no" id="recallNo">아니요</button>
                 </div>
 
-                <div class="legs">
-                  <button type="button" class="leg on" data-leg="0">
-                    <span class="lt" id="lt0">① 가는 편</span>
+                <!--
+                  편 선택. 지금 고르는 편만 크게 보여주고 전환은 오른쪽 토글로 한다. (#281 시안)
+
+                  예전에는 두 편을 카드로 나란히 뒀는데, 화면에서 늘 하나만 고르는 중이라
+                  나머지 카드는 자리만 차지했다. 반대편 상태는 오른쪽 진행 현황이 맡는다.
+                -->
+                <div class="legbar">
+                  <div class="legmeta">
+                    <strong class="legh">
+                      <span class="lt" id="lt0">① 가는 편</span>
+                      <span class="lt" id="lt1" hidden>② 오는 편</span>
+                    </strong>
                     <span class="lv" id="lv0">김포 (GMP) → 제주 (CJU)</span>
+                    <span class="lv" id="lv1" hidden>제주 (CJU) → 김포 (GMP)</span>
                     <span class="lp" id="lp0">항공편을 선택하세요</span>
-                  </button>
-                  <button type="button" class="leg" data-leg="1">
-                    <span class="lt" id="lt1">② 오는 편</span>
-                    <span class="lv" id="lv1">제주 (CJU) → 김포 (GMP)</span>
-                    <span class="lp" id="lp1">가는 편 선택 후 진행</span>
-                  </button>
+                    <span class="lp" id="lp1" hidden>가는 편 선택 후 진행</span>
+                  </div>
+
+                  <div class="legs" role="tablist">
+                    <button type="button" class="leg on" data-leg="0" role="tab" aria-selected="true">
+                      <i aria-hidden="true">1</i>가는 편
+                    </button>
+                    <button type="button" class="leg" data-leg="1" role="tab" aria-selected="false">
+                      <i aria-hidden="true">2</i>오는 편
+                    </button>
+                  </div>
                 </div>
 
                 <!-- 소요 시간은 국내선 전 노선이 사실상 같아 정렬 항목에서 뺐다. -->
@@ -204,7 +230,7 @@
 
             <aside class="side">
               <div class="sc2">
-                <div class="sh">예약 현황<span class="r"><span id="dn">0</span> / 3</span></div>
+                <div class="sh">예약 현황<span class="r"><span id="dn">0</span> / 4 완료</span></div>
                 <div class="track"><i id="fill"></i></div>
                 <div id="rows"></div>
                 <div class="cost">

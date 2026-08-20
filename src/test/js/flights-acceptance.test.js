@@ -210,13 +210,30 @@ async function simulateReturn(w, d) {
 async function run() {
   /* ────────── 레이아웃 ────────── */
   {
-    const { w, d, staticTotal } = await boot();
+    const { w, d, staticTotal, calls } = await boot();
     const $ = (id) => d.getElementById(id);
 
-    T("검색 폼이 초기 렌더에서 닫혀 있다", !$("formwrap").classList.contains("open"));
-    $("chg").click();
-    T("조건 변경 클릭 시 열리고 캐럿이 회전한다",
-      $("formwrap").classList.contains("open") && $("chg").classList.contains("open"));
+    /*
+     * 검색 조건은 접지 않는다. (#281) 예전에는 요약 칩과 내용이 겹친다는 이유로 접어 두고
+     * `조건 변경`으로 폈는데, 조건을 고치려면 매번 한 번 더 눌러야 했다.
+     */
+    T("검색 조건이 처음부터 펴져 있다", $("formwrap").classList.contains("open"));
+    T("조건 변경 토글은 없앴다", $("chg") === null);
+    T("요약 칩은 제목 줄에 있다",
+      Boolean(d.querySelector(".page-heading .cond #cond-trip")));
+
+    /* 왕복은 방향을 자주 뒤집는다. 두 칸을 지웠다 다시 치게 두지 않는다. */
+    $("f-origin").value = "GMP";
+    $("f-destination").value = "CJU";
+    /* 부팅 때 이미 가는 편·오는 편을 조회한다. 그 뒤로 늘었는지만 본다. */
+    const searchesBeforeSwap = calls.filter((c) => c.includes("/flights/search")).length;
+    $("swap").click();
+    T("출발지와 도착지를 맞바꾼다",
+      $("f-origin").value === "CJU" && $("f-destination").value === "GMP");
+    /* 뒤집자마자 검색까지 나가면 날짜를 함께 고치려던 사람을 방해한다. */
+    T("맞바꾸기만으로는 검색하지 않는다",
+      calls.filter((c) => c.includes("/flights/search")).length === searchesBeforeSwap);
+    $("swap").click();
     T("정렬 버튼이 정확히 3개다", d.querySelectorAll(".sort .sc").length === 3);
     T("우측 패널이 1개다", d.querySelectorAll(".side .sc2").length === 1);
     T("카드 어디에도 `직항` 텍스트가 없다", !$("list").innerHTML.includes("직항"));
@@ -260,8 +277,9 @@ async function run() {
     } } }));
     T("티켓 모의 예약 금액이 예상 총액에 반영된다",
       $("cTot").textContent === won(76000 * PAX + 94000 * PAX + 40000));
+    /* 네 칸(가는 편·오는 편·숙소·티켓) 중 하나라 25%다. (#281) */
     T("티켓 모의 예약이 진행률과 출처 안내에 반영된다",
-      $("dn").textContent === "1" && $("fill").style.width === "33%"
+      $("dn").textContent === "1" && $("fill").style.width === "25%"
         && $("costNote").textContent.includes("티켓 모의 예약가")
         && $("rows").textContent.includes("실제 결제 아님"));
 
@@ -344,6 +362,14 @@ async function run() {
     T("예약번호 입력 후 진행 → 구간 라벨에 `확정` 표시", $("lp0").textContent.includes("확정"));
     T("오는 편으로 이동한다", d.querySelectorAll(".leg")[1].classList.contains("on"));
 
+    /* 절반을 끝낸 상태가 진행률에 나타나야 한다. 이것이 4칸으로 쪼갠 이유다. (#281) */
+    T("가는 편만 마쳐도 진행률이 오른다",
+      $("dn").textContent === "1" && $("fill").style.width === "25%");
+    T("진행 현황이 가는 편·오는 편을 따로 센다",
+      d.querySelectorAll("#rows [data-side-leg]").length === 2
+      && $("rows").textContent.includes("가는 편 항공")
+      && $("rows").textContent.includes("오는 편 항공"));
+
     // 오는 편: 예약번호 없이 `나중에`로 닫아도 자가 신고는 남는다
     api.openOut("mock:ke1284");
     await api.goOut();
@@ -354,9 +380,13 @@ async function run() {
 
     const total = 89000 * PAX + 94000 * PAX;
     T("왕복 모두 표시 완료 시 총액이 유지된다", $("cTot").textContent === won(total));
-    T("왕복 완료 시에만 진행 카운트 1", $("dn").textContent === "1");
-    T("진행바 33%", $("fill").style.width === "33%");
-    T("탭 카운트 1", $("tabCount").textContent === "1");
+    /*
+     * 가는 편과 오는 편을 따로 센다. (#281) 예전에는 왕복을 한 칸으로 묶어, 가는 편만
+     * 표시한 사람에게 0/3이 나왔다 — 절반을 끝냈는데 아무것도 안 한 것처럼 보였다.
+     */
+    T("왕복을 마치면 항공 두 칸이 함께 찬다", $("dn").textContent === "2");
+    T("진행바 50%", $("fill").style.width === "50%");
+    T("탭 카운트 2", $("tabCount").textContent === "2");
     // 숙소·티켓 행은 계속 `예상`이므로 항공 행(첫 행)만 본다.
     T("우측 항공 행에서 `예상` 라벨이 사라진다",
       !d.querySelector("#rows .sr").innerHTML.includes("<small>예상</small>"));
