@@ -267,6 +267,23 @@ async function run() {
 
     T("연결이 안 된 동안 폴백 폴링이 방을 다시 불러온다",
       log.filter((e) => e.type === "fetch").length > fetchesBefore);
+
+    d.querySelector('[data-support-tab="faq"]').click();
+    T("다른 고객센터 탭으로 이동하면 폴백 폴링을 정리한다", timers.ids().length === 0);
+  }
+
+  /* ── 탭 이탈 전에 시작된 느린 REST 응답도 채팅을 다시 활성화하지 않는다 ── */
+  {
+    let finishRequest;
+    const response = new Promise((resolve) => { finishRequest = resolve; });
+    const { d, chat, timers } = await boot(() => response, { withSocket: false });
+    const loading = chat.load();
+
+    d.querySelector('[data-support-tab="faq"]').click();
+    finishRequest(ok({ room: room({ status: "BOT" }), messages: [] }));
+    await loading;
+
+    T("탭 이탈 뒤 도착한 REST 응답은 폴백 폴링을 다시 만들지 않는다", timers.ids().length === 0);
   }
 
   /* ── 연결돼 있으면 폴백 폴링이 불필요한 조회를 하지 않는다 ── */

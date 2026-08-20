@@ -330,6 +330,13 @@ export function initSupportChat() {
     disconnectSocket();
   }
 
+  function deactivateChat() {
+    loadGeneration++; /* 탭을 떠나기 전에 시작된 REST 응답이 늦게 와도 render하지 않는다. */
+    opened = false;
+    currentRoomId = null;
+    stopPolling();
+  }
+
   /* ── 이벤트 ── */
 
   openButton.addEventListener("click", async function () {
@@ -368,12 +375,19 @@ export function initSupportChat() {
     }
   });
 
-  /* 상담 탭으로 들어올 때 불러온다. 다른 탭에 있는 동안은 아무것도 하지 않는다. */
+  /* 상담 탭으로 들어올 때만 연결·폴링을 시작하고, 다른 고객센터 탭에서는 즉시 정리한다. */
   document.addEventListener("click", function (event) {
-    const tab = event.target.closest('[data-support-tab="chat"]');
+    const tab = event.target.closest("[data-support-tab]");
     if (!tab) return;
-    load();
+    if (tab.dataset.supportTab === "chat") {
+      load();
+      return;
+    }
+    deactivateChat();
   });
+
+  /* 실제 페이지를 떠날 때도 재연결·폴백 타이머와 STOMP 구독을 남기지 않는다. */
+  window.addEventListener("pagehide", deactivateChat);
 
   return { load: load, stopPolling: stopPolling };
 }
