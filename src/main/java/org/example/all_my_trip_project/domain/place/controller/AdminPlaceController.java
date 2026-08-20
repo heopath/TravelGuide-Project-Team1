@@ -3,6 +3,7 @@ package org.example.all_my_trip_project.domain.place.controller;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.example.all_my_trip_project.domain.place.dto.AdminPlacePage;
+import org.example.all_my_trip_project.domain.place.dto.AdminPlaceRecommendationRequest;
 import org.example.all_my_trip_project.domain.place.dto.AdminPlaceRequest;
 import org.example.all_my_trip_project.domain.place.dto.AdminPlaceVisibilityRequest;
 import org.example.all_my_trip_project.domain.place.dto.PlaceDTO;
@@ -33,8 +34,8 @@ public class AdminPlaceController {
             @RequestParam(defaultValue = "50") int size,
             @RequestParam(required = false) String keyword,
             @RequestParam(required = false) String category,
-            @RequestParam(required = false) Boolean active) {
-        return ApiResponse.success(adminPlaceService.list(page, size, keyword, category, active));
+            @RequestParam(required = false) Boolean recommended) {
+        return ApiResponse.success(adminPlaceService.list(page, size, keyword, category, recommended));
     }
 
     @PostMapping
@@ -53,7 +54,17 @@ public class AdminPlaceController {
     public ApiResponse<PlaceDTO> visibility(
             @PathVariable Long placeId,
             @Valid @RequestBody AdminPlaceVisibilityRequest request) {
-        return ApiResponse.success(request.active() ? "추천 장소를 공개했습니다." : "추천 장소를 숨겼습니다.",
+        // 추천 노출은 is_recommended가 맡는다. 여기는 장소 데이터 자체의 사용 여부다.
+        return ApiResponse.success(request.active() ? "장소를 사용 처리했습니다." : "장소를 미사용 처리했습니다.",
                 adminPlaceService.setVisibility(placeId, request.active()));
+    }
+
+    @PatchMapping("/{placeId}/recommendation")
+    public ApiResponse<PlaceDTO> recommendation(
+            @PathVariable Long placeId,
+            @Valid @RequestBody AdminPlaceRecommendationRequest request) {
+        return ApiResponse.success(
+                request.recommended() ? "추천장소에 노출합니다." : "추천장소에서 내렸습니다.",
+                adminPlaceService.setRecommended(placeId, request.recommended()));
     }
 }

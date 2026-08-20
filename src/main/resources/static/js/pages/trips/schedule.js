@@ -2848,6 +2848,9 @@ document.addEventListener("DOMContentLoaded", function () {
         page: "0",
         size: "100",
         keyword: normalizeRegionName(region),
+        // 추천 패널은 관리자가 등록한 장소만 보여준다.
+        // 아래 장소 검색·중복 확인 호출에는 붙이지 않는다. 전체를 봐야 하기 때문이다.
+        recommended: "true",
       });
       const places = await api("/api/v1/places?" + params.toString());
       recommendedPlaces = sortRecommendedPlaces((places || []).filter(function (place) {

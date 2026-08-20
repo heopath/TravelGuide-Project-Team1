@@ -41,16 +41,19 @@ public class PlaceController {
             @RequestParam(required = false) String keyword,
             @RequestParam(required = false) String category,
             @RequestParam(required = false) String region,
-            @RequestParam(required = false) Long styleId) {
+            @RequestParam(required = false) Long styleId,
+            // 추천장소 화면만 true로 부른다. 기본값이 false여야 카카오 장소 중복 확인처럼
+            // 전체를 조회해야 하는 호출이 그대로 동작한다.
+            @RequestParam(defaultValue = "false") boolean recommended) {
         Long userId = principal == null ? null : principal.userId();
         List<PlaceDTO> places;
         if ((keyword != null && !keyword.isBlank())
                 || (category != null && !category.isBlank())
                 || (region != null && !region.isBlank())
                 || styleId != null) {
-            places = placeService.search(userId, keyword, category, region, styleId, page, size);
+            places = placeService.search(userId, recommended, keyword, category, region, styleId, page, size);
         } else {
-            places = placeService.getPage(userId, page, size);
+            places = placeService.getPage(userId, recommended, page, size);
         }
         return ApiResponse.success(places);
     }

@@ -12,19 +12,21 @@
             ORDER BY pi.is_primary DESC, pi.sort_order, pi.place_image_id
             LIMIT 1
         ) AS primary_image_url,
-        average_rating, is_active AS active, created_at, updated_at
+        average_rating, is_active AS active, is_recommended AS recommended, created_at, updated_at
     </sql>
 
     <insert id="insert" useGeneratedKeys="true" keyProperty="placeId">
         INSERT INTO places (
             external_provider, external_place_id, category, name, country_code,
             region, city, address, latitude, longitude, description, phone,
-            website_url, average_rating, is_active
+            website_url, average_rating, is_active, is_recommended
         ) VALUES (
             #{externalProvider}, #{externalPlaceId}, #{category}, #{name},
             COALESCE(#{countryCode}, 'KR'), #{region}, #{city}, #{address},
             #{latitude}, #{longitude}, #{description}, #{phone}, #{websiteUrl},
-            #{averageRating}, COALESCE(#{active}, TRUE)
+            #{averageRating}, COALESCE(#{active}, TRUE),
+            <!-- 관리자 등록 화면은 recommended를 켜서 넣는다. 사용자가 담는 경로는 값을 주지 않아 FALSE로 남는다. -->
+            COALESCE(#{recommended}, FALSE)
         )
     </insert>
 
@@ -46,7 +48,11 @@
             description = COALESCE(EXCLUDED.description, places.description),
             phone = COALESCE(EXCLUDED.phone, places.phone),
             website_url = COALESCE(EXCLUDED.website_url, places.website_url),
-            is_active = TRUE,
+            <!--
+              is_active는 덮어쓰지 않는다. 관리자가 내려둔 장소를 사용자가 일정에 담기만 해도
+              다시 켜져서 관리자 조치가 조용히 무효화됐다. 충돌 시에는 이름·좌표 같은
+              사실 데이터만 갱신하고 노출 여부는 관리자 판단으로 남긴다.
+            -->
             updated_at = CURRENT_TIMESTAMP(6)
         RETURNING place_id
     </select>
@@ -96,8 +102,8 @@
             <if test="category != null and category != ''">
                 AND category = #{category}
             </if>
-            <if test="active != null">
-                AND is_active = #{active}
+            <if test="recommended != null">
+                AND is_recommended = #{recommended}
             </if>
         </where>
     </sql>
@@ -123,7 +129,13 @@
                      AND f.place_id = places.place_id
                ) AS favorite
         FROM places
-        WHERE is_active = TRUE
+        <where>
+            is_active = TRUE
+            <!-- 추천장소 화면에서만 켠다. 중복 확인처럼 전체를 봐야 하는 호출은 넘기지 않는다. -->
+            <if test="recommendedOnly">
+                AND is_recommended = TRUE
+            </if>
+        </where>
         ORDER BY favorite DESC, place_id DESC
         LIMIT #{size} OFFSET #{offset}
     </select>
@@ -139,6 +151,10 @@
         FROM places
         <where>
             is_active = TRUE
+            <!-- 추천장소 화면에서만 켠다. 중복 확인처럼 전체를 봐야 하는 호출은 넘기지 않는다. -->
+            <if test="recommendedOnly">
+                AND is_recommended = TRUE
+            </if>
             <if test="keyword != null and keyword != ''">
                 AND (name ILIKE CONCAT('%', #{keyword}, '%')
                     OR region ILIKE CONCAT('%', #{keyword}, '%')
@@ -176,6 +192,11 @@
 
     <update id="updateActive">
         UPDATE places SET is_active = #{active}, updated_at = CURRENT_TIMESTAMP(6)
+        WHERE place_id = #{placeId}
+    </update>
+
+    <update id="updateRecommended">
+        UPDATE places SET is_recommended = #{recommended}, updated_at = CURRENT_TIMESTAMP(6)
         WHERE place_id = #{placeId}
     </update>
 

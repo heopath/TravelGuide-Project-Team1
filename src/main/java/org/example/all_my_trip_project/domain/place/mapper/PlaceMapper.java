@@ -19,16 +19,18 @@ public interface PlaceMapper {
     List<PlaceDTO> findAll();
     List<PlaceDTO> findAdminPage(@Param("keyword") String keyword,
                                  @Param("category") String category,
-                                 @Param("active") Boolean active,
+                                 @Param("recommended") Boolean recommended,
                                  @Param("offset") int offset,
                                  @Param("size") int size);
     long countAdmin(@Param("keyword") String keyword,
                     @Param("category") String category,
-                    @Param("active") Boolean active);
+                    @Param("recommended") Boolean recommended);
     List<PlaceDTO> findPage(@Param("userId") Long userId,
+                            @Param("recommendedOnly") boolean recommendedOnly,
                             @Param("offset") int offset,
                             @Param("size") int size);
     List<PlaceDTO> search(@Param("userId") Long userId,
+                          @Param("recommendedOnly") boolean recommendedOnly,
                           @Param("keyword") String keyword,
                           @Param("category") String category,
                           @Param("region") String region,
@@ -37,6 +39,7 @@ public interface PlaceMapper {
                           @Param("size") int size);
     int update(PlaceDTO place);
     int updateActive(@Param("placeId") Long placeId, @Param("active") boolean active);
+    int updateRecommended(@Param("placeId") Long placeId, @Param("recommended") boolean recommended);
     int updatePrimaryImage(@Param("placeId") Long placeId,
                            @Param("imageUrl") String imageUrl,
                            @Param("altText") String altText);

@@ -42,10 +42,10 @@
     const params = new URLSearchParams({ page: "0", size: "100" });
     const keyword = $("placeKeyword").value.trim();
     const category = $("placeCategoryFilter").value;
-    const active = $("placeActiveFilter").value;
+    const recommended = $("placeRecommendedFilter").value;
     if (keyword) params.set("keyword", keyword);
     if (category) params.set("category", category);
-    if (active) params.set("active", active);
+    if (recommended) params.set("recommended", recommended);
     return params;
   }
 
@@ -56,14 +56,14 @@
         ? `<img src="${esc(image)}" alt="${esc(place.name)} 대표 이미지" loading="lazy" />`
         : '<span aria-hidden="true">⌖</span>'}</div>
       <div class="admin-place-copy">
-        <div><span class="admin-place-badge${place.active ? "" : " hidden"}">${place.active ? "공개" : "숨김"}</span>
+        <div><span class="admin-place-badge${place.recommended ? "" : " hidden"}">${place.recommended ? "추천중" : "추천 아님"}</span>
           <span class="admin-place-badge">${esc(categoryLabels[place.category] || place.category)}</span></div>
         <h3>${esc(place.name)}</h3>
         <p>${esc([place.region, place.city, place.address].filter(Boolean).join(" · ") || "주소 정보 없음")}</p>
       </div>
       <div class="admin-place-row-actions">
         <button type="button" data-place-edit="${place.placeId}">수정</button>
-        <button type="button" data-place-visible="${place.placeId}">${place.active ? "숨기기" : "공개하기"}</button>
+        <button type="button" data-place-recommended="${place.placeId}">${place.recommended ? "추천 내리기" : "추천 등록"}</button>
       </div>
     </article>`;
   }
@@ -124,7 +124,7 @@
       latitude: numberValue("placeLatitude"), longitude: numberValue("placeLongitude"),
       description: value("placeDescription"), phone: value("placePhone"),
       websiteUrl: value("placeWebsiteUrl"), primaryImageUrl: value("placeImageUrl"),
-      active: $("placeActive").checked
+      recommended: $("placeRecommended").checked
     };
   }
 
@@ -139,7 +139,7 @@
     $("placeEditorForm").reset();
     $("placeId").value = "";
     $("placeCountryCode").value = "KR";
-    $("placeActive").checked = true;
+    $("placeRecommended").checked = true;
     $("placeEditorTitle").textContent = "새 장소 등록";
     $("placeSaveButton").textContent = "장소 등록";
     $("placeFormStatus").hidden = true;
@@ -163,7 +163,7 @@
     $("placePhone").value = place.phone || "";
     $("placeWebsiteUrl").value = place.websiteUrl || "";
     $("placeImageUrl").value = place.primaryImageUrl || "";
-    $("placeActive").checked = place.active !== false;
+    $("placeRecommended").checked = place.recommended !== false;
     $("placeEditorTitle").textContent = "추천 장소 수정";
     $("placeSaveButton").textContent = "수정 저장";
     $("placeFormStatus").hidden = true;
@@ -185,15 +185,22 @@
     } finally { button.disabled = false; }
   }
 
-  async function toggle(placeId, button) {
+  /*
+   * 관리자가 만지는 스위치는 추천 노출 하나뿐이다.
+   * is_active(데이터 유효성)는 화면에 두지 않는다. 이 화면의 목적이 추천 큐레이션이라
+   * 두 스위치가 거의 같은 뜻으로 읽혀 혼동을 주고, 비활성으로 내리면 카카오 장소
+   * 중복 확인(search)에서도 빠져 그 장소를 아무도 일정에 담을 수 없게 된다.
+   */
+  async function toggleRecommended(placeId, button) {
     const place = state.items.find((item) => String(item.placeId) === String(placeId));
     if (!place) return;
     button.disabled = true;
     try {
-      await request("PATCH", `/api/v1/admin/places/${placeId}/visibility`, { active: !place.active });
+      await request("PATCH", `/api/v1/admin/places/${placeId}/recommendation`,
+        { recommended: !place.recommended });
       await load();
     } catch (error) {
-      notice(error.message || "노출 상태를 바꾸지 못했습니다.");
+      notice(error.message || "추천 상태를 바꾸지 못했습니다.");
     } finally { button.disabled = false; }
   }
 
@@ -262,8 +269,8 @@
     $("placeList").addEventListener("click", (event) => {
       const editButton = event.target.closest("[data-place-edit]");
       if (editButton) return edit(editButton.dataset.placeEdit);
-      const visibleButton = event.target.closest("[data-place-visible]");
-      if (visibleButton) toggle(visibleButton.dataset.placeVisible, visibleButton);
+      const recommendedButton = event.target.closest("[data-place-recommended]");
+      if (recommendedButton) toggleRecommended(recommendedButton.dataset.placeRecommended, recommendedButton);
     });
   }
 
