@@ -48,9 +48,11 @@ function loadModule(w, handlers) {
   /* import를 전부 걷어낸다. 하나라도 남으면 eval이 SyntaxError로 죽는다. */
   const source = fs.readFileSync(JS, "utf8")
     .replace(/^import[\s\S]*?from\s*"[^"]+";\s*$/gm, "")
-    .replace(/^export function/m, "function");
+    /* export가 여러 개다(initTickets·initTicketHistory). 하나만 걷어내면 eval이 죽는다. */
+    .replace(/^export function/gm, "function");
   w.eval(`${source}
-    window.__initTickets = initTickets;`);
+    window.__initTickets = initTickets;
+    window.__initTicketHistory = initTicketHistory;`);
   w.request = handlers.request;
   w.showToast = handlers.showToast;
   /* QR 그리기는 별도 시험(qr-encoder.test.js)이 맡는다. 여기서는 호출 여부만 본다. */
@@ -80,6 +82,34 @@ async function boot(responder, toasts) {
   await init();
   return { w, d: w.document, calls };
 }
+
+/**
+ * 예매한 티켓 화면. (#281)
+ *
+ * 대시보드 미리보기와 같은 모듈을 쓰지만 그리는 자리와 모양이 다르다. 결제·취소·입장 QR은
+ * 두 화면이 함께 쓰는 코드라, 여기서는 이 화면에만 있는 것(탭·목록·티켓 상세)을 본다.
+ */
+async function bootHistory(responder, toasts) {
+  const dom = new JSDOM(fs.readFileSync(HTML, "utf8"), {
+    url: "http://localhost/mypage?view=tickets", runScripts: "outside-only",
+  });
+  const w = dom.window;
+  w.eval(fs.readFileSync(PAYMENT_METHODS, "utf8"));
+  const calls = [];
+  loadModule(w, {
+    request: async (url, options = {}) => {
+      calls.push({ url: String(url), method: (options.method || "GET").toUpperCase(), body: options.body });
+      return responder(String(url), options || {});
+    },
+    showToast: (message) => { toasts.push(message); },
+  });
+  await w.__initTicketHistory();
+  return { w, d: w.document, calls };
+}
+
+const tabOf = (d, id) => d.querySelector(`[data-ticket-tab="${id}"]`);
+const picks = (d) => [...d.querySelectorAll("[data-ticket-pick]")];
+const detailText = (d) => d.querySelector("[data-ticket-detail]")?.textContent || "";
 
 const rows = (d) => [...d.querySelectorAll("[data-ticket-row]")];
 
@@ -460,6 +490,83 @@ async function run() {
     }, toasts);
 
     test("여행 목록이 실패해도 티켓은 보여준다", rows(d).length === 1);
+  }
+
+  /* ── 예매한 티켓 화면 (#281) ── */
+  {
+    const toasts = [];
+    const paid = ticket({
+      reservationId: 5, status: "CONFIRMED", productName: "아쿠아플라넷 제주",
+      optionName: "성인", usageDate: "2026-09-15", usageStartTime: "10:00:00",
+      usageEndTime: "18:00:00", placeName: "제주 서귀포시",
+      paymentMethod: "EASY_PAY", paymentProvider: "MOCK_KAKAO_PAY",
+      paidAt: "2026-08-10T14:02:00+09:00", quantity: 2, totalAmount: 78000,
+    });
+    const pending = ticket({
+      reservationId: 6, status: "PENDING", productName: "제주 스카이 워터쇼",
+      usageDate: "2026-09-16", expiresAt: new Date(Date.now() + 9 * 60 * 1000).toISOString(),
+    });
+    const used = ticket({ reservationId: 7, status: "USED", productName: "성산일출봉 입장권" });
+
+    const { d } = await bootHistory((url) => {
+      if (url.startsWith("/api/v1/ticket-reservations")) return [paid, pending, used];
+      if (url.startsWith("/api/v1/trips")) return { items: [] };
+      return null;
+    }, toasts);
+
+    test("상태 탭을 개수와 함께 보여준다",
+      tabOf(d, "ALL")?.textContent.includes("3")
+      && tabOf(d, "UPCOMING")?.textContent.includes("2")
+      && tabOf(d, "USED")?.textContent.includes("1")
+      && tabOf(d, "CLOSED")?.textContent.includes("0"),
+      [...d.querySelectorAll("[data-ticket-tab]")].map((t) => t.textContent).join(" | "));
+    test("목록에 티켓을 모두 보여준다", picks(d).length === 3);
+    /* 오른쪽이 비어 있으면 화면이 덜 그려진 것처럼 보인다. 첫 티켓을 펴 둔다. */
+    test("첫 티켓을 자동으로 펴 둔다", picks(d)[0].classList.contains("is-active"));
+    test("상세에 예약번호를 보여준다", detailText(d).includes("AMT-TKT-ABC123DEF456"));
+    test("상세에 장소를 보여준다", detailText(d).includes("제주 서귀포시"));
+    test("상세에 이용 시간을 범위로 보여준다", detailText(d).includes("10:00–18:00"));
+    test("상세에 인원을 보여준다", detailText(d).includes("2명"));
+    /* 결제수단이 CARD로 박혀 있던 것을 고른 값으로 바꾼 게 여기까지 이어진다. */
+    test("결제 수단을 사람이 읽는 이름으로 보여준다", detailText(d).includes("카카오페이"));
+    test("결제일을 보여준다", detailText(d).includes("2026. 08. 10"));
+    test("결제 완료 티켓에는 입장 QR 자리를 둔다",
+      d.querySelector("[data-ticket-detail] [data-ticket-qr-open]") !== null);
+
+    /* 결제 전 티켓 */
+    picks(d)[1].click();
+    test("고른 티켓으로 상세가 바뀐다", detailText(d).includes("제주 스카이 워터쇼"));
+    test("결제 전 티켓에는 결제 버튼을 둔다",
+      d.querySelector("[data-ticket-detail] [data-ticket-pay]") !== null);
+    /* 아직 티켓이 없으니 입장 QR을 둘 수 없다. 눌러야만 없다는 걸 알게 하지 않는다. */
+    test("결제 전 티켓에는 입장 QR 자리를 두지 않는다",
+      d.querySelector("[data-ticket-detail] [data-ticket-qr-open]") === null);
+    test("결제 전 티켓에는 결제 정보를 채우지 않는다",
+      !detailText(d).includes("카카오페이") && detailText(d).includes("결제 전"));
+
+    /* 탭으로 거르기 */
+    tabOf(d, "USED").click();
+    test("탭을 누르면 그 상태만 거른다",
+      picks(d).length === 1 && picks(d)[0].textContent.includes("성산일출봉"));
+    test("탭을 바꾸면 상세도 그 탭의 티켓으로 바뀐다", detailText(d).includes("성산일출봉"));
+
+    tabOf(d, "CLOSED").click();
+    test("빈 탭에서는 없다고 알린다",
+      d.querySelector("[data-ticket-picker]")?.textContent.includes("취소·환불 티켓이 없어요"));
+  }
+  {
+    /* 예약이 하나도 없을 때. 두 칸 모두 채워야 앞의 티켓이 남지 않는다. */
+    const toasts = [];
+    const { d } = await bootHistory((url) => {
+      if (url.startsWith("/api/v1/ticket-reservations")) return [];
+      if (url.startsWith("/api/v1/trips")) return { items: [] };
+      return null;
+    }, toasts);
+
+    test("예약이 없으면 목록 자리에 안내를 둔다",
+      d.querySelector("[data-ticket-picker]")?.textContent.includes("아직 예약 내역이 없어요"));
+    test("예약이 없으면 상세 자리에도 안내를 둔다",
+      d.querySelector("[data-ticket-detail]")?.textContent.includes("표시할 티켓이 없어요"));
   }
 
   console.log(`\n${passed} passed, ${failed} failed`);

@@ -72,6 +72,22 @@
     const DEFAULT_ID = "CARD";
 
     /**
+     * 결제 기록에 남은 값을 사람이 읽는 이름으로 되돌린다. (#281)
+     *
+     * <p>서버는 사업자를 {@code MOCK_KAKAO_PAY}처럼 적는다. 모의 결제라는 표시가 앞에
+     * 붙을 뿐 사업자는 같으므로 떼고 맞춘다. 나중에 진짜 PG를 붙여 {@code KAKAO_PAY}로
+     * 바뀌어도 같은 이름이 나온다.
+     */
+    function labelOf(method, provider) {
+        const cleaned = String(provider || "").replace(/^MOCK_/, "");
+        const found = METHODS.find(
+            (item) => item.method === method
+                && (item.provider || "") === cleaned,
+        );
+        return found ? found.label : "결제";
+    }
+
+    /**
      * 결제수단을 고르게 하고 고른 값을 돌려준다.
      *
      * <p>취소하면 null이다. 부르는 쪽은 null이면 아무것도 하지 않으면 된다 —
@@ -214,5 +230,5 @@
         });
     }
 
-    window.AllMyTripsPayment = { METHODS, choose };
+    window.AllMyTripsPayment = { METHODS, choose, labelOf };
 })();

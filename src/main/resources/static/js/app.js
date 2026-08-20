@@ -330,6 +330,11 @@ const ALL_MY_TRIPS_SCREENS = [
     "mypage"
   ],
   [
+    "/mypage?view=tickets",
+    "마이페이지 · 예매한 티켓",
+    "mypage"
+  ],
+  [
     "/mypage?view=favorites",
     "마이페이지 · 찜한 여행지",
     "mypage"

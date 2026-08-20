@@ -40,4 +40,20 @@ public class TicketReservationDTO {
      * 사라졌는지 알 수 없다. 결제가 끝난 예약({@code CONFIRMED})에는 의미가 없다.
      */
     private OffsetDateTime expiresAt;
+
+    /**
+     * 예약 내역 화면이 티켓 한 장을 통째로 보여주기 위해 필요한 값들. (#281)
+     *
+     * <p>목록 조회에서만 채운다. 결제·취소 같은 쓰기 흐름은 이 값들을 쓰지 않아서,
+     * 그쪽 조회까지 조인을 늘리면 잠금이 걸리는 범위만 넓어진다.
+     *
+     * <p>비어 있을 수 있다. 상품이나 장소는 예약 뒤에 지워질 수 있고, 결제 정보는
+     * 결제 전 예약에 아예 없다. 화면은 빈 값을 그리지 않고 그 줄을 빼는 쪽으로 다룬다.
+     */
+    private LocalTime usageEndTime;
+    private String placeName;
+    private String paymentMethod;
+    /** 간편결제 사업자까지 갈린다. {@code MOCK_KAKAO_PAY}처럼 온다. */
+    private String paymentProvider;
+    private OffsetDateTime paidAt;
 }

@@ -106,11 +106,10 @@
 
             <button
                     type="button"
-                    disabled
+                    data-open-tickets
             >
               <span aria-hidden="true">▦</span>
               <span>예약 내역</span>
-              <em>준비 중</em>
             </button>
 
             <button
@@ -273,6 +272,18 @@
 
                 <p data-ticket-empty-description></p>
               </div>
+
+              <!--
+                미리보기는 3건까지만 보여준다. 나머지를 볼 길이 없으면 4건째부터는
+                화면에서 사라진 것처럼 보인다. (#281)
+              -->
+              <button
+                      type="button"
+                      class="outline-button wide mypage-panel-foot"
+                      data-open-tickets
+              >
+                예매한 티켓 전체 보기 →
+              </button>
             </section>
 
             <!-- 최근 본 여행지 -->
@@ -524,6 +535,76 @@
                     hidden
             ></nav>
 
+          </section>
+
+          <!-- =================================================
+               예매한 티켓 (#281)
+
+               대시보드의 `최근 예약 내역`은 3건까지만 보여주는 미리보기다.
+               여기는 전체를 상태별로 보고, 티켓 한 장을 통째로 확인하는 자리다.
+               ================================================= -->
+          <section
+                  class="mypage-tickets-view"
+                  data-tickets-view
+                  hidden
+          >
+            <div class="mypage-view-head">
+              <div class="mypage-view-title">
+                <button
+                        type="button"
+                        class="mypage-back-button"
+                        data-close-tickets
+                >
+                  ← 이전 화면
+                </button>
+
+                <div>
+                  <span class="mypage-eyebrow">MY TICKETS</span>
+                  <h2>예매한 티켓</h2>
+                  <p>예약 정보와 이용 방법을 한곳에서 확인하세요.</p>
+                </div>
+              </div>
+
+              <a
+                      class="mypage-add-booking"
+                      th:href="@{/booking/flights(tab=ticket)}"
+                      href="../../static/booking/flights.html"
+              >
+                <span aria-hidden="true">＋</span>
+                <span>예약 추가</span>
+              </a>
+            </div>
+
+            <!--
+              상태 탭. 개수는 서버가 아니라 받은 목록에서 센다. 목록과 개수를 따로
+              받으면 둘이 어긋난 화면이 나온다.
+            -->
+            <div
+                    class="mypage-ticket-tabs"
+                    data-ticket-tabs
+                    role="tablist"
+            ></div>
+
+            <div class="mypage-ticket-layout">
+              <section class="white-panel mypage-ticket-column">
+                <h3>티켓 목록</h3>
+
+                <div
+                        class="mypage-ticket-picker"
+                        data-ticket-picker
+                        aria-live="polite"
+                ></div>
+              </section>
+
+              <section class="white-panel mypage-ticket-column">
+                <h3>티켓 상세</h3>
+
+                <div
+                        class="mypage-ticket-detail"
+                        data-ticket-detail
+                ></div>
+              </section>
+            </div>
           </section>
 
           <!-- =================================================
