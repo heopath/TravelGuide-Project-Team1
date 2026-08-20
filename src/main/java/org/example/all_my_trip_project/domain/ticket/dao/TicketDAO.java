@@ -22,6 +22,8 @@ public class TicketDAO {
         return mapper.findOffers(destination, from, to);
     }
     public Optional<TicketOfferDTO> findSlotForUpdate(Long slotId) { return mapper.findSlotForUpdate(slotId); }
+
+    public Optional<TicketOfferDTO> findSlot(Long slotId) { return mapper.findSlot(slotId); }
     public Optional<TicketReservationDTO> findByRequestKey(Long userId, String key) {
         return mapper.findReservationByRequestKey(userId, key);
     }

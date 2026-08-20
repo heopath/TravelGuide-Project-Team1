@@ -11,7 +11,30 @@
         tts.ticket_time_slot_id AS slot_id, tts.usage_date, tts.start_time, tts.end_time,
         tpo.unit_price, tpo.currency_code AS currency,
         tpo.max_quantity_per_user,
-        (ti.total_quantity - ti.reserved_quantity) AS remaining_quantity
+        (ti.total_quantity - ti.reserved_quantity) AS remaining_quantity,
+        <include refid="saleStateColumns"/>
+    </sql>
+
+    <!--
+      판매 유형과 지금 상태. (#256)
+
+      상태를 화면이 시각 비교로 정하게 두지 않는다. 손님 기기 시계는 몇 분씩 틀어져 있어서,
+      아직 안 열린 상품을 살 수 있는 것처럼 보여주거나 그 반대가 된다. 서버가 판단한 값을
+      내리고 화면은 그대로 쓴다.
+
+      opens_at은 아직 안 열린 지정 시각 판매에만 채운다. 이미 열린 상품에까지 값이 있으면
+      화면이 지난 시각으로 카운트다운을 그린다.
+    -->
+    <sql id="saleStateColumns">
+        tp.sale_type, tp.sale_start_at, tp.sale_end_at,
+        CASE
+            WHEN CURRENT_TIMESTAMP &lt; tp.sale_start_at THEN 'SCHEDULED'
+            WHEN CURRENT_TIMESTAMP &gt; tp.sale_end_at THEN 'ENDED'
+            ELSE 'ON_SALE'
+        END AS sale_state,
+        CASE
+            WHEN CURRENT_TIMESTAMP &lt; tp.sale_start_at THEN tp.sale_start_at
+        END AS opens_at
     </sql>
 
     <select id="findOffers" resultType="org.example.all_my_trip_project.domain.ticket.dto.TicketOfferDTO">
@@ -47,7 +70,17 @@
         JOIN ticket_time_slots tts ON tts.ticket_product_option_id = tpo.ticket_product_option_id
         JOIN ticket_inventory ti ON ti.ticket_time_slot_id = tts.ticket_time_slot_id
         WHERE tp.status = 'ON_SALE'
-          AND CURRENT_TIMESTAMP BETWEEN tp.sale_start_at AND tp.sale_end_at
+          <!--
+            오픈 예정 상품도 목록에 낸다. (#256)
+
+            지정 시각 판매는 미리 보여야 손님이 그 시각에 모인다. 오픈 시각이 되어야
+            갑자기 나타나면 예고를 할 수 없어 기능의 의미가 없다. 일반 판매는 종전대로
+            판매 시작 전에는 안 보인다 — 그쪽은 예고가 목적이 아니다.
+
+            판매가 끝난 것은 어느 유형이든 뺀다.
+          -->
+          AND CURRENT_TIMESTAMP &lt;= tp.sale_end_at
+          AND (CURRENT_TIMESTAMP &gt;= tp.sale_start_at OR tp.sale_type = 'SCHEDULED')
           AND tts.status = 'OPEN'
           AND ti.reserved_quantity &lt; ti.total_quantity
           AND (#{keyword} IS NULL OR #{keyword} = '' OR
@@ -59,7 +92,7 @@
         SELECT
             tp.ticket_product_id AS product_id, tp.name AS product_name, tp.description,
             tp.place_id, p.name AS place_name, p.region, p.city,
-            tp.sale_start_at, tp.sale_end_at,
+            <include refid="saleStateColumns"/>,
             (SELECT pi.image_url FROM place_images pi WHERE pi.place_id = p.place_id
              ORDER BY pi.is_primary DESC, pi.sort_order LIMIT 1) AS image_url,
             MIN(tpo.unit_price) AS min_unit_price,
@@ -70,7 +103,7 @@
             SUM(ti.total_quantity - ti.reserved_quantity) AS remaining_quantity
         <include refid="sellableProductFrom"/>
         GROUP BY tp.ticket_product_id, tp.name, tp.description, tp.place_id,
-                 p.name, p.region, p.city, p.place_id, tp.sale_start_at, tp.sale_end_at
+                 p.name, p.region, p.city, p.place_id, tp.sale_start_at, tp.sale_end_at, tp.sale_type
         ORDER BY MIN(tts.usage_date), tp.ticket_product_id
         LIMIT #{size} OFFSET #{offset}
     </select>
@@ -86,7 +119,7 @@
         SELECT
             tp.ticket_product_id AS product_id, tp.name AS product_name, tp.description,
             tp.place_id, p.name AS place_name, p.region, p.city,
-            tp.sale_start_at, tp.sale_end_at,
+            <include refid="saleStateColumns"/>,
             (SELECT pi.image_url FROM place_images pi WHERE pi.place_id = p.place_id
              ORDER BY pi.is_primary DESC, pi.sort_order LIMIT 1) AS image_url,
             MIN(tpo.unit_price) AS min_unit_price,
@@ -102,11 +135,13 @@
         JOIN ticket_inventory ti ON ti.ticket_time_slot_id = tts.ticket_time_slot_id
         WHERE tp.ticket_product_id = #{productId}
           AND tp.status = 'ON_SALE'
-          AND CURRENT_TIMESTAMP BETWEEN tp.sale_start_at AND tp.sale_end_at
+          <!-- 오픈 예정 상품도 보여준다. 살 수 있는지는 sale_state가 말한다. (#256) -->
+          AND CURRENT_TIMESTAMP &lt;= tp.sale_end_at
+          AND (CURRENT_TIMESTAMP &gt;= tp.sale_start_at OR tp.sale_type = 'SCHEDULED')
           AND tts.status = 'OPEN'
           AND ti.reserved_quantity &lt; ti.total_quantity
         GROUP BY tp.ticket_product_id, tp.name, tp.description, tp.place_id,
-                 p.name, p.region, p.city, p.place_id, tp.sale_start_at, tp.sale_end_at
+                 p.name, p.region, p.city, p.place_id, tp.sale_start_at, tp.sale_end_at, tp.sale_type
     </select>
 
     <!--
@@ -122,7 +157,9 @@
         JOIN ticket_inventory ti ON ti.ticket_time_slot_id = tts.ticket_time_slot_id
         WHERE tp.ticket_product_id = #{productId}
           AND tp.status = 'ON_SALE'
-          AND CURRENT_TIMESTAMP BETWEEN tp.sale_start_at AND tp.sale_end_at
+          <!-- 오픈 예정 상품도 보여준다. 살 수 있는지는 sale_state가 말한다. (#256) -->
+          AND CURRENT_TIMESTAMP &lt;= tp.sale_end_at
+          AND (CURRENT_TIMESTAMP &gt;= tp.sale_start_at OR tp.sale_type = 'SCHEDULED')
           AND tts.status = 'OPEN'
           AND ti.reserved_quantity &lt; ti.total_quantity
         ORDER BY tts.usage_date, tts.start_time NULLS FIRST, tpo.sort_order
@@ -137,9 +174,29 @@
         JOIN ticket_inventory ti ON ti.ticket_time_slot_id = tts.ticket_time_slot_id
         WHERE tts.ticket_time_slot_id = #{slotId}
           AND tp.status = 'ON_SALE'
-          AND CURRENT_TIMESTAMP BETWEEN tp.sale_start_at AND tp.sale_end_at
+          <!--
+            판매 기간을 여기서 거르지 않는다. 걸러 버리면 아직 안 열린 상품과 없는 상품이
+            구분되지 않아, 오픈 전에 누른 손님이 `티켓을 찾을 수 없습니다`를 본다.
+            상태를 함께 뽑아 서비스가 판단하고 제대로 된 이유를 돌려준다. (#256)
+          -->
           AND tts.status = 'OPEN'
         FOR UPDATE OF ti
+    </select>
+
+    <!--
+      같은 시간대를 잠그지 않고 본다. 대기열에 서기 전에 판매 상태만 확인하는 자리라,
+      줄 서는 사람마다 재고 행을 잠그면 오픈 직후에 서로를 기다리게 된다. (#256)
+    -->
+    <select id="findSlot" resultType="org.example.all_my_trip_project.domain.ticket.dto.TicketOfferDTO">
+        SELECT <include refid="offerColumns"/>
+        FROM ticket_products tp
+        JOIN places p ON p.place_id = tp.place_id AND p.is_active = TRUE
+        JOIN ticket_product_options tpo ON tpo.ticket_product_id = tp.ticket_product_id AND tpo.is_active = TRUE
+        JOIN ticket_time_slots tts ON tts.ticket_product_option_id = tpo.ticket_product_option_id
+        JOIN ticket_inventory ti ON ti.ticket_time_slot_id = tts.ticket_time_slot_id
+        WHERE tts.ticket_time_slot_id = #{slotId}
+          AND tp.status = 'ON_SALE'
+          AND tts.status = 'OPEN'
     </select>
 
     <update id="reserveInventory">

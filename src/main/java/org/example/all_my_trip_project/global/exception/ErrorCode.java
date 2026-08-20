@@ -298,6 +298,20 @@ public enum ErrorCode {
     ),
 
     /*
+     * 오픈 전과 판매 종료를 갈라서 알린다. 손님에게 해 줄 말이 다르다 — 하나는 "그 시각에
+     * 다시 오세요"이고 다른 하나는 "이제 못 삽니다"이다. (#256)
+     */
+    TICKET_SALE_NOT_OPEN(
+            HttpStatus.CONFLICT,
+            "아직 판매가 시작되지 않았습니다. 오픈 시각에 다시 시도해 주세요."
+    ),
+
+    TICKET_SALE_ENDED(
+            HttpStatus.CONFLICT,
+            "판매가 끝난 티켓입니다."
+    ),
+
+    /*
      * uk_ticket_product_options_name·uk_ticket_product_options_order 위반. 제약으로 터지면
      * 이름이 겹친 것인지 순서가 겹친 것인지 화면에서 구분할 수 없어 먼저 거른다.
      */
