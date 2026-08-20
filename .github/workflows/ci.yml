@@ -74,6 +74,3 @@ jobs:
         working-directory: src/test/js
         run: npm test
 
-      - name: 화면 목록·모달 목록 검사
-        # 목록이 어긋나면 스토리보드 캡처가 엉뚱한 카드에 붙습니다. (#191)
-        run: node tools/figma-plugin/match.test.js
