@@ -487,6 +487,30 @@ class AiGuideServiceTest {
     }
 
     @Test
+    void returnsGeneralGuidanceWhenAllModelRecommendationsAreAlreadyScheduled() {
+        AiGuideRequest request = new AiGuideRequest("근처 카페 추천", 12L);
+        AiGuideContext.Item scheduledItem = new AiGuideContext.Item(
+                77L, "이미 저장된 카페", null, null, "CAFE", null);
+        AiGuideContext context = new AiGuideContext(
+                new AiGuideContext.Trip(12L, "부산 여행", "부산", null, null,
+                        null, null, null, null, null, null, null, null, null,
+                        List.of(new AiGuideContext.Day(1, null, "DAY 1", null, List.of(scheduledItem)))),
+                List.of());
+        AiGuideResponse modelResponse = new AiGuideResponse("추천", List.of(new AiGuideDayResponse(1, "DAY 1",
+                List.of(new AiGuideItemResponse("12:00", "이미 저장된 카페", "모델이 잘못 재추천", 77L,
+                        "CAFE", "부산", "https://place.map.kakao.com/77")))), List.of(), List.of());
+
+        when(conversationHistoryService.load(1L, 12L)).thenReturn(List.of());
+        when(contextService.load(1L, request)).thenReturn(context);
+        when(aiModelClient.generate(request, List.of(), context, List.of())).thenReturn(modelResponse);
+
+        AiGuideResponse actual = service.generate(request, false, 1L);
+
+        assertThat(actual.days()).isEmpty();
+        assertThat(actual.answer()).contains("새로운 장소를 제안하지 못했어요");
+    }
+
+    @Test
     void removesAPlaceReturnedAgainForAnAlternativeRequestEvenWhenTheModelIgnoresHistory() {
         AiGuideRequest request = new AiGuideRequest("다른 곳 추천해줘", 12L);
         AiConversationTurn previousTurn = new AiConversationTurn(

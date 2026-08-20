@@ -125,6 +125,8 @@ public class CohereAiModelClient implements AiModelClient {
     private boolean isRetryableFormatFailure(AiModelException exception) {
         String message = exception.getMessage();
         return message != null && (message.contains("response is not valid JSON")
+                || message.contains("invalid fenced JSON response")
+                || message.contains("returned an empty response")
                 || message.contains("missing guide data")
                 || message.contains("invalid day")
                 || message.contains("invalid schedule item"));

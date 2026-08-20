@@ -119,11 +119,13 @@ public class AiGuideService {
         }
 
         Set<Long> scheduledPlaceIds = context.trip().days().stream()
+                .filter(day -> day != null && day.items() != null)
                 .flatMap(day -> day.items().stream())
                 .map(org.example.all_my_trip_project.domain.ai.dto.AiGuideContext.Item::placeId)
                 .filter(java.util.Objects::nonNull)
                 .collect(java.util.stream.Collectors.toSet());
         Set<String> scheduledPlaceNames = context.trip().days().stream()
+                .filter(day -> day != null && day.items() != null)
                 .flatMap(day -> day.items().stream())
                 .map(org.example.all_my_trip_project.domain.ai.dto.AiGuideContext.Item::title)
                 .filter(title -> title != null && !title.isBlank())
@@ -167,6 +169,7 @@ public class AiGuideService {
         Set<String> scheduledPlaceNames = new HashSet<>();
         if (context != null && context.trip() != null) {
             context.trip().days().stream()
+                    .filter(day -> day != null && day.items() != null)
                     .flatMap(day -> day.items().stream())
                     .forEach(item -> {
                         if (item.placeId() != null) {
@@ -191,10 +194,18 @@ public class AiGuideService {
         }
 
         List<AiGuideDayResponse> filteredDays = response.days().stream()
+                .filter(day -> day != null && day.items() != null)
                 .map(day -> new AiGuideDayResponse(day.day(), day.title(), day.items().stream()
                         .filter(item -> !isExcludedFinalItem(item, scheduledPlaceIds, scheduledPlaceNames, previousAnswers))
                         .toList()))
+                .filter(day -> !day.items().isEmpty())
                 .toList();
+        if (filteredDays.isEmpty()) {
+            return new AiGuideResponse(
+                    "이미 일정에 있거나 최근에 추천한 장소와 겹쳐 새로운 장소를 제안하지 못했어요. "
+                            + "지역, 업종 또는 원하는 시간대를 조금 다르게 알려주시면 다시 찾아볼게요.",
+                    List.of(), response.externalLinks(), response.sources());
+        }
         return new AiGuideResponse(response.answer(), filteredDays, response.externalLinks(), response.sources());
     }
 
@@ -228,7 +239,7 @@ public class AiGuideService {
 
         Map<String, String> placeNamesByNormalizedName = new LinkedHashMap<>();
         response.days().stream()
-                .filter(day -> day.items() != null)
+                .filter(day -> day != null && day.items() != null)
                 .flatMap(day -> day.items().stream())
                 .map(AiGuideItemResponse::name)
                 .filter(name -> name != null && !name.isBlank())
@@ -265,6 +276,7 @@ public class AiGuideService {
                 .toList();
         HashSet<Long> usedPlaceIds = new HashSet<>();
         List<AiGuideDayResponse> days = response.days().stream()
+                .filter(day -> day != null && day.items() != null)
                 .map(day -> new AiGuideDayResponse(day.day(), day.title(), day.items().stream()
                         .map(item -> {
                             RagSearchResult exactPlace = uniquePlacesByName.get(normalizePlaceName(item.name()));

@@ -97,6 +97,42 @@ class CohereAiModelClientTest {
     }
 
     @Test
+    void retriesOnceWhenCohereReturnsInvalidFencedJson() throws Exception {
+        stubResponses(200,
+                """
+                        {"message":{"content":[{"type":"text","text":"```json\\n{\\\"answer\\\":\\\"추천 일정\\\",\\\"days\\\":[{\\\"day\\\":1,\\\"title\\\":\\\"DAY 1\\\",\\\"items\\\":[{\\\"time\\\":\\\"14:00\\\",\\\"name\\\":\\\"카페\\\",\\\"reason\\\":\\\"휴식\\\"}]}]}"}]}}
+                        """,
+                """
+                        {"message":{"content":[{"type":"text","text":"{\\\"answer\\\":\\\"추천 일정\\\",\\\"days\\\":[{\\\"day\\\":1,\\\"title\\\":\\\"DAY 1\\\",\\\"items\\\":[{\\\"time\\\":\\\"14:00\\\",\\\"name\\\":\\\"실제 카페\\\",\\\"reason\\\":\\\"휴식에 좋아요\\\"}]}]}"}]}}
+                        """);
+
+        AiGuideResponse response = client.generate(new AiGuideRequest("카페 추천", null),
+                List.of(), new AiGuideContext(null, List.of()));
+
+        assertThat(response.days().getFirst().items().getFirst().name()).isEqualTo("실제 카페");
+        org.mockito.Mockito.verify(httpClient, org.mockito.Mockito.times(2)).send(
+                any(HttpRequest.class), org.mockito.ArgumentMatchers.<HttpResponse.BodyHandler<String>>any());
+    }
+
+    @Test
+    void retriesOnceWhenCohereReturnsAnEmptyResponse() throws Exception {
+        stubResponses(200,
+                """
+                        {"message":{"content":[{"type":"text","text":""}]}}
+                        """,
+                """
+                        {"message":{"content":[{"type":"text","text":"{\\\"answer\\\":\\\"추천 일정\\\",\\\"days\\\":[{\\\"day\\\":1,\\\"title\\\":\\\"DAY 1\\\",\\\"items\\\":[{\\\"time\\\":\\\"14:00\\\",\\\"name\\\":\\\"실제 카페\\\",\\\"reason\\\":\\\"휴식에 좋아요\\\"}]}]}"}]}}
+                        """);
+
+        AiGuideResponse response = client.generate(new AiGuideRequest("카페 추천", null),
+                List.of(), new AiGuideContext(null, List.of()));
+
+        assertThat(response.days().getFirst().items().getFirst().name()).isEqualTo("실제 카페");
+        org.mockito.Mockito.verify(httpClient, org.mockito.Mockito.times(2)).send(
+                any(HttpRequest.class), org.mockito.ArgumentMatchers.<HttpResponse.BodyHandler<String>>any());
+    }
+
+    @Test
     void createPromptIncludesExistingScheduleAndTwoHourReservationRule() {
         AiGuideContext.Item existingItem = new AiGuideContext.Item(
                 1L, "기존 점심", LocalTime.of(10, 0), null, "PLACE", null);
