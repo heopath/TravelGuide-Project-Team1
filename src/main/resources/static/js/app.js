@@ -120,6 +120,8 @@ const ALL_MY_TRIPS_TEMPLATE_ROUTES = {
   "/booking/flights": "booking/flights",
   "/booking/queue": "booking/queue",
   "/pay/qr": "payment/qr-approve",
+  "/pay/toss": "payment/toss-return",
+  "/pay/kakao": "payment/kakao-return",
   "/mypage": "mypage/mypage",
   "/trips/1/record": "trips/record",
   "/admin": "admin/admin",
@@ -320,6 +322,21 @@ const ALL_MY_TRIPS_SCREENS = [
   [
     "/pay/qr",
     "QR 결제 승인",
+    "booking"
+  ],
+  /*
+   * 결제사에서 돌아오는 화면 둘. 보통은 토스·카카오페이가 결제 결과를 주소에 실어
+   * 보내지만, 목록에서 그냥 열면 "결제가 취소되었거나 완료되지 않았어요" 안내가 뜬다.
+   * QR 승인 화면과 같은 이유로 결과 없는 주소로 둔다. (#281)
+   */
+  [
+    "/pay/toss",
+    "토스 결제 결과",
+    "booking"
+  ],
+  [
+    "/pay/kakao",
+    "카카오페이 결제 결과",
     "booking"
   ],
   /*
