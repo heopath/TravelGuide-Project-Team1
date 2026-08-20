@@ -821,3 +821,16 @@
   .page-flights #list .fl { grid-template-columns: minmax(0, 1fr); }
   .page-flights .fp { text-align: left; }
 }
+
+/*
+   `.fl`이 두 곳에 쓰인다 — 결과 카드(.page-flights .fl)와 검색 폼 라벨(.f .fl).
+   그래서 카드의 테두리·모서리·여백이 라벨에 새어 들어가 `출발지` 글자에 네모가
+   생겼다. 캡처를 보고 찾았다. 라벨 쪽에서 명시적으로 끈다.
+*/
+.page-flights .f .fl {
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+  background: none;
+  box-shadow: none;
+}
