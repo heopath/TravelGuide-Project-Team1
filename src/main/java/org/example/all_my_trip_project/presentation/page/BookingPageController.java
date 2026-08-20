@@ -24,8 +24,15 @@ public class BookingPageController {
         return "redirect:/booking/flights";
     }
 
-    @GetMapping("/booking/tickets/{ticketSlug}")
-    public String ticket(@PathVariable String ticketSlug) {
+    /**
+     * 티켓 상품 상세. (#281)
+     *
+     * <p>예전에는 목업 화면이라 아무 문자열이나 받았다. 지금은 상품 번호를 받아 그 상품을
+     * 그린다. 화면 스크립트가 주소에서 번호를 꺼내 조회하므로 여기서는 값을 넘기지 않는다 —
+     * 모델에 실어 주면 같은 값을 두 곳(서버 렌더·API)에서 가져오게 된다.
+     */
+    @GetMapping("/booking/tickets/{ticketProductId}")
+    public String ticket(@PathVariable String ticketProductId) {
         return "booking/ticket";
     }
 

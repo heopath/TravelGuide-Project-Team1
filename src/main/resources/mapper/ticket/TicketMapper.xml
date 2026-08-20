@@ -91,7 +91,7 @@
             resultType="org.example.all_my_trip_project.domain.ticket.dto.TicketProductSummaryDTO">
         SELECT
             tp.ticket_product_id AS product_id, tp.name AS product_name, tp.description,
-            tp.place_id, p.name AS place_name, p.region, p.city,
+            tp.place_id, p.name AS place_name, p.region, p.city, p.address, p.category,
             <include refid="saleStateColumns"/>,
             (SELECT pi.image_url FROM place_images pi WHERE pi.place_id = p.place_id
              ORDER BY pi.is_primary DESC, pi.sort_order LIMIT 1) AS image_url,
@@ -103,7 +103,7 @@
             SUM(ti.total_quantity - ti.reserved_quantity) AS remaining_quantity
         <include refid="sellableProductFrom"/>
         GROUP BY tp.ticket_product_id, tp.name, tp.description, tp.place_id,
-                 p.name, p.region, p.city, p.place_id, tp.sale_start_at, tp.sale_end_at, tp.sale_type
+                 p.name, p.region, p.city, p.address, p.category, p.place_id, tp.sale_start_at, tp.sale_end_at, tp.sale_type
         ORDER BY MIN(tts.usage_date), tp.ticket_product_id
         LIMIT #{size} OFFSET #{offset}
     </select>
@@ -118,7 +118,7 @@
             resultType="org.example.all_my_trip_project.domain.ticket.dto.TicketProductSummaryDTO">
         SELECT
             tp.ticket_product_id AS product_id, tp.name AS product_name, tp.description,
-            tp.place_id, p.name AS place_name, p.region, p.city,
+            tp.place_id, p.name AS place_name, p.region, p.city, p.address, p.category,
             <include refid="saleStateColumns"/>,
             (SELECT pi.image_url FROM place_images pi WHERE pi.place_id = p.place_id
              ORDER BY pi.is_primary DESC, pi.sort_order LIMIT 1) AS image_url,
@@ -141,7 +141,7 @@
           AND tts.status = 'OPEN'
           AND ti.reserved_quantity &lt; ti.total_quantity
         GROUP BY tp.ticket_product_id, tp.name, tp.description, tp.place_id,
-                 p.name, p.region, p.city, p.place_id, tp.sale_start_at, tp.sale_end_at, tp.sale_type
+                 p.name, p.region, p.city, p.address, p.category, p.place_id, tp.sale_start_at, tp.sale_end_at, tp.sale_type
     </select>
 
     <!--

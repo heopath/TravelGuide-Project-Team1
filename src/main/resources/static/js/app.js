@@ -115,7 +115,7 @@ const ALL_MY_TRIPS_TEMPLATE_ROUTES = {
   "/trips/busan/optimize": "trips/optimize",
   "/guide/themes": "guide/themes",
   "/booking": "booking/flights",
-  "/booking/tickets/blueline": "booking/ticket",
+  "/booking/tickets/1": "booking/ticket",
   "/booking/hotels": "booking/hotels",
   "/booking/flights": "booking/flights",
   "/booking/queue": "booking/queue",
@@ -298,8 +298,12 @@ const ALL_MY_TRIPS_SCREENS = [
     "예약 · 내 예약",
     "booking"
   ],
+  /*
+   * 티켓 상세는 상품 번호로 연다. 목록에서 고른 상품을 그리므로, 목록에 든 번호가
+   * 아니면 상품을 찾을 수 없다는 안내가 뜬다. 여기서는 1번을 대표로 둔다. (#281)
+   */
   [
-    "/booking/tickets/blueline",
+    "/booking/tickets/1",
     "티켓 상세·예약",
     "booking"
   ],

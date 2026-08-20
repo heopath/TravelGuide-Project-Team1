@@ -30,6 +30,13 @@ public class TicketProductSummaryDTO {
     private String placeName;
     private String region;
     private String city;
+    /**
+     * 장소 주소와 분류. 상품 상세 화면이 `장소 안내`와 머리말(`체험 · 제주`)에 쓴다.
+     *
+     * <p>주소는 비어 있을 수 있다 — 등록할 때 선택 항목이다. 없으면 그 줄을 뺀다.
+     */
+    private String address;
+    private String category;
     private String imageUrl;
 
     private BigDecimal minUnitPrice;

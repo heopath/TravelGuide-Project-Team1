@@ -8,3 +8,137 @@ body.page-ticket #page-content {
     min-height: calc(100vh - 64px);
   }
 }
+
+/* =========================================================
+   티켓 상품 상세 (#281)
+   왼쪽에 상품 내용, 오른쪽에 예매 패널. 실제 티켓 사이트와 같은 배치다.
+   ========================================================= */
+.page-ticket .tk { display: grid; gap: 18px; }
+.page-ticket .tk-status {
+  padding: 18px;
+  border-radius: 14px;
+  background: #f3f6ff;
+  color: #4b5468;
+  font-size: 14px;
+}
+.page-ticket .tk-status.error { background: #fdf1f1; color: #b23b3b; }
+
+.page-ticket .tk-back {
+  display: inline-block;
+  margin-bottom: 14px;
+  color: #6b7280;
+  font-size: 13px;
+  font-weight: 700;
+  text-decoration: none;
+}
+.page-ticket .tk-back:hover { color: #4054d6; }
+.page-ticket .tk-kicker {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 6px;
+  color: #6b7cff;
+  font-size: 13px;
+  font-weight: 800;
+}
+.page-ticket .tk-badge {
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: #eef2ff;
+  color: #3b4fd8;
+  font-size: 11.5px;
+  font-style: normal;
+  font-weight: 800;
+}
+/* 판매가 끝난 상품은 배지부터 회색이다. 눌러 보고서야 알게 두지 않는다. */
+.page-ticket .tk-badge[data-state="ENDED"] { background: #eef0f5; color: #8d95a8; }
+.page-ticket .tk-title h1 { margin: 0; font-size: clamp(26px, 3vw, 34px); letter-spacing: -0.03em; }
+.page-ticket .tk-place { margin: 8px 0 0; color: #6b7280; font-size: 14px; }
+
+.page-ticket .tk-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 340px;
+  gap: 18px;
+  align-items: start;
+}
+.page-ticket .tk-main { display: grid; gap: 14px; }
+.page-ticket .tk-main h2,
+.page-ticket .tk-book-card h2 { margin: 0 0 12px; font-size: 15px; font-weight: 800; }
+.page-ticket .tk-info dl { display: grid; gap: 10px; margin: 0; }
+.page-ticket .tk-info dl > div {
+  display: grid;
+  grid-template-columns: 92px minmax(0, 1fr);
+  gap: 12px;
+  align-items: baseline;
+}
+.page-ticket .tk-info dt { color: #8d95a8; font-size: 13px; }
+.page-ticket .tk-info dd { margin: 0; font-size: 14px; font-weight: 700; }
+.page-ticket .tk-about p,
+.page-ticket .tk-venue p { margin: 0; color: #4b5468; font-size: 14px; line-height: 1.7; }
+.page-ticket .tk-venue-name { font-weight: 800; }
+.page-ticket .tk-venue-address { margin-top: 4px !important; color: #8d95a8 !important; font-size: 13px !important; }
+
+/* 예매 패널은 스크롤을 따라온다. 아래 소개를 읽다가도 바로 담을 수 있어야 한다. */
+.page-ticket .tk-book { position: sticky; top: 92px; }
+.page-ticket .tk-book-lead { margin: 0 0 14px; color: #6b7280; font-size: 13px; }
+.page-ticket .tk-field { display: grid; gap: 8px; margin-bottom: 14px; }
+.page-ticket .tk-field > span { color: #8d95a8; font-size: 12px; font-weight: 800; }
+.page-ticket .tk-chips { display: flex; gap: 8px; flex-wrap: wrap; }
+.page-ticket .tk-chip {
+  display: grid;
+  gap: 2px;
+  padding: 9px 14px;
+  border: 1px solid #e4e8f4;
+  border-radius: 12px;
+  background: #fff;
+  color: #3b4358;
+  font-size: 13.5px;
+  font-weight: 700;
+  text-align: left;
+  cursor: pointer;
+}
+.page-ticket .tk-chip small { color: #9aa1b2; font-size: 11.5px; font-weight: 600; }
+.page-ticket .tk-chip.on { border-color: #6b7cff; background: #f5f7ff; color: #3b4fd8; }
+.page-ticket .tk-chip.on small { color: #6b7cff; }
+
+.page-ticket .tk-qty { display: flex; align-items: center; gap: 8px; }
+.page-ticket .tk-qty button {
+  width: 38px;
+  height: 38px;
+  border: 1px solid #e4e8f4;
+  border-radius: 10px;
+  background: #fff;
+  font-size: 17px;
+  font-weight: 800;
+  cursor: pointer;
+}
+.page-ticket .tk-qty input {
+  width: 64px;
+  height: 38px;
+  border: 1px solid #e4e8f4;
+  border-radius: 10px;
+  text-align: center;
+  font-size: 15px;
+  font-weight: 800;
+}
+.page-ticket .tk-field small { color: #9aa1b2; font-size: 11.5px; }
+
+.page-ticket .tk-total {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 4px 0 14px;
+  padding: 14px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #f3f5ff, #eef1ff);
+}
+.page-ticket .tk-total span { color: #6b7280; font-size: 13px; font-weight: 700; }
+.page-ticket .tk-total strong { font-size: 20px; font-weight: 800; color: #3b4fd8; }
+.page-ticket .tk-book-error { margin: 0 0 10px; color: #d64545; font-size: 12.5px; font-weight: 700; }
+.page-ticket .tk-book-note { margin: 12px 0 0; color: #9a5f08; font-size: 11.5px; line-height: 1.5; }
+
+@media (max-width: 900px) {
+  .page-ticket .tk-layout { grid-template-columns: minmax(0, 1fr); }
+  .page-ticket .tk-book { position: static; }
+}
