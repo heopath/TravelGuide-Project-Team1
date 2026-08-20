@@ -21,11 +21,29 @@ public class PlaceService {
     private static final int MAX_PAGE_SIZE = 100;
 
     private final PlaceDAO placeDAO;
+    private final TourApiPlaceImageProvider placeImageProvider;
 
     @Transactional
     public Long create(PlaceDTO place) {
         placeDAO.insert(place);
+        fillPrimaryImage(place);
         return place.getPlaceId();
+    }
+
+    /*
+     * 카카오 로컬 검색은 사진을 주지 않아 사용자가 담은 장소는 대표 이미지가 비어 있고
+     * 찜 목록과 일정 카드가 빈 칸으로 보인다. 공공기관이 그 장소에 대해 제공하는 사진만
+     * 가져오고, 같은 장소라고 확신할 수 없으면 넣지 않는다.
+     *
+     * 한 장소당 한 번만 도는 경로다. 같은 장소를 다른 사용자가 담으면 유니크 제약에 걸려
+     * 기존 행을 재사용하므로 여기까지 오지 않는다. 실패해도 장소 저장은 그대로 둔다.
+     */
+    private void fillPrimaryImage(PlaceDTO place) {
+        if (place.getPlaceId() == null) return;
+        placeImageProvider
+                .findImageUrl(place.getName(), place.getLatitude(), place.getLongitude())
+                .ifPresent(imageUrl ->
+                        placeDAO.insertPrimaryImage(place.getPlaceId(), imageUrl, place.getName() + " 대표 이미지"));
     }
 
     public PlaceDTO get(Long placeId) {
