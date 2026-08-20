@@ -233,6 +233,8 @@
     field("placeId").value = product ? String(product.placeId ?? "") : "";
     field("name").value = product ? product.name ?? "" : "";
     field("description").value = "";
+    field("saleType").value = product?.saleType || "NORMAL";
+    syncSaleTypeHint();
     field("saleStartAt").value = product ? toLocalInput(product.saleStartAt) : "";
     field("saleEndAt").value = product ? toLocalInput(product.saleEndAt) : "";
     field("usageStartDate").value = product ? product.usageStartDate ?? "" : "";
@@ -240,6 +242,21 @@
     form.hidden = false;
     if (slotPanel) slotPanel.hidden = true;
     field("name").focus();
+  }
+
+  /**
+   * 판매 유형에 따라 `판매 시작`이 무엇을 뜻하는지 밝힌다. (#256)
+   *
+   * <p>같은 칸이 유형에 따라 다른 뜻이 된다 — 일반 판매에서는 파는 기간의 시작이고,
+   * 지정 시각 판매에서는 그 시각에 열리는 오픈 순간이다. 라벨을 안 바꾸면 등록하는 사람이
+   * 오픈 시각을 판매 시작으로 알고 아무 때나 넣는다.
+   */
+  function syncSaleTypeHint() {
+    const label = document.querySelector("[data-sale-start-label]");
+    if (!label) return;
+    label.textContent = field("saleType").value === "SCHEDULED"
+      ? "오픈 시각 (이때부터 판매)"
+      : "판매 시작";
   }
 
   function closeForm() {
@@ -256,6 +273,7 @@
       placeId: Number(field("placeId").value) || null,
       name: field("name").value.trim(),
       description: field("description").value.trim() || null,
+      saleType: field("saleType").value || "NORMAL",
       saleStartAt: toOffsetDateTime(field("saleStartAt").value),
       saleEndAt: toOffsetDateTime(field("saleEndAt").value),
       usageStartDate: field("usageStartDate").value || null,
@@ -692,6 +710,10 @@
   if (newButton) newButton.addEventListener("click", function () { openForm(null); });
   if (cancelButton) cancelButton.addEventListener("click", closeForm);
   if (form) form.addEventListener("submit", submitForm);
+  /* 유형을 바꾸면 `판매 시작` 라벨이 그 뜻으로 바뀐다. (#256) */
+  if (form) form.addEventListener("change", (event) => {
+    if (event.target.matches("[data-field=saleType]")) syncSaleTypeHint();
+  });
   if (slotClose) slotClose.addEventListener("click", function () {
     slotPanel.hidden = true;
     currentProduct = null;

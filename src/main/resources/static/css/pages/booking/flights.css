@@ -1125,3 +1125,25 @@
 .page-flights .costline .pv { line-height: 20px; }
 .page-flights .costline .nm { white-space: normal; }
 .page-flights .costline .nm small { display: block; line-height: 1.4; }
+
+/* 오픈 예정 티켓 (#256) */
+.page-flights .ticket-card.upcoming { border-color: #d7dcf5; background: linear-gradient(#fff, #fbfbff); }
+.page-flights .ticket-badge {
+  display: inline-block;
+  margin-right: 6px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: var(--primary-soft);
+  color: var(--primary);
+  font-size: 11.5px;
+  font-style: normal;
+  font-weight: 800;
+  vertical-align: 2px;
+}
+/* 남은 시간이 먼저 눈에 들어와야 그 시각에 다시 온다. */
+.page-flights .ticket-opens { color: var(--primary); font-weight: 700; }
+.page-flights .ticket-card.upcoming .ticket-action button {
+  background: #eef1fb;
+  color: var(--muted);
+}
+.page-flights .ticket-card .ticket-action button[disabled] { opacity: 0.55; cursor: not-allowed; }

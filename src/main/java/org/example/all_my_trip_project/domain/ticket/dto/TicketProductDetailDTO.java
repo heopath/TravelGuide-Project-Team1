@@ -1,5 +1,6 @@
 package org.example.all_my_trip_project.domain.ticket.dto;
 
+import java.time.OffsetDateTime;
 import java.util.List;
 
 /**
@@ -10,5 +11,7 @@ import java.util.List;
  */
 public record TicketProductDetailDTO(
         TicketProductSummaryDTO product,
-        List<TicketOfferDTO> slots
+        List<TicketOfferDTO> slots,
+        /** 오픈까지 남은 시간을 서버 시각 기준으로 세기 위해 함께 내린다. (#256) */
+        OffsetDateTime serverTime
 ) {}
