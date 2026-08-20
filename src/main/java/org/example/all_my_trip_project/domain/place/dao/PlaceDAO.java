@@ -27,11 +27,11 @@ public class PlaceDAO {
         return placeMapper.findStylesByPlaceId(placeId);
     }
     public List<PlaceDTO> findAll() { return placeMapper.findAll(); }
-    public List<PlaceDTO> findAdminPage(String keyword, String category, Boolean active, int offset, int size) {
-        return placeMapper.findAdminPage(keyword, category, active, offset, size);
+    public List<PlaceDTO> findAdminPage(String keyword, String category, Boolean recommended, int offset, int size) {
+        return placeMapper.findAdminPage(keyword, category, recommended, offset, size);
     }
-    public long countAdmin(String keyword, String category, Boolean active) {
-        return placeMapper.countAdmin(keyword, category, active);
+    public long countAdmin(String keyword, String category, Boolean recommended) {
+        return placeMapper.countAdmin(keyword, category, recommended);
     }
     public List<PlaceDTO> findPage(Long userId, boolean recommendedOnly, int offset, int size) {
         return placeMapper.findPage(userId, recommendedOnly, offset, size);

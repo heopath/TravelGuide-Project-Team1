@@ -27,7 +27,7 @@ public class AdminPlaceService {
     private final PlaceDAO placeDAO;
     private final AdminAuditService adminAuditService;
 
-    public AdminPlacePage list(int page, int size, String keyword, String category, Boolean active) {
+    public AdminPlacePage list(int page, int size, String keyword, String category, Boolean recommended) {
         if (page < 0 || size < 1 || size > MAX_PAGE_SIZE) {
             throw new BusinessException(ErrorCode.INVALID_PLACE_REQUEST);
         }
@@ -40,10 +40,10 @@ public class AdminPlaceService {
         } catch (ArithmeticException exception) {
             throw new BusinessException(ErrorCode.INVALID_PLACE_REQUEST);
         }
-        long total = placeDAO.countAdmin(normalizedKeyword, normalizedCategory, active);
+        long total = placeDAO.countAdmin(normalizedKeyword, normalizedCategory, recommended);
         int totalPages = total == 0 ? 0 : (int) Math.ceil((double) total / size);
         return new AdminPlacePage(
-                placeDAO.findAdminPage(normalizedKeyword, normalizedCategory, active, offset, size),
+                placeDAO.findAdminPage(normalizedKeyword, normalizedCategory, recommended, offset, size),
                 page, size, total, totalPages);
     }
 

@@ -19,12 +19,12 @@ public interface PlaceMapper {
     List<PlaceDTO> findAll();
     List<PlaceDTO> findAdminPage(@Param("keyword") String keyword,
                                  @Param("category") String category,
-                                 @Param("active") Boolean active,
+                                 @Param("recommended") Boolean recommended,
                                  @Param("offset") int offset,
                                  @Param("size") int size);
     long countAdmin(@Param("keyword") String keyword,
                     @Param("category") String category,
-                    @Param("active") Boolean active);
+                    @Param("recommended") Boolean recommended);
     List<PlaceDTO> findPage(@Param("userId") Long userId,
                             @Param("recommendedOnly") boolean recommendedOnly,
                             @Param("offset") int offset,

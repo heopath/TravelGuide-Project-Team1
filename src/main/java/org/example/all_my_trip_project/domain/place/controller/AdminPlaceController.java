@@ -34,8 +34,8 @@ public class AdminPlaceController {
             @RequestParam(defaultValue = "50") int size,
             @RequestParam(required = false) String keyword,
             @RequestParam(required = false) String category,
-            @RequestParam(required = false) Boolean active) {
-        return ApiResponse.success(adminPlaceService.list(page, size, keyword, category, active));
+            @RequestParam(required = false) Boolean recommended) {
+        return ApiResponse.success(adminPlaceService.list(page, size, keyword, category, recommended));
     }
 
     @PostMapping
@@ -54,7 +54,8 @@ public class AdminPlaceController {
     public ApiResponse<PlaceDTO> visibility(
             @PathVariable Long placeId,
             @Valid @RequestBody AdminPlaceVisibilityRequest request) {
-        return ApiResponse.success(request.active() ? "추천 장소를 공개했습니다." : "추천 장소를 숨겼습니다.",
+        // 추천 노출은 is_recommended가 맡는다. 여기는 장소 데이터 자체의 사용 여부다.
+        return ApiResponse.success(request.active() ? "장소를 사용 처리했습니다." : "장소를 미사용 처리했습니다.",
                 adminPlaceService.setVisibility(placeId, request.active()));
     }
 

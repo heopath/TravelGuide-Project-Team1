@@ -102,8 +102,8 @@
             <if test="category != null and category != ''">
                 AND category = #{category}
             </if>
-            <if test="active != null">
-                AND is_active = #{active}
+            <if test="recommended != null">
+                AND is_recommended = #{recommended}
             </if>
         </where>
     </sql>
