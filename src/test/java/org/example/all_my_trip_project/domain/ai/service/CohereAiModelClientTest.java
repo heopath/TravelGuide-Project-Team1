@@ -2,6 +2,7 @@ package org.example.all_my_trip_project.domain.ai.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.example.all_my_trip_project.domain.ai.dto.AiGuideContext;
+import org.example.all_my_trip_project.domain.ai.dto.AiGuideDayResponse;
 import org.example.all_my_trip_project.domain.ai.dto.AiGuideRequest;
 import org.example.all_my_trip_project.domain.ai.dto.AiGuideResponse;
 import org.junit.jupiter.api.Test;
@@ -178,6 +179,20 @@ class CohereAiModelClientTest {
         assertThat(response.days()).hasSize(1);
         assertThat(response.days().getFirst().day()).isEqualTo(2);
         assertThat(response.days().getFirst().items().getFirst().name()).isEqualTo("DAY 2 카페");
+    }
+
+    @Test
+    void generateDoesNotTreatDayTenTitleAsDayOneTitle() throws Exception {
+        stubResponse(200, """
+                {"message":{"content":[{"type":"text","text":"{\\"answer\\":\\"추천 일정\\",\\"days\\":[{\\"day\\":1,\\"title\\":\\"DAY 10 추천 일정\\",\\"items\\":[{\\"time\\":\\"10:00\\",\\"name\\":\\"카페\\",\\"reason\\":\\"휴식에 좋아요\\"}]}]}"}]}}
+                """);
+
+        AiGuideResponse response = client.generate(new AiGuideRequest("첫째 날 카페 추천", 1L, 1),
+                List.of(), new AiGuideContext(null, List.of()));
+
+        assertThat(response.days()).singleElement()
+                .extracting(AiGuideDayResponse::title)
+                .isEqualTo("DAY 1 추천 일정");
     }
 
     @Test

@@ -142,11 +142,19 @@ public class CohereAiModelClient implements AiModelClient {
             return content;
         }
 
-        String title = selectedDay.title() != null && selectedDay.title().contains("DAY " + selectedDayNumber)
+        String title = hasSelectedDayTitle(selectedDay.title(), selectedDayNumber)
                 ? selectedDay.title()
                 : "DAY " + selectedDayNumber + " 추천 일정";
         return new CohereGuideContent(content.answer(), List.of(new AiGuideDayResponse(
                 selectedDayNumber, title, selectedDay.items())));
+    }
+
+    private boolean hasSelectedDayTitle(String title, Integer selectedDayNumber) {
+        if (title == null || selectedDayNumber == null) {
+            return false;
+        }
+
+        return title.matches("^\\s*DAY\\s+" + selectedDayNumber + "(?!\\d)(?:\\s|$).*");
     }
 
     private boolean isRetryableFormatFailure(AiModelException exception) {
