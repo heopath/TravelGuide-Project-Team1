@@ -614,3 +614,210 @@
   .page-flights .form { grid-template-columns: 1fr 1fr; }
   .page-flights .swap { justify-self: center; grid-column: 1 / -1; }
 }
+
+/* =========================================================
+   시안 반영 — 예약 화면 전면 정리 (#281)
+
+   앞의 규칙들을 덮어쓴다. 지우지 않고 뒤에 두는 이유는, 숙소·티켓·내 예약 탭과
+   모달이 같은 변수와 클래스를 쓰고 있어 한꺼번에 걷어내면 그쪽까지 흔들리기 때문이다.
+   ========================================================= */
+
+/* ── 제목과 조건 칩 ── */
+.page-flights .page-heading h1 { font-size: clamp(28px, 3vw, 36px); letter-spacing: -0.03em; }
+.page-flights .page-heading p { font-size: 15px; color: var(--muted); }
+.page-flights .cond {
+  padding: 12px 20px;
+  border: 1px solid #e9ecf6;
+  box-shadow: 0 4px 14px rgba(60, 72, 130, 0.06);
+  font-size: 13.5px;
+}
+
+/* ── 검색 패널 ── */
+.page-flights .formwrap {
+  padding: 18px;
+  border-radius: 20px;
+  border-color: #e9ecf6;
+  box-shadow: 0 6px 22px rgba(60, 72, 130, 0.07);
+  margin-bottom: 18px;
+}
+.page-flights .form { gap: 12px; align-items: stretch; }
+.page-flights .f {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
+  padding: 12px 16px;
+  min-height: 64px;
+  border-radius: 14px;
+  border-color: #e9ecf6;
+  background: var(--white);
+}
+.page-flights .f .fl { margin: 0; font-size: 12px; color: #98a0b3; }
+.page-flights .f .fv { font-size: 16px; font-weight: 800; letter-spacing: -0.02em; }
+.page-flights .go { height: 64px; border-radius: 14px; font-size: 15px; }
+.page-flights .swap { width: 40px; height: 40px; margin-bottom: 0; }
+
+/* ── 탭: 배경 없는 밑줄 탭 ── */
+.page-flights .tabs {
+  display: flex;
+  gap: 6px;
+  padding: 0;
+  margin-bottom: 16px;
+  border-bottom: 1px solid #e6eaf3;
+  background: none;
+}
+.page-flights .tab {
+  flex: 0 0 auto;
+  padding: 14px 22px;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  color: #8d95a8;
+  font-size: 15px;
+  font-weight: 700;
+  box-shadow: none;
+  position: relative;
+}
+.page-flights .tab:hover { color: var(--ink-2); background: none; }
+.page-flights .tab.on { background: none; color: var(--primary); box-shadow: none; }
+/* 선택된 탭은 밑줄로만 표시한다. 알약을 칠하면 탭보다 버튼처럼 읽힌다. */
+.page-flights .tab.on::after {
+  content: "";
+  position: absolute;
+  left: 16px;
+  right: 16px;
+  bottom: -1px;
+  height: 3px;
+  border-radius: 3px 3px 0 0;
+  background: var(--primary);
+}
+.page-flights .tab .cnt {
+  margin-left: 6px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #eef1fb;
+  color: #6b7280;
+  font-size: 11.5px;
+  font-weight: 800;
+}
+.page-flights .tab.on .cnt { background: var(--primary-soft); color: var(--primary); }
+
+/* ── 편 선택 ── */
+.page-flights .legbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 4px 2px 16px;
+}
+.page-flights .legmeta { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.page-flights .legh { font-size: 20px; font-weight: 800; letter-spacing: -0.03em; }
+.page-flights .legmeta .lv { font-size: 14px; font-weight: 700; color: var(--ink-2); }
+.page-flights .legmeta .lp { font-size: 13px; color: var(--muted); font-weight: 600; }
+.page-flights .legmeta .lp.sel { color: var(--ok); font-weight: 700; }
+.page-flights .legs {
+  display: flex;
+  gap: 4px;
+  padding: 5px;
+  border-radius: 999px;
+  background: #f3f5fb;
+}
+.page-flights .leg {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 18px;
+  border: 0;
+  border-radius: 999px;
+  background: none;
+  color: #8d95a8;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: 0.15s;
+}
+.page-flights .leg i {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #dfe3ef;
+  color: #fff;
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 800;
+}
+.page-flights .leg.on { background: var(--white); color: var(--ink); box-shadow: 0 2px 8px rgba(60, 72, 130, 0.12); }
+.page-flights .leg.on i { background: var(--primary); }
+
+/* ── 정렬 칩 ── */
+.page-flights .sort { gap: 8px; padding-bottom: 14px; }
+.page-flights .sc {
+  padding: 9px 16px;
+  border-radius: 999px;
+  border: 1px solid #e6eaf3;
+  background: var(--white);
+  font-size: 13.5px;
+  font-weight: 700;
+  color: #8d95a8;
+}
+.page-flights .sc.on { border-color: var(--primary); color: var(--primary); background: var(--primary-soft); }
+
+/* ── 결과 카드 ── */
+.page-flights #list .fl {
+  grid-template-columns: minmax(0, 1fr) 210px;
+  gap: 22px;
+  padding: 20px 24px;
+  margin-bottom: 12px;
+  border-width: 1px;
+  border-color: #e9ecf6;
+  border-radius: 18px;
+  box-shadow: 0 2px 10px rgba(60, 72, 130, 0.04);
+}
+.page-flights #list .fl:hover { border-color: #c9d0f2; box-shadow: 0 10px 26px rgba(60, 72, 130, 0.1); }
+.page-flights #list .fl.sel { box-shadow: 0 0 0 3px rgba(92, 104, 255, 0.12); }
+.page-flights .lg { width: 46px; height: 46px; font-size: 12px; }
+.page-flights .car { font-size: 14px; font-weight: 800; color: var(--ink); }
+.page-flights .car small { font-size: 12px; }
+.page-flights .tm { gap: 18px; margin-top: 8px; }
+.page-flights .tp .h { font-size: 22px; }
+.page-flights .du { min-width: 120px; }
+.page-flights .bg { margin-top: 10px; gap: 6px; }
+.page-flights .bg span {
+  padding: 5px 12px;
+  border-radius: 999px;
+  background: #eef7f1;
+  color: #1f9254;
+  font-size: 12px;
+}
+.page-flights .bg .w { background: var(--warn-soft); color: var(--warn); }
+/* 리본은 값(가격) 위에 붙는다. 카드 왼쪽 위에 두면 항공사 이름과 겹쳐 읽힌다. */
+.page-flights #list .tip { top: 18px; left: auto; right: 24px; }
+.page-flights .tip span { font-size: 11px; padding: 4px 11px; }
+.page-flights .fp .tot { font-size: 24px; margin-top: 14px; }
+.page-flights .fp .per { font-size: 12px; margin-top: 4px; }
+.page-flights .pick { margin-top: 14px; height: 46px; border-radius: 12px; font-size: 14px; }
+
+/* ── 진행 현황 ── */
+.page-flights .sc2 { border-radius: 20px; border-color: #e9ecf6; }
+.page-flights .sh { padding: 18px 20px 14px; font-size: 16px; }
+.page-flights .sh .r { font-size: 12.5px; }
+.page-flights .sr { padding: 15px 18px; gap: 13px; }
+/* 끝난 항목은 채워진 동그라미, 남은 항목은 빈 동그라미다. 훑어서 남은 것을 찾는 화면이다. */
+.page-flights .sr .ic { width: 30px; height: 30px; border-radius: 50%; font-size: 13px; }
+.page-flights .sr.done .ic { background: var(--ok); color: var(--white); }
+.page-flights .sr:not(.done) .ic { background: var(--white); border: 2px solid #e2e6f0; color: #c3c9d8; }
+.page-flights .sr .nm { font-size: 14px; }
+.page-flights .sr .pv { font-size: 14px; }
+.page-flights .cost { margin: 12px; padding: 18px; border-radius: 16px; }
+.page-flights .cost .n { font-size: clamp(20px, 1.7vw, 26px); }
+.page-flights .disc { border-radius: 16px; padding: 14px 16px 14px 34px; }
+
+@media (max-width: 860px) {
+  .page-flights .tabs { overflow-x: auto; }
+  .page-flights .tab { padding: 13px 16px; white-space: nowrap; }
+  .page-flights #list .fl { grid-template-columns: minmax(0, 1fr); }
+  .page-flights .fp { text-align: left; }
+}

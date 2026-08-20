@@ -830,7 +830,21 @@
 
   function setLeg(next) {
     state.leg = next;
-    document.querySelectorAll(".leg").forEach((el, i) => el.classList.toggle("on", i === next));
+    document.querySelectorAll(".leg").forEach((el, i) => {
+      const on = i === next;
+      el.classList.toggle("on", on);
+      el.setAttribute("aria-selected", String(on));
+    });
+    /*
+     * 편 이름·노선·상태는 편마다 한 벌씩 있고 고르는 편의 것만 보인다. 두 벌을 동시에
+     * 보여주면 어느 편을 고르는 중인지가 흐려진다. (#281 시안)
+     */
+    [0, 1].forEach((leg) => {
+      ["lt", "lv", "lp"].forEach((key) => {
+        const el = document.getElementById(key + leg);
+        if (el) el.hidden = leg !== next;
+      });
+    });
     render();
     sync();
   }

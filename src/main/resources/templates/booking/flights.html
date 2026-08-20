@@ -106,17 +106,32 @@
                   <button type="button" class="rc-no" id="recallNo">아니요</button>
                 </div>
 
-                <div class="legs">
-                  <button type="button" class="leg on" data-leg="0">
-                    <span class="lt" id="lt0">① 가는 편</span>
+                <!--
+                  편 선택. 지금 고르는 편만 크게 보여주고 전환은 오른쪽 토글로 한다. (#281 시안)
+
+                  예전에는 두 편을 카드로 나란히 뒀는데, 화면에서 늘 하나만 고르는 중이라
+                  나머지 카드는 자리만 차지했다. 반대편 상태는 오른쪽 진행 현황이 맡는다.
+                -->
+                <div class="legbar">
+                  <div class="legmeta">
+                    <strong class="legh">
+                      <span class="lt" id="lt0">① 가는 편</span>
+                      <span class="lt" id="lt1" hidden>② 오는 편</span>
+                    </strong>
                     <span class="lv" id="lv0">김포 (GMP) → 제주 (CJU)</span>
+                    <span class="lv" id="lv1" hidden>제주 (CJU) → 김포 (GMP)</span>
                     <span class="lp" id="lp0">항공편을 선택하세요</span>
-                  </button>
-                  <button type="button" class="leg" data-leg="1">
-                    <span class="lt" id="lt1">② 오는 편</span>
-                    <span class="lv" id="lv1">제주 (CJU) → 김포 (GMP)</span>
-                    <span class="lp" id="lp1">가는 편 선택 후 진행</span>
-                  </button>
+                    <span class="lp" id="lp1" hidden>가는 편 선택 후 진행</span>
+                  </div>
+
+                  <div class="legs" role="tablist">
+                    <button type="button" class="leg on" data-leg="0" role="tab" aria-selected="true">
+                      <i aria-hidden="true">1</i>가는 편
+                    </button>
+                    <button type="button" class="leg" data-leg="1" role="tab" aria-selected="false">
+                      <i aria-hidden="true">2</i>오는 편
+                    </button>
+                  </div>
                 </div>
 
                 <!-- 소요 시간은 국내선 전 노선이 사실상 같아 정렬 항목에서 뺐다. -->
