@@ -4,6 +4,7 @@
 const { JSDOM } = require("jsdom");
 const fs = require("fs");
 const path = require("path");
+const { readMarkup } = require("./markup");
 
 const ROOT = path.resolve(__dirname, "../../..");
 const HTML = path.join(ROOT, "src/main/resources/templates/admin/admin.html");
@@ -103,7 +104,7 @@ const slotRows = (d) => [...d.querySelectorAll("[data-slot-list] .admin-slot-row
 async function run() {
   /* ── 마크업 ── */
   {
-    const markup = fs.readFileSync(HTML, "utf8").replace(/<!--[\s\S]*?-->/g, "");
+    const markup = readMarkup(HTML);
     T("새 상품 버튼이 있다", markup.includes("data-product-new"));
     T("등록·수정 폼이 기본으로 감춰져 있다", /data-product-form hidden/.test(markup));
     T("시간대 패널이 기본으로 감춰져 있다", /data-slot-panel hidden/.test(markup));

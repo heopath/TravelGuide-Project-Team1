@@ -54,7 +54,16 @@
     if (event.target.closest("[data-no-global-loading]")) return;
     const link = event.target.closest("a[href]");
     const route = event.target.closest("[data-route]:not(body)");
-    if (route || (link && link.target !== "_blank" && !link.href.startsWith("javascript:"))) show();
+    /*
+     * 화면이 실제로 넘어가는 링크에만 로딩을 띄운다.
+     *
+     * 예전에는 `javascript:`로 시작하는지만 봤는데, 대소문자를 섞거나(`JavaScript:`)
+     * `data:`·`vbscript:` 같은 다른 스킴이면 그냥 통과했다. 브라우저가 정규화해 주는
+     * protocol로 http·https만 받는다. (CodeQL js/incomplete-url-scheme-check)
+     */
+    const navigates = link && link.target !== "_blank"
+      && (link.protocol === "http:" || link.protocol === "https:");
+    if (route || navigates) show();
   }, true);
 
   document.addEventListener("submit", function (event) {

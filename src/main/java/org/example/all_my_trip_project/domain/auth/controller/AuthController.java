@@ -120,6 +120,12 @@ public class AuthController {
         Cookie cookie = new Cookie("JSESSIONID", "");
         cookie.setPath("/");
         cookie.setHttpOnly(true);
+        /*
+         * 지우는 쿠키에도 발급 때와 같은 보안 속성을 준다. 운영은 https라 Secure로 나가고,
+         * 로컬(http)에서는 꺼진다 — 로컬에서 켜 두면 브라우저가 그 쿠키를 무시해 로그아웃이
+         * 안 된다. (CodeQL java/insecure-cookie)
+         */
+        cookie.setSecure(request.isSecure());
         cookie.setMaxAge(0);
         response.addCookie(cookie);
 

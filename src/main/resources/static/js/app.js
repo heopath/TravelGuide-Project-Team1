@@ -179,7 +179,12 @@ document.addEventListener("submit", function (event) {
     event.preventDefault();
     const input = event.target.querySelector("input");
     if (input && input.value.trim()) {
-      event.target.insertAdjacentHTML("beforebegin", '<div class="user-message">' + input.value + "</div>");
+      // 친 글자를 HTML 문자열로 이어 붙이면 `<img onerror=...>` 같은 입력이 그대로 실행된다.
+      // 요소를 만들어 textContent로 넣으면 무엇을 치든 글자로만 남는다. (CodeQL js/xss-through-dom)
+      const message = document.createElement("div");
+      message.className = "user-message";
+      message.textContent = input.value;
+      event.target.insertAdjacentElement("beforebegin", message);
       input.value = "";
     }
   }
