@@ -37,7 +37,10 @@ class ServiceVersionServiceTest {
     void usesDefaultWhenSettingIsMissing() {
         given(serviceSettingDAO.findValue("footer.version")).willReturn(Optional.empty());
 
-        assertThat(service.get().version()).isEqualTo("v0.9.0");
+        /* 값을 박아 두면 버전을 올릴 때마다 이 테스트가 깨진다. 보려는 것은 "기본값을
+         * 쓴다"는 사실이지 그 기본값이 무엇인지가 아니다. */
+        assertThat(service.get().version())
+                .isEqualTo(ServiceVersionService.DEFAULT_DISPLAY_VERSION);
     }
 
     @Test

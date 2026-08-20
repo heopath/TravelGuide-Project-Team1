@@ -356,7 +356,7 @@ public enum ErrorCode {
 
     INVALID_SERVICE_VERSION(
             HttpStatus.BAD_REQUEST,
-            "버전은 0.9.1 또는 v0.9.1 형식으로 입력해 주세요."
+            "버전은 0.0.5 또는 v0.0.5 형식으로 입력해 주세요."
     ),
 
     MEMBER_NOT_FOUND(
