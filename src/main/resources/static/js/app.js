@@ -115,10 +115,11 @@ const ALL_MY_TRIPS_TEMPLATE_ROUTES = {
   "/trips/busan/optimize": "trips/optimize",
   "/guide/themes": "guide/themes",
   "/booking": "booking/flights",
-  "/booking/tickets/blueline": "booking/ticket",
+  "/booking/tickets/1": "booking/ticket",
   "/booking/hotels": "booking/hotels",
   "/booking/flights": "booking/flights",
   "/booking/queue": "booking/queue",
+  "/pay/qr": "payment/qr-approve",
   "/mypage": "mypage/mypage",
   "/trips/1/record": "trips/record",
   "/admin": "admin/admin",
@@ -178,7 +179,12 @@ document.addEventListener("submit", function (event) {
     event.preventDefault();
     const input = event.target.querySelector("input");
     if (input && input.value.trim()) {
-      event.target.insertAdjacentHTML("beforebegin", '<div class="user-message">' + input.value + "</div>");
+      // 친 글자를 HTML 문자열로 이어 붙이면 `<img onerror=...>` 같은 입력이 그대로 실행된다.
+      // 요소를 만들어 textContent로 넣으면 무엇을 치든 글자로만 남는다. (CodeQL js/xss-through-dom)
+      const message = document.createElement("div");
+      message.className = "user-message";
+      message.textContent = input.value;
+      event.target.insertAdjacentElement("beforebegin", message);
       input.value = "";
     }
   }
@@ -292,14 +298,28 @@ const ALL_MY_TRIPS_SCREENS = [
     "예약 · 내 예약",
     "booking"
   ],
+  /*
+   * 티켓 상세는 상품 번호로 연다. 목록에서 고른 상품을 그리므로, 목록에 든 번호가
+   * 아니면 상품을 찾을 수 없다는 안내가 뜬다. 여기서는 1번을 대표로 둔다. (#281)
+   */
   [
-    "/booking/tickets/blueline",
+    "/booking/tickets/1",
     "티켓 상세·예약",
     "booking"
   ],
   [
     "/booking/queue",
     "예약 대기열",
+    "booking"
+  ],
+  /*
+   * QR 결제 승인 화면. 보통은 결제 QR을 찍어서 들어오므로 주소에 토큰이 붙지만,
+   * 목록에서 그냥 열면 "결제 QR 정보가 없습니다" 안내가 뜬다. 화면이 있다는 사실과
+   * 생김새를 보는 자리라 토큰 없는 주소로 둔다. (#281)
+   */
+  [
+    "/pay/qr",
+    "QR 결제 승인",
     "booking"
   ],
   /*
@@ -316,6 +336,11 @@ const ALL_MY_TRIPS_SCREENS = [
   [
     "/mypage?view=trips",
     "마이페이지 · 내 여행",
+    "mypage"
+  ],
+  [
+    "/mypage?view=tickets",
+    "마이페이지 · 예매한 티켓",
     "mypage"
   ],
   [

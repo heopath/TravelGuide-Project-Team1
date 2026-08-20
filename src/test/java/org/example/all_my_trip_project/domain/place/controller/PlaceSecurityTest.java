@@ -95,7 +95,7 @@ class PlaceSecurityTest {
 
     @Test
     void allowsAnonymousPlaceLookup() throws Exception {
-        when(placeService.getPage(null, 0, 20)).thenReturn(List.of());
+        when(placeService.getPage(null, false, 0, 20)).thenReturn(List.of());
 
         mockMvc.perform(get("/api/v1/places"))
                 .andExpect(status().isOk());

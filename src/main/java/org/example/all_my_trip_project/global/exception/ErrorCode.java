@@ -298,6 +298,20 @@ public enum ErrorCode {
     ),
 
     /*
+     * 오픈 전과 판매 종료를 갈라서 알린다. 손님에게 해 줄 말이 다르다 — 하나는 "그 시각에
+     * 다시 오세요"이고 다른 하나는 "이제 못 삽니다"이다. (#256)
+     */
+    TICKET_SALE_NOT_OPEN(
+            HttpStatus.CONFLICT,
+            "아직 판매가 시작되지 않았습니다. 오픈 시각에 다시 시도해 주세요."
+    ),
+
+    TICKET_SALE_ENDED(
+            HttpStatus.CONFLICT,
+            "판매가 끝난 티켓입니다."
+    ),
+
+    /*
      * uk_ticket_product_options_name·uk_ticket_product_options_order 위반. 제약으로 터지면
      * 이름이 겹친 것인지 순서가 겹친 것인지 화면에서 구분할 수 없어 먼저 거른다.
      */
@@ -342,7 +356,7 @@ public enum ErrorCode {
 
     INVALID_SERVICE_VERSION(
             HttpStatus.BAD_REQUEST,
-            "버전은 0.9.1 또는 v0.9.1 형식으로 입력해 주세요."
+            "버전은 0.0.5 또는 v0.0.5 형식으로 입력해 주세요."
     ),
 
     MEMBER_NOT_FOUND(
@@ -388,6 +402,34 @@ public enum ErrorCode {
     INVALID_PAYMENT_REQUEST(
             HttpStatus.BAD_REQUEST,
             "결제 요청이 올바르지 않습니다."
+    ),
+
+    /*
+     * 만료와 위조를 나눈다. 손님에게 해 줄 말이 다르다 — 하나는 "다시 띄우세요"이고
+     * 다른 하나는 "이 QR로는 결제할 수 없습니다"이다. (#281)
+     */
+    /*
+     * 토스 승인은 시크릿 키가 있어야 부를 수 있다. 없으면 화면이 모의 결제로 돌아가야 하므로
+     * 그 사실을 코드로 구분해 알린다.
+     */
+    TOSS_NOT_CONFIGURED(
+            HttpStatus.SERVICE_UNAVAILABLE,
+            "토스 결제가 설정되지 않았습니다. 관리자에게 문의해 주세요."
+    ),
+
+    TOSS_CONFIRM_FAILED(
+            HttpStatus.BAD_GATEWAY,
+            "결제 승인에 실패했습니다. 결제창에서 다시 시도해 주세요."
+    ),
+
+    PAYMENT_QR_INVALID(
+            HttpStatus.BAD_REQUEST,
+            "결제 QR이 올바르지 않습니다. 결제 화면에서 다시 띄워 주세요."
+    ),
+
+    PAYMENT_QR_EXPIRED(
+            HttpStatus.GONE,
+            "결제 QR의 유효 시간이 지났습니다. 다시 띄워 주세요."
     ),
 
     TICKET_ALREADY_USED(

@@ -8,7 +8,8 @@
     ATTRACTION: "관광지", RESTAURANT: "맛집", CAFE: "카페", ACCOMMODATION: "숙박",
     FESTIVAL: "축제", ACTIVITY: "액티비티", TRANSPORT: "교통"
   };
-  const state = { items: [], total: 0, selectedId: null, loading: false };
+  // selectedId는 편집 중인 장소, selectedIds는 일괄 처리로 고른 장소다.
+  const state = { items: [], total: 0, selectedId: null, selectedIds: new Set(), loading: false };
 
   function safeImageUrl(value) {
     if (!value) return "";
@@ -42,34 +43,51 @@
     const params = new URLSearchParams({ page: "0", size: "100" });
     const keyword = $("placeKeyword").value.trim();
     const category = $("placeCategoryFilter").value;
-    const active = $("placeActiveFilter").value;
+    const recommended = $("placeRecommendedFilter").value;
     if (keyword) params.set("keyword", keyword);
     if (category) params.set("category", category);
-    if (active) params.set("active", active);
+    if (recommended) params.set("recommended", recommended);
     return params;
   }
 
   function card(place) {
     const image = safeImageUrl(place.primaryImageUrl);
+    const checked = state.selectedIds.has(String(place.placeId)) ? " checked" : "";
     return `<article class="admin-place-row" data-place-row="${place.placeId}">
+      <label class="admin-place-select">
+        <input type="checkbox" data-place-select="${place.placeId}"${checked} aria-label="${esc(place.name)} 선택" />
+      </label>
       <div class="admin-place-thumb">${image
         ? `<img src="${esc(image)}" alt="${esc(place.name)} 대표 이미지" loading="lazy" />`
         : '<span aria-hidden="true">⌖</span>'}</div>
       <div class="admin-place-copy">
-        <div><span class="admin-place-badge${place.active ? "" : " hidden"}">${place.active ? "공개" : "숨김"}</span>
+        <div><span class="admin-place-badge${place.recommended ? "" : " hidden"}">${place.recommended ? "추천중" : "추천 아님"}</span>
           <span class="admin-place-badge">${esc(categoryLabels[place.category] || place.category)}</span></div>
         <h3>${esc(place.name)}</h3>
         <p>${esc([place.region, place.city, place.address].filter(Boolean).join(" · ") || "주소 정보 없음")}</p>
       </div>
       <div class="admin-place-row-actions">
         <button type="button" data-place-edit="${place.placeId}">수정</button>
-        <button type="button" data-place-visible="${place.placeId}">${place.active ? "숨기기" : "공개하기"}</button>
+        <button type="button" data-place-recommended="${place.placeId}">${place.recommended ? "추천 내리기" : "추천 등록"}</button>
       </div>
     </article>`;
   }
 
+  function renderBulkBar() {
+    const count = state.selectedIds.size;
+    $("placeBulkBar").hidden = state.items.length === 0;
+    $("placeSelectedCount").textContent = count + "곳 선택";
+    $("placeBulkRecommend").disabled = count === 0;
+    $("placeBulkUnrecommend").disabled = count === 0;
+    $("placeBulkFillImages").disabled = count === 0;
+    // 이 페이지의 항목이 모두 선택됐을 때만 전체 선택을 켠다.
+    $("placeSelectAll").checked = state.items.length > 0
+      && state.items.every((item) => state.selectedIds.has(String(item.placeId)));
+  }
+
   function render() {
     $("placeList").innerHTML = state.items.map(card).join("");
+    renderBulkBar();
     $("placeCount").textContent = `총 ${state.total.toLocaleString("ko-KR")}곳`;
     $("placeEmpty").hidden = state.loading || state.items.length > 0;
     if (state.loading) {
@@ -87,6 +105,8 @@
 
   async function load() {
     state.loading = true;
+    // 목록이 바뀌면 선택도 지운다. 화면에 없는 장소가 선택된 채 남으면 무엇을 처리하는지 알 수 없다.
+    state.selectedIds.clear();
     render();
     try {
       const page = await request("GET", `/api/v1/admin/places?${filters()}`);
@@ -124,7 +144,7 @@
       latitude: numberValue("placeLatitude"), longitude: numberValue("placeLongitude"),
       description: value("placeDescription"), phone: value("placePhone"),
       websiteUrl: value("placeWebsiteUrl"), primaryImageUrl: value("placeImageUrl"),
-      active: $("placeActive").checked
+      recommended: $("placeRecommended").checked
     };
   }
 
@@ -139,7 +159,7 @@
     $("placeEditorForm").reset();
     $("placeId").value = "";
     $("placeCountryCode").value = "KR";
-    $("placeActive").checked = true;
+    $("placeRecommended").checked = true;
     $("placeEditorTitle").textContent = "새 장소 등록";
     $("placeSaveButton").textContent = "장소 등록";
     $("placeFormStatus").hidden = true;
@@ -163,7 +183,7 @@
     $("placePhone").value = place.phone || "";
     $("placeWebsiteUrl").value = place.websiteUrl || "";
     $("placeImageUrl").value = place.primaryImageUrl || "";
-    $("placeActive").checked = place.active !== false;
+    $("placeRecommended").checked = place.recommended !== false;
     $("placeEditorTitle").textContent = "추천 장소 수정";
     $("placeSaveButton").textContent = "수정 저장";
     $("placeFormStatus").hidden = true;
@@ -185,15 +205,67 @@
     } finally { button.disabled = false; }
   }
 
-  async function toggle(placeId, button) {
+  /*
+   * 관리자가 만지는 스위치는 추천 노출 하나뿐이다.
+   * is_active(데이터 유효성)는 화면에 두지 않는다. 이 화면의 목적이 추천 큐레이션이라
+   * 두 스위치가 거의 같은 뜻으로 읽혀 혼동을 주고, 비활성으로 내리면 카카오 장소
+   * 중복 확인(search)에서도 빠져 그 장소를 아무도 일정에 담을 수 없게 된다.
+   */
+  /* 고른 장소를 한 번에 처리한다. 서버가 한 트랜잭션으로 묶어 일부만 반영되는 일이 없다. */
+  async function bulkRecommend(recommended, button) {
+    const placeIds = [...state.selectedIds].map(Number).filter(Number.isInteger);
+    if (!placeIds.length) return;
+    button.disabled = true;
+    try {
+      await request("PATCH", "/api/v1/admin/places/recommendation", { placeIds, recommended });
+      state.selectedIds.clear();
+      await load();
+    } catch (error) {
+      notice(error.message || "추천 상태를 바꾸지 못했습니다.");
+    } finally { button.disabled = false; }
+  }
+
+  /*
+   * 고른 장소의 대표 이미지를 채운다.
+   *
+   * 목록 전체를 훑지 않는다. 장소마다 외부 API를 부르므로 수백 곳을 한 번에 돌리면
+   * 몇 분을 기다려야 하고, 그동안 무엇이 되고 안 됐는지 알 수 없다. 골라서 누르면
+   * 결과가 바로 아래 목록에 보인다.
+   */
+  async function fillImages(button) {
+    const placeIds = [...state.selectedIds].map(Number).filter(Number.isInteger);
+    if (!placeIds.length) return;
+    button.disabled = true;
+    setBulkStatus(`선택한 ${placeIds.length}곳의 사진을 찾는 중이에요.`);
+    try {
+      const result = await request("POST", "/api/v1/admin/places/images", { placeIds });
+      const parts = [`${result?.filled || 0}곳에 이미지를 넣었습니다`];
+      // 왜 안 들어갔는지 구분해서 보여준다. "안 됨"으로 뭉뚱그리면 원인을 알 수 없다.
+      if (result?.notFound) parts.push(`${result.notFound}곳은 관광정보에서 같은 장소를 찾지 못했습니다`);
+      if (result?.skipped) parts.push(`${result.skipped}곳은 이미 이미지가 있거나 좌표가 없습니다`);
+      setBulkStatus(parts.join(". ") + ".");
+      state.selectedIds.clear();
+      await load();
+    } catch (error) {
+      setBulkStatus(error.message || "이미지를 채우지 못했습니다.");
+    } finally { button.disabled = false; }
+  }
+
+  function setBulkStatus(message) {
+    $("placeBulkStatus").textContent = message || "";
+    $("placeBulkStatus").hidden = !message;
+  }
+
+  async function toggleRecommended(placeId, button) {
     const place = state.items.find((item) => String(item.placeId) === String(placeId));
     if (!place) return;
     button.disabled = true;
     try {
-      await request("PATCH", `/api/v1/admin/places/${placeId}/visibility`, { active: !place.active });
+      await request("PATCH", `/api/v1/admin/places/${placeId}/recommendation`,
+        { recommended: !place.recommended });
       await load();
     } catch (error) {
-      notice(error.message || "노출 상태를 바꾸지 못했습니다.");
+      notice(error.message || "추천 상태를 바꾸지 못했습니다.");
     } finally { button.disabled = false; }
   }
 
@@ -262,11 +334,33 @@
     $("placeList").addEventListener("click", (event) => {
       const editButton = event.target.closest("[data-place-edit]");
       if (editButton) return edit(editButton.dataset.placeEdit);
-      const visibleButton = event.target.closest("[data-place-visible]");
-      if (visibleButton) toggle(visibleButton.dataset.placeVisible, visibleButton);
+      const recommendedButton = event.target.closest("[data-place-recommended]");
+      if (recommendedButton) toggleRecommended(recommendedButton.dataset.placeRecommended, recommendedButton);
     });
+
+    // 체크박스는 click이 아니라 change로 받는다. 키보드로 켜고 끌 때도 동작해야 한다.
+    $("placeList").addEventListener("change", (event) => {
+      const box = event.target.closest("[data-place-select]");
+      if (!box) return;
+      const placeId = String(box.dataset.placeSelect);
+      if (box.checked) state.selectedIds.add(placeId);
+      else state.selectedIds.delete(placeId);
+      renderBulkBar();
+    });
+
+    $("placeSelectAll").addEventListener("change", (event) => {
+      state.items.forEach((item) => {
+        if (event.target.checked) state.selectedIds.add(String(item.placeId));
+        else state.selectedIds.delete(String(item.placeId));
+      });
+      render();
+    });
+
+    $("placeBulkFillImages").addEventListener("click", (event) => fillImages(event.target));
+    $("placeBulkRecommend").addEventListener("click", (event) => bulkRecommend(true, event.target));
+    $("placeBulkUnrecommend").addEventListener("click", (event) => bulkRecommend(false, event.target));
   }
 
   document.addEventListener("DOMContentLoaded", () => { bind(); resetEditor(); load(); });
-  window.__adminPlaces = { state, load, edit, resetEditor, payload, geocodeAddress };
+  window.__adminPlaces = { state, load, edit, resetEditor, payload, geocodeAddress, fillImages };
 })();

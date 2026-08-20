@@ -82,47 +82,23 @@ async function main() {
   T("실제 결제가 아닌 모의 예약임을 상시 표시한다",
     d.querySelector(".ticket-practice").textContent.includes("실제 결제 아님"));
 
-  /* 상품을 고르면 그 상품의 시간대가 나온다. 여행 기간과 겹치지 않아도 나와야 한다. */
-  d.querySelector("[data-ticket-open]").click();
-  await until(() => d.querySelector("[data-ticket-slot]") !== null);
-  T("상품을 고르면 그 상품의 시간대를 보여준다",
-    calls.some((call) => call.includes("/api/v1/tickets/products/1"))
-      && d.getElementById("ticketList").textContent.includes("성인 입장권"));
-  T("여행 기간(8월) 밖인 9월 시간대도 고를 수 있다",
-    d.getElementById("ticketList").textContent.includes("2026-09-15"));
-  T("목록으로 돌아가는 길이 있다", d.querySelector("[data-ticket-back]") !== null);
-
-  d.querySelector("[data-ticket-quantity]").value = "2";
-  d.querySelector("[data-ticket-reserve]").click();
-  await until(() => seen.reservation !== null);
-  T("선택 수량으로 예약 대기열 진입 API를 호출한다", calls.includes("POST /api/v1/booking-queue/entries"));
-  T("여행을 고른 상태에서는 tripId를 함께 보낸다",
-    bodies.some((body) => body.tripId === 10 && body.slotId === 31 && body.quantity === 2));
-  T("혼잡하지 않으면 입장 토큰으로 즉시 모의 예약한다",
-    calls.includes(`POST /api/v1/booking-queue/entries/${QUEUE_TOKEN}/reservation`));
-  T("예약 결과를 오른쪽 현황이 받을 수 있도록 이벤트로 전달한다",
-    seen.reservation.productName === "제주 아쿠아리움 입장권" && seen.reservation.totalAmount === 40000);
-  T("예약 후에도 실제 결제가 아니라는 안내를 유지한다",
-    d.getElementById("ticketStatus").textContent.includes("실제 결제는 이루어지지 않았습니다"));
-
-  w.dispatchEvent(new w.CustomEvent("allmytrips:ticket-cancelled", { detail: { reservationId: 9 } }));
-  T("내 예약에서 취소하면 티켓 탭의 선택 상태도 함께 해제된다",
-    w.__ticketBooking.state.reservation === null
-      && d.getElementById("ticketStatus").textContent.includes("다시 예약할 수 있습니다"));
+  /*
+   * 상세는 이제 별도 화면이다. (#281) 목록은 그 화면으로 보내는 데까지 책임진다 —
+   * 무엇을 사는지(어디서·몇 시에·얼마에) 보여주는 일은 상세가 맡는다.
+   * 예매 흐름은 ticket-detail-acceptance.test.js가 본다.
+   */
+  const open = d.querySelector("[data-ticket-open]");
+  T("상품을 고르면 상세 화면으로 간다", open.getAttribute("href") === "/booking/tickets/1?tripId=10");
+  /* 여행을 고른 채로 들어왔으면 상세에도 이어 준다. 거기서 다시 고르게 두지 않는다. */
+  T("고른 여행을 상세로 이어 준다", open.getAttribute("href").includes("tripId=10"));
 
   /* ── 여행 없이 ── (#255의 핵심) */
   const solo = boot("tab=ticket");
   await until(() => solo.d.querySelectorAll(".ticket-card").length === 1);
   T("여행을 고르지 않아도 상품 목록이 뜬다",
     solo.d.getElementById("ticketList").textContent.includes("제주 아쿠아리움 입장권"));
-
-  solo.d.querySelector("[data-ticket-open]").click();
-  await until(() => solo.d.querySelector("[data-ticket-slot]") !== null);
-  solo.d.querySelector("[data-ticket-reserve]").click();
-  await until(() => solo.seen.reservation !== null);
-  T("여행 없이도 티켓을 담을 수 있다", solo.seen.reservation.reservationId === 9);
-  T("여행이 없으면 tripId를 아예 싣지 않는다",
-    solo.bodies.some((body) => body.slotId === 31 && !("tripId" in body)));
+  T("여행이 없으면 상세 주소에 tripId를 붙이지 않는다",
+    solo.d.querySelector("[data-ticket-open]").getAttribute("href") === "/booking/tickets/1");
   T("여행이 없으면 내 티켓 전체로 복원한다",
     solo.calls.includes("GET /api/v1/ticket-reservations"));
 

@@ -4,8 +4,10 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.example.all_my_trip_project.domain.payment.dto.IssuedTicketDTO;
 import org.example.all_my_trip_project.domain.payment.dto.TicketQrResponse;
+import org.example.all_my_trip_project.domain.payment.dto.PaymentQrIssueResponse;
 import org.example.all_my_trip_project.domain.payment.dto.PaymentRequest;
 import org.example.all_my_trip_project.domain.payment.dto.PaymentResultResponse;
+import org.example.all_my_trip_project.domain.payment.service.PaymentQrService;
 import org.example.all_my_trip_project.domain.payment.service.PaymentService;
 import org.example.all_my_trip_project.global.exception.BusinessException;
 import org.example.all_my_trip_project.global.exception.ErrorCode;
@@ -18,6 +20,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
@@ -29,6 +32,7 @@ import java.util.List;
 public class PaymentController {
 
     private final PaymentService paymentService;
+    private final PaymentQrService paymentQrService;
 
     /**
      * 모의 결제. 성공하면 예약이 확정되고 티켓이 함께 발급된다.
@@ -46,6 +50,25 @@ public class PaymentController {
         return ApiResponse.success(
                 result.replayed() ? "이미 결제된 예약입니다." : "결제가 완료되었습니다.",
                 result);
+    }
+
+    /**
+     * 결제받을 QR을 띄운다. (#281)
+     *
+     * <p>부를 때마다 새로 만든다. 아직 결제되지 않는다 — 손님이 폰으로 스캔해
+     * {@code /api/v1/payments/qr/approve}를 부르는 순간이 결제다.
+     */
+    @PostMapping("/payment/qr")
+    public ApiResponse<PaymentQrIssueResponse> issuePaymentQr(
+            @AuthenticationPrincipal AuthenticatedUser principal,
+            @PathVariable Long reservationId,
+            /*
+             * 어느 간편결제 창에서 띄운 QR인지. 안 보내면 그냥 QR 결제다.
+             * 서명이 덮으므로 스캔한 쪽이 사업자를 바꿔치기할 수 없다.
+             */
+            @RequestParam(value = "provider", required = false) String provider) {
+        return ApiResponse.success("결제 QR을 띄웠습니다.",
+                paymentQrService.issue(requireUserId(principal), reservationId, provider));
     }
 
     @GetMapping("/tickets")

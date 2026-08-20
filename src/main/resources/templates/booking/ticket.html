@@ -4,34 +4,121 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content="All My Trips 티켓 상세·예약" />
-    <title>티켓 상세·예약 — All My Trips</title>
+    <title>티켓 상세 — All My Trips</title>
     <link rel="icon" th:href="@{/images/icons/app-icon.png}" href="../../static/images/icons/app-icon.png" />
     <link rel="stylesheet" th:href="@{/css/common/reset.css}" href="../../static/css/common/reset.css" />
     <link rel="stylesheet" th:href="@{/css/common/layout.css}" href="../../static/css/common/layout.css" />
     <link rel="stylesheet" th:href="@{/css/common/components.css}" href="../../static/css/common/components.css" />
     <link rel="stylesheet" th:href="@{/css/pages/booking/ticket.css}" href="../../static/css/pages/booking/ticket.css" />
   </head>
-  <body class="page-ticket" data-route="/booking/tickets/blueline">
+  <body class="page-ticket" data-route="/booking/tickets/1">
     <div class="app">
       <div th:replace="~{fragments/header :: header('booking')}"></div>
+
       <main id="page-content">
         <section class="page-shell">
-      
-    <section class="page-heading">
-      <div>
-        <h1><span>04 </span>해운대 블루라인파크</h1>
-        <p>스카이캡슐과 해변열차를 한 번에 예약하세요.</p>
-        <i>✦</i>
-      </div>
-      
-    </section>
-  
-      <div class="ticket-layout"><div><div class="detail-hero tone-blue"><span>BEACH TRAIN · SKY CAPSULE</span></div><section class="white-panel ticket-options"><h2>티켓 옵션</h2><label><input type="radio" name="ticket" /><strong>해변열차 1회권</strong><span>16,000원</span></label><label><input type="radio" name="ticket" checked/><strong>스카이캡슐 편도</strong><span>48,000원</span></label><label><input type="radio" name="ticket" /><strong>패키지 이용권</strong><span>62,000원</span></label></section></div><aside class="white-panel purchase-panel"><span>예약 요약</span><h2>스카이캡슐 편도</h2><p>2026.08.15 · 16:30</p><p>성인 2명</p><hr/><strong>총 96,000원</strong><button type="button" class="primary-button wide" data-modal="payment">옵션·결제 계속</button></aside></div>
-    </section>
+          <!--
+            상품 하나를 통째로 보여주는 화면. (#281)
+
+            예전에는 목록 안에서 시간대만 펼쳐 보여줬다. 무엇을 사는지 — 어디서, 몇 시에,
+            얼마에, 무엇이 포함되는지 — 는 알 수 없었다. 티켓은 그 내용을 보고 사는 물건이다.
+
+            상품 값은 전부 화면 스크립트가 API로 받아 채운다. 마크업에 값을 박아 두면
+            연동이 빠진 것을 아무도 모른다.
+          -->
+          <article class="tk" data-ticket-detail>
+            <p class="tk-status" data-ticket-state role="status">티켓 정보를 불러오는 중이에요.</p>
+
+            <header class="tk-head" data-ticket-head hidden>
+              <a class="tk-back" th:href="@{/booking/flights(tab=ticket)}" href="../../static/booking/flights.html">
+                ← 티켓 목록
+              </a>
+
+              <div class="tk-title">
+                <p class="tk-kicker">
+                  <span data-ticket-category>티켓</span>
+                  <span aria-hidden="true">·</span>
+                  <span data-ticket-region></span>
+                  <em class="tk-badge" data-ticket-sale-badge hidden></em>
+                </p>
+                <h1 data-ticket-name></h1>
+                <p class="tk-place" data-ticket-place></p>
+              </div>
+            </header>
+
+            <div class="tk-layout" data-ticket-body hidden>
+              <div class="tk-main">
+                <section class="white-panel tk-info">
+                  <h2>이용 정보</h2>
+                  <dl data-ticket-facts></dl>
+                </section>
+
+                <section class="white-panel tk-about" data-ticket-about hidden>
+                  <h2>상품 소개</h2>
+                  <p data-ticket-description></p>
+                </section>
+
+                <section class="white-panel tk-venue" data-ticket-venue hidden>
+                  <h2>장소 안내</h2>
+                  <p class="tk-venue-name" data-ticket-venue-name></p>
+                  <p class="tk-venue-address" data-ticket-venue-address></p>
+                </section>
+              </div>
+
+              <!--
+                예매 패널. 날짜 → 회차 → 매수 순으로 좁혀 간다. 한 화면에 전부 늘어놓으면
+                같은 날 여러 회차가 섞여 무엇을 고른 것인지 흐려진다.
+              -->
+              <aside class="tk-book">
+                <div class="white-panel tk-book-card">
+                  <h2 data-ticket-book-title>예매하기</h2>
+                  <p class="tk-book-lead" data-ticket-book-lead></p>
+
+                  <div class="tk-field">
+                    <span>날짜</span>
+                    <div class="tk-chips" data-ticket-dates></div>
+                  </div>
+
+                  <div class="tk-field" data-ticket-slot-field hidden>
+                    <span>회차·옵션</span>
+                    <div class="tk-chips" data-ticket-slots></div>
+                  </div>
+
+                  <div class="tk-field" data-ticket-quantity-field hidden>
+                    <span>매수</span>
+                    <div class="tk-qty">
+                      <button type="button" data-ticket-qty-down aria-label="한 장 줄이기">−</button>
+                      <input type="number" min="1" value="1" data-ticket-quantity />
+                      <button type="button" data-ticket-qty-up aria-label="한 장 늘리기">+</button>
+                    </div>
+                    <small data-ticket-qty-note></small>
+                  </div>
+
+                  <div class="tk-total" data-ticket-total-row hidden>
+                    <span>결제 예정 금액</span>
+                    <strong data-ticket-total>—</strong>
+                  </div>
+
+                  <p class="tk-book-error" data-ticket-error role="alert" hidden></p>
+
+                  <button type="button" class="primary-button wide" data-ticket-reserve disabled>
+                    회차를 골라 주세요
+                  </button>
+
+                  <p class="tk-book-note">
+                    실습용 모의 예약입니다. 담은 뒤 마이페이지에서 결제하면 티켓이 발급됩니다.
+                  </p>
+                </div>
+              </aside>
+            </div>
+          </article>
+        </section>
       </main>
-      <div th:replace="~{fragments/modals :: modalRoots}"><div id="directory-root"></div><div id="modal-root"></div><div id="toast-root" aria-live="polite"></div></div>
+
+      <div th:replace="~{fragments/modals :: modalRoots}"></div>
       <div th:replace="~{fragments/footer :: footer}"></div>
     </div>
     <div th:replace="~{fragments/scripts :: appScripts}"></div>
+    <script th:src="@{/js/pages/booking/ticket-detail.js}" src="../../static/js/pages/booking/ticket-detail.js"></script>
   </body>
 </html>

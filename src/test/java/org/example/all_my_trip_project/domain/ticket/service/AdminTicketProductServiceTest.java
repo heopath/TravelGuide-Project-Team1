@@ -45,7 +45,7 @@ class AdminTicketProductServiceTest {
     private AdminTicketProductRequest request(OffsetDateTime saleStart, OffsetDateTime saleEnd,
                                               LocalDate usageStart, LocalDate usageEnd) {
         return new AdminTicketProductRequest(3L, "해변 열차 이용권", "설명",
-                saleStart, saleEnd, usageStart, usageEnd);
+                saleStart, saleEnd, usageStart, usageEnd, null);
     }
 
     private AdminTicketProductRequest validRequest() {

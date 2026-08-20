@@ -94,10 +94,11 @@
     <select id="insertProduct" resultType="long">
         INSERT INTO ticket_products (
             place_id, name, description,
-            sale_start_at, sale_end_at, usage_start_date, usage_end_date, status
+            sale_start_at, sale_end_at, usage_start_date, usage_end_date, status, sale_type
         ) VALUES (
             #{placeId}, #{name}, #{description},
-            #{saleStartAt}, #{saleEndAt}, #{usageStartDate}, #{usageEndDate}, 'DRAFT'
+            #{saleStartAt}, #{saleEndAt}, #{usageStartDate}, #{usageEndDate}, 'DRAFT',
+            COALESCE(#{saleType}, 'NORMAL')
         )
         RETURNING ticket_product_id
     </select>
@@ -111,7 +112,8 @@
             sale_start_at = #{request.saleStartAt},
             sale_end_at = #{request.saleEndAt},
             usage_start_date = #{request.usageStartDate},
-            usage_end_date = #{request.usageEndDate}
+            usage_end_date = #{request.usageEndDate},
+            sale_type = COALESCE(#{request.saleType}, 'NORMAL')
         WHERE ticket_product_id = #{ticketProductId}
     </update>
 

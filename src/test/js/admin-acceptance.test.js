@@ -4,6 +4,7 @@
 const { JSDOM } = require("jsdom");
 const fs = require("fs");
 const path = require("path");
+const { readMarkup } = require("./markup");
 
 const ROOT = path.resolve(__dirname, "../../..");
 const HTML = path.join(ROOT, "src/main/resources/templates/admin/admin.html");
@@ -68,7 +69,7 @@ async function run() {
   /* ── 정적 마크업: 연동 전 자리에 가짜 값이 없어야 한다 ── */
   {
     /* 주석은 화면에 그려지지 않으므로 검사에서 뺀다. 주석에 남긴 과거 사례까지 걸리면 안 된다. */
-    const markup = fs.readFileSync(HTML, "utf8").replace(/<!--[\s\S]*?-->/g, "");
+    const markup = readMarkup(HTML);
 
     /*
      * 이전 화면은 집계 숫자가 마크업에 박혀 있어, 연동이 빠진 것을 아무도 몰랐다.

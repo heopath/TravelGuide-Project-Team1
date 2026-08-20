@@ -231,7 +231,7 @@
                       <input id="footerVersionInput" data-version-input name="version"
                              inputmode="decimal" autocomplete="off" maxlength="40"
                              pattern="v?[0-9]+\.[0-9]+\.[0-9]+"
-                             placeholder="예: v0.9.1" required />
+                             placeholder="예: v0.0.5" required />
                     </label>
                     <button type="submit" class="primary-button" data-version-submit>저장</button>
                   </form>
@@ -285,7 +285,17 @@
                     <label class="wide"><span>설명</span>
                       <textarea data-field="description" rows="2"></textarea>
                     </label>
-                    <label><span>판매 시작</span>
+                    <!--
+                      지정 시각 판매를 고르면 아래 판매 시작이 그냥 시작이 아니라 오픈 순간이 된다.
+                      그 전에도 목록에 보이고 그 시각부터 살 수 있다. (#256)
+                    -->
+                    <label><span>판매 유형</span>
+                      <select data-field="saleType">
+                        <option value="NORMAL">일반 판매</option>
+                        <option value="SCHEDULED">지정 시각 판매</option>
+                      </select>
+                    </label>
+                    <label><span data-sale-start-label>판매 시작</span>
                       <input type="datetime-local" data-field="saleStartAt" required />
                     </label>
                     <label><span>판매 종료</span>

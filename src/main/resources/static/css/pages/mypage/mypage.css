@@ -989,11 +989,66 @@ body.page-mypage main#page-content > .page-shell {
   transform: translateY(-2px);
 }
 
+.page-mypage .trip-full-card:focus-visible {
+  outline: 3px solid rgb(83 101 255 / 20%);
+  outline-offset: 2px;
+  border-color: #8f9cff;
+}
+
 .page-mypage .trip-full-card-top {
   display: flex;
   min-width: 0;
+  align-items: center;
   justify-content: space-between;
   gap: 12px;
+}
+
+.page-mypage .trip-full-card-actions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 8px;
+}
+
+.page-mypage .trip-full-card-delete {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  flex: 0 0 28px;
+  padding: 0 0 2px;
+  place-items: center;
+  border: 1px solid #fecaca;
+  border-radius: 50%;
+  color: #dc2626;
+  background: #ffffff;
+  font-size: 20px;
+  font-weight: 500;
+  line-height: 1;
+  cursor: pointer;
+  transition:
+          color 0.16s ease,
+          border-color 0.16s ease,
+          background-color 0.16s ease,
+          transform 0.16s ease;
+}
+
+.page-mypage .trip-full-card-delete:hover {
+  border-color: #f87171;
+  color: #b91c1c;
+  background: #fff1f2;
+  transform: scale(1.05);
+}
+
+.page-mypage .trip-full-card-delete:focus-visible {
+  outline: 3px solid rgb(239 68 68 / 18%);
+  outline-offset: 2px;
+}
+
+.page-mypage .trip-full-card-delete:disabled,
+.page-mypage .trip-full-card-delete.is-loading {
+  opacity: 0.5;
+  cursor: wait;
+  transform: none;
 }
 
 .page-mypage .trip-full-card-title {
@@ -1032,6 +1087,94 @@ body.page-mypage main#page-content > .page-shell {
   border-radius: 50%;
   color: #5365ff;
   background: #f0f2ff;
+}
+
+.trip-delete-overlay {
+  position: fixed;
+  z-index: 2200;
+  inset: 0;
+  display: grid;
+  padding: 24px;
+  place-items: center;
+  background: transparent;
+}
+
+.trip-delete-dialog {
+  width: min(100%, 390px);
+  padding: 28px;
+  border: 1px solid #dfe5f5;
+  border-radius: 20px;
+  color: #101828;
+  background: #ffffff;
+  box-shadow: 0 24px 70px rgb(30 45 105 / 20%);
+  box-sizing: border-box;
+}
+
+.trip-delete-dialog h2 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 800;
+  line-height: 1.4;
+}
+
+.trip-delete-dialog-name {
+  display: block;
+  overflow: hidden;
+  margin-top: 18px;
+  color: #1f2937;
+  font-size: 15px;
+  font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.trip-delete-dialog p {
+  margin: 7px 0 0;
+  color: #667085;
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.trip-delete-dialog-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 24px;
+}
+
+.trip-delete-dialog-actions button {
+  min-height: 44px;
+  padding: 0 16px;
+  border-radius: 11px;
+  font-size: 14px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.trip-delete-dialog-cancel {
+  border: 1px solid #dfe4ed;
+  color: #344054;
+  background: #ffffff;
+}
+
+.trip-delete-dialog-confirm {
+  border: 1px solid #dc2626;
+  color: #ffffff;
+  background: #dc2626;
+}
+
+.trip-delete-dialog-cancel:hover {
+  background: #f8fafc;
+}
+
+.trip-delete-dialog-confirm:hover {
+  border-color: #b91c1c;
+  background: #b91c1c;
+}
+
+.trip-delete-dialog-actions button:focus-visible {
+  outline: 3px solid rgb(83 101 255 / 18%);
+  outline-offset: 2px;
 }
 
 
@@ -2250,4 +2393,258 @@ body.page-mypage main#page-content > .page-shell {
 
 @media (max-width: 620px) {
   .page-mypage .support-chat-message { max-width: 88%; }
+}
+
+/* =========================================================
+   예매한 티켓 (#281)
+   사이드바 `예약 내역`이 여는 화면. 왼쪽에서 고르고 오른쪽에서 티켓 한 장을 본다.
+   ========================================================= */
+.page-mypage .mypage-tickets-view { display: grid; gap: 18px; }
+.page-mypage .mypage-eyebrow {
+  display: block;
+  margin-bottom: 4px;
+  color: #6b7cff;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+.page-mypage .mypage-add-booking {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 16px;
+  border: 1px solid #d9def0;
+  border-radius: 999px;
+  background: #fff;
+  color: #3b4358;
+  font-size: 13px;
+  font-weight: 700;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.page-mypage .mypage-add-booking:hover { border-color: #6b7cff; color: #4054d6; }
+
+/* 상태 탭 */
+.page-mypage .mypage-ticket-tabs {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  padding: 6px;
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 2px 10px rgba(17, 24, 39, 0.05);
+}
+.page-mypage .mypage-ticket-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 16px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: #6b7280;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.page-mypage .mypage-ticket-tab em {
+  font-style: normal;
+  font-size: 12px;
+  font-weight: 800;
+  color: #9aa3b8;
+}
+.page-mypage .mypage-ticket-tab.is-active { background: #eef2ff; color: #3b4fd8; }
+.page-mypage .mypage-ticket-tab.is-active em { color: #3b4fd8; }
+
+/* 목록과 상세를 나란히. 좁은 화면에서는 위아래로 쌓는다. */
+.page-mypage .mypage-ticket-layout {
+  display: grid;
+  grid-template-columns: minmax(260px, 320px) minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+.page-mypage .mypage-ticket-column { padding: 18px; }
+.page-mypage .mypage-ticket-column > h3 {
+  margin: 0 0 12px;
+  font-size: 14px;
+  font-weight: 800;
+}
+.page-mypage .mypage-ticket-picker { display: grid; gap: 8px; }
+
+.page-mypage .mypage-ticket-pick {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 10px;
+  border: 1px solid transparent;
+  border-radius: 14px;
+  background: #fff;
+  text-align: left;
+  cursor: pointer;
+}
+.page-mypage .mypage-ticket-pick:hover { background: #f7f9ff; }
+.page-mypage .mypage-ticket-pick.is-active { border-color: #6b7cff; background: #f5f7ff; }
+.page-mypage .mypage-ticket-thumb {
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  flex: 0 0 auto;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #7c8cff, #4d5fd6);
+  color: #fff;
+  font-size: 20px;
+}
+/* 못 쓰게 된 티켓은 자리표부터 흐리게 둔다. 목록에서 바로 갈려 보여야 한다. */
+.page-mypage .mypage-ticket-thumb[data-ticket-status-tone="CANCELLED"],
+.page-mypage .mypage-ticket-thumb[data-ticket-status-tone="EXPIRED"] {
+  background: linear-gradient(135deg, #c9ceda, #9aa3b8);
+}
+.page-mypage .mypage-ticket-thumb[data-ticket-status-tone="USED"] {
+  background: linear-gradient(135deg, #9aa8c9, #6b7a99);
+}
+.page-mypage .mypage-ticket-pick-body { display: grid; gap: 3px; min-width: 0; }
+.page-mypage .mypage-ticket-pick-body strong {
+  font-size: 14px;
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.page-mypage .mypage-ticket-pick-body small { color: #8d95a8; font-size: 12px; }
+.page-mypage .mypage-ticket-pick-body .mypage-ticket-status { justify-self: start; }
+.page-mypage .mypage-ticket-chevron { margin-left: auto; color: #b6bccb; font-size: 20px; }
+
+.page-mypage .mypage-ticket-message {
+  padding: 28px 12px;
+  border-radius: 12px;
+  background: #f7f9ff;
+  text-align: center;
+}
+.page-mypage .mypage-ticket-message strong { display: block; font-size: 14px; }
+.page-mypage .mypage-ticket-message p { margin: 6px 0 0; color: #8d95a8; font-size: 13px; }
+
+/* 티켓 한 장 */
+.page-mypage .mypage-ticket-detail-body { display: grid; gap: 14px; }
+.page-mypage .ticket-card {
+  border-radius: 18px;
+  overflow: hidden;
+  box-shadow: 0 10px 26px rgba(60, 72, 130, 0.12);
+}
+.page-mypage .ticket-card-top {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 20px;
+  background: linear-gradient(120deg, #3f2f9e, #4d5fd6 55%, #6f7bff);
+  color: #fff;
+}
+.page-mypage .ticket-card[data-ticket-status-tone="CANCELLED"] .ticket-card-top,
+.page-mypage .ticket-card[data-ticket-status-tone="EXPIRED"] .ticket-card-top {
+  background: linear-gradient(120deg, #5b6272, #8d95a8);
+}
+.page-mypage .ticket-card-brand { font-size: 13px; font-weight: 800; opacity: 0.85; }
+.page-mypage .ticket-card-kind {
+  flex: 1 1 auto;
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.page-mypage .ticket-card-state {
+  padding: 5px 12px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.18);
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.page-mypage .ticket-card-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 190px;
+  background: #fff;
+}
+/* 절취선. 종이 티켓처럼 본권과 반쪽을 나눈다. */
+.page-mypage .ticket-card-stub {
+  display: grid;
+  gap: 8px;
+  justify-items: center;
+  align-content: start;
+  padding: 20px 16px;
+  border-left: 2px dashed #dfe4f2;
+  text-align: center;
+}
+/*
+   align-content가 없으면 QR을 펴서 오른쪽 반쪽이 길어질 때 왼쪽 줄들이 그 높이에 맞춰
+   위아래로 벌어진다. 화면에서 열어 보고 찾았다.
+*/
+.page-mypage .ticket-card-main {
+  display: grid;
+  gap: 10px;
+  align-content: start;
+  padding: 20px;
+}
+.page-mypage .ticket-card-main h4 { margin: 0; font-size: 17px; font-weight: 800; }
+.page-mypage .ticket-card-number { margin: 0; color: #8d95a8; font-size: 12px; }
+.page-mypage .ticket-card-facts { display: grid; gap: 8px; margin: 0; }
+.page-mypage .ticket-card-facts > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+.page-mypage .ticket-card-facts dt { color: #8d95a8; font-size: 12px; }
+.page-mypage .ticket-card-facts dd { margin: 0; font-size: 13px; font-weight: 700; text-align: right; }
+.page-mypage .ticket-card-stub-title { color: #6b7280; font-size: 12px; font-weight: 700; }
+.page-mypage .ticket-card-stub-note { margin: 0; color: #8d95a8; font-size: 12px; line-height: 1.5; }
+.page-mypage .ticket-card-stub-count { color: #4054d6; font-size: 12px; font-weight: 800; }
+.page-mypage .ticket-card-stub .mypage-ticket-qr { margin: 0; }
+
+.page-mypage .ticket-card-notice {
+  margin: 0;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: #f2f5ff;
+  color: #4b5468;
+  font-size: 12px;
+  line-height: 1.6;
+}
+.page-mypage .ticket-card-panels {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 12px;
+}
+.page-mypage .ticket-card-panel {
+  padding: 16px;
+  border: 1px solid #edf0f8;
+  border-radius: 14px;
+  background: #fff;
+}
+.page-mypage .ticket-card-panel h5 { margin: 0 0 10px; font-size: 13px; font-weight: 800; }
+.page-mypage .ticket-card-actions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+/* 상세 안에서는 결제 줄이 카드 폭을 다 쓴다. 목록 칸의 좁은 배치와 다르다. */
+.page-mypage .ticket-card-actions .mypage-ticket-pay {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  width: 100%;
+  justify-content: flex-end;
+}
+
+@media (max-width: 900px) {
+  .page-mypage .mypage-ticket-layout { grid-template-columns: minmax(0, 1fr); }
+  .page-mypage .ticket-card-body { grid-template-columns: minmax(0, 1fr); }
+  .page-mypage .ticket-card-stub {
+    border-left: 0;
+    border-top: 2px dashed #dfe4f2;
+  }
 }

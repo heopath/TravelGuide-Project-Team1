@@ -1,0 +1,40 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+language: "ko-KR"
+early_access: false
+tone_instructions: "한국어로 쉽고 간단하게 설명하고, 실제 오류 가능성이 있는 문제만 우선순위와 재현 순서를 포함해 알려주세요."
+
+reviews:
+  profile: "chill"
+  request_changes_workflow: false
+  high_level_summary: true
+  poem: false
+  review_status: true
+  review_details: false
+  auto_review:
+    enabled: false
+    drafts: false
+    base_branches:
+      - "develop"
+    auto_incremental_review: true
+    auto_pause_after_reviewed_commits: 5
+    ignore_title_keywords:
+      - "WIP"
+      - "[skip review]"
+    labels:
+      - "!do-not-review"
+    ignore_usernames:
+      - "dependabot[bot]"
+      - "github-actions[bot]"
+
+  path_instructions:
+    - path: "database/migration/**"
+      instructions: "Flyway 버전 중복, 운영 데이터 손상 가능성, 롤백 및 기존 버전 호환성을 중점적으로 확인하세요."
+    - path: "src/main/java/**/*Security*.java"
+      instructions: "인증 우회, 권한 누락, CSRF 및 사용자 데이터 노출 가능성을 중점적으로 확인하세요."
+    - path: "src/main/resources/templates/**"
+      instructions: "모바일 화면 깨짐, 접근성, 빈 값 처리 및 사용자에게 보이는 오류 문구를 확인하세요."
+    - path: "src/main/resources/static/**"
+      instructions: "중복 요청, 비동기 경쟁 조건, 오류 복구 및 모바일 화면 동작을 확인하세요."
+
+chat:
+  auto_reply: false

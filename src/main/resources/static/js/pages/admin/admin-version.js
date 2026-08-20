@@ -55,7 +55,7 @@
     event.preventDefault();
     const version = input.value.trim();
     if (!VERSION_PATTERN.test(version)) {
-      message.textContent = "버전은 0.9.1 또는 v0.9.1 형식으로 입력해 주세요.";
+      message.textContent = "버전은 0.0.5 또는 v0.0.5 형식으로 입력해 주세요.";
       input.focus();
       return;
     }

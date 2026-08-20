@@ -54,6 +54,41 @@ function formatUsage(
         : day;
 }
 
+/** 날짜 하나. 날짜만 온 값(이용일)과 시각까지 온 값(결제일)을 함께 받는다. */
+function formatDate(
+    value,
+) {
+    if (!value) {
+        return "";
+    }
+
+    const day = String(value).slice(0, 10);
+
+    return /^\d{4}-\d{2}-\d{2}$/.test(day)
+        ? day.replaceAll("-", ". ")
+        : "";
+}
+
+/**
+ * 이용 시간. 끝 시각이 없으면 시작만 적는다.
+ *
+ * <p>없는 끝 시각을 "10:00-" 처럼 적으면 화면이 고장 난 것처럼 보이고, 임의로 채우면
+ * 손님이 그 시각을 믿고 늦게 온다.
+ */
+function formatTimeRange(
+    start,
+    end,
+) {
+    const from = String(start || "").slice(0, 5);
+    const to = String(end || "").slice(0, 5);
+
+    if (!from) {
+        return "";
+    }
+
+    return to ? `${from}–${to}` : from;
+}
+
 function formatAmount(
     amount,
     currency,
@@ -67,7 +102,35 @@ function formatAmount(
         : `${value} ${currency || ""}`.trim();
 }
 
-export function initTickets() {
+/**
+ * 티켓 화면 두 개가 같은 코드를 쓴다. (#281)
+ *
+ * <p>대시보드의 `최근 예약 내역`은 3건까지 보여주는 미리보기이고, `예약 내역`은 전체를
+ * 상태별로 보며 티켓 한 장을 통째로 확인하는 화면이다. 보여주는 모양만 다를 뿐, 결제·
+ * 취소·입장 QR·여행 연결은 완전히 같은 동작이다.
+ *
+ * <p>둘로 나눠 각자 구현하면 결제 흐름이 두 벌이 된다. #276에서 결제 버튼이 한쪽 화면에만
+ * 있어 여행 없이 담은 티켓을 결제할 방법이 없었던 것과 같은 종류의 사고가 난다.
+ */
+function createTicketScreen(mode) {
+    /* 예매한 티켓 화면인지. 아니면 대시보드 미리보기다. */
+    const history = mode === "history";
+
+    const tabs =
+        document.querySelector(
+            "[data-ticket-tabs]",
+        );
+
+    const picker =
+        document.querySelector(
+            "[data-ticket-picker]",
+        );
+
+    const detail =
+        document.querySelector(
+            "[data-ticket-detail]",
+        );
+
     const list =
         document.querySelector(
             "[data-ticket-list]",
@@ -93,17 +156,40 @@ export function initTickets() {
             "[data-ticket-count]",
         );
 
-    if (!list || !empty) {
+    const ready = history
+        ? Boolean(tabs && picker && detail)
+        : Boolean(list && empty);
+
+    if (!ready) {
         return Promise.resolve();
     }
 
     let tickets = [];
     let trips = [];
+    /* 예매한 티켓 화면에서 고른 상태 탭과 티켓. 미리보기에서는 쓰지 않는다. */
+    let activeGroup = "ALL";
+    let selectedId = null;
 
     function setEmpty(
         title,
         description,
     ) {
+        if (history) {
+            /* 목록 자리와 상세 자리가 따로라 둘 다 비워야 앞의 티켓이 남지 않는다. */
+            picker.replaceChildren(
+                message(title, description),
+            );
+
+            detail.replaceChildren(
+                message(
+                    "표시할 티켓이 없어요",
+                    "왼쪽에서 티켓을 고르면 이곳에 표시됩니다.",
+                ),
+            );
+
+            return;
+        }
+
         empty.hidden = false;
 
         if (emptyTitle) {
@@ -116,6 +202,34 @@ export function initTickets() {
                 .textContent =
                 description || "";
         }
+    }
+
+    /* 비었을 때·못 불러왔을 때 자리에 놓는 안내. 두 칸 모두 같은 모양을 쓴다. */
+    function message(
+        title,
+        description,
+    ) {
+        const box =
+            document.createElement("div");
+
+        box.className =
+            "mypage-ticket-message";
+
+        const strong =
+            document.createElement("strong");
+
+        strong.textContent = title;
+        box.appendChild(strong);
+
+        if (description) {
+            const text =
+                document.createElement("p");
+
+            text.textContent = description;
+            box.appendChild(text);
+        }
+
+        return box;
     }
 
     function tripLabel(
@@ -555,38 +669,57 @@ export function initTickets() {
         return `${minutes}분 안에 결제해야 자리가 유지돼요.`;
     }
 
+    /**
+     * 결제. 수단을 고르고, 그 수단의 결제창을 한 번 더 거친다.
+     *
+     * <p>바로 결제되지 않는다 — 카드면 카드 정보를 넣고, 간편결제면 QR을 폰으로 승인하고,
+     * 계좌면 입금을 확인한다. 실제 결제가 그렇게 생겼기 때문이고, 그 단계를 흉내 내야
+     * 상태 전이·멱등키·환불을 실제와 같은 순서로 배울 수 있다.
+     */
     async function payTicket(
         ticket,
         button,
     ) {
-        if (!window.confirm(
-            "모의 결제를 진행할까요? 실제 결제는 이루어지지 않고, 결제하면 티켓이 발급됩니다.",
-        )) {
+        const summary = `${ticket.productName || "티켓"} · ${formatAmount(
+            ticket.totalAmount,
+            ticket.currency,
+        )}`;
+        const amountText = formatAmount(
+            ticket.totalAmount,
+            ticket.currency,
+        );
+
+        const picked =
+            await window.AllMyTripsPayment.choose({
+                summary,
+                confirmLabel: "다음",
+                allowQr: true,
+            });
+
+        if (!picked) {
             return;
         }
 
         button.disabled = true;
 
         try {
-            /*
-             * 멱등키는 화면에서 만든다. 응답이 유실되어 다시 눌러도 같은 키로 들어가면
-             * 서버가 앞의 결과를 돌려주고 두 번 결제되지 않는다. 예약 화면도 같은 방식이다.
-             */
-            const idempotencyKey =
-                window.crypto?.randomUUID
-                    ? window.crypto.randomUUID()
-                    : `pay-${ticket.reservationId}-${Date.now()}`;
+            const checkout =
+                await runCheckout(ticket, picked, {
+                    summary,
+                    amountText,
+                });
 
-            await request(
-                `/api/v1/ticket-reservations/${ticket.reservationId}/payment`,
-                {
-                    method: "POST",
-                    body: JSON.stringify({
-                        method: "CARD",
-                        idempotencyKey,
-                    }),
-                },
-            );
+            if (!checkout) {
+                /* 결제창에서 닫았다. 아무 일도 일어나지 않았다. */
+                button.disabled = false;
+
+                return;
+            }
+
+            /* 간편결제는 폰에서 이미 승인돼 결제가 끝난 상태다. 다시 결제하지 않는다. */
+            if (!checkout.paid) {
+                await requestPayment(ticket, picked, checkout);
+            }
 
             showToast(
                 "결제가 완료됐어요. 입장 QR을 확인해 주세요.",
@@ -604,13 +737,125 @@ export function initTickets() {
         }
     }
 
+    /** 고른 수단에 맞는 결제창을 띄운다. 닫으면 null이다. */
+    function runCheckout(
+        ticket,
+        picked,
+        view,
+    ) {
+        const checkout = window.AllMyTripsCheckout;
+
+        /*
+         * 토스는 우리 창에서 결제가 끝나지 않는다. 결제창에서 인증을 마치면 브라우저가
+         * /pay/toss로 넘어가고 그 화면이 승인을 요청한다. 그래서 여기서 돌아오지 않는다.
+         */
+        if (picked.flow === "TOSS") {
+            return checkout.tossCheckout({
+                ...view,
+                reservationId: ticket.reservationId,
+                amount: Number(ticket.totalAmount),
+                orderName: ticket.productName || "티켓 예약",
+            });
+        }
+
+        if (picked.method === "CARD") {
+            return checkout.cardCheckout(view);
+        }
+
+        if (picked.method === "TRANSFER"
+            || picked.method === "VIRTUAL_ACCOUNT") {
+            return checkout.transferCheckout({
+                ...view,
+                method: picked.method,
+            });
+        }
+
+        /*
+         * 간편결제는 QR을 띄우고 폰에서 승인받는다. 카카오페이·토스도 같은 길을 타되
+         * 사업자를 함께 넘겨, 어느 창에서 결제했는지가 기록에 남게 한다.
+         */
+        return checkout.easyPayCheckout({
+            ...view,
+            provider: picked.easyPayProvider || "QR_PAY",
+            drawQr: (text) => createQrSvg(text, { label: "결제 승인 QR" }),
+            issueQr: (provider) => request(
+                `/api/v1/ticket-reservations/${ticket.reservationId}/payment/qr`
+                + `?provider=${encodeURIComponent(provider)}`,
+                { method: "POST" },
+            ),
+            /*
+             * 발권이 곧 결제 완료다. 발급된 티켓이 하나라도 생기면 폰에서 승인이 끝난 것이다.
+             */
+            pollPaid: async () => {
+                const tickets = await request(
+                    `/api/v1/ticket-reservations/${ticket.reservationId}/tickets`,
+                );
+
+                return Array.isArray(tickets) && tickets.length > 0;
+            },
+        });
+    }
+
+    /** 결제창을 통과한 뒤 실제로 결제한다. */
+    async function requestPayment(
+        ticket,
+        picked,
+        checkout,
+    ) {
+        /*
+         * 멱등키는 화면에서 만든다. 응답이 유실되어 다시 눌러도 같은 키로 들어가면
+         * 서버가 앞의 결과를 돌려주고 두 번 결제되지 않는다. 예약 화면도 같은 방식이다.
+         */
+        const idempotencyKey =
+            window.crypto?.randomUUID
+                ? window.crypto.randomUUID()
+                : `pay-${ticket.reservationId}-${Date.now()}`;
+
+        /*
+         * 카드 정보는 보내지 않는다. 우리 결제 API는 카드번호를 받지 않고, 받을 이유도 없다.
+         * 모의라도 실제 번호가 흐를 길을 만들어 두지 않는다.
+         */
+        await request(
+            `/api/v1/ticket-reservations/${ticket.reservationId}/payment`,
+            {
+                method: "POST",
+                body: JSON.stringify({
+                    method: checkout.method || picked.method,
+                    idempotencyKey,
+                    easyPayProvider:
+                        checkout.easyPayProvider
+                        || picked.easyPayProvider,
+                }),
+            },
+        );
+    }
+
+    /* 결제 QR 창은 core/payment-checkout.js가 맡는다. 예약 화면과 같은 창을 쓴다. */
+
     async function cancelTicket(
         ticket,
         button,
     ) {
-        if (!window.confirm(
-            "이 예약을 취소할까요? 잡아둔 자리가 다시 열립니다.",
-        )) {
+        /*
+         * 결제한 예약을 취소하면 발급된 티켓이 무효가 된다. 결제 전 취소와 같은 문구를
+         * 쓰면 티켓이 사라지는 줄 모르고 누른다. 예약 화면도 둘을 갈라 묻는다. (#276)
+         */
+        const paid = ticket.status === "CONFIRMED";
+        const confirmed =
+            await window.AllMyTripsDialog.confirm({
+                title: paid
+                    ? "결제를 취소할까요?"
+                    : "예약을 취소할까요?",
+                message: paid
+                    ? "환불 처리되고, 발급된 티켓은 사용할 수 없게 됩니다."
+                    : "잡아둔 자리가 다시 열립니다.",
+                confirmLabel: paid
+                    ? "결제 취소"
+                    : "예약 취소",
+                tone: "danger",
+            });
+
+        if (!confirmed) {
             return;
         }
 
@@ -954,7 +1199,507 @@ export function initTickets() {
         panel.replaceChildren(message);
     }
 
+    /* ── 예매한 티켓 화면 (#281) ── */
+
+    /*
+     * 상태를 손님이 쓰는 말로 묶는다. PENDING(결제 대기)과 CONFIRMED(결제 완료)는
+     * 아직 안 쓴 티켓이라 손님에게는 둘 다 `사용 예정`이다. 만료는 자리를 반납한
+     * 것이라 취소와 같은 칸에 둔다 — 어느 쪽이든 이제 못 쓰는 티켓이다.
+     */
+    const ticketGroups = [
+        { id: "ALL", label: "전체", statuses: null },
+        { id: "UPCOMING", label: "사용 예정", statuses: ["PENDING", "CONFIRMED"] },
+        { id: "USED", label: "사용 완료", statuses: ["USED"] },
+        { id: "CLOSED", label: "취소·환불", statuses: ["CANCELLED", "EXPIRED"] },
+    ];
+
+    function inGroup(
+        ticket,
+        group,
+    ) {
+        return !group.statuses
+            || group.statuses.includes(ticket.status);
+    }
+
+    function renderTabs() {
+        tabs.replaceChildren();
+
+        ticketGroups.forEach((group) => {
+            const button =
+                document.createElement("button");
+
+            button.type = "button";
+            button.role = "tab";
+            button.className =
+                "mypage-ticket-tab";
+            button.dataset.ticketTab = group.id;
+
+            /*
+             * 개수는 받은 목록에서 센다. 서버에 따로 물으면 목록과 개수가 어긋난
+             * 화면이 나온다 — 사이에 결제나 취소가 들어오면 실제로 갈린다.
+             */
+            const total = tickets.filter(
+                (ticket) => inGroup(ticket, group),
+            ).length;
+
+            const name =
+                document.createElement("span");
+
+            name.textContent = group.label;
+
+            const badge =
+                document.createElement("em");
+
+            badge.textContent = String(total);
+
+            button.append(name, badge);
+
+            if (group.id === activeGroup) {
+                button.classList.add("is-active");
+                button.setAttribute("aria-selected", "true");
+            }
+
+            button.addEventListener("click", () => {
+                activeGroup = group.id;
+                /* 탭을 바꾸면 앞서 고른 티켓이 이 탭에 없을 수 있다. 다시 고른다. */
+                selectedId = null;
+                renderHistory();
+            });
+
+            tabs.appendChild(button);
+        });
+    }
+
+    function renderHistory() {
+        renderTabs();
+
+        if (!tickets.length) {
+            setEmpty(
+                "아직 예약 내역이 없어요",
+                "예약 화면에서 티켓을 담으면 이곳에 표시됩니다.",
+            );
+
+            return;
+        }
+
+        const group = ticketGroups.find(
+            (item) => item.id === activeGroup,
+        ) || ticketGroups[0];
+
+        const shown = tickets.filter(
+            (ticket) => inGroup(ticket, group),
+        );
+
+        if (!shown.length) {
+            picker.replaceChildren(
+                message(
+                    `${group.label} 티켓이 없어요`,
+                    "다른 탭을 눌러 보세요.",
+                ),
+            );
+
+            detail.replaceChildren(
+                message(
+                    "표시할 티켓이 없어요",
+                    "왼쪽에서 티켓을 고르면 이곳에 표시됩니다.",
+                ),
+            );
+
+            return;
+        }
+
+        const selected =
+            shown.find(
+                (ticket) =>
+                    String(ticket.reservationId) ===
+                    String(selectedId),
+            ) || shown[0];
+
+        selectedId = selected.reservationId;
+
+        picker.replaceChildren(
+            ...shown.map(
+                (ticket) => pickerRow(ticket, selected),
+            ),
+        );
+
+        detail.replaceChildren(
+            ticketDetail(selected),
+        );
+    }
+
+    function pickerRow(
+        ticket,
+        selected,
+    ) {
+        const row =
+            document.createElement("button");
+
+        row.type = "button";
+        row.className = "mypage-ticket-pick";
+        row.dataset.ticketPick =
+            String(ticket.reservationId);
+
+        if (String(ticket.reservationId)
+            === String(selected.reservationId)) {
+            row.classList.add("is-active");
+            row.setAttribute("aria-current", "true");
+        }
+
+        /*
+         * 상품 사진이 없다. 없는 사진 자리를 비워 두면 줄이 흔들려 보여서, 상태에 따라
+         * 색이 갈리는 자리표를 둔다. 사진이 생기면 이 자리에 넣으면 된다.
+         */
+        const thumb =
+            document.createElement("span");
+
+        thumb.className = "mypage-ticket-thumb";
+        thumb.dataset.ticketStatusTone = ticket.status || "";
+        thumb.setAttribute("aria-hidden", "true");
+        thumb.textContent = "▤";
+
+        const body =
+            document.createElement("span");
+
+        body.className = "mypage-ticket-pick-body";
+
+        const title =
+            document.createElement("strong");
+
+        title.textContent =
+            ticket.productName || "티켓";
+
+        const when =
+            document.createElement("small");
+
+        when.textContent = [
+            formatUsage(
+                ticket.usageDate,
+                ticket.usageStartTime,
+            ),
+            ticket.optionName,
+        ].filter(Boolean).join(" · ");
+
+        const status =
+            document.createElement("span");
+
+        status.className = "mypage-ticket-status";
+        status.dataset.ticketStatus = ticket.status || "";
+        status.textContent =
+            ticketStatusLabels[ticket.status]
+            || ticket.status || "";
+
+        body.append(title, when, status);
+
+        const chevron =
+            document.createElement("span");
+
+        chevron.className = "mypage-ticket-chevron";
+        chevron.setAttribute("aria-hidden", "true");
+        chevron.textContent = "›";
+
+        row.append(thumb, body, chevron);
+
+        row.addEventListener("click", () => {
+            selectedId = ticket.reservationId;
+            renderHistory();
+        });
+
+        return row;
+    }
+
+    /**
+     * 티켓 한 장. 종이 티켓처럼 본권과 절취선 오른쪽의 반쪽으로 나눈다.
+     *
+     * <p>없는 값은 줄째로 뺀다. 장소나 이용 시간은 상품이 지워지면 비어 오는데, 빈칸을
+     * 그리면 화면이 고장 난 것처럼 보이고 지어내면 손님이 그 정보를 믿는다.
+     */
+    function ticketDetail(
+        ticket,
+    ) {
+        const wrap =
+            document.createElement("div");
+
+        wrap.className = "mypage-ticket-detail-body";
+        wrap.dataset.ticketRow =
+            String(ticket.reservationId);
+
+        const card =
+            document.createElement("article");
+
+        card.className = "ticket-card";
+        card.dataset.ticketStatusTone = ticket.status || "";
+
+        /* 상단 띠. 종이 티켓의 인쇄면에 해당하는 자리라 상태를 여기에 둔다. */
+        const top =
+            document.createElement("header");
+
+        top.className = "ticket-card-top";
+
+        const brand =
+            document.createElement("span");
+
+        brand.className = "ticket-card-brand";
+        brand.textContent = "All My Trips";
+
+        const kind =
+            document.createElement("strong");
+
+        kind.className = "ticket-card-kind";
+        kind.textContent =
+            ticket.productName || "티켓";
+
+        const state =
+            document.createElement("span");
+
+        state.className = "ticket-card-state";
+        state.dataset.ticketStatus = ticket.status || "";
+        state.textContent =
+            ticketStatusLabels[ticket.status]
+            || ticket.status || "";
+
+        top.append(brand, kind, state);
+
+        const body =
+            document.createElement("div");
+
+        body.className = "ticket-card-body";
+
+        const main =
+            document.createElement("div");
+
+        main.className = "ticket-card-main";
+
+        const name =
+            document.createElement("h4");
+
+        name.textContent = [
+            ticket.productName,
+            ticket.optionName,
+        ].filter(Boolean).join(" · ") || "티켓";
+
+        const number =
+            document.createElement("p");
+
+        number.className = "ticket-card-number";
+        number.textContent =
+            `예약번호 ${ticket.reservationNumber || "—"}`;
+
+        main.append(name, number);
+        main.appendChild(
+            facts([
+                ["이용일", formatDate(ticket.usageDate)],
+                ["이용 시간", formatTimeRange(
+                    ticket.usageStartTime,
+                    ticket.usageEndTime,
+                )],
+                ["장소", ticket.placeName],
+                ["인원", ticket.quantity
+                    ? `${ticket.quantity}명`
+                    : ""],
+            ]),
+        );
+
+        /* 절취선 오른쪽. 현장에서 내미는 반쪽이라 QR과 티켓 번호만 둔다. */
+        const stub =
+            document.createElement("div");
+
+        stub.className = "ticket-card-stub";
+
+        const stubTitle =
+            document.createElement("span");
+
+        stubTitle.className = "ticket-card-stub-title";
+        stubTitle.textContent =
+            ticket.status === "CONFIRMED"
+                ? "입장 시 스캔"
+                : "입장 코드";
+
+        stub.appendChild(stubTitle);
+
+        if (ticket.status === "CONFIRMED") {
+            /*
+             * QR을 처음부터 그려 두지 않는다. 입장 코드는 5분만 살아 있어서, 열어 둔 채
+             * 두면 정작 현장에서 만료된 QR을 내밀게 된다. 누를 때 새로 발급받는다. (#265)
+             */
+            stub.appendChild(qrSection(ticket));
+        } else {
+            const wait =
+                document.createElement("p");
+
+            wait.className = "ticket-card-stub-note";
+            wait.textContent =
+                ticket.status === "PENDING"
+                    ? "결제하면 입장 코드가 발급돼요."
+                    : "이 티켓은 입장 코드를 쓸 수 없어요.";
+
+            stub.appendChild(wait);
+        }
+
+        if (ticket.quantity) {
+            const count =
+                document.createElement("small");
+
+            count.className = "ticket-card-stub-count";
+            count.textContent = `${ticket.quantity}매`;
+
+            stub.appendChild(count);
+        }
+
+        body.append(main, stub);
+        card.append(top, body);
+        wrap.appendChild(card);
+
+        const notice =
+            document.createElement("p");
+
+        notice.className = "ticket-card-notice";
+        notice.textContent =
+            "현장에서 입장 코드를 보여주세요. 코드는 5분 뒤 만료되며 다시 발급할 수 있어요.";
+
+        wrap.appendChild(notice);
+
+        wrap.appendChild(detailPanels(ticket));
+        wrap.appendChild(tripControl(ticket));
+
+        const actions =
+            document.createElement("div");
+
+        actions.className = "ticket-card-actions";
+
+        if (ticket.status === "PENDING") {
+            actions.appendChild(paySection(ticket));
+        } else if (ticket.status === "CONFIRMED") {
+            const cancel =
+                document.createElement("button");
+
+            cancel.type = "button";
+            cancel.className = "text-button";
+            cancel.dataset.ticketCancel =
+                String(ticket.reservationId);
+            cancel.textContent = "예약 취소";
+
+            cancel.addEventListener("click", () => {
+                cancelTicket(ticket, cancel);
+            });
+
+            actions.appendChild(cancel);
+        }
+
+        if (actions.childElementCount) {
+            wrap.appendChild(actions);
+        }
+
+        return wrap;
+    }
+
+    /** 이름과 값 짝을 늘어놓는다. 값이 없는 짝은 아예 넣지 않는다. */
+    function facts(
+        pairs,
+    ) {
+        const box =
+            document.createElement("dl");
+
+        box.className = "ticket-card-facts";
+
+        pairs
+            .filter(([, value]) => Boolean(value))
+            .forEach(([label, value]) => {
+                const row =
+                    document.createElement("div");
+
+                const dt =
+                    document.createElement("dt");
+
+                dt.textContent = label;
+
+                const dd =
+                    document.createElement("dd");
+
+                dd.textContent = value;
+
+                row.append(dt, dd);
+                box.appendChild(row);
+            });
+
+        return box;
+    }
+
+    /* 이용 안내와 결제 정보. 결제 전 예약에는 결제 정보가 아직 없다. */
+    function detailPanels(
+        ticket,
+    ) {
+        const wrap =
+            document.createElement("div");
+
+        wrap.className = "ticket-card-panels";
+
+        const usage =
+            document.createElement("section");
+
+        usage.className = "ticket-card-panel";
+        usage.append(
+            heading("이용 안내"),
+            facts([
+                ["이용 시간", formatTimeRange(
+                    ticket.usageStartTime,
+                    ticket.usageEndTime,
+                )],
+                ["이용일", formatDate(ticket.usageDate)],
+                /* 서버 규칙 그대로다. 이용일이 지난 뒤의 취소는 받지 않는다. */
+                ["취소 가능", "이용일 당일까지"],
+            ]),
+        );
+
+        const payment =
+            document.createElement("section");
+
+        payment.className = "ticket-card-panel";
+        payment.dataset.ticketPayment = "";
+
+        const paid = Boolean(ticket.paidAt || ticket.paymentMethod);
+
+        payment.append(
+            heading("결제 정보"),
+            facts([
+                ["결제 금액", formatAmount(
+                    ticket.totalAmount,
+                    ticket.currency,
+                )],
+                ["결제 수단", paid
+                    ? window.AllMyTripsPayment.labelOf(
+                        ticket.paymentMethod,
+                        ticket.paymentProvider,
+                    )
+                    : ""],
+                ["결제일", formatDate(ticket.paidAt)],
+                ["상태", paid ? "" : "결제 전"],
+            ]),
+        );
+
+        wrap.append(usage, payment);
+
+        return wrap;
+    }
+
+    function heading(
+        text,
+    ) {
+        const title =
+            document.createElement("h5");
+
+        title.textContent = text;
+
+        return title;
+    }
+
     function render() {
+        if (history) {
+            renderHistory();
+
+            return;
+        }
+
         list.replaceChildren();
 
         if (!tickets.length) {
@@ -1035,4 +1780,19 @@ export function initTickets() {
     }
 
     return load();
+}
+
+/** 대시보드의 `최근 예약 내역`. 3건까지 보여주는 미리보기다. */
+export function initTickets() {
+    return createTicketScreen("preview");
+}
+
+/**
+ * 사이드바의 `예약 내역` — 예매한 티켓 화면. (#281)
+ *
+ * <p>대시보드와 함께 뜨지 않고 화면을 열 때 부른다. 숨어 있는 화면 때문에 첫 화면이
+ * 같은 목록을 두 번 받게 두지 않는다.
+ */
+export function initTicketHistory() {
+    return createTicketScreen("history");
 }

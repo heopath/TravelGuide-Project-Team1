@@ -16,6 +16,9 @@ public interface TicketMapper {
                                     @Param("from") LocalDate from,
                                     @Param("to") LocalDate to);
     Optional<TicketOfferDTO> findSlotForUpdate(@Param("slotId") Long slotId);
+
+    /** 잠그지 않고 판매 상태만 본다. 대기열에 서기 전 확인용이다. (#256) */
+    Optional<TicketOfferDTO> findSlot(@Param("slotId") Long slotId);
     Optional<TicketReservationDTO> findReservationByRequestKey(@Param("userId") Long userId,
                                                                 @Param("requestKey") String requestKey);
     Optional<TicketReservationDTO> findReservationForCancel(@Param("userId") Long userId,

@@ -99,6 +99,6 @@ class AdminPlaceServiceTest {
         return new AdminPlaceRequest(
                 "ATTRACTION", " 성산일출봉 ", "kr", "제주특별자치도", "서귀포시",
                 "성산읍", new BigDecimal("33.4587"), new BigDecimal("126.9425"),
-                "제주 대표 관광지", null, "https://example.com", imageUrl, true);
+                "제주 대표 관광지", null, "https://example.com", imageUrl, true, true);
     }
 }

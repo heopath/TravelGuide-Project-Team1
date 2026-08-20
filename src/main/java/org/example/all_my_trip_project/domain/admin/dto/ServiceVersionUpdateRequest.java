@@ -7,7 +7,7 @@ public record ServiceVersionUpdateRequest(
         @NotBlank(message = "표시 버전을 입력해 주세요.")
         @Pattern(
                 regexp = "^v?(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)$",
-                message = "버전은 0.9.1 또는 v0.9.1 형식으로 입력해 주세요."
+                message = "버전은 0.0.5 또는 v0.0.5 형식으로 입력해 주세요."
         )
         String version
 ) {

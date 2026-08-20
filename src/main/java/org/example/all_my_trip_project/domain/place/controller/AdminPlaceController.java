@@ -3,10 +3,15 @@ package org.example.all_my_trip_project.domain.place.controller;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.example.all_my_trip_project.domain.place.dto.AdminPlacePage;
+import org.example.all_my_trip_project.domain.place.dto.AdminPlaceRecommendationBulkRequest;
+import org.example.all_my_trip_project.domain.place.dto.AdminPlaceRecommendationRequest;
 import org.example.all_my_trip_project.domain.place.dto.AdminPlaceRequest;
 import org.example.all_my_trip_project.domain.place.dto.AdminPlaceVisibilityRequest;
 import org.example.all_my_trip_project.domain.place.dto.PlaceDTO;
+import org.example.all_my_trip_project.domain.place.dto.AdminPlaceImageFillRequest;
+import org.example.all_my_trip_project.domain.place.dto.PlaceImageFillResult;
 import org.example.all_my_trip_project.domain.place.service.AdminPlaceService;
+import org.example.all_my_trip_project.domain.place.service.PlaceImageBackfillService;
 import org.example.all_my_trip_project.global.response.ApiResponse;
 import org.springframework.context.annotation.Profile;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -26,6 +31,22 @@ import org.springframework.web.bind.annotation.RestController;
 public class AdminPlaceController {
 
     private final AdminPlaceService adminPlaceService;
+    private final PlaceImageBackfillService placeImageBackfillService;
+
+    /**
+     * 목록에서 고른 장소들의 대표 이미지를 채운다.
+     *
+     * <p>목록 전체를 훑지 않는다. 장소마다 외부 API를 부르므로 수백 곳을 한 번에 돌리면
+     * 오래 걸리고 무엇이 되고 안 됐는지 알기 어렵다. 고른 것만 처리하고 결과를 돌려준다.
+     */
+    @PostMapping("/images")
+    public ApiResponse<PlaceImageFillResult> fillImages(
+            @Valid @RequestBody AdminPlaceImageFillRequest request) {
+        PlaceImageFillResult result = placeImageBackfillService.fill(request.placeIds());
+        return ApiResponse.success(
+                "선택한 " + result.requested() + "곳 중 " + result.filled() + "곳에 대표 이미지를 넣었습니다.",
+                result);
+    }
 
     @GetMapping
     public ApiResponse<AdminPlacePage> list(
@@ -33,8 +54,8 @@ public class AdminPlaceController {
             @RequestParam(defaultValue = "50") int size,
             @RequestParam(required = false) String keyword,
             @RequestParam(required = false) String category,
-            @RequestParam(required = false) Boolean active) {
-        return ApiResponse.success(adminPlaceService.list(page, size, keyword, category, active));
+            @RequestParam(required = false) Boolean recommended) {
+        return ApiResponse.success(adminPlaceService.list(page, size, keyword, category, recommended));
     }
 
     @PostMapping
@@ -53,7 +74,26 @@ public class AdminPlaceController {
     public ApiResponse<PlaceDTO> visibility(
             @PathVariable Long placeId,
             @Valid @RequestBody AdminPlaceVisibilityRequest request) {
-        return ApiResponse.success(request.active() ? "추천 장소를 공개했습니다." : "추천 장소를 숨겼습니다.",
+        // 추천 노출은 is_recommended가 맡는다. 여기는 장소 데이터 자체의 사용 여부다.
+        return ApiResponse.success(request.active() ? "장소를 사용 처리했습니다." : "장소를 미사용 처리했습니다.",
                 adminPlaceService.setVisibility(placeId, request.active()));
+    }
+
+    @PatchMapping("/recommendation")
+    public ApiResponse<Integer> recommendationBulk(
+            @Valid @RequestBody AdminPlaceRecommendationBulkRequest request) {
+        int changed = adminPlaceService.setRecommendedAll(request.placeIds(), request.recommended());
+        String message = "선택한 장소 " + changed
+                + (request.recommended() ? "곳을 추천장소에 노출합니다." : "곳을 추천장소에서 내렸습니다.");
+        return ApiResponse.success(message, changed);
+    }
+
+    @PatchMapping("/{placeId}/recommendation")
+    public ApiResponse<PlaceDTO> recommendation(
+            @PathVariable Long placeId,
+            @Valid @RequestBody AdminPlaceRecommendationRequest request) {
+        return ApiResponse.success(
+                request.recommended() ? "추천장소에 노출합니다." : "추천장소에서 내렸습니다.",
+                adminPlaceService.setRecommended(placeId, request.recommended()));
     }
 }
