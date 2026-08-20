@@ -455,4 +455,55 @@ class AiGuideServiceTest {
         assertThat(item.placeAddress()).isNull();
         assertThat(item.placeUrl()).isNull();
     }
+
+    @Test
+    void removesAnAlreadyScheduledPlaceReturnedDirectlyByTheModel() {
+        AiGuideRequest request = new AiGuideRequest("근처 카페 추천", 12L);
+        AiGuideContext.Item scheduledItem = new AiGuideContext.Item(
+                77L, "이미 저장된 카페", null, null, "CAFE", null);
+        AiGuideContext context = new AiGuideContext(
+                new AiGuideContext.Trip(12L, "부산 여행", "부산", null, null,
+                        null, null, null, null, null, null, null, null, null,
+                        List.of(new AiGuideContext.Day(1, null, "DAY 1", null, List.of(scheduledItem)))),
+                List.of());
+        AiGuideResponse modelResponse = new AiGuideResponse("추천", List.of(new AiGuideDayResponse(1, "DAY 1",
+                List.of(
+                        new AiGuideItemResponse("12:00", "이미 저장된 카페", "모델이 잘못 재추천", 77L,
+                                "CAFE", "부산", "https://place.map.kakao.com/77"),
+                        new AiGuideItemResponse("14:00", "새로운 카페", "새 후보")
+                ))), List.of(), List.of());
+
+        when(conversationHistoryService.load(1L, 12L)).thenReturn(List.of());
+        when(contextService.load(1L, request)).thenReturn(context);
+        when(aiModelClient.generate(request, List.of(), context, List.of())).thenReturn(modelResponse);
+
+        AiGuideResponse actual = service.generate(request, false, 1L);
+
+        assertThat(actual.days().getFirst().items())
+                .extracting(AiGuideItemResponse::name)
+                .containsExactly("새로운 카페");
+    }
+
+    @Test
+    void removesAPlaceReturnedAgainForAnAlternativeRequestEvenWhenTheModelIgnoresHistory() {
+        AiGuideRequest request = new AiGuideRequest("다른 곳 추천해줘", 12L);
+        AiConversationTurn previousTurn = new AiConversationTurn(
+                "이재모피자 본점 근처 카페 추천", "레드버튼 남포점을 추천합니다.");
+        AiGuideContext context = new AiGuideContext(null, List.of());
+        AiGuideResponse modelResponse = new AiGuideResponse("다른 추천", List.of(new AiGuideDayResponse(1, "DAY 1",
+                List.of(
+                        new AiGuideItemResponse("14:00", "레드버튼 남포점", "모델이 이전 답변을 무시함"),
+                        new AiGuideItemResponse("15:00", "새로운 카페", "새 후보")
+                ))), List.of(), List.of());
+
+        when(conversationHistoryService.load(1L, 12L)).thenReturn(List.of(previousTurn));
+        when(contextService.load(1L, request)).thenReturn(context);
+        when(aiModelClient.generate(request, List.of(previousTurn), context, List.of())).thenReturn(modelResponse);
+
+        AiGuideResponse actual = service.generate(request, false, 1L);
+
+        assertThat(actual.days().getFirst().items())
+                .extracting(AiGuideItemResponse::name)
+                .containsExactly("새로운 카페");
+    }
 }

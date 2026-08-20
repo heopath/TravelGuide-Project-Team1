@@ -45,6 +45,7 @@ public class AiGuideService {
         ragResults = excludePreviouslySuggestedPlaces(ragResults, history, request.question());
         AiGuideResponse response = aiModelClient.generate(
                 request, history, context, ragResults);
+        response = excludeFinalResponsePlaces(response, context, history, request.question());
         response = enrichVerifiedPlaces(response, ragResults, request.question());
         conversationHistoryService.append(userId, request.tripId(), request.question(), response.answer());
         return response;
@@ -148,6 +149,68 @@ public class AiGuideService {
         }
         return normalized.contains("다른곳") || normalized.contains("다른데")
                 || normalized.contains("말고") || normalized.contains("또추천") || normalized.contains("다시추천");
+    }
+
+    /**
+     * 모델이 여행 문맥이나 이전 답변에서 본 장소를 다시 반환하더라도, 화면으로 보내기 전에
+     * 마지막으로 제외한다. 후보 목록과 프롬프트는 보조 수단이며, 이 검사가 최종 안전장치다.
+     */
+    private AiGuideResponse excludeFinalResponsePlaces(AiGuideResponse response,
+                                                        org.example.all_my_trip_project.domain.ai.dto.AiGuideContext context,
+                                                        List<AiConversationTurn> history,
+                                                        String question) {
+        if (response == null || response.days() == null) {
+            return response;
+        }
+
+        Set<Long> scheduledPlaceIds = new HashSet<>();
+        Set<String> scheduledPlaceNames = new HashSet<>();
+        if (context != null && context.trip() != null) {
+            context.trip().days().stream()
+                    .flatMap(day -> day.items().stream())
+                    .forEach(item -> {
+                        if (item.placeId() != null) {
+                            scheduledPlaceIds.add(item.placeId());
+                        }
+                        if (item.title() != null && !item.title().isBlank()) {
+                            scheduledPlaceNames.add(normalizePlaceName(item.title()));
+                        }
+                    });
+        }
+
+        String previousAnswers = isAlternativeRequest(question) && history != null
+                ? history.stream()
+                .map(AiConversationTurn::answer)
+                .filter(answer -> answer != null)
+                .map(this::normalizePlaceName)
+                .collect(java.util.stream.Collectors.joining(" "))
+                : "";
+
+        if (scheduledPlaceIds.isEmpty() && scheduledPlaceNames.isEmpty() && previousAnswers.isBlank()) {
+            return response;
+        }
+
+        List<AiGuideDayResponse> filteredDays = response.days().stream()
+                .map(day -> new AiGuideDayResponse(day.day(), day.title(), day.items().stream()
+                        .filter(item -> !isExcludedFinalItem(item, scheduledPlaceIds, scheduledPlaceNames, previousAnswers))
+                        .toList()))
+                .toList();
+        return new AiGuideResponse(response.answer(), filteredDays, response.externalLinks(), response.sources());
+    }
+
+    private boolean isExcludedFinalItem(AiGuideItemResponse item,
+                                        Set<Long> scheduledPlaceIds,
+                                        Set<String> scheduledPlaceNames,
+                                        String previousAnswers) {
+        if (item.placeId() != null && scheduledPlaceIds.contains(item.placeId())) {
+            return true;
+        }
+        String normalizedName = normalizePlaceName(item.name());
+        if (scheduledPlaceNames.contains(normalizedName)) {
+            return true;
+        }
+        // Two-character generic labels such as "카페" must not remove an entire recommendation.
+        return normalizedName.length() >= 3 && !previousAnswers.isBlank() && previousAnswers.contains(normalizedName);
     }
 
     private AiGuideResponse enrichVerifiedPlaces(AiGuideResponse response, List<RagSearchResult> ragResults,
