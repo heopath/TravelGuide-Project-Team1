@@ -533,3 +533,50 @@
   .page-flights .ticket-practice { align-self:flex-start; }
   .page-flights .ticket-action { min-width:0; justify-items:stretch; }
 }
+
+/* ── 예약 현황 다듬기 (#281 시안)
+   행은 이제 버튼이다. 눌러서 그 탭으로 가므로 버튼 기본 모양을 걷어내고
+   눌러도 되는 자리라는 표시(꺾쇠·hover)를 준다. */
+.page-flights .track { height: 6px; border-radius: 999px; }
+.page-flights .sr {
+  width: 100%;
+  border: 0;
+  background: var(--white);
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.page-flights .sr:hover { background: #f7f9ff; }
+.page-flights .sr .ch { color: #c3c9d8; font-size: 17px; flex: none; }
+.page-flights .sr:hover .ch { color: var(--primary); }
+/* 끝난 항목은 아이콘이 체크로 바뀐다. 무엇이 남았는지 훑어보기 위한 화면이다. */
+.page-flights .sr.done .ic { font-weight: 800; }
+
+.page-flights .cost {
+  margin: 10px;
+  padding: 14px 15px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #f3f5ff, #eef1ff);
+  border: 1px solid #e3e8fb;
+}
+.page-flights .cost .n { font-size: clamp(17px, 1.5vw, 21px); }
+
+/*
+   고지 앞에 아이콘을 붙인다. flex로 두면 <b>와 텍스트가 각각 flex 항목이 되어
+   좁은 칸에서 세로로 쪼개진다 — 화면에서 보고 절대 배치로 바꿨다.
+*/
+.page-flights .disc { position: relative; padding-left: 30px; }
+.page-flights .disc::before {
+  content: "ⓘ";
+  position: absolute;
+  left: 12px;
+  top: 11px;
+  color: var(--muted-2);
+  font-size: 12px;
+}
+
+/* 항공사 로고는 원형이 항공권 화면의 관습이다. */
+.page-flights .lg { border-radius: 50%; }
+.page-flights .fl:hover { box-shadow: 0 6px 18px rgba(60, 72, 130, 0.08); }

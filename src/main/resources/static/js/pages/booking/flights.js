@@ -290,25 +290,33 @@
       : ["선택 중", "w", "b"];
 
     const rows = [
-      { ic: "✈", icc: air[2], nm: "왕복 항공", ds: air[0], dsc: air[1],
+      { tab: "flight", done: airDone(),
+        ic: "✈", icc: air[2], nm: "왕복 항공", ds: air[0], dsc: air[1],
         pv: hasOffers() ? (airTotal() > 0 ? won(airTotal()) : "미정") : "—", sub: airIsEstimate() ? "예상" : `성인 ${search.adults}명 총액`, dim: false },
-      { ic: "▤", icc: hotelDone() ? "g" : "n", nm: "숙소",
+      { tab: "hotel", done: hotelDone(),
+        ic: "▤", icc: hotelDone() ? "g" : "n", nm: "숙소",
         ds: hotelDone() ? `선택 완료 · ${hotelSelection.name}` : "선택 전", dsc: hotelDone() ? "o" : "",
         pv: hotelDone() ? hotelPriceLabel() : "—",
         sub: hotelHasDisplayPrice()
           ? `${hotelSelection.nightsLabel}${hotelPriceNote()}${hotelCanAddToTotal() ? "" : " · 합계 제외"}`
           : hotelDone() ? "요금 미제공" : "숙소에서 선택", dim: !hotelHasDisplayPrice() },
-      { ic: "◈", icc: ticketDone() ? "g" : "n", nm: "티켓·액티비티",
+      { tab: "ticket", done: ticketDone(),
+        ic: "◈", icc: ticketDone() ? "g" : "n", nm: "티켓·액티비티",
         ds: ticketDone() ? `모의 예약 · ${ticketReservation.productName}` : "선택 전",
         dsc: ticketDone() ? "o" : "", pv: ticketDone() ? won(ticketTotal()) : "—",
         sub: ticketDone() ? "실습용 · 실제 결제 아님" : "티켓에서 선택", dim: !ticketDone() }
     ];
 
-    return rows.map((r) => `<div class="sr">
-      <div class="ic ${r.icc}" aria-hidden="true">${r.ic}</div>
+    /*
+     * 행을 누르면 그 탭으로 간다. 진행 현황을 보다가 "숙소 선택 전"을 발견했을 때 위쪽
+     * 탭을 다시 찾아 누르게 두지 않는다. 눌러도 되는 자리라는 표시로 오른쪽에 꺾쇠를 둔다.
+     */
+    return rows.map((r) => `<button type="button" class="sr${r.done ? " done" : ""}" data-side-tab="${r.tab}">
+      <div class="ic ${r.icc}" aria-hidden="true">${r.done ? "✓" : r.ic}</div>
       <div class="tx"><div class="nm">${r.nm}</div><div class="ds ${r.dsc}">${r.ds}</div></div>
       <div class="pv ${r.dim ? "n" : ""}">${r.pv}<small>${r.sub}</small></div>
-    </div>`).join("");
+      <span class="ch" aria-hidden="true">›</span>
+    </button>`).join("");
   }
 
   function sync() {
@@ -930,7 +938,12 @@
     try {
       const payload = await request("GET", `/api/v1/trips/${tripId}`);
       const trip = payload.data;
-      if (trip?.title) text("cond-trip", trip.title);
+      if (trip?.title) {
+        text("cond-trip", trip.title);
+        /* 제목에도 얹는다. 여행을 여러 개 굴릴 때 어느 여행인지가 화면 맨 위에 보여야 한다. */
+        text("hdTitle", `${trip.title} 예약`);
+        document.title = `${trip.title} 예약 · 항공 — All My Trips`;
+      }
       if (trip?.startDate) { search.departureDate = trip.startDate; $("f-depart").value = trip.startDate; }
       if (trip?.endDate) { search.returnDate = trip.endDate; $("f-return").value = trip.endDate; }
       if (trip?.companionCount) { search.adults = trip.companionCount; $("f-adults").value = String(trip.companionCount); }
@@ -1024,6 +1037,12 @@
 
     document.querySelectorAll(".tab").forEach((el) =>
       el.addEventListener("click", () => setTab(el.dataset.tab)));
+
+    /* 진행 현황의 행은 다시 그려지므로 개별 요소가 아니라 담는 칸에 한 번만 건다. */
+    $("rows").addEventListener("click", (e) => {
+      const row = e.target.closest("[data-side-tab]");
+      if (row) setTab(row.dataset.sideTab);
+    });
 
     /* 카드는 다시 그려지므로 개별 버튼이 아니라 컨테이너에 한 번만 건다. */
     $("list").addEventListener("click", (e) => {
