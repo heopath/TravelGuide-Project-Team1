@@ -345,7 +345,7 @@ class AiGuideServiceTest {
     void searchesAgainFromThePreviousNearbyQuestionAndExcludesAlreadySuggestedPlaces() {
         AiGuideRequest request = new AiGuideRequest("다른 곳 추천해줘", 12L);
         AiConversationTurn previousTurn = new AiConversationTurn(
-                "이재모피자 본점 근처 카페 추천해줘", "레드버튼 남포점을 추천합니다.");
+                "이재모피자 본점 근처 카페 추천해줘", "추천 일정을 준비했어요.\n[추천 장소] 레드버튼 남포점");
         AiGuideContext context = new AiGuideContext(null, List.of());
         RagSearchResult redButton = new RagSearchResult("place:1", "candidate", 1L,
                 "레드버튼 남포점", "CAFE", "부산", "https://place.map.kakao.com/1");
@@ -514,7 +514,7 @@ class AiGuideServiceTest {
     void removesAPlaceReturnedAgainForAnAlternativeRequestEvenWhenTheModelIgnoresHistory() {
         AiGuideRequest request = new AiGuideRequest("다른 곳 추천해줘", 12L);
         AiConversationTurn previousTurn = new AiConversationTurn(
-                "이재모피자 본점 근처 카페 추천", "레드버튼 남포점을 추천합니다.");
+                "이재모피자 본점 근처 카페 추천", "추천 일정을 준비했어요.\n[추천 장소] 레드버튼 남포점");
         AiGuideContext context = new AiGuideContext(null, List.of());
         AiGuideResponse modelResponse = new AiGuideResponse("다른 추천", List.of(new AiGuideDayResponse(1, "DAY 1",
                 List.of(
@@ -531,6 +531,26 @@ class AiGuideServiceTest {
         assertThat(actual.days().getFirst().items())
                 .extracting(AiGuideItemResponse::name)
                 .containsExactly("새로운 카페");
+    }
+
+    @Test
+    void keepsPlaceWhoseNameOnlyPartiallyMatchesPreviousRecommendation() {
+        AiGuideRequest request = new AiGuideRequest("다른 곳 추천해줘", 12L);
+        AiConversationTurn previousTurn = new AiConversationTurn(
+                "성수 카페 추천", "추천 일정을 준비했어요.\n[추천 장소] 성수");
+        AiGuideContext context = new AiGuideContext(null, List.of());
+        AiGuideResponse modelResponse = new AiGuideResponse("다른 추천", List.of(new AiGuideDayResponse(1, "DAY 1",
+                List.of(new AiGuideItemResponse("15:00", "성수동 카페", "새 후보")))), List.of(), List.of());
+
+        when(conversationHistoryService.load(1L, 12L)).thenReturn(List.of(previousTurn));
+        when(contextService.load(1L, request)).thenReturn(context);
+        when(aiModelClient.generate(request, List.of(previousTurn), context, List.of())).thenReturn(modelResponse);
+
+        AiGuideResponse actual = service.generate(request, false, 1L);
+
+        assertThat(actual.days().getFirst().items())
+                .extracting(AiGuideItemResponse::name)
+                .containsExactly("성수동 카페");
     }
 
     @Test

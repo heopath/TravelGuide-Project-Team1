@@ -94,17 +94,13 @@ public class AiGuideService {
         if (!isAlternativeRequest(question) || places == null || places.isEmpty() || history == null) {
             return places;
         }
-        String previousAnswers = history.stream()
-                .map(AiConversationTurn::answer)
-                .filter(answer -> answer != null)
-                .map(this::normalizePlaceName)
-                .collect(java.util.stream.Collectors.joining(" "));
-        if (previousAnswers.isBlank()) {
+        Set<String> previousSuggestedPlaceNames = extractPreviouslySuggestedPlaceNames(history);
+        if (previousSuggestedPlaceNames.isEmpty()) {
             return places;
         }
         return places.stream()
                 .filter(place -> place.placeName() == null
-                        || !previousAnswers.contains(normalizePlaceName(place.placeName())))
+                        || !previousSuggestedPlaceNames.contains(normalizePlaceName(place.placeName())))
                 .toList();
     }
 
@@ -181,22 +177,19 @@ public class AiGuideService {
                     });
         }
 
-        String previousAnswers = isAlternativeRequest(question) && history != null
-                ? history.stream()
-                .map(AiConversationTurn::answer)
-                .filter(answer -> answer != null)
-                .map(this::normalizePlaceName)
-                .collect(java.util.stream.Collectors.joining(" "))
-                : "";
+        Set<String> previousSuggestedPlaceNames = isAlternativeRequest(question) && history != null
+                ? extractPreviouslySuggestedPlaceNames(history)
+                : Set.of();
 
-        if (scheduledPlaceIds.isEmpty() && scheduledPlaceNames.isEmpty() && previousAnswers.isBlank()) {
+        if (scheduledPlaceIds.isEmpty() && scheduledPlaceNames.isEmpty() && previousSuggestedPlaceNames.isEmpty()) {
             return response;
         }
 
         List<AiGuideDayResponse> filteredDays = response.days().stream()
                 .filter(day -> day != null && day.items() != null)
                 .map(day -> new AiGuideDayResponse(day.day(), day.title(), day.items().stream()
-                        .filter(item -> !isExcludedFinalItem(item, scheduledPlaceIds, scheduledPlaceNames, previousAnswers))
+                        .filter(item -> !isExcludedFinalItem(item, scheduledPlaceIds, scheduledPlaceNames,
+                                previousSuggestedPlaceNames))
                         .toList()))
                 .filter(day -> !day.items().isEmpty())
                 .toList();
@@ -212,7 +205,7 @@ public class AiGuideService {
     private boolean isExcludedFinalItem(AiGuideItemResponse item,
                                         Set<Long> scheduledPlaceIds,
                                         Set<String> scheduledPlaceNames,
-                                        String previousAnswers) {
+                                        Set<String> previousSuggestedPlaceNames) {
         if (item.placeId() != null && scheduledPlaceIds.contains(item.placeId())) {
             return true;
         }
@@ -220,8 +213,23 @@ public class AiGuideService {
         if (scheduledPlaceNames.contains(normalizedName)) {
             return true;
         }
-        // Two-character generic labels such as "카페" must not remove an entire recommendation.
-        return normalizedName.length() >= 3 && !previousAnswers.isBlank() && previousAnswers.contains(normalizedName);
+        return previousSuggestedPlaceNames.contains(normalizedName);
+    }
+
+    private Set<String> extractPreviouslySuggestedPlaceNames(List<AiConversationTurn> history) {
+        if (history == null || history.isEmpty()) {
+            return Set.of();
+        }
+        return history.stream()
+                .map(AiConversationTurn::answer)
+                .filter(answer -> answer != null && !answer.isBlank())
+                .flatMap(answer -> Stream.of(answer.split("\\R")))
+                .map(String::trim)
+                .filter(line -> line.startsWith("[추천 장소]"))
+                .flatMap(line -> Stream.of(line.substring("[추천 장소]".length()).split(",")))
+                .map(this::normalizePlaceName)
+                .filter(name -> !name.isBlank())
+                .collect(java.util.stream.Collectors.toSet());
     }
 
     /**

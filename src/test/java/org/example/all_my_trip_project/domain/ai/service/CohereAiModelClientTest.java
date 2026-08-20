@@ -115,7 +115,7 @@ class CohereAiModelClientTest {
     }
 
     @Test
-    void retriesOnceWhenCohereReturnsAnEmptyResponse() throws Exception {
+    void retriesOnceWhenCohereResponseContentIsBlank() throws Exception {
         stubResponses(200,
                 """
                         {"message":{"content":[{"type":"text","text":""}]}}
