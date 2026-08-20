@@ -387,6 +387,12 @@
 
 /* 승인 화면. 폰으로 여는 화면이라 한 줄에 하나씩 크게 둔다. */
 .pay-approve { display: grid; gap: 14px; text-align: center; }
+/*
+   hidden 속성이 실제로 감추게 한다. .center-link·.primary-button이 display를 직접
+   지정해 브라우저 기본 [hidden] 규칙을 이기는 바람에, 승인 전에도 완료 안내 링크가
+   보이고 이미 결제된 예약에서 승인 버튼이 남아 있었다. 화면으로 열어 보고 찾았다.
+*/
+.pay-approve [hidden] { display: none; }
 .pay-approve-detail { display: grid; gap: 8px; margin: 0; text-align: left; }
 .pay-approve-detail[hidden] { display: none; }
 .pay-approve-detail > div {
