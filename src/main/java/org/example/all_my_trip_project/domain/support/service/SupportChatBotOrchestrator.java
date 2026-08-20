@@ -10,7 +10,7 @@ import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
 
 import java.util.List;
-import java.util.Set;
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -31,9 +31,8 @@ import java.util.concurrent.ConcurrentHashMap;
  * 중복되거나 순서가 뒤바뀐다. 지금은 단일 인스턴스 전제라(내장 심플 브로커와 같은 전제)
  * 방 번호를 담은 {@link #inFlight}만으로 충분하다.
  *
- * <p><b>"다시 부를지"는 트리거 개수가 아니라 메시지 ID로 정한다.</b> 처음에는 "트리거가
- * 그사이 한 번 더 왔는가"를 표시로 남겨 재실행 여부를 정했지만, 이 판단은 두 방향 모두
- * 틀릴 수 있었다(heopath 3·4차 리뷰).
+ * <p><b>"다시 부를지"는 트리거 개수가 아니라, 내가 이미 어디까지 답했는지로 정한다.</b>
+ * 트리거가 왔는지(개수)로 판단하면 두 방향 모두 틀릴 수 있었다(heopath 3·4차 리뷰).
  * <ul>
  *   <li>트리거가 또 왔어도 그 메시지가 이미 직전 스냅샷에 포함돼 있었을 수 있다 —
  *   재실행하면 같은 내용에 답이 두 번 저장된다.</li>
@@ -43,10 +42,21 @@ import java.util.concurrent.ConcurrentHashMap;
  *   포함된 적이 없어 영영 답을 못 받는다 — 메시지 ID 순서상 더 뒤에 저장된 봇 응답이
  *   그보다 앞선 손님 메시지를 "가린" 것뿐, 실제로 답한 것이 아니다.</li>
  * </ul>
- * 그래서 {@link #respond}는 자신이 Gemini에 넘긴 스냅샷의 <b>가장 최근 손님 메시지 ID</b>를
- * 기억해 두고, 답을 저장한 뒤 그 ID보다 큰 손님 메시지가 실제로 있는지 DB에서 다시 확인한다.
- * 있으면 그 메시지는 이번 호출에 포함되지 않았다는 뜻이므로 — 마지막 메시지가 무엇이든 —
- * 다시 돈다. 이미 만든 답은 그대로 두고 새 메시지에 대한 답만 추가로 만들므로 낭비도 없다.
+ * 그래서 {@link #onTrigger}는 지금까지 답한 <b>가장 최근 손님 메시지 ID(워터마크)</b>를
+ * 스레드 로컬 변수로 들고, {@link #respond}를 부를 때마다 넘긴다. {@code respond}는 DB를
+ * 새로 읽어 그 워터마크보다 큰 손님 메시지가 있을 때만 Gemini를 부르고, 답을 저장한 뒤
+ * 그 메시지의 ID를 새 워터마크로 돌려준다. 워터마크가 실제로 늘었으면(=방금 뭔가 답했으면)
+ * 곧바로 한 번 더 확인한다 — 그 사이 또 새 메시지가 왔을 수 있기 때문이다. 워터마크가
+ * 그대로면(=이번 스냅샷에는 이미 답한 것 이상이 없으면) 더 부를 필요가 없다.
+ *
+ * <p><b>"더 없다"고 확인한 순간과 잠금을 실제로 놓는 순간 사이에도 틈이 있다.</b> 그 짧은
+ * 순간에 새 트리거가 도착하면 {@link #inFlight}에 방이 여전히 남아 있어 트리거는 버려지는데,
+ * 지금 실행이 그 판단을 그대로 밀어붙여 잠금을 지우면 그 메시지는 아무도 처리하지 않는다
+ * (heopath 5차 리뷰). 그래서 잠금을 지우는 연산 자체를, "그 순간까지 아무도 트리거를 놓치지
+ * 않았을 때만" 성립하는 원자적 조건부 삭제로 만든다 — 확인과 해제를 하나의 연산으로 묶어야
+ * 그 사이의 어떤 순간에 트리거가 와도 안전하다. 놓친 트리거가 있었다면 {@link #respond}를
+ * 한 번 더 부르는데, 이때도 워터마크 비교로 판단하므로 실제로 새 메시지가 없었다면(트리거만
+ * 왔을 뿐 내용은 이미 반영돼 있었다면) Gemini를 다시 부르지 않는다.
  */
 @Component
 @Profile("!ui")
@@ -57,63 +67,93 @@ public class SupportChatBotOrchestrator {
     private static final String GEMINI_FAILURE_MESSAGE =
             "죄송해요, 지금 답변을 준비하는 데 문제가 생겼어요. 상담원에게 연결해 드릴게요.";
 
+    /** 아직 어떤 손님 메시지에도 답하지 않은 상태를 나타내는 워터마크. 실제 메시지 ID는 1부터 시작한다. */
+    private static final long NOT_ANSWERED_YET = -1L;
+
     private final SupportChatService supportChatService;
     private final SupportChatBotClient supportChatBotClient;
 
-    /** 지금 답을 만들고 있는 방들. 방 번호가 있으면 진행 중이라는 뜻이다. */
-    private final Set<Long> inFlight = ConcurrentHashMap.newKeySet();
+    /**
+     * 지금 답을 만들고 있는 방들. 방 번호가 있으면 진행 중이라는 뜻이다.
+     *
+     * <p>값은 "내가 확인을 마치고 잠금을 놓으려는 사이에 트리거를 하나 놓쳤다"는 표시다.
+     * {@code respond()}가 더 답할 게 없다고 판단해도, 그 판단과 잠금 해제 사이에 새 트리거가
+     * 오면 이 값을 {@code TRUE}로 바꿔 둔다. 잠금을 놓는 쪽은 이 값이 여전히 {@code FALSE}일
+     * 때만(=그 사이 아무도 트리거를 놓치지 않았을 때만) 원자적으로 지운다.
+     */
+    private final Map<Long, Boolean> inFlight = new ConcurrentHashMap<>();
 
     @Async
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void onTrigger(SupportChatBotTriggerEvent event) {
         Long roomId = event.roomId();
-        if (!inFlight.add(roomId)) {
+        if (inFlight.putIfAbsent(roomId, Boolean.FALSE) != null) {
             /*
-             * 이미 이 방을 처리 중이다. 이 트리거는 조용히 버려도 된다 — 지금 도는 실행이
-             * respond()에서 저장 직후 DB를 다시 확인해 새 손님 메시지를 스스로 찾아내므로,
-             * 이 트리거가 알리려던 내용도 결국 반영된다.
+             * 이미 이 방을 처리하는 실행이 있다. 그 실행이 막 "더 없다"고 판단하고 잠금을
+             * 놓으려는 참일 수 있으니, 트리거를 그냥 버리지 않고 표시를 남긴다 — 소유자가
+             * 잠금을 놓기 직전 이 표시를 원자적으로 확인하므로 놓치지 않는다.
              */
+            inFlight.put(roomId, Boolean.TRUE);
             return;
         }
         try {
-            boolean runAgain;
-            do {
-                runAgain = respond(roomId);
-            } while (runAgain);
-        } finally {
+            long answeredUpTo = NOT_ANSWERED_YET;
+            while (true) {
+                long updated = respond(roomId, answeredUpTo);
+                if (updated > answeredUpTo) {
+                    answeredUpTo = updated;
+                    continue; /* 방금 답했다 — 그 사이 더 오지 않았는지 곧바로 한 번 더 본다. */
+                }
+                if (inFlight.remove(roomId, Boolean.FALSE)) {
+                    return; /* 확인부터 지금까지 표시가 FALSE였다 — 안전하게 종료한다. */
+                }
+                /* 그 사이 표시가 TRUE로 바뀌어 있었다 — 놓칠 뻔한 트리거가 있었다는 뜻이다.
+                   표시를 내리고 DB를 다시 확인한다(내용이 실제로 새로울 때만 다시 답한다). */
+                inFlight.put(roomId, Boolean.FALSE);
+            }
+        } catch (RuntimeException exception) {
+            /* 예외로 빠져나가도 방이 잠긴 채 남지 않게 한다. */
             inFlight.remove(roomId);
+            throw exception;
         }
     }
 
-    /** @return 이번에 답한 스냅샷 이후 새로 온 손님 메시지가 있어 다시 돌아야 하면 {@code true}. */
-    private boolean respond(Long roomId) {
+    /**
+     * 워터마크({@code answeredUpTo})보다 새로운 손님 메시지가 있을 때만 Gemini를 부른다.
+     *
+     * @return 이번 호출이 답한 손님 메시지 ID(새로 답한 게 없으면 {@code answeredUpTo} 그대로).
+     */
+    private long respond(Long roomId, long answeredUpTo) {
         /*
          * Gemini를 부르기 전에 먼저 값싸게 한 번 거른다. 그 사이 관리자가 이미 가져갔다면
          * 굳이 API를 호출할 이유가 없다 — 최종 저장 직전에 다시 한번 잠그고 확인하는 것과는
          * 별개의, 비용을 아끼기 위한 사전 검사다.
          */
-        if (!supportChatService.isStillBot(roomId)) return false;
+        if (!supportChatService.isStillBot(roomId)) return answeredUpTo;
 
         List<SupportChatMessageDTO> conversation = supportChatService.recentMessages(roomId);
-        Long snapshotUserMessageId = latestUserMessageId(conversation);
-        /* 대화는 있는데 손님 메시지가 하나도 없으면(봇 인사만 있고 아직 질문이 없음) 답할 게 없다. */
-        if (!conversation.isEmpty() && snapshotUserMessageId == null) return false;
+        Long latestUserMessageId = latestUserMessageId(conversation);
+        if (latestUserMessageId == null) {
+            /* 손님 메시지가 아예 없다. 대화가 비어 있으면 첫 인사, 봇 인사만 있으면 답할 게 없다. */
+            if (!conversation.isEmpty()) return answeredUpTo;
+            latestUserMessageId = 0L;
+        }
+        if (latestUserMessageId <= answeredUpTo) {
+            return answeredUpTo; /* 이미 이 지점까지 답했다 — 다시 부를 필요 없다. */
+        }
 
         try {
             SupportChatBotReply reply = supportChatBotClient.reply(conversation);
             if (reply.handoff()) {
                 supportChatService.recordBotHandoff(roomId, reply.content());
-                return false; /* 상담원 대기로 넘어갔다 — 봇이 더 돌 이유가 없다. */
+            } else {
+                supportChatService.recordBotReply(roomId, reply.content());
             }
-            supportChatService.recordBotReply(roomId, reply.content());
         } catch (SupportChatBotException exception) {
             log.warn("상담 봇 응답 생성에 실패해 상담원 대기로 넘깁니다. roomId={}", roomId, exception);
             supportChatService.recordBotHandoff(roomId, GEMINI_FAILURE_MESSAGE);
-            return false;
         }
-
-        long watermark = snapshotUserMessageId == null ? 0L : snapshotUserMessageId;
-        return supportChatService.hasUserMessageAfter(roomId, watermark);
+        return latestUserMessageId;
     }
 
     /** 대화에서 가장 나중에 온 손님(USER) 메시지 ID. 손님 메시지가 없으면 {@code null}. */
