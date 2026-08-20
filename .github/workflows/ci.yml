@@ -1,0 +1,79 @@
+# PR마다 실제로 빌드되고 테스트가 통과하는지 확인합니다. (#191 위키 4.1)
+#
+# Kilo는 코드를 읽고, CodeQL은 보안을 보지만, 둘 다 프로그램을 돌려보지는 않습니다.
+# 이 워크플로가 없으면 깨진 코드가 main에 머지된 뒤 배포에서 처음 터집니다.
+name: CI
+
+on:
+  pull_request:
+    branches: [main, develop]
+  push:
+    branches: [main, develop]
+  workflow_dispatch:
+
+# 같은 브랜치에 연달아 올리면 앞의 실행은 취소합니다. 어차피 볼 것은 마지막 결과입니다.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  # 서버와 프런트를 따로 돌립니다. 하나로 묶으면 어느 쪽이 깨졌는지 한눈에 안 보이고,
+  # 앞이 깨지면 뒤는 돌지도 않습니다.
+  server:
+    name: 서버 빌드·테스트
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Java 21 준비
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Gradle 준비
+        uses: gradle/actions/setup-gradle@v6
+
+      - name: 빌드와 테스트
+        # 기본 프로필이 ui라 DataSource·Redis 자동설정이 빠집니다. DB 없이 돕니다.
+        # DB가 필요한 통합 테스트는 환경변수로 잠겨 있어 여기서는 건너뜁니다.
+        run: ./gradlew build --no-daemon
+
+      - name: 실패하면 테스트 결과 남기기
+        # 요약만으로는 왜 깨졌는지 알 수 없습니다. assertion 메시지가 XML에 있습니다.
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: server-test-results
+          path: |
+            build/reports/tests/test
+            build/test-results/test
+          retention-days: 7
+
+  frontend:
+    name: 화면 수용 기준
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Node 준비
+        uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: src/test/js/package-lock.json
+
+      - name: 의존성 설치
+        working-directory: src/test/js
+        run: npm ci
+
+      - name: 화면 수용 기준
+        working-directory: src/test/js
+        run: npm test
+
+      - name: 화면 목록·모달 목록 검사
+        # 목록이 어긋나면 스토리보드 캡처가 엉뚱한 카드에 붙습니다. (#191)
+        run: node tools/figma-plugin/match.test.js
