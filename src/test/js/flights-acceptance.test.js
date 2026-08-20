@@ -263,8 +263,12 @@ async function run() {
 
     // 다른 항공편 선택 시 총액 즉시 반영 (7C101 76,000원)
     w.__flightBooking.openOut("mock:7c101");
-    T("다른 항공편 선택 시 총액이 즉시 반영된다",
-      $("cTot").textContent === won(76000 * PAX + 94000 * PAX));
+    /*
+     * 하나라도 고르면 총액은 고른 것만 더한다. (#281 시안 2차) 화면에 `✓ 가는 편 항공`이라
+     * 적어 두고 총액에는 안 고른 편이 섞여 있으면 그 숫자는 아무것도 설명하지 못한다.
+     */
+    T("고른 편만 총액에 들어간다", $("cTot").textContent === won(76000 * PAX));
+    T("안 고른 편은 기준 문구가 밝힌다", $("costNote").textContent.includes("항공 1편만 반영"));
 
     // 정렬을 바꿔도 선택이 유지되어야 한다 (offerId 기준)
     d.querySelectorAll(".sc")[1].click();
@@ -278,7 +282,7 @@ async function run() {
       productName: "제주 아쿠아리움 입장권", totalAmount: 40000, status: "PENDING"
     } } }));
     T("티켓 모의 예약 금액이 예상 총액에 반영된다",
-      $("cTot").textContent === won(76000 * PAX + 94000 * PAX + 40000));
+      $("cTot").textContent === won(76000 * PAX + 40000));
     /*
      * 앞에서 가는 편을 골랐고 여기서 티켓까지 잡았으니 네 칸 중 둘이다. 단계는 `골랐는가`로
      * 센다 — 예약 확정은 외부 사이트 일이라 우리가 확인할 수 없다. (#281 시안)

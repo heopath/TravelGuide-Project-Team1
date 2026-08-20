@@ -25,7 +25,6 @@
               -->
               <h1><span id="hdTitle">여행 예약</span></h1>
               <p>필요한 예약을 한곳에서 비교하고 일정에 담아보세요.</p>
-              <i>✦</i>
             </div>
 
             <!-- 지금 어떤 조건으로 보고 있는지. 고치는 곳은 아래 검색 패널이다. -->
@@ -92,12 +91,50 @@
             </form>
           </div>
 
+          <!--
+            아이콘은 여기 한 번만 그려 두고 탭과 진행 현황이 <use>로 가져다 쓴다. (#281)
+            같은 그림을 두 곳에 복사하면 한쪽만 고쳐져 아이콘이 갈린다.
+          -->
+          <svg class="icon-sprite" aria-hidden="true" focusable="false">
+            <symbol id="ic-plane" viewBox="0 0 24 24">
+              <path d="M21 16.5v-1.8l-7.5-4.7V4.2a1.5 1.5 0 0 0-3 0V10L3 14.7v1.8l7.5-2.3V18l-2 1.4v1.4l3.5-1 3.5 1v-1.4L13.5 18v-3.8z"
+                    fill="currentColor" />
+            </symbol>
+            <symbol id="ic-hotel" viewBox="0 0 24 24">
+              <g fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M3 21h18M6 21V4.8c0-.4.3-.8.8-.8h6.4c.5 0 .8.4.8.8V21" />
+                <path d="M14 10h3.2c.4 0 .8.3.8.8V21" />
+                <path d="M9 8h2M9 12h2M9 16h2" />
+              </g>
+            </symbol>
+            <symbol id="ic-ticket" viewBox="0 0 24 24">
+              <g fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M4 8.5C4 7.7 4.7 7 5.5 7h13c.8 0 1.5.7 1.5 1.5V10a2 2 0 0 0 0 4v1.5c0 .8-.7 1.5-1.5 1.5h-13A1.5 1.5 0 0 1 4 15.5V14a2 2 0 0 0 0-4V8.5z" />
+                <path d="M13 7.5v9" stroke-dasharray="2 2.4" />
+              </g>
+            </symbol>
+            <symbol id="ic-mine" viewBox="0 0 24 24">
+              <g fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M9.5 4h5c.3 0 .5.2.5.5V6H9V4.5c0-.3.2-.5.5-.5z" />
+                <path d="M9 5.2H6.8c-.4 0-.8.4-.8.8v13c0 .4.4.8.8.8h10.4c.4 0 .8-.4.8-.8V6c0-.4-.4-.8-.8-.8H15" />
+                <path d="M9 11h6M9 15h4" />
+              </g>
+            </symbol>
+          </svg>
+
           <div class="tabs" role="tablist">
-            <button type="button" class="tab on" role="tab" aria-selected="true" data-tab="flight">✈ 항공</button>
-            <button type="button" class="tab" role="tab" aria-selected="false" data-tab="hotel">▤ 숙소</button>
-            <button type="button" class="tab" role="tab" aria-selected="false" data-tab="ticket">◈ 티켓·액티비티</button>
+            <button type="button" class="tab on" role="tab" aria-selected="true" data-tab="flight">
+              <svg class="tabic" aria-hidden="true"><use href="#ic-plane" /></svg> 항공
+            </button>
+            <button type="button" class="tab" role="tab" aria-selected="false" data-tab="hotel">
+              <svg class="tabic" aria-hidden="true"><use href="#ic-hotel" /></svg> 숙소
+            </button>
+            <button type="button" class="tab" role="tab" aria-selected="false" data-tab="ticket">
+              <svg class="tabic" aria-hidden="true"><use href="#ic-ticket" /></svg> 티켓·액티비티
+            </button>
             <button type="button" class="tab" role="tab" aria-selected="false" data-tab="mine">
-              ▣ 내 예약 <span class="k cnt" id="tabCount">0</span>
+              <svg class="tabic" aria-hidden="true"><use href="#ic-mine" /></svg>
+              내 예약 <span class="k cnt" id="tabCount">0</span>
             </button>
           </div>
 

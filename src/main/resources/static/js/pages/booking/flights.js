@@ -109,6 +109,25 @@
 
   const airDone = () => state.userReportedBooked[OUTBOUND] && state.userReportedBooked[INBOUND];
   const airTotal = () => legPrice(OUTBOUND) + legPrice(INBOUND);
+
+  /*
+   * 예상 총액은 두 가지 모드로 움직인다. (#281 시안 2차)
+   *
+   *   아무것도 안 골랐을 때 — 추천 항공편 기준의 어림값. 비교를 시작하기 전에도
+   *                          이 여행이 대략 얼마인지는 보여야 한다.
+   *   하나라도 골랐을 때   — 고른 것만 더한다. 화면에 `✓ 가는 편 항공`이라고 적어 두고
+   *                          총액에는 안 고른 편이 섞여 있으면, 그 숫자는 아무것도
+   *                          설명하지 못한다.
+   *
+   * 그래서 숙소만 고른 상태에서는 항공이 빠진 금액이 나온다. 대신 그 사실을 기준
+   * 문구에 적는다 — 숫자가 왜 낮은지 화면이 스스로 말해야 한다.
+   */
+  const chosenLegCount = () =>
+    (state.picked[OUTBOUND] ? 1 : 0) + (state.picked[INBOUND] ? 1 : 0);
+  const anythingChosen = () => chosenLegCount() > 0 || hotelDone() || ticketDone();
+  const chosenAirTotal = () =>
+    (state.picked[OUTBOUND] ? legPrice(OUTBOUND) : 0)
+    + (state.picked[INBOUND] ? legPrice(INBOUND) : 0);
   const airIsEstimate = () => !airDone();
   const hasOffers = () => offers[OUTBOUND].length > 0 || offers[INBOUND].length > 0;
   const hotelDone = () => !!hotelSelection;
@@ -304,7 +323,10 @@
             : "예약 사이트에서 확인해 주세요"}</div>
           ${on
             ? `<span class="picked">${st === "NONE" ? "선택됨" : label.replace("✓ ", "")}</span>
-               <button type="button" class="pick${done}" data-go="${esc(offer.offerId)}">${label}</button>`
+               <button type="button" class="pick${done}" data-go="${esc(offer.offerId)}">${label}</button>
+               ${st === "NONE"
+                 ? `<button type="button" class="unchoose" data-unchoose="1">선택 취소</button>`
+                 : ""}`
             : `<button type="button" class="choose" data-choose="${esc(offer.offerId)}">선택하기</button>`}
         </div>
       </div>`;
@@ -324,6 +346,13 @@
    * <p>가는 편과 오는 편을 따로 센다. 예전에는 `왕복 항공` 한 줄이라 가는 편만 표시한
    * 상태가 진행률에 전혀 반영되지 않았다 — 절반을 끝냈는데 0/3이었다.
    */
+  /*
+   * 진행 현황 줄 아이콘. 탭과 같은 그림을 쓴다 — 마크업 맨 위의 스프라이트를 가져다 쓰므로
+   * 그림이 한 곳에만 있다. 복사해 두면 한쪽만 고쳐져 탭과 목록의 아이콘이 갈린다. (#281)
+   */
+  const icon = (name) =>
+    `<svg class="rowic" aria-hidden="true"><use href="#ic-${name}" /></svg>`;
+
   function legRow(leg) {
     const st = status(leg);
     const reported = state.userReportedBooked[leg];
@@ -342,7 +371,7 @@
 
     return {
       tab: "flight", leg, done: chosen,
-      ic: "✈",
+      ic: icon("plane"),
       nm: leg === OUTBOUND ? "가는 편 선택" : "오는 편 선택",
       ds: label,
       pv: chosen && price > 0 ? won(price) : "",
@@ -354,10 +383,10 @@
     const rows = [
       legRow(OUTBOUND),
       legRow(INBOUND),
-      { tab: "hotel", done: hotelDone(), ic: "▤", nm: "숙소 선택",
+      { tab: "hotel", done: hotelDone(), ic: icon("hotel"), nm: "숙소 선택",
         ds: hotelDone() ? "선택됨" : "미선택",
         pv: hotelDone() ? hotelPriceLabel() : "", dim: !hotelHasDisplayPrice() },
-      { tab: "ticket", done: ticketDone(), ic: "◈", nm: "티켓·액티비티 선택",
+      { tab: "ticket", done: ticketDone(), ic: icon("ticket"), nm: "티켓·액티비티 선택",
         ds: ticketDone() ? "선택됨" : "미선택",
         pv: ticketDone() ? won(ticketTotal()) : "", dim: !ticketDone() }
     ];
@@ -399,15 +428,26 @@
     $("rows").innerHTML = sideRows();
 
     text("cBase", `성인 ${search.adults}명 기준`);
-    if (hasOffers()) {
-      const total = airTotal() + hotelTotal() + ticketTotal();
-      text("cTot", won(total));
-      text("cPer", `1인 ${won(Math.round(total / search.adults))}`);
-    } else {
+    const chosenMode = anythingChosen();
+    const total = (chosenMode ? chosenAirTotal() : airTotal()) + hotelTotal() + ticketTotal();
+
+    if (!hasOffers()) {
       text("cTot", "—");
       text("cPer", "항공편을 먼저 검색해 주세요");
+    } else if (chosenMode && total === 0) {
+      /* 고른 것은 있는데 값을 아는 게 하나도 없다. 0원이라고 쓰면 공짜처럼 읽힌다. */
+      text("cTot", "—");
+      text("cPer", "고른 항목의 요금 정보가 없어요");
+    } else {
+      text("cTot", won(total));
+      text("cPer", `1인 ${won(Math.round(total / search.adults))}`);
     }
-    const airLabel = airIsEstimate() ? `항공 추천가 · ${sourceLabel()}` : "항공 확정";
+
+    const legs = chosenLegCount();
+    const airLabel = !chosenMode ? `항공 추천가 · ${sourceLabel()}`
+      : legs === 2 ? (airIsEstimate() ? "항공 선택가" : "항공 확정")
+      : legs === 1 ? "항공 1편만 반영"
+      : "항공 미선택";
     const hotelLabel = hotelHasDisplayPrice() && !hotelCanAddToTotal()
       ? "숙소 통화 달라 합계 제외"
       : hotelSelection?.priceSource === "SANDBOX"
@@ -1236,6 +1276,17 @@
       const choose = e.target.closest("[data-choose]");
       if (choose) {
         state.picked[state.leg] = choose.dataset.choose;
+        render();
+        sync();
+        return;
+      }
+      /*
+       * 선택 취소. 예약 표시를 하기 전까지만 둔다 — 이미 `예약함`으로 표시한 편을 여기서
+       * 지우면 밖에서 한 예약 기록이 조용히 사라진다. 그건 `내 예약` 탭에서 되돌린다.
+       */
+      const unchoose = e.target.closest("[data-unchoose]");
+      if (unchoose) {
+        state.picked[state.leg] = null;
         render();
         sync();
         return;

@@ -1089,3 +1089,38 @@
   justify-content: space-between;
   text-align: left;
 }
+
+/* 고른 편을 되돌리는 자리. 눈에 띄되 `예약 사이트로 이동`보다 약하게 둔다. */
+.page-flights .unchoose {
+  display: block;
+  width: 100%;
+  margin-top: 8px;
+  padding: 6px;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.page-flights .unchoose:hover { color: var(--ink-2); text-decoration: underline; }
+
+/* 아이콘 스프라이트는 자리를 차지하지 않는다. */
+.page-flights .icon-sprite { position: absolute; width: 0; height: 0; overflow: hidden; }
+.page-flights .tabic { width: 19px; height: 19px; vertical-align: -4px; margin-right: 2px; }
+.page-flights .sr .rowic { width: 18px; height: 18px; display: block; }
+
+/*
+   내역 줄 정렬. 체크·이름·금액을 첫 줄에 맞추고 주석만 이름 아래로 흘린다.
+   가운데 정렬이면 두 줄짜리 줄에서 체크와 금액이 어긋나 보인다 — 지적받고 고쳤다.
+*/
+.page-flights .costline {
+  grid-template-columns: 16px minmax(0, 1fr) auto;
+  align-items: start;
+  column-gap: 8px;
+}
+.page-flights .costline .ck,
+.page-flights .costline .nm > :first-child,
+.page-flights .costline .pv { line-height: 20px; }
+.page-flights .costline .nm { white-space: normal; }
+.page-flights .costline .nm small { display: block; line-height: 1.4; }
