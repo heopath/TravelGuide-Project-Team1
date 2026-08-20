@@ -29,8 +29,8 @@
   />
   <link
           rel="stylesheet"
-          th:href="@{/css/pages/trips/schedule.css}"
-          href="../../static/css/pages/trips/schedule.css"
+          th:href="@{/css/pages/trips/schedule.css(v=20260819-place-panel-footer)}"
+          href="../../static/css/pages/trips/schedule.css?v=20260819-place-panel-footer"
   />
 </head>
 
@@ -64,18 +64,6 @@
           </li>
         </ol>
 
-        <div class="schedule-heading-actions">
-          <button type="button" class="schedule-back-button" data-schedule-back>
-            ← 뒤로가기
-          </button>
-          <button
-                  type="button"
-                  class="primary-button schedule-save-button"
-                  data-schedule-save
-          >
-            ▣&nbsp; 여행 저장하기
-          </button>
-        </div>
       </section>
 
       <div class="schedule-layout schedule-planner-layout">
@@ -94,198 +82,252 @@
         </aside>
 
         <section class="schedule-center">
-          <section class="white-panel map-panel">
-            <div class="panel-title-row">
-              <div>
-                <h2>여행 지도</h2>
-                <p>선택한 날짜의 장소를 표시하세요.</p>
-              </div>
+          <div class="schedule-day-tabs-shell" data-day-tabs-shell>
+            <button
+                    type="button"
+                    class="schedule-day-nav schedule-day-nav-prev"
+                    data-day-prev
+                    aria-label="이전 DAY 보기"
+                    hidden
+                    disabled
+            >‹</button>
+            <div class="day-tabs" data-day-tabs></div>
+            <button
+                    type="button"
+                    class="schedule-day-nav schedule-day-nav-next"
+                    data-day-next
+                    aria-label="다음 DAY 보기"
+                    hidden
+            >›</button>
+          </div>
 
-              <span class="map-status" data-map-status hidden>지도 준비 중</span>
-              <div class="map-panel-actions">
-                <button type="button" class="outline-button map-route-toggle" data-toggle-route-map>
-                  경로선 ON
-                </button>
-                <details class="route-optimization-picker" data-optimize-picker>
-                  <summary class="outline-button route-optimization-trigger" data-optimize-trigger>
-                    ✨ 동선 최적화
-                  </summary>
-                  <div class="route-optimization-options" role="menu" aria-label="동선 최적화 기준 선택">
-                    <button type="button" class="route-optimization-option"
-                            data-optimize-route data-optimize-criterion="TIME" role="menuitem">
-                      <span class="route-optimization-option-icon" aria-hidden="true">⏱</span>
-                      <span>
-                        <strong>이동시간 우선</strong>
-                        <small>자동차 이동시간이 짧은 순서</small>
-                      </span>
-                    </button>
-                    <button type="button" class="route-optimization-option"
-                            data-optimize-route data-optimize-criterion="DISTANCE" role="menuitem">
-                      <span class="route-optimization-option-icon" aria-hidden="true">↔</span>
-                      <span>
-                        <strong>이동거리 우선</strong>
-                        <small>도로 이동거리가 짧은 순서</small>
-                      </span>
-                    </button>
-                  </div>
-                </details>
-                <button type="button" class="map-expand-button">
-                  ♧&nbsp; 지도 크게 보기
-                </button>
-              </div>
-            </div>
-
-            <div class="schedule-map" data-schedule-map>
-              <div class="map-placeholder">
-                카카오 지도 키를 설정하면 지도가 표시됩니다.
-              </div>
-            </div>
-          </section>
-
-          <section class="white-panel schedule-main">
-            <div class="schedule-title-row">
-              <div>
-                <h2 data-schedule-title>여행 캘린더 / 일정 확인</h2>
-                <p>선택한 날짜의 일정을 계획해보세요.</p>
+          <section class="schedule-workspace">
+            <header class="schedule-workspace-toolbar">
+              <div class="schedule-trip-meta">
+                <strong data-schedule-destination>부산 여행</strong>
+                <span aria-hidden="true">|</span>
+                <span data-schedule-period>8/6–8/8</span>
               </div>
 
               <button
                       type="button"
-                      class="outline-button"
-                      data-toggle-route
+                      class="outline-button schedule-transport-trigger"
+                      data-transport-trigger
+                      aria-expanded="false"
+                      aria-controls="scheduleTransportSettingsPanel"
+                      aria-label="교통수단 선택"
               >
-                전체 보기
+                <span class="schedule-transport-trigger-icon" data-transport-trigger-icon aria-hidden="true">🚌</span>
+                <span data-transport-trigger-label>교통수단 선택</span>
+                <span class="schedule-transport-trigger-chevron" aria-hidden="true">⌄</span>
               </button>
-            </div>
 
-            <div class="day-tabs" data-day-tabs></div>
+              <div class="schedule-workspace-actions">
+                <div class="route-optimization-action-stack">
+                  <button
+                          type="button"
+                          class="primary-button route-optimization-trigger"
+                          data-optimize-trigger
+                          title="이동시간을 우선하고, 시간이 같으면 이동거리가 짧은 순서로 정렬합니다."
+                  >
+                    ✨ 동선 최적화
+                  </button>
+                  <div
+                          class="route-optimization-summary-slot"
+                          data-optimization-summary-slot
+                          aria-live="polite"
+                  ></div>
+                </div>
+                <button
+                        type="button"
+                        class="outline-button schedule-place-add-trigger"
+                        data-place-add-trigger
+                        aria-expanded="false"
+                        aria-controls="schedulePlaceSearchPanel"
+                >
+                  ＋ 장소 추가
+                </button>
+                <details class="schedule-more-menu" data-schedule-more>
+                  <summary class="outline-button">더보기&nbsp;</summary>
+                  <div class="schedule-more-menu-panel" role="menu" aria-label="일정 추가 기능">
+                    <button type="button" data-toggle-route role="menuitem">
+                      <span class="schedule-more-menu-icon" aria-hidden="true">▦</span>
+                      <span class="schedule-more-menu-copy">
+                        <strong>전체 일정 보기</strong>
+                        <small>DAY별 일정을 한눈에 보기</small>
+                      </span>
+                    </button>
+                    <button type="button" data-more-route-map role="menuitem" aria-pressed="true">
+                      <span class="schedule-more-menu-icon" aria-hidden="true">⌘</span>
+                      <span class="schedule-more-menu-copy">
+                        <strong>경로선 표시</strong>
+                        <small>지도에서 이동 경로 보기</small>
+                      </span>
+                      <span class="schedule-more-route-state" data-more-route-state aria-hidden="true">ON</span>
+                    </button>
+                    <button type="button" class="map-expand-button" role="menuitem">
+                      <span class="schedule-more-menu-icon" aria-hidden="true">⛶</span>
+                      <span class="schedule-more-menu-copy">
+                        <strong>지도 크게 보기</strong>
+                        <small>경로를 큰 화면으로 보기</small>
+                      </span>
+                    </button>
+                  </div>
+                </details>
+              </div>
 
-            <div class="timeline" data-timeline>
-              <p class="schedule-empty">
-                일정을 불러오는 중입니다.
+              <section
+                      id="scheduleTransportSettingsPanel"
+                      class="schedule-transport-settings-panel"
+                      data-transport-settings-panel
+                      aria-labelledby="scheduleTransportSettingsTitle"
+                      hidden
+              >
+                <div class="schedule-transport-settings-heading">
+                  <div>
+                    <h2 id="scheduleTransportSettingsTitle">교통수단 설정</h2>
+                    <p>현재 DAY의 이동 구간에 적용할 교통수단을 선택하세요.</p>
+                  </div>
+                </div>
+                <div class="schedule-transport-options" role="radiogroup" aria-label="현재 DAY 교통수단 선택">
+                  <button type="button" class="schedule-transport-option" data-transport-mode="walk" role="radio" aria-checked="false">
+                    <span class="schedule-transport-option-icon" aria-hidden="true">🚶</span>
+                    <strong>도보</strong>
+                    <span class="schedule-transport-option-radio" aria-hidden="true"></span>
+                  </button>
+                  <button type="button" class="schedule-transport-option" data-transport-mode="transit" role="radio" aria-checked="false">
+                    <span class="schedule-transport-option-icon" aria-hidden="true">🚌</span>
+                    <strong>대중교통</strong>
+                    <span class="schedule-transport-option-radio" aria-hidden="true"></span>
+                  </button>
+                  <button type="button" class="schedule-transport-option" data-transport-mode="car" role="radio" aria-checked="false">
+                    <span class="schedule-transport-option-icon" aria-hidden="true">🚗</span>
+                    <strong>자동차</strong>
+                    <span class="schedule-transport-option-radio" aria-hidden="true"></span>
+                  </button>
+                </div>
+                <div class="schedule-transport-settings-actions">
+                  <button type="button" class="schedule-transport-cancel" data-transport-settings-cancel>취소</button>
+                  <button type="button" class="primary-button" data-transport-settings-apply>일정에 적용</button>
+                </div>
+              </section>
+            </header>
+
+            <section
+                    class="white-panel place-search-panel"
+                    id="schedulePlaceSearchPanel"
+                    data-place-add-popover
+                    hidden
+            >
+              <div class="panel-title-row">
+                <div>
+                    <h2 data-place-add-title>DAY 1에 장소 추가</h2>
+                  <p>장소를 검색해 선택한 DAY에 추가하세요.</p>
+                </div>
+                <button type="button" class="place-search-close" data-place-add-close aria-label="장소 추가 닫기">×</button>
+              </div>
+
+              <form
+                      class="schedule-search"
+                      data-place-search-form
+                      data-no-global-loading
+              >
+                <input
+                        type="search"
+                        data-place-keyword
+                        placeholder="장소명을 입력하세요."
+                        aria-label="일정 장소 검색"
+                />
+
+                <button type="submit" class="primary-button">
+                  검색
+                </button>
+              </form>
+
+              <div class="place-add-source-tabs" role="tablist" aria-label="장소 추가 목록">
+                <button type="button" role="tab" class="selected" aria-selected="true" data-place-source="search">검색</button>
+                <button type="button" role="tab" aria-selected="false" data-place-source="favorites">찜 목록</button>
+                <button type="button" role="tab" aria-selected="false" data-place-source="recommendations">추천</button>
+              </div>
+
+              <div class="place-search-results" data-place-results>
+                <p class="schedule-empty">
+                  검색 결과가 여기에 표시됩니다.
+                </p>
+              </div>
+
+              <p class="place-add-footer-hint">
+                <span aria-hidden="true">ⓘ</span>
+                <span>추가 후 순서를 선택할 수 있습니다.</span>
               </p>
+            </section>
+
+            <div class="schedule-workspace-body">
+              <section class="white-panel schedule-main">
+                <h2 class="sr-only" data-schedule-title>여행 캘린더 / 일정 확인</h2>
+                <div class="schedule-overview-carousel" data-overview-carousel>
+                  <button
+                          type="button"
+                          class="schedule-overview-nav schedule-overview-nav-prev"
+                          data-overview-prev
+                          aria-label="이전 일정 보기"
+                          disabled
+                  >
+                    ‹
+                  </button>
+                  <div class="timeline" data-timeline>
+                    <p class="schedule-empty">
+                      일정을 불러오는 중입니다.
+                    </p>
+                  </div>
+                  <button
+                          type="button"
+                          class="schedule-overview-nav schedule-overview-nav-next"
+                          data-overview-next
+                          aria-label="다음 일정 보기"
+                  >
+                    ›
+                  </button>
+                </div>
+                <div class="schedule-overview-pager" data-overview-pager hidden aria-live="polite"></div>
+                <p class="schedule-drag-hint">⠿ 왼쪽 핸들을 드래그해 일정 순서를 바꿀 수 있어요.</p>
+                <div class="schedule-ai-empty-cta" data-schedule-ai-empty-cta hidden>
+                  <strong>일정이 아직 비어 있어요</strong>
+                  <span>AI에게 현재 여행에 맞는 장소와 코스를 추천받아보세요.</span>
+                  <button type="button" data-schedule-ai-open>✦ AI 일정 추천 받기</button>
+                </div>
+              </section>
+
+              <section class="white-panel map-panel">
+                <span class="map-status" data-map-status hidden>지도 준비 중</span>
+                <div class="map-panel-actions">
+                  <button type="button" class="outline-button map-route-toggle" data-toggle-route-map>
+                    경로선 ON
+                  </button>
+                </div>
+                <div class="schedule-map" data-schedule-map>
+                  <div class="map-placeholder">
+                    카카오 지도 키를 설정하면 지도가 표시됩니다.
+                  </div>
+                </div>
+              </section>
             </div>
-            <p class="schedule-drag-hint">⠿ 왼쪽 핸들을 드래그해 일정 순서를 바꿀 수 있어요.</p>
-            <div class="schedule-ai-empty-cta" data-schedule-ai-empty-cta hidden>
-              <strong>일정이 아직 비어 있어요</strong>
-              <span>AI에게 현재 여행에 맞는 장소와 코스를 추천받아보세요.</span>
-              <button type="button" data-schedule-ai-open>✦ AI 일정 추천 받기</button>
+
+            <div class="schedule-heading-actions schedule-workspace-footer">
+              <button type="button" class="schedule-back-button" data-schedule-back>
+                ← 이전으로
+              </button>
+              <button
+                      type="button"
+                      class="primary-button schedule-save-button"
+                      data-schedule-save
+              >
+                ▣&nbsp; 여행 저장하기
+              </button>
             </div>
           </section>
         </section>
 
-        <aside class="schedule-side">
-          <section class="white-panel place-search-panel">
-            <div class="panel-title-row">
-              <div>
-                <h2>장소 추가</h2>
-                <p>장소를 검색해 선택한 DAY에 추가하세요.</p>
-              </div>
-            </div>
-
-            <form
-                    class="schedule-search"
-                    data-place-search-form
-                    data-no-global-loading
-            >
-              <input
-                      type="search"
-                      data-place-keyword
-                      placeholder="장소명을 입력하세요."
-                      aria-label="일정 장소 검색"
-              />
-
-              <button type="submit" class="primary-button">
-                검색
-              </button>
-            </form>
-
-            <div class="place-search-results" data-place-results>
-              <p class="schedule-empty">
-                검색 결과가 여기에 표시됩니다.
-              </p>
-            </div>
-          </section>
-
-          <section class="white-panel featured-places">
-            <h3>
-              <span class="featured-heart">♥</span>
-              이 지역의 찜한 여행지
-            </h3>
-
-            <div class="featured-place-list">
-              <article class="featured-place" data-featured-place data-place-id="favorite-gyeongbokgung" data-place-name="경복궁" data-place-address="서울 종로구 사직로 161" data-place-latitude="37.579617" data-place-longitude="126.977041">
-                <span class="place-thumb palace-thumb"></span>
-                <strong>경복궁</strong>
-                <em>★ 4.7</em>
-                <button type="button" class="featured-place-add" aria-label="경복궁 일정에 추가"><span class="featured-place-add-icon">＋</span><span class="featured-place-add-label">일정에 추가하기</span></button>
-              </article>
-              <article class="featured-place" data-featured-place data-place-id="favorite-seoul-tower" data-place-name="서울타워" data-place-address="서울 용산구 남산공원길 105" data-place-latitude="37.551169" data-place-longitude="126.988227">
-                <span class="place-thumb tower-thumb"></span>
-                <strong>서울타워</strong>
-                <em>★ 4.6</em>
-                <button type="button" class="featured-place-add" aria-label="서울타워 일정에 추가"><span class="featured-place-add-icon">＋</span><span class="featured-place-add-label">일정에 추가하기</span></button>
-              </article>
-              <article class="featured-place" data-featured-place data-place-id="favorite-lotte-world" data-place-name="롯데월드" data-place-address="서울 송파구 올림픽로 240" data-place-latitude="37.511120" data-place-longitude="127.098167">
-                <span class="place-thumb mall-thumb"></span>
-                <strong>롯데월드</strong>
-                <em>★ 4.5</em>
-                <button type="button" class="featured-place-add" aria-label="롯데월드 일정에 추가"><span class="featured-place-add-icon">＋</span><span class="featured-place-add-label">일정에 추가하기</span></button>
-              </article>
-              <article class="featured-place" data-featured-place data-place-id="favorite-bukchon" data-place-name="북촌한옥마을" data-place-address="서울 종로구 계동길 37" data-place-latitude="37.582604" data-place-longitude="126.983012">
-                <span class="place-thumb village-thumb"></span>
-                <strong>북촌한옥마을</strong>
-                <em>★ 4.5</em>
-                <button type="button" class="featured-place-add" aria-label="북촌한옥마을 일정에 추가"><span class="featured-place-add-icon">＋</span><span class="featured-place-add-label">일정에 추가하기</span></button>
-              </article>
-              <article class="featured-place" data-featured-place data-place-id="favorite-hangang" data-place-name="한강공원" data-place-address="서울 영등포구 여의동로 330" data-place-latitude="37.528372" data-place-longitude="126.932602">
-                <span class="place-thumb river-thumb"></span>
-                <strong>한강공원</strong>
-                <em>★ 4.4</em>
-                <button type="button" class="featured-place-add" aria-label="한강공원 일정에 추가"><span class="featured-place-add-icon">＋</span><span class="featured-place-add-label">일정에 추가하기</span></button>
-              </article>
-            </div>
-
-            <button type="button" class="more-places" data-schedule-guide>
-              더보기&nbsp; ›
-            </button>
-          </section>
-
-          <section
-                  class="white-panel detail-panel"
-          >
-            <div class="panel-title-row">
-              <div>
-                <h2>장소 정보</h2>
-                <p>날씨와 주변 주차장을 확인하세요.</p>
-              </div>
-            </div>
-
-            <div class="weather-box">
-              <p>
-                일정 장소의 날씨 정보를 확인할 수 있습니다.
-              </p>
-            </div>
-
-            <div class="parking-box">
-              <div class="parking-heading">
-                <strong>주변 주차장</strong>
-
-                <button
-                        type="button"
-                        class="text-button"
-                >
-                  검색
-                </button>
-              </div>
-
-              <div>
-                <p>주변 주차장 정보를 확인할 수 있습니다.</p>
-              </div>
-            </div>
-          </section>
-
-        </aside>
       </div>
     </section>
   </main>
@@ -310,29 +352,6 @@
       </div>
       <div class="map-modal-map" data-schedule-map-expanded>
         <div class="map-placeholder">카카오 지도 키를 설정하면 지도가 표시됩니다.</div>
-      </div>
-    </section>
-  </div>
-
-  <div class="schedule-info-modal" data-place-insight hidden aria-hidden="true">
-    <div class="schedule-info-modal-backdrop" data-schedule-info-close></div>
-    <section class="schedule-info-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="scheduleInfoTitle">
-      <div class="schedule-info-modal-header">
-        <h2 id="scheduleInfoTitle" data-insight-title>장소 정보</h2>
-        <button type="button" class="schedule-info-modal-close" data-schedule-info-close aria-label="장소 정보 닫기">×</button>
-      </div>
-      <p class="schedule-info-modal-description">선택한 장소의 날씨와 주변 주차장을 확인하세요.</p>
-      <div class="weather-box" data-weather-result>
-        <p>일정 장소의 날씨 정보를 확인할 수 있습니다.</p>
-      </div>
-      <div class="parking-box">
-        <div class="parking-heading">
-          <strong>주변 주차장</strong>
-          <button type="button" class="text-button" data-find-parking>검색</button>
-        </div>
-        <div data-parking-results>
-          <p>주변 주차장 정보를 확인할 수 있습니다.</p>
-        </div>
       </div>
     </section>
   </div>
@@ -390,8 +409,8 @@
 ></script>
 
 <script
-        th:src="@{/js/pages/trips/schedule.js}"
-        src="../../static/js/pages/trips/schedule.js"
+        th:src="@{/js/pages/trips/schedule.js(v=20260819-empty-guidance)}"
+        src="../../static/js/pages/trips/schedule.js?v=20260819-empty-guidance"
 ></script>
 <script
         th:src="@{/js/pages/trips/schedule-ai-guide.js}"

@@ -1,5 +1,6 @@
 import {
     request,
+    showToast,
 } from "./mypage-common.js";
 
 const TRIP_PREVIEW_COUNT = 3;
@@ -484,20 +485,46 @@ function createTripEmpty() {
 
 function createTripFullCard(
     trip,
+    onDelete,
 ) {
     const card =
         document.createElement(
-            "button",
+            "div",
         );
-
-    card.type =
-        "button";
 
     card.className =
         "trip-full-card";
 
     card.dataset.route =
         `/trips/${trip.tripId}/schedule`;
+
+    card.tabIndex = 0;
+
+    card.setAttribute(
+        "role",
+        "link",
+    );
+
+    card.setAttribute(
+        "aria-label",
+        `${trip.title || trip.destinationName || "이름 없는 여행"} 일정 열기`,
+    );
+
+    card.addEventListener(
+        "keydown",
+        (event) => {
+            if (
+                event.target === card &&
+                (
+                    event.key === "Enter" ||
+                    event.key === " "
+                )
+            ) {
+                event.preventDefault();
+                card.click();
+            }
+        },
+    );
 
     const top =
         document.createElement(
@@ -535,9 +562,56 @@ function createTripFullCard(
             trip.status,
         );
 
+    const actions =
+        document.createElement(
+            "div",
+        );
+
+    actions.className =
+        "trip-full-card-actions";
+
+    const deleteButton =
+        document.createElement(
+            "button",
+        );
+
+    deleteButton.type =
+        "button";
+
+    deleteButton.className =
+        "trip-full-card-delete";
+
+    deleteButton.dataset.noGlobalLoading =
+        "";
+
+    deleteButton.textContent =
+        "×";
+
+    deleteButton.setAttribute(
+        "aria-label",
+        `${title.textContent} 삭제`,
+    );
+
+    deleteButton.addEventListener(
+        "click",
+        (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            onDelete?.(
+                trip,
+                deleteButton,
+            );
+        },
+    );
+
+    actions.append(
+        status,
+        deleteButton,
+    );
+
     top.append(
         title,
-        status,
+        actions,
     );
 
     const location =
@@ -603,6 +677,194 @@ function createTripFullCard(
     );
 
     return card;
+}
+
+
+/* =========================================================
+   여행 삭제 확인
+   ========================================================= */
+
+function confirmTripDelete(
+    trip,
+) {
+    return new Promise(
+        (resolve) => {
+            const overlay =
+                document.createElement(
+                    "div",
+                );
+
+            overlay.className =
+                "trip-delete-overlay";
+
+            const dialog =
+                document.createElement(
+                    "section",
+                );
+
+            dialog.className =
+                "trip-delete-dialog";
+
+            dialog.setAttribute(
+                "role",
+                "alertdialog",
+            );
+
+            dialog.setAttribute(
+                "aria-modal",
+                "true",
+            );
+
+            dialog.setAttribute(
+                "aria-labelledby",
+                "trip-delete-title",
+            );
+
+            const title =
+                document.createElement(
+                    "h2",
+                );
+
+            title.id =
+                "trip-delete-title";
+
+            title.textContent =
+                "여행을 삭제할까요?";
+
+            const tripName =
+                document.createElement(
+                    "strong",
+                );
+
+            tripName.className =
+                "trip-delete-dialog-name";
+
+            tripName.textContent =
+                trip.title ||
+                trip.destinationName ||
+                "이름 없는 여행";
+
+            const description =
+                document.createElement(
+                    "p",
+                );
+
+            description.textContent =
+                "삭제한 여행과 일정은 복구할 수 없습니다.";
+
+            const footer =
+                document.createElement(
+                    "div",
+                );
+
+            footer.className =
+                "trip-delete-dialog-actions";
+
+            const cancelButton =
+                document.createElement(
+                    "button",
+                );
+
+            cancelButton.type =
+                "button";
+
+            cancelButton.className =
+                "trip-delete-dialog-cancel";
+
+            cancelButton.textContent =
+                "취소";
+
+            const confirmButton =
+                document.createElement(
+                    "button",
+                );
+
+            confirmButton.type =
+                "button";
+
+            confirmButton.className =
+                "trip-delete-dialog-confirm";
+
+            confirmButton.textContent =
+                "여행 삭제";
+
+            let closed = false;
+
+            const close =
+                (confirmed) => {
+                    if (closed) {
+                        return;
+                    }
+
+                    closed = true;
+                    document.removeEventListener(
+                        "keydown",
+                        onKeydown,
+                    );
+                    overlay.remove();
+                    resolve(confirmed);
+                };
+
+            const onKeydown =
+                (event) => {
+                    if (
+                        event.key ===
+                        "Escape"
+                    ) {
+                        close(false);
+                    }
+                };
+
+            cancelButton.addEventListener(
+                "click",
+                () => close(false),
+            );
+
+            confirmButton.addEventListener(
+                "click",
+                () => close(true),
+            );
+
+            overlay.addEventListener(
+                "click",
+                (event) => {
+                    if (
+                        event.target ===
+                        overlay
+                    ) {
+                        close(false);
+                    }
+                },
+            );
+
+            document.addEventListener(
+                "keydown",
+                onKeydown,
+            );
+
+            footer.append(
+                cancelButton,
+                confirmButton,
+            );
+
+            dialog.append(
+                title,
+                tripName,
+                description,
+                footer,
+            );
+
+            overlay.appendChild(
+                dialog,
+            );
+
+            document.body.appendChild(
+                overlay,
+            );
+
+            cancelButton.focus();
+        },
+    );
 }
 
 
@@ -723,6 +985,80 @@ export async function initTrips() {
 
     let currentTripPage =
         1;
+
+    function updateTripCounts() {
+        if (tripCount) {
+            tripCount.textContent =
+                `${tripItems.length}개`;
+        }
+
+        if (tripTotalCount) {
+            tripTotalCount.textContent =
+                `${tripItems.length}개`;
+        }
+    }
+
+    async function deleteTrip(
+        trip,
+        deleteButton,
+    ) {
+        const confirmed =
+            await confirmTripDelete(
+                trip,
+            );
+
+        if (!confirmed) {
+            return;
+        }
+
+        deleteButton.disabled =
+            true;
+
+        deleteButton.classList.add(
+            "is-loading",
+        );
+
+        try {
+            await request(
+                `/api/v1/trips/${encodeURIComponent(trip.tripId)}`,
+                {
+                    method:
+                        "DELETE",
+                },
+            );
+
+            tripItems =
+                tripItems.filter(
+                    (item) =>
+                        String(
+                            item.tripId,
+                        ) !==
+                        String(
+                            trip.tripId,
+                        ),
+                );
+
+            updateTripCounts();
+            renderTripPreview();
+            renderTripAll();
+
+            showToast(
+                "여행이 삭제되었습니다.",
+            );
+        } catch (error) {
+            deleteButton.disabled =
+                false;
+
+            deleteButton.classList.remove(
+                "is-loading",
+            );
+
+            showToast(
+                error.message ||
+                "여행을 삭제하지 못했습니다.",
+            );
+        }
+    }
 
 
     /* =====================================================
@@ -850,6 +1186,7 @@ export async function initTrips() {
                 tripAllList.appendChild(
                     createTripFullCard(
                         trip,
+                        deleteTrip,
                     ),
                 );
             },
@@ -918,15 +1255,7 @@ export async function initTrips() {
         /*
          * 개수 표시
          */
-        if (tripCount) {
-            tripCount.textContent =
-                `${tripItems.length}개`;
-        }
-
-        if (tripTotalCount) {
-            tripTotalCount.textContent =
-                `${tripItems.length}개`;
-        }
+        updateTripCounts();
 
         /*
          * 화면 렌더링

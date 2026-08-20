@@ -37,6 +37,7 @@ public class RouteOptimizationService {
     private final TripService tripService;
     private final PlaceService placeService;
     private final CacheManager cacheManager;
+    private final RouteOrderOptimizer routeOrderOptimizer;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Value("${kakao.rest-api-key:}")
@@ -284,11 +285,16 @@ public class RouteOptimizationService {
     }
 
     public RouteOptimizationResponse optimize(Long userId, Long tripDayId) {
-        return optimize(userId, tripDayId, OptimizationCriterion.TIME.name());
+        return optimize(userId, tripDayId, OptimizationCriterion.TIME.name(), TransportMode.CAR.name());
     }
 
     public RouteOptimizationResponse optimize(Long userId, Long tripDayId, String criterionValue) {
+        return optimize(userId, tripDayId, criterionValue, TransportMode.CAR.name());
+    }
+
+    public RouteOptimizationResponse optimize(Long userId, Long tripDayId, String criterionValue, String modeValue) {
         OptimizationCriterion criterion = OptimizationCriterion.parse(criterionValue);
+        TransportMode mode = TransportMode.parse(modeValue);
         if (restApiKey == null || restApiKey.isBlank()) {
             throw new BusinessException(ErrorCode.ROUTE_NOT_CONFIGURED);
         }
@@ -306,55 +312,52 @@ public class RouteOptimizationService {
             places.put(item.getItineraryItemId(), placeService.get(item.getPlaceId()));
         }
 
-        PathMetrics originalMetrics = measurePath(placeItems, places, criterion);
+        Map<RouteEdge, Leg> legMatrix = buildLegMatrix(placeItems, places, criterion, mode);
+        PathMetrics originalMetrics = measurePath(placeItems, legMatrix);
+        RouteOrderOptimizer.Result optimized = routeOrderOptimizer.optimize(
+                placeItems,
+                (from, to) -> {
+                    Leg leg = legMatrix.get(new RouteEdge(
+                            from.getItineraryItemId(), to.getItineraryItemId()));
+                    return leg == null ? null : new RouteOrderOptimizer.Metrics(
+                            leg.durationSeconds(), leg.distanceMeters());
+                },
+                criterion == OptimizationCriterion.TIME);
 
-        List<ItineraryItemDTO> remaining = new ArrayList<>(placeItems);
-        List<ItineraryItemDTO> orderedPlaces = new ArrayList<>();
-        ItineraryItemDTO current = remaining.remove(0);
-        orderedPlaces.add(current);
-        int totalDuration = 0;
-        int totalDistance = 0;
-        boolean distancePriorityApplied = false;
+        List<ItineraryItemDTO> orderedPlaces = optimized.orderedItems();
+        List<ItineraryItemDTO> orderedAllItems = mergePlaceOrder(allItems, orderedPlaces);
+        PathMetrics optimizedMetrics = measurePath(orderedPlaces, legMatrix);
+        return response(
+                orderedAllItems,
+                optimizedMetrics,
+                originalMetrics,
+                optimized.distancePriorityApplied());
+    }
 
-        while (!remaining.isEmpty()) {
-            Leg best = null;
-            for (ItineraryItemDTO candidate : remaining) {
-                Leg measured = directions(places.get(current.getItineraryItemId()),
-                        places.get(candidate.getItineraryItemId()), criterion);
-                if (measured == null) continue;
-                boolean distanceTieBreak = criterion == OptimizationCriterion.TIME
-                        && best != null
-                        && measured.durationSeconds() == best.durationSeconds()
-                        && measured.distanceMeters() < best.distanceMeters();
-                boolean timeTieBreak = criterion == OptimizationCriterion.DISTANCE
-                        && best != null
-                        && measured.distanceMeters() == best.distanceMeters()
-                        && measured.durationSeconds() < best.durationSeconds();
-                boolean betterPrimaryValue = best == null
-                        || (criterion == OptimizationCriterion.TIME
-                        ? measured.durationSeconds() < best.durationSeconds()
-                        : measured.distanceMeters() < best.distanceMeters());
-                if (betterPrimaryValue || distanceTieBreak || timeTieBreak) {
-                    if (distanceTieBreak) distancePriorityApplied = true;
-                    best = new Leg(candidate, measured.durationSeconds(), measured.distanceMeters());
+    private Map<RouteEdge, Leg> buildLegMatrix(
+            List<ItineraryItemDTO> items,
+            Map<Long, PlaceDTO> places,
+            OptimizationCriterion criterion,
+            TransportMode mode) {
+        Map<RouteEdge, Leg> matrix = new HashMap<>();
+        for (ItineraryItemDTO from : items) {
+            for (ItineraryItemDTO to : items) {
+                if (from == to) continue;
+                RouteEdge edge = new RouteEdge(
+                        from.getItineraryItemId(), to.getItineraryItemId());
+                try {
+                    matrix.put(edge, directions(
+                            places.get(from.getItineraryItemId()),
+                            places.get(to.getItineraryItemId()),
+                            criterion,
+                            mode));
+                } catch (BusinessException error) {
+                    if (error.getErrorCode() != ErrorCode.ROUTE_NOT_FOUND) throw error;
+                    matrix.put(edge, null);
                 }
             }
-            if (best == null) {
-                throw new IllegalArgumentException("자동차 경로를 찾을 수 없는 장소가 일정에 포함되어 있습니다.");
-            }
-            orderedPlaces.add(best.item());
-            remaining.remove(best.item());
-            totalDuration += best.durationSeconds();
-            totalDistance += best.distanceMeters();
-            current = best.item();
         }
-
-        List<ItineraryItemDTO> orderedAllItems = mergePlaceOrder(allItems, orderedPlaces);
-        PathMetrics optimizedMetrics = measurePath(orderedPlaces, places, criterion);
-        if (optimizedMetrics == null) {
-            optimizedMetrics = new PathMetrics(totalDuration, totalDistance, List.of());
-        }
-        return response(orderedAllItems, optimizedMetrics, originalMetrics, distancePriorityApplied);
+        return matrix;
     }
 
     private List<ItineraryItemDTO> mergePlaceOrder(
@@ -377,7 +380,11 @@ public class RouteOptimizationService {
         tripService.reorderItems(userId, tripDayId, itemIds);
     }
 
-    private Leg directions(PlaceDTO origin, PlaceDTO destination, OptimizationCriterion criterion) {
+    private Leg directions(
+            PlaceDTO origin,
+            PlaceDTO destination,
+            OptimizationCriterion criterion,
+            TransportMode mode) {
         if (origin == null || destination == null || origin.getLatitude() == null || origin.getLongitude() == null
                 || destination.getLatitude() == null || destination.getLongitude() == null) {
             throw new IllegalArgumentException("모든 일정 장소에 좌표가 필요합니다.");
@@ -386,10 +393,26 @@ public class RouteOptimizationService {
         if (kakaoKey.isBlank()) {
             throw new BusinessException(ErrorCode.ROUTE_NOT_CONFIGURED);
         }
-        String cacheKey = routeCacheKey(origin, destination, criterion);
+        String cacheKey = routeCacheKey(origin, destination, criterion, mode);
         RouteLegResult cached = getCachedRoute(cacheKey);
         if (cached != null) {
-            return new Leg(null, cached.durationSeconds(), cached.distanceMeters());
+            return new Leg(cached.durationSeconds(), cached.distanceMeters());
+        }
+
+        if (mode != TransportMode.CAR) {
+            TransitRouteRequest request = new TransitRouteRequest(
+                    origin.getLongitude().doubleValue(),
+                    origin.getLatitude().doubleValue(),
+                    destination.getLongitude().doubleValue(),
+                    destination.getLatitude().doubleValue());
+            TransitRouteResponse route = mode == TransportMode.WALK
+                    ? searchWalkingRoute(request)
+                    : searchTransitRoute(request);
+            RouteLegResult result = new RouteLegResult(
+                    route.totalDurationSeconds(),
+                    route.totalDistanceMeters());
+            putCachedRoute(cacheKey, result);
+            return new Leg(result.durationSeconds(), result.distanceMeters());
         }
 
         String url = UriComponentsBuilder
@@ -413,7 +436,7 @@ public class RouteOptimizationService {
                     summary.path("duration").asInt(),
                     summary.path("distance").asInt());
             putCachedRoute(cacheKey, result);
-            return new Leg(null, result.durationSeconds(), result.distanceMeters());
+            return new Leg(result.durationSeconds(), result.distanceMeters());
         } catch (RestClientResponseException error) {
             log.warn("Kakao Mobility directions rejected request: status={}, body={}",
                     error.getStatusCode().value(), error.getResponseBodyAsString());
@@ -453,8 +476,7 @@ public class RouteOptimizationService {
 
     private PathMetrics measurePath(
             List<ItineraryItemDTO> items,
-            Map<Long, PlaceDTO> places,
-            OptimizationCriterion criterion) {
+            Map<RouteEdge, Leg> legMatrix) {
         if (items.size() < 2) return PathMetrics.empty();
         int totalDuration = 0;
         int totalDistance = 0;
@@ -462,10 +484,8 @@ public class RouteOptimizationService {
         for (int index = 0; index < items.size() - 1; index++) {
             ItineraryItemDTO from = items.get(index);
             ItineraryItemDTO to = items.get(index + 1);
-            Leg leg = directions(
-                    places.get(from.getItineraryItemId()),
-                    places.get(to.getItineraryItemId()),
-                    criterion);
+            Leg leg = legMatrix.get(new RouteEdge(
+                    from.getItineraryItemId(), to.getItineraryItemId()));
             if (leg == null) return null;
             totalDuration += leg.durationSeconds();
             totalDistance += leg.distanceMeters();
@@ -480,8 +500,10 @@ public class RouteOptimizationService {
     private String routeCacheKey(
             PlaceDTO origin,
             PlaceDTO destination,
-            OptimizationCriterion criterion) {
+            OptimizationCriterion criterion,
+            TransportMode mode) {
         return String.join(":",
+                mode.name(),
                 criterion.name(),
                 coordinate(origin.getLatitude()), coordinate(origin.getLongitude()),
                 coordinate(destination.getLatitude()), coordinate(destination.getLongitude()));
@@ -521,7 +543,9 @@ public class RouteOptimizationService {
         }
     }
 
-    private record Leg(ItineraryItemDTO item, int durationSeconds, int distanceMeters) {}
+    private record RouteEdge(Long fromItineraryItemId, Long toItineraryItemId) {}
+
+    private record Leg(int durationSeconds, int distanceMeters) {}
 
     private record RouteLegResult(int durationSeconds, int distanceMeters) {}
 
@@ -535,6 +559,31 @@ public class RouteOptimizationService {
                 return OptimizationCriterion.valueOf(value.trim().toUpperCase());
             } catch (IllegalArgumentException error) {
                 throw new IllegalArgumentException("지원하지 않는 동선 최적화 기준입니다.");
+            }
+        }
+    }
+
+    private enum TransportMode {
+        WALK("도보"),
+        TRANSIT("대중교통"),
+        CAR("자동차");
+
+        private final String label;
+
+        TransportMode(String label) {
+            this.label = label;
+        }
+
+        private String label() {
+            return label;
+        }
+
+        private static TransportMode parse(String value) {
+            if (value == null || value.isBlank()) return CAR;
+            try {
+                return TransportMode.valueOf(value.trim().toUpperCase());
+            } catch (IllegalArgumentException error) {
+                throw new IllegalArgumentException("지원하지 않는 교통수단입니다.");
             }
         }
     }

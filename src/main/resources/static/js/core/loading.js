@@ -51,6 +51,7 @@
   }
 
   document.addEventListener("click", function (event) {
+    if (event.target.closest("[data-no-global-loading]")) return;
     const link = event.target.closest("a[href]");
     const route = event.target.closest("[data-route]:not(body)");
     if (route || (link && link.target !== "_blank" && !link.href.startsWith("javascript:"))) show();

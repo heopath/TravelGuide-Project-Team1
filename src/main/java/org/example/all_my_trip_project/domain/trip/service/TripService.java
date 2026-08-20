@@ -8,6 +8,8 @@ import org.example.all_my_trip_project.domain.trip.dto.TripCreateRequest;
 import org.example.all_my_trip_project.domain.trip.dto.TripCreateResult;
 import org.example.all_my_trip_project.domain.trip.dto.TripDTO;
 import org.example.all_my_trip_project.domain.trip.dto.TripDayDTO;
+import org.example.all_my_trip_project.domain.trip.dto.ItineraryItemDTO;
+import org.example.all_my_trip_project.domain.trip.dto.ItineraryTimeBatchUpdateRequest;
 import org.example.all_my_trip_project.global.exception.BusinessException;
 import org.example.all_my_trip_project.global.exception.ErrorCode;
 import org.springframework.stereotype.Service;
@@ -95,6 +97,14 @@ public class TripService {
     @Transactional
     public void updateItem(Long userId, org.example.all_my_trip_project.domain.trip.dto.ItineraryItemDTO item) {
         itineraryItemService.update(userId, item);
+    }
+
+    @Transactional
+    public List<ItineraryItemDTO> updateScheduleTimes(
+            Long userId,
+            Long tripDayId,
+            ItineraryTimeBatchUpdateRequest request) {
+        return itineraryItemService.updateScheduleTimes(userId, tripDayId, request);
     }
 
     @Transactional

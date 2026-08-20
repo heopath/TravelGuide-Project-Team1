@@ -3,6 +3,7 @@ package org.example.all_my_trip_project.domain.trip.service;
 import lombok.RequiredArgsConstructor;
 import org.example.all_my_trip_project.domain.trip.dao.ItineraryItemDAO;
 import org.example.all_my_trip_project.domain.trip.dto.ItineraryItemDTO;
+import org.example.all_my_trip_project.domain.trip.dto.ItineraryTimeBatchUpdateRequest;
 import org.example.all_my_trip_project.domain.trip.policy.TripPolicy;
 import org.example.all_my_trip_project.global.exception.BusinessException;
 import org.example.all_my_trip_project.global.exception.ErrorCode;
@@ -12,6 +13,10 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.dao.DataIntegrityViolationException;
 
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Service
 @Profile("!ui")
@@ -78,6 +83,45 @@ class ItineraryItemService {
         if (itemDAO.update(item) == 0) {
             throw new IllegalArgumentException("수정할 일정 항목을 찾을 수 없습니다.");
         }
+    }
+
+    @Transactional
+    public List<ItineraryItemDTO> updateScheduleTimes(
+            Long userId,
+            Long tripDayId,
+            ItineraryTimeBatchUpdateRequest request) {
+        ownershipGuard.requireOwnedTripDay(userId, tripDayId);
+        List<ItineraryItemDTO> existingItems = itemDAO.findByTripDayId(tripDayId);
+        List<ItineraryTimeBatchUpdateRequest.ItemTime> requestedTimes = request.items();
+
+        Set<Long> existingIds = existingItems.stream()
+                .map(ItineraryItemDTO::getItineraryItemId)
+                .collect(Collectors.toSet());
+        Set<Long> requestedIds = requestedTimes.stream()
+                .map(ItineraryTimeBatchUpdateRequest.ItemTime::itineraryItemId)
+                .collect(Collectors.toSet());
+        if (existingItems.size() != requestedTimes.size()
+                || requestedIds.size() != requestedTimes.size()
+                || !existingIds.equals(requestedIds)) {
+            throw new IllegalArgumentException("해당 일자의 모든 일정 시간을 보내야 합니다.");
+        }
+
+        Map<Long, ItineraryTimeBatchUpdateRequest.ItemTime> timesByItemId = requestedTimes.stream()
+                .collect(Collectors.toMap(
+                        ItineraryTimeBatchUpdateRequest.ItemTime::itineraryItemId,
+                        Function.identity()));
+        for (ItineraryItemDTO item : existingItems) {
+            ItineraryTimeBatchUpdateRequest.ItemTime itemTime = timesByItemId.get(item.getItineraryItemId());
+            item.setStartTime(itemTime.startTime());
+            item.setEndTime(itemTime.endTime());
+            itineraryItemValidator.validate(item);
+        }
+        for (ItineraryItemDTO item : existingItems) {
+            if (itemDAO.update(item) == 0) {
+                throw new IllegalArgumentException("수정할 일정 항목을 찾을 수 없습니다.");
+            }
+        }
+        return existingItems;
     }
 
     @Transactional
