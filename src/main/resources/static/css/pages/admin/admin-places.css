@@ -32,6 +32,9 @@
 .admin-place-bulk button { border:1px solid #dfe4ef; border-radius:8px; background:#fff; padding:7px 12px; color:#3f4d69; font-size:12px; font-weight:700; }
 .admin-place-bulk button:hover:not(:disabled) { border-color:#7868ff; color:#6558ff; }
 .admin-place-bulk button:disabled { opacity:.45; cursor:not-allowed; }
+/* 유지보수 줄은 선택과 무관하다. 안내 문구가 남는 폭을 차지하게 둔다. */
+.admin-place-maintenance strong { margin-right:0; }
+.admin-place-maintenance span { flex:1 1 200px; color:#7886a1; font-size:12px; }
 .admin-place-thumb { width:78px; height:66px; border-radius:10px; overflow:hidden; display:grid; place-items:center; background:#eef1f8; color:#8c98ae; }
 .admin-place-thumb img { width:100%; height:100%; object-fit:cover; }
 .admin-place-copy { min-width:0; }

@@ -42,6 +42,9 @@ public interface PlaceMapper {
     int updateRecommended(@Param("placeId") Long placeId, @Param("recommended") boolean recommended);
     int updateRecommendedAll(@Param("placeIds") java.util.List<Long> placeIds,
                              @Param("recommended") boolean recommended);
+    List<PlaceDTO> findMissingImageCandidates(@Param("afterPlaceId") long afterPlaceId,
+                                              @Param("limit") int limit);
+    long countMissingImages();
     int updatePrimaryImage(@Param("placeId") Long placeId,
                            @Param("imageUrl") String imageUrl,
                            @Param("altText") String altText);
