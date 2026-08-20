@@ -28,8 +28,8 @@ sandbox.figma.ui = { onmessage: null, postMessage() {} };
 
 const vm = require("node:vm");
 const context = vm.createContext(sandbox);
-vm.runInContext(source + "\n;globalThis.__test = { SCREENS, normalize, findFrame };", context);
-const { SCREENS, normalize, findFrame } = sandbox.__test;
+vm.runInContext(source + "\n;globalThis.__test = { SCREENS, normalize, findFrame, storyScreens };", context);
+const { SCREENS, normalize, findFrame, storyScreens } = sandbox.__test;
 
 let passed = 0;
 let failed = 0;
@@ -98,6 +98,25 @@ test("대소문자를 가리지 않는다", normalize("QR 결제") === normalize
     if (first) used.add(first.frame.node.id);
     const second = findFrame(screen("/pay/kakao"), pool.filter((f) => !used.has(f.node.id)));
     test("한 프레임을 두 화면이 나눠 갖지 않는다", second === null, JSON.stringify(second));
+}
+
+/* ── 스토리보드 번호 ── */
+{
+    const story = storyScreens();
+    test("스토리보드가 모든 화면을 담는다", story.length === SCREENS.length,
+        story.length + " vs " + SCREENS.length);
+    test("번호가 SB-01부터 끝까지 이어진다",
+        story.every((s, i) => s.no === "SB-" + String(i + 1).padStart(2, "0")),
+        story[0].no + " ~ " + story[story.length - 1].no);
+    /* 캡처 파일 이름이 번호에서 나온다. 어긋나면 모든 이미지가 엉뚱한 카드에 붙는다. */
+    test("파일 이름이 번호와 맞는다",
+        story.every((s) => s.file === s.no.toLowerCase() + ".png"));
+    /* 같은 묶음이 흩어지면 섹션이 여러 개로 쪼개진다. */
+    const groups = story.map((s) => s.group);
+    test("같은 그룹이 이어져 있다",
+        groups.every((g, i) => i === 0 || g === groups[i - 1]
+            || !groups.slice(0, i).includes(g)), groups.join(","));
+    test("홈이 맨 앞이다", story[0].group === "home" && story[0].path === "/home");
 }
 
 console.log("\n" + passed + " passed, " + failed + " failed");

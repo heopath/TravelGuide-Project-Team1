@@ -52,6 +52,9 @@ const SCREENS = [
   { path: "/admin?panel=chat", name: "관리자 · 상담 채팅", group: "admin" },
   { path: "/admin?panel=support", name: "관리자 · 1:1 문의 관리", group: "admin" },
   { path: "/admin?panel=audit", name: "관리자 · 조작 이력", group: "admin" },
+  { path: "/admin?panel=version", name: "관리자 · 서비스 버전", group: "admin" },
+  { path: "/admin?panel=members", name: "관리자 · 회원 관리", group: "admin" },
+  { path: "/admin?panel=validation", name: "관리자 · 티켓 검표", group: "admin" },
 ];
 // </screens>
 
@@ -173,6 +176,21 @@ async function pickFont() {
     return fallback;
 }
 
+/** 제목에 쓸 굵은 글꼴. 없으면 보통 굵기로 돌아간다. */
+async function pickBoldFont(regular) {
+    const available = await figma.listAvailableFontsAsync();
+    const has = new Set(available.map((f) => f.fontName.family + "|" + f.fontName.style));
+
+    for (const style of ["Bold", "SemiBold", "Medium"]) {
+        if (has.has(regular.family + "|" + style)) {
+            const font = { family: regular.family, style: style };
+            await figma.loadFontAsync(font);
+            return font;
+        }
+    }
+    return regular;
+}
+
 function generatedPage() {
     const existing = figma.root.children.find((p) => p.name === GENERATED_PAGE);
     if (existing) return existing;
@@ -261,6 +279,192 @@ async function createMissing(missing) {
     return { created: created, page: page.name };
 }
 
+/* ─────────────────────────────────────────────────────────────
+ * 스토리보드 만들기 (#191)
+ *
+ * 12번 페이지의 카드 형식을 따른다 — 머리띠에 `SB-01 · 그룹 · 이름`과 주소,
+ * 본문에 화면, 우상단에 다음 카드로 가는 링크.
+ *
+ * 본문은 손으로 그리지 않고 실제 화면 캡처를 넣는다. 그려 넣으면 실제와 다른
+ * 디자인을 지어내게 되고, 화면이 바뀌면 그림이 조용히 낡는다.
+ * ───────────────────────────────────────────────────────────── */
+
+const STORYBOARD_PAGE = "13 · 스토리보드 v3 · 실제 구현";
+
+/* 손님이 서비스를 만나는 순서. 캡처 목록(make-shotlist.js)과 같아야 번호가 맞는다. */
+const STORY_ORDER = ["home", "auth", "trips", "guide", "booking", "mypage", "admin"];
+
+const CARD = { width: 1488, band: 48, body: 1043 };
+const CARD_GAP = { x: 96, y: 120 };
+const PER_ROW = 4;
+const SECTION_PAD = 80;
+
+const INK = { r: 0.11, g: 0.12, b: 0.15 };
+const MUTED = { r: 0.55, g: 0.58, b: 0.66 };
+const BAND = { r: 0.96, g: 0.97, b: 0.99 };
+const LINE = { r: 0.87, g: 0.89, b: 0.94 };
+const ACCENT = { r: 0.357, g: 0.42, b: 1 };
+
+/** 스토리보드 순서로 세운 화면 목록. 번호(SB-01…)는 이 순서에서 나온다. */
+function storyScreens() {
+    const sorted = SCREENS.slice().sort(
+        (a, b) => STORY_ORDER.indexOf(a.group) - STORY_ORDER.indexOf(b.group));
+    return sorted.map((s, i) => {
+        const no = "SB-" + String(i + 1).padStart(2, "0");
+        return { no: no, file: no.toLowerCase() + ".png", path: s.path, name: s.name, group: s.group };
+    });
+}
+
+function text(font, characters, size, color, weight) {
+    const node = figma.createText();
+    node.fontName = weight || font;
+    node.characters = characters;
+    node.fontSize = size;
+    node.fills = [{ type: "SOLID", color: color }];
+    return node;
+}
+
+/**
+ * 카드 한 장.
+ *
+ * <p>캡처가 없으면 본문을 비워 두고 그렇다고 적는다. 빈 자리를 아무 색으로 채워 두면
+ * 캡처를 넣은 카드와 구분이 안 돼, 무엇이 남았는지 알 수 없다.
+ */
+function buildCard(screen, font, bold, image) {
+    const frame = figma.createFrame();
+    frame.name = screen.no + " · " + screen.name + " — " + screen.path;
+    frame.resize(CARD.width, CARD.band + CARD.body);
+    frame.fills = [{ type: "SOLID", color: { r: 1, g: 1, b: 1 } }];
+    frame.clipsContent = true;
+
+    /* 머리띠 */
+    const band = figma.createRectangle();
+    band.resize(CARD.width, CARD.band);
+    band.x = 0;
+    band.y = 0;
+    band.fills = [{ type: "SOLID", color: BAND }];
+    frame.appendChild(band);
+
+    const title = text(font, screen.no + " · " + GROUP_LABEL[screen.group] + " · "
+        + screen.name.replace(/^[^·]+·\s*/, ""), 17, INK, bold);
+    title.x = 24;
+    title.y = 15;
+    frame.appendChild(title);
+
+    /* 주소가 있어야 이 카드가 어느 화면인지 코드와 대조된다. */
+    const route = text(font, screen.path, 15, MUTED);
+    route.x = 470;
+    route.y = 16;
+    frame.appendChild(route);
+
+    const rule = figma.createRectangle();
+    rule.resize(CARD.width, 1);
+    rule.x = 0;
+    rule.y = CARD.band;
+    rule.fills = [{ type: "SOLID", color: LINE }];
+    frame.appendChild(rule);
+
+    /* 본문 */
+    if (image) {
+        const shot = figma.createRectangle();
+        const ratio = image.width / image.height;
+        /* 폰 화면은 가로가 남는다. 늘리지 않고 가운데 둔다. */
+        let w = CARD.width;
+        let h = Math.round(CARD.width / ratio);
+        if (h > CARD.body) {
+            h = CARD.body;
+            w = Math.round(CARD.body * ratio);
+        }
+        shot.resize(w, h);
+        shot.x = Math.round((CARD.width - w) / 2);
+        shot.y = CARD.band + Math.round((CARD.body - h) / 2);
+        shot.fills = [{ type: "IMAGE", imageHash: image.hash, scaleMode: "FILL" }];
+        frame.appendChild(shot);
+    } else {
+        const note = text(font, "캡처 없음 — " + screen.file, 16, MUTED);
+        note.x = 24;
+        note.y = CARD.band + 24;
+        frame.appendChild(note);
+    }
+
+    return frame;
+}
+
+/** 그룹마다 섹션으로 묶는다. 41장을 격자로만 늘어놓으면 어디가 어느 묶음인지 안 보인다. */
+function buildStoryboard(images) {
+    const screens = storyScreens();
+    const page = figma.root.children.find((p) => p.name === STORYBOARD_PAGE) || figma.createPage();
+    page.name = STORYBOARD_PAGE;
+
+    /* 다시 돌려도 겹치지 않게, 있던 것을 치우고 새로 놓는다. */
+    for (const node of page.children.slice()) node.remove();
+
+    const made = [];
+    let cursorY = 0;
+
+    for (const group of STORY_ORDER) {
+        const inGroup = screens.filter((s) => s.group === group);
+        if (inGroup.length === 0) continue;
+
+        const rows = Math.ceil(inGroup.length / PER_ROW);
+        const cols = Math.min(inGroup.length, PER_ROW);
+        const cardH = CARD.band + CARD.body;
+        const width = cols * CARD.width + (cols - 1) * CARD_GAP.x + SECTION_PAD * 2;
+        const height = rows * cardH + (rows - 1) * CARD_GAP.y + SECTION_PAD * 2;
+
+        let container = page;
+        let originX = 0;
+        let originY = cursorY;
+
+        try {
+            const section = figma.createSection();
+            section.name = GROUP_LABEL[group] + " (" + inGroup.length + "장)";
+            section.x = 0;
+            section.y = cursorY;
+            section.resizeWithoutConstraints(width, height);
+            page.appendChild(section);
+            container = section;
+            originX = 0;
+            originY = 0;
+        } catch (error) {
+            /* 섹션을 못 만드는 버전이면 페이지에 그대로 놓는다. 배치만 밋밋해질 뿐이다. */
+        }
+
+        inGroup.forEach((screen, i) => {
+            const card = buildCard(screen, images.font, images.bold, images.byFile[screen.file]);
+            container.appendChild(card);
+            card.x = originX + SECTION_PAD + (i % PER_ROW) * (CARD.width + CARD_GAP.x);
+            card.y = originY + SECTION_PAD + Math.floor(i / PER_ROW) * (cardH + CARD_GAP.y);
+            made.push({ screen: screen, card: card });
+        });
+
+        cursorY += height + 240;
+    }
+
+    /*
+     * 다음 카드로 가는 링크는 카드를 다 만든 뒤에 건다. 만들면서 걸면 아직 없는 카드를
+     * 가리키게 된다.
+     */
+    made.forEach((entry, i) => {
+        const next = made[i + 1];
+        if (!next) return;
+        const label = text(images.font, "다음 · " + next.screen.no + " →", 15, ACCENT, images.bold);
+        label.x = CARD.width - 220;
+        label.y = 15;
+        entry.card.appendChild(label);
+        try {
+            label.setRangeHyperlink(0, label.characters.length,
+                { type: "NODE", value: next.card.id });
+        } catch (error) {
+            /* 링크를 못 걸어도 카드는 남는다. 번호가 적혀 있어 찾아갈 수는 있다. */
+        }
+    });
+
+    return { page: page.name, cards: made.length,
+        withShot: made.filter((m) => images.byFile[m.screen.file]).length };
+}
+
+
 figma.ui.onmessage = async (message) => {
     try {
         if (message.type === "inspect") {
@@ -274,6 +478,31 @@ figma.ui.onmessage = async (message) => {
             figma.notify(result.created > 0
                 ? `${result.created}개 화면을 "${GENERATED_PAGE}" 페이지에 만들었습니다.`
                 : "빠진 화면이 없습니다.");
+            return;
+        }
+        if (message.type === "storyboard") {
+            /*
+             * 캡처는 화면(UI) 쪽에서 파일로 읽어 넘어온다. 플러그인 본체는 파일 시스템에
+             * 손댈 수 없고, 바깥으로 나가는 것도 막아 두었다.
+             */
+            const font = await pickFont();
+            const bold = await pickBoldFont(font);
+            const byFile = {};
+
+            for (const item of message.images || []) {
+                try {
+                    const image = figma.createImage(new Uint8Array(item.bytes));
+                    const size = await image.getSizeAsync();
+                    byFile[item.file] = { hash: image.hash, width: size.width, height: size.height };
+                } catch (error) {
+                    /* 한 장이 잘못돼도 나머지는 만든다. 그 카드만 캡처 없음으로 남는다. */
+                }
+            }
+
+            const result = buildStoryboard({ font: font, bold: bold, byFile: byFile });
+            figma.ui.postMessage({ type: "storyboard-done", result: result });
+            figma.notify(`${result.cards}장을 "${result.page}"에 만들었습니다. `
+                + `캡처 ${result.withShot}장.`);
             return;
         }
         if (message.type === "close") {

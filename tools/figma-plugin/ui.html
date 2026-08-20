@@ -49,6 +49,15 @@
   <button class="ghost" id="create" disabled>빠진 화면 만들기</button>
 </div>
 
+<div class="actions">
+  <button class="ghost" id="story">스토리보드 만들기</button>
+</div>
+<p class="lead" style="margin:-6px 0 12px">
+  누르면 캡처 파일을 고르는 창이 뜹니다. <code>shots</code> 폴더의 PNG를 전부 선택하세요.
+  고르지 않으면 캡처 없이 카드만 만듭니다.
+</p>
+<input type="file" id="shots" accept="image/png" multiple hidden />
+
 <div id="out"><p class="empty">점검하기를 눌러 주세요.</p></div>
 
 <script>
@@ -99,10 +108,35 @@
     out.innerHTML = html;
   }
 
+  /*
+   * 캡처는 화면 쪽에서 읽어 넘긴다. 플러그인 본체는 파일 시스템에 손댈 수 없다.
+   * 파일 이름(sb-01.png)이 어느 카드인지 정한다 — 고른 순서는 믿지 않는다.
+   */
+  const shots = document.getElementById("shots");
+  document.getElementById("story").onclick = () => shots.click();
+
+  shots.onchange = async () => {
+    const files = [...shots.files];
+    const images = [];
+    for (const file of files) {
+      if (!/^sb-\d+\.png$/i.test(file.name)) continue;
+      images.push({ file: file.name.toLowerCase(), bytes: [...new Uint8Array(await file.arrayBuffer())] });
+    }
+    out.innerHTML = '<p class="empty">캡처 ' + images.length + "장으로 스토리보드를 만드는 중…</p>";
+    parent.postMessage({ pluginMessage: { type: "storyboard", images } }, "*");
+  };
+
   onmessage = (event) => {
     const message = event.data.pluginMessage;
     if (!message) return;
     if (message.type === "report" || message.type === "created") render(message.report);
+    if (message.type === "storyboard-done") {
+      const r = message.result;
+      out.innerHTML = '<div class="tally">'
+        + '<div class="box"><b>' + r.cards + '</b><span>만든 카드</span></div>'
+        + '<div class="box"><b>' + r.withShot + '</b><span>캡처 들어감</span></div>'
+        + '</div><p class="empty">페이지: ' + esc(r.page) + "</p>";
+    }
     if (message.type === "error") out.innerHTML = '<p class="err">' + esc(message.message) + "</p>";
   };
 </script>

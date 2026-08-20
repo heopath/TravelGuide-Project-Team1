@@ -443,7 +443,29 @@ const ALL_MY_TRIPS_SCREENS = [
     "/admin?panel=audit",
     "관리자 · 조작 이력",
     "admin"
-  ]
+  ],
+  /*
+   * 사이드바에는 있는데 이 목록에서 빠져 있던 패널 셋이다. 화면 목록으로만 세면
+   * 관리자가 10장인데 실제로는 13장이다. (#191)
+   *
+   * 티켓 검표(validation)와 현장 검표(/admin/scan)는 다른 화면이다. 앞은 관리자
+   * 책상에서 번호로 확인하는 화면이고, 뒤는 현장에서 폰으로 QR을 찍는 화면이다.
+   */
+  [
+    "/admin?panel=version",
+    "관리자 · 서비스 버전",
+    "admin"
+  ],
+  [
+    "/admin?panel=members",
+    "관리자 · 회원 관리",
+    "admin"
+  ],
+  [
+    "/admin?panel=validation",
+    "관리자 · 티켓 검표",
+    "admin"
+  ],
 ];
 
 const MODALS = {
