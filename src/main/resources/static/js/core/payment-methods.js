@@ -5,8 +5,9 @@
  * import를 쓸 수 없고, 목록을 양쪽에 복사하면 화면 목록(ALL_MY_TRIPS_SCREENS)처럼 조용히
  * 갈라진다. 값이 갈리면 한쪽에서만 되는 결제수단이 생긴다.
  *
- * 실제 돈이 오가지 않는다. 카카오페이·토스도 이름만 빌린 모의 결제다. 나중에 진짜 PG를
- * 붙이면 confirm 이후 그 사업자 창을 띄우는 단계가 이 자리에 들어간다.
+ * 실제 돈이 오가지 않는다. 카카오페이·토스페이는 이름만 빌린 모의 결제다. 다만
+ * `토스페이먼츠로 결제`(flow: TOSS)만은 진짜 결제사를 거친다 — 테스트 키라 돈은
+ * 나가지 않지만 결제창·승인·실패 처리는 실제와 같다.
  */
 (function () {
     "use strict";
@@ -53,6 +54,20 @@
             label: "QR 결제",
             hint: "휴대폰으로 QR을 찍어 승인해요.",
         },
+        /*
+         * 유일하게 진짜 결제사를 거치는 수단이다. (#281) 토스 결제창을 띄우고, 승인은
+         * 서버가 토스에 요청한다. 테스트 키라 실제 돈은 오가지 않지만 흐름은 진짜다.
+         *
+         * 클라이언트 키가 없는 환경에서는 목록에 넣지 않는다 — 골라도 창이 안 뜬다.
+         */
+        {
+            id: "TOSS",
+            method: "CARD",
+            provider: null,
+            flow: "TOSS",
+            label: "토스페이먼츠로 결제",
+            hint: "카드·간편결제 · 실제 결제창(테스트)",
+        },
         {
             id: "TRANSFER",
             method: "TRANSFER",
@@ -71,18 +86,29 @@
 
     const DEFAULT_ID = "CARD";
 
+    /** 토스 클라이언트 키가 화면에 실려 있는지. 없으면 토스 수단을 내주지 않는다. */
+    function tossReady() {
+        const meta = document.querySelector('meta[name="toss-client-key"]');
+        return Boolean(meta && meta.content);
+    }
+
     /**
      * 결제 기록에 남은 값을 사람이 읽는 이름으로 되돌린다. (#281)
      *
-     * <p>서버는 사업자를 {@code MOCK_KAKAO_PAY}처럼 적는다. 모의 결제라는 표시가 앞에
-     * 붙을 뿐 사업자는 같으므로 떼고 맞춘다. 나중에 진짜 PG를 붙여 {@code KAKAO_PAY}로
-     * 바뀌어도 같은 이름이 나온다.
+     * <p>서버는 `결제사_사업자`로 적는다 — 모의 카카오페이면 {@code MOCK_KAKAO_PAY},
+     * 토스를 거친 토스페이면 {@code TOSS_TOSS_PAY}다. 손님에게는 어느 결제사를 거쳤는지가
+     * 아니라 무엇으로 냈는지가 중요하므로, 앞의 결제사를 떼고 맞춘다.
+     *
+     * <p>간편결제가 아니면 사업자 자리가 없어 결제사만 적힌다({@code MOCK}, {@code TOSS}).
+     * 그때는 수단만으로 맞춘다 — 떼고 나면 빈 문자열이 되기 때문이다.
      */
     function labelOf(method, provider) {
-        const cleaned = String(provider || "").replace(/^MOCK_/, "");
+        const cleaned = String(provider || "").replace(/^(MOCK|TOSS)_?/, "");
         const found = METHODS.find(
             (item) => item.method === method
-                && (item.provider || "") === cleaned,
+                && (item.provider || "") === cleaned
+                /* 여러 항목이 같은 수단을 쓴다. 카드 자리에는 첫 항목이 온다. */
+                && item.flow !== "TOSS",
         );
         return found ? found.label : "결제";
     }
@@ -132,9 +158,11 @@
              * 방법이 없다. 고르고 나서 한 번 더 누르게 한다.
              */
             const groupName = `pay-method-${Date.now()}`;
-            const offered = METHODS.filter(
-                (item) => item.flow !== "QR" || settings.allowQr,
-            );
+            const offered = METHODS.filter((item) => {
+                if (item.flow === "QR") return Boolean(settings.allowQr);
+                if (item.flow === "TOSS") return Boolean(tossReady());
+                return true;
+            });
             offered.forEach((item) => {
                 const row = document.createElement("label");
                 row.className = "pay-method-item";
@@ -173,8 +201,13 @@
              */
             const notice = document.createElement("p");
             notice.className = "pay-method-notice";
-            notice.textContent =
-                "모의 결제입니다. 실제 돈이 빠져나가지 않고, 결제하면 티켓이 발급됩니다.";
+            /*
+             * 토스도 테스트 키라 돈이 나가지 않는다. 다만 그쪽은 실제 결제창을 거치므로
+             * `모의 결제`라고만 적으면 결제창이 뜬 순간 손님이 당황한다.
+             */
+            notice.textContent = tossReady()
+                ? "실제 돈이 빠져나가지 않습니다. 토스는 테스트 결제창, 나머지는 모의 결제입니다."
+                : "모의 결제입니다. 실제 돈이 빠져나가지 않고, 결제하면 티켓이 발급됩니다.";
             panel.appendChild(notice);
 
             const actions = document.createElement("div");

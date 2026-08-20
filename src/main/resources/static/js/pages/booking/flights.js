@@ -683,6 +683,19 @@
     const amountText = summaryAmountText(summary);
     const view = { summary, amountText };
 
+    /*
+     * 토스는 우리 창에서 결제가 끝나지 않는다. 결제창에서 인증을 마치면 브라우저가
+     * /pay/toss로 넘어가고 그 화면이 승인을 요청한다. 그래서 여기서 돌아오지 않는다.
+     */
+    if (picked.flow === "TOSS") {
+      return checkout.tossCheckout({
+        ...view,
+        reservationId,
+        amount: Number(amountText.replace(/[^\d]/g, "")),
+        orderName: String(summary || "티켓 예약").split(" · ")[0]
+      });
+    }
+
     if (picked.method === "CARD") return checkout.cardCheckout(view);
     if (picked.method === "TRANSFER" || picked.method === "VIRTUAL_ACCOUNT") {
       return checkout.transferCheckout({ ...view, method: picked.method });
