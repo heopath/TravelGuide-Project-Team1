@@ -47,7 +47,7 @@ public class AiGuideService {
                 request, history, context, ragResults);
         response = excludeFinalResponsePlaces(response, context, history, request.question());
         response = enrichVerifiedPlaces(response, ragResults, request.question());
-        conversationHistoryService.append(userId, request.tripId(), request.question(), response.answer());
+        conversationHistoryService.append(userId, request.tripId(), request.question(), toConversationAnswer(response));
         return response;
     }
 
@@ -211,6 +211,33 @@ public class AiGuideService {
         }
         // Two-character generic labels such as "카페" must not remove an entire recommendation.
         return normalizedName.length() >= 3 && !previousAnswers.isBlank() && previousAnswers.contains(normalizedName);
+    }
+
+    /**
+     * 다음 "다른 곳 추천" 요청에서 카드에만 표시된 상호명도 제외할 수 있도록
+     * 모델의 설명 문장과 최종 카드 장소명을 함께 대화 이력에 남긴다.
+     */
+    private String toConversationAnswer(AiGuideResponse response) {
+        if (response == null) {
+            return "";
+        }
+        String answer = response.answer() == null ? "" : response.answer();
+        if (response.days() == null) {
+            return answer;
+        }
+
+        Map<String, String> placeNamesByNormalizedName = new LinkedHashMap<>();
+        response.days().stream()
+                .filter(day -> day.items() != null)
+                .flatMap(day -> day.items().stream())
+                .map(AiGuideItemResponse::name)
+                .filter(name -> name != null && !name.isBlank())
+                .forEach(name -> placeNamesByNormalizedName.putIfAbsent(normalizePlaceName(name), name));
+
+        if (placeNamesByNormalizedName.isEmpty()) {
+            return answer;
+        }
+        return answer + "\n[추천 장소] " + String.join(", ", placeNamesByNormalizedName.values());
     }
 
     private AiGuideResponse enrichVerifiedPlaces(AiGuideResponse response, List<RagSearchResult> ragResults,

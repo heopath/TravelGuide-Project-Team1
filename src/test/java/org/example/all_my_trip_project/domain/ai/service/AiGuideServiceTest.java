@@ -19,6 +19,8 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.mockito.ArgumentMatchers.contains;
+import static org.mockito.ArgumentMatchers.eq;
 
 class AiGuideServiceTest {
     private final AiModelClient aiModelClient = mock(AiModelClient.class);
@@ -493,6 +495,46 @@ class AiGuideServiceTest {
         AiGuideResponse modelResponse = new AiGuideResponse("다른 추천", List.of(new AiGuideDayResponse(1, "DAY 1",
                 List.of(
                         new AiGuideItemResponse("14:00", "레드버튼 남포점", "모델이 이전 답변을 무시함"),
+                        new AiGuideItemResponse("15:00", "새로운 카페", "새 후보")
+                ))), List.of(), List.of());
+
+        when(conversationHistoryService.load(1L, 12L)).thenReturn(List.of(previousTurn));
+        when(contextService.load(1L, request)).thenReturn(context);
+        when(aiModelClient.generate(request, List.of(previousTurn), context, List.of())).thenReturn(modelResponse);
+
+        AiGuideResponse actual = service.generate(request, false, 1L);
+
+        assertThat(actual.days().getFirst().items())
+                .extracting(AiGuideItemResponse::name)
+                .containsExactly("새로운 카페");
+    }
+
+    @Test
+    void storesRecommendedCardPlaceNamesInConversationHistory() {
+        AiGuideRequest request = new AiGuideRequest("근처 카페 추천", 12L);
+        AiGuideContext context = new AiGuideContext(null, List.of());
+        AiGuideResponse response = new AiGuideResponse("추천 일정을 준비했어요.", List.of(new AiGuideDayResponse(1, "DAY 1",
+                List.of(new AiGuideItemResponse("14:00", "레드버튼 남포점", "카페 추천")))), List.of(), List.of());
+
+        when(conversationHistoryService.load(1L, 12L)).thenReturn(List.of());
+        when(contextService.load(1L, request)).thenReturn(context);
+        when(aiModelClient.generate(request, List.of(), context, List.of())).thenReturn(response);
+
+        service.generate(request, false, 1L);
+
+        verify(conversationHistoryService).append(eq(1L), eq(12L), eq(request.question()),
+                contains("[추천 장소] 레드버튼 남포점"));
+    }
+
+    @Test
+    void removesAPlaceThatWasOnlyInThePreviousRecommendationCard() {
+        AiGuideRequest request = new AiGuideRequest("다른 곳 추천해줘", 12L);
+        AiConversationTurn previousTurn = new AiConversationTurn(
+                "이재모피자 본점 근처 카페 추천", "추천 일정을 준비했어요.\n[추천 장소] 레드버튼 남포점");
+        AiGuideContext context = new AiGuideContext(null, List.of());
+        AiGuideResponse modelResponse = new AiGuideResponse("다른 추천", List.of(new AiGuideDayResponse(1, "DAY 1",
+                List.of(
+                        new AiGuideItemResponse("14:00", "레드버튼 남포점", "카드에만 있던 이전 추천"),
                         new AiGuideItemResponse("15:00", "새로운 카페", "새 후보")
                 ))), List.of(), List.of());
 
