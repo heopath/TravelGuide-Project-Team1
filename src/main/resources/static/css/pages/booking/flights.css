@@ -990,9 +990,7 @@
 
 /* 예상 총액과 내역 */
 .page-flights .cost { display: block; }
-.page-flights .cost .lb { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; }
 .page-flights .cost .lb small { margin: 0; text-align: right; }
-.page-flights .cost > div:nth-of-type(2) { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
 .page-flights .cost .n { text-align: right; }
 .page-flights .costlines { display: grid; gap: 8px; margin-top: 14px; }
 .page-flights .costline {
@@ -1046,7 +1044,48 @@
 }
 .page-flights .cost .lb { display: block; grid-column: 1; white-space: nowrap; }
 .page-flights .cost .lb small { display: block; margin-top: 4px; white-space: normal; }
-.page-flights .cost > div:nth-of-type(2) { display: block; grid-column: 2; text-align: right; }
 .page-flights .costlines,
 .page-flights .costempty,
 .page-flights .nextstep { grid-column: 1 / -1; }
+
+/* 예상 총액 카드를 시안 배치로 (#281 시안 2차) */
+.page-flights .cost { display: block; }
+.page-flights .costhead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+.page-flights .costhead .lb { font-size: 14px; font-weight: 800; }
+.page-flights .costhead .n { font-size: clamp(20px, 1.7vw, 26px); }
+.page-flights .costsub {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 4px;
+}
+.page-flights .costsub small { font-size: 12px; color: var(--muted); font-weight: 600; }
+.page-flights .costline { grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; }
+.page-flights .costline .nm { display: grid; gap: 1px; }
+.page-flights .costline .nm small { font-size: 11px; font-weight: 600; color: var(--muted-2); }
+.page-flights .costnote {
+  display: block;
+  margin-top: 10px;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--muted-2);
+  font-weight: 600;
+}
+/* 진행 현황 줄은 꺾쇠 없이 상태 글자로 끝난다. */
+.page-flights .sr { grid-template-columns: auto auto minmax(0, 1fr) auto auto; }
+
+/*
+   `.costsub`가 `.cost`의 두 번째 div라, 앞서 둔 `두 번째 칸은 오른쪽 정렬` 규칙에
+   걸려 두 값이 모두 오른쪽으로 몰렸다. 여기서 다시 편다 — 캡처에서 보고 고쳤다.
+*/
+.page-flights .cost .costsub {
+  display: flex;
+  justify-content: space-between;
+  text-align: left;
+}

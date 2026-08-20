@@ -372,7 +372,7 @@
       <span class="ic" aria-hidden="true">${r.ic}</span>
       <span class="nm">${r.nm}</span>
       <span class="ds${r.done ? " o" : ""}">${r.ds}</span>
-      ${r.done ? `<span class="mk" aria-hidden="true">✓</span>` : `<span class="ch" aria-hidden="true">›</span>`}
+      ${r.done ? `<span class="mk" aria-hidden="true">✓</span>` : ""}
     </button>`).join("");
   }
 
@@ -398,6 +398,7 @@
 
     $("rows").innerHTML = sideRows();
 
+    text("cBase", `성인 ${search.adults}명 기준`);
     if (hasOffers()) {
       const total = airTotal() + hotelTotal() + ticketTotal();
       text("cTot", won(total));
@@ -479,8 +480,8 @@
     $("costLines").innerHTML = lines.length
       ? lines.map((l) => `<div class="costline">
           <span class="ck" aria-hidden="true">✓</span>
-          <span class="nm">${esc(l.nm)}</span>
-          <span class="pv">${esc(l.pv)}<small>${esc(l.note)}</small></span>
+          <span class="nm">${esc(l.nm)}<small>${esc(l.note)}</small></span>
+          <span class="pv">${esc(l.pv)}</span>
         </div>`).join("")
       : `<p class="costempty">아직 고른 항목이 없어요. 위 금액은 추천 항공편 기준입니다.</p>`;
   }

@@ -252,13 +252,21 @@
                 <div class="track"><i id="fill"></i></div>
                 <div id="rows"></div>
                 <div class="cost">
-                  <div class="lb">예상 총액<small id="costNote">항공은 추천가 기준</small></div>
-                  <div>
-                    <div class="n" id="cTot">—</div>
+                  <div class="costhead">
+                    <span class="lb">예상 총액</span>
+                    <span class="n" id="cTot">—</span>
+                  </div>
+                  <div class="costsub">
+                    <small id="cBase">성인 2명 기준</small>
                     <small id="cPer">인원당 금액 계산 중</small>
                   </div>
                   <!-- 고른 것만 줄로 남긴다. 총액이 어디서 나온 값인지 보여야 한다. -->
                   <div class="costlines" id="costLines"></div>
+                  <!--
+                    어떤 값이 추정이고 무엇이 빠졌는지. 카드 맨 아래에 작게 둔다 —
+                    금액 줄 사이에 끼우면 총액을 읽는 눈을 막는다.
+                  -->
+                  <small class="costnote" id="costNote">항공은 추천가 기준</small>
                   <!--
                     다음에 할 일 하나만 띄운다. 네 단계를 다 보여주면서 무엇부터 할지는
                     안 알려주는 화면이 되지 않게 한다.
