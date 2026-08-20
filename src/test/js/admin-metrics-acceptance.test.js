@@ -4,6 +4,7 @@
 const { JSDOM } = require("jsdom");
 const fs = require("fs");
 const path = require("path");
+const { readMarkup } = require("./markup");
 
 const ROOT = path.resolve(__dirname, "../../..");
 const HTML = path.join(ROOT, "src/main/resources/templates/admin/admin.html");
@@ -71,7 +72,7 @@ const note = (d) => d.querySelector("[data-metrics-note]").textContent;
 async function run() {
   /* ── 마크업 ── */
   {
-    const markup = fs.readFileSync(HTML, "utf8").replace(/<!--[\s\S]*?-->/g, "");
+    const markup = readMarkup(HTML);
     const section = markup.slice(
       markup.indexOf('data-admin-section="metrics"'),
       markup.indexOf('data-admin-section="products"')

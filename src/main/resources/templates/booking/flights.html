@@ -23,20 +23,21 @@
                 여행을 고르면 그 여행 이름으로 바뀐다(`제주 여행 예약`). 어떤 여행을 예약하는
                 중인지가 제목에 있어야 여행을 여러 개 굴릴 때 헷갈리지 않는다.
               -->
-              <h1><span>04 </span><span id="hdTitle">여행 예약</span></h1>
-              <p>일정에 필요한 항공·숙박·티켓을 비교하고 관리하세요.</p>
-              <i>✦</i>
+              <h1><span id="hdTitle">여행 예약</span></h1>
+              <p>필요한 예약을 한곳에서 비교하고 일정에 담아보세요.</p>
             </div>
 
             <!-- 지금 어떤 조건으로 보고 있는지. 고치는 곳은 아래 검색 패널이다. -->
             <div class="cond">
-              <span class="cd"><span class="i">▦</span><span id="cond-trip">여행을 선택하세요</span></span>
-              <span class="sep">·</span>
-              <span class="cd"><span id="cond-date">날짜 미정</span></span>
-              <span class="sep">·</span>
-              <span class="cd"><span id="cond-pax">성인 2명</span></span>
-              <span class="sep">·</span>
-              <span class="cd"><span id="cond-route">김포 → 제주</span></span>
+              <span class="cd"><span class="i" aria-hidden="true">✈</span><span id="cond-route">김포 GMP → 제주 CJU</span></span>
+              <span class="sep">|</span>
+              <span class="cd"><span class="i" aria-hidden="true">▦</span><span id="cond-date">날짜 미정</span></span>
+              <span class="sep">|</span>
+              <span class="cd"><span class="i" aria-hidden="true">◍</span><span id="cond-pax">성인 2명</span></span>
+              <span class="sep">|</span>
+              <!-- 고치는 자리는 바로 아래 검색 패널이다. 여기서는 그 자리로 데려다 준다. -->
+              <button type="button" class="cond-edit" id="condEdit">변경하기</button>
+              <span class="cd cond-trip"><span id="cond-trip" hidden></span></span>
             </div>
           </section>
 
@@ -51,14 +52,17 @@
             <form class="form" id="searchForm">
               <label class="f">
                 <span class="fl">출발지</span>
-                <input class="fv" id="f-origin" name="origin" value="GMP" maxlength="3" autocomplete="off" />
+                <!-- 코드 옆에 공항 이름을 붙인다. GMP만 보고 김포인 줄 아는 사람은 많지 않다. -->
+                <span class="fvline"><b class="fname" id="f-origin-name">김포</b>
+                  <input class="fv" id="f-origin" name="origin" value="GMP" maxlength="3" autocomplete="off" /></span>
               </label>
               <!-- 왕복은 방향을 자주 뒤집는다. 두 칸을 지웠다 다시 치게 두지 않는다. -->
               <button type="button" class="swap" id="swap" title="출발지와 도착지 바꾸기"
                       aria-label="출발지와 도착지 바꾸기">⇄</button>
               <label class="f">
                 <span class="fl">도착지</span>
-                <input class="fv" id="f-destination" name="destination" value="CJU" maxlength="3" autocomplete="off" />
+                <span class="fvline"><b class="fname" id="f-destination-name">제주</b>
+                  <input class="fv" id="f-destination" name="destination" value="CJU" maxlength="3" autocomplete="off" /></span>
               </label>
               <label class="f">
                 <span class="fl">가는 날</span>
@@ -70,18 +74,67 @@
               </label>
               <label class="f">
                 <span class="fl">인원</span>
-                <input class="fv" id="f-adults" name="adults" type="number" min="1" max="9" value="2" />
+                <!-- 숫자 입력에서 고르는 상자로 바꿨다. 성인 몇 명인지가 값에 함께 보인다. -->
+                <select class="fv" id="f-adults" name="adults">
+                  <option value="1">성인 1명</option>
+                  <option value="2" selected>성인 2명</option>
+                  <option value="3">성인 3명</option>
+                  <option value="4">성인 4명</option>
+                  <option value="5">성인 5명</option>
+                  <option value="6">성인 6명</option>
+                  <option value="7">성인 7명</option>
+                  <option value="8">성인 8명</option>
+                  <option value="9">성인 9명</option>
+                </select>
               </label>
               <button type="submit" class="go">항공편 검색</button>
             </form>
           </div>
 
+          <!--
+            아이콘은 여기 한 번만 그려 두고 탭과 진행 현황이 <use>로 가져다 쓴다. (#281)
+            같은 그림을 두 곳에 복사하면 한쪽만 고쳐져 아이콘이 갈린다.
+          -->
+          <svg class="icon-sprite" aria-hidden="true" focusable="false">
+            <symbol id="ic-plane" viewBox="0 0 24 24">
+              <path d="M21 16.5v-1.8l-7.5-4.7V4.2a1.5 1.5 0 0 0-3 0V10L3 14.7v1.8l7.5-2.3V18l-2 1.4v1.4l3.5-1 3.5 1v-1.4L13.5 18v-3.8z"
+                    fill="currentColor" />
+            </symbol>
+            <symbol id="ic-hotel" viewBox="0 0 24 24">
+              <g fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M3 21h18M6 21V4.8c0-.4.3-.8.8-.8h6.4c.5 0 .8.4.8.8V21" />
+                <path d="M14 10h3.2c.4 0 .8.3.8.8V21" />
+                <path d="M9 8h2M9 12h2M9 16h2" />
+              </g>
+            </symbol>
+            <symbol id="ic-ticket" viewBox="0 0 24 24">
+              <g fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M4 8.5C4 7.7 4.7 7 5.5 7h13c.8 0 1.5.7 1.5 1.5V10a2 2 0 0 0 0 4v1.5c0 .8-.7 1.5-1.5 1.5h-13A1.5 1.5 0 0 1 4 15.5V14a2 2 0 0 0 0-4V8.5z" />
+                <path d="M13 7.5v9" stroke-dasharray="2 2.4" />
+              </g>
+            </symbol>
+            <symbol id="ic-mine" viewBox="0 0 24 24">
+              <g fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M9.5 4h5c.3 0 .5.2.5.5V6H9V4.5c0-.3.2-.5.5-.5z" />
+                <path d="M9 5.2H6.8c-.4 0-.8.4-.8.8v13c0 .4.4.8.8.8h10.4c.4 0 .8-.4.8-.8V6c0-.4-.4-.8-.8-.8H15" />
+                <path d="M9 11h6M9 15h4" />
+              </g>
+            </symbol>
+          </svg>
+
           <div class="tabs" role="tablist">
-            <button type="button" class="tab on" role="tab" aria-selected="true" data-tab="flight">✈ 항공</button>
-            <button type="button" class="tab" role="tab" aria-selected="false" data-tab="hotel">▤ 숙소</button>
-            <button type="button" class="tab" role="tab" aria-selected="false" data-tab="ticket">◈ 티켓·액티비티</button>
+            <button type="button" class="tab on" role="tab" aria-selected="true" data-tab="flight">
+              <svg class="tabic" aria-hidden="true"><use href="#ic-plane" /></svg> 항공
+            </button>
+            <button type="button" class="tab" role="tab" aria-selected="false" data-tab="hotel">
+              <svg class="tabic" aria-hidden="true"><use href="#ic-hotel" /></svg> 숙소
+            </button>
+            <button type="button" class="tab" role="tab" aria-selected="false" data-tab="ticket">
+              <svg class="tabic" aria-hidden="true"><use href="#ic-ticket" /></svg> 티켓·액티비티
+            </button>
             <button type="button" class="tab" role="tab" aria-selected="false" data-tab="mine">
-              ▣ 내 예약 <span class="k cnt" id="tabCount">0</span>
+              <svg class="tabic" aria-hidden="true"><use href="#ic-mine" /></svg>
+              내 예약 <span class="k cnt" id="tabCount">0</span>
             </button>
           </div>
 
@@ -112,26 +165,28 @@
                   예전에는 두 편을 카드로 나란히 뒀는데, 화면에서 늘 하나만 고르는 중이라
                   나머지 카드는 자리만 차지했다. 반대편 상태는 오른쪽 진행 현황이 맡는다.
                 -->
-                <div class="legbar">
-                  <div class="legmeta">
-                    <strong class="legh">
-                      <span class="lt" id="lt0">① 가는 편</span>
-                      <span class="lt" id="lt1" hidden>② 오는 편</span>
-                    </strong>
-                    <span class="lv" id="lv0">김포 (GMP) → 제주 (CJU)</span>
-                    <span class="lv" id="lv1" hidden>제주 (CJU) → 김포 (GMP)</span>
-                    <span class="lp" id="lp0">항공편을 선택하세요</span>
-                    <span class="lp" id="lp1" hidden>가는 편 선택 후 진행</span>
-                  </div>
+                <!--
+                  편 선택. 두 단계를 나란히 두고 지금 단계만 켠다. 고르는 편의 노선과
+                  상태는 켜진 단계 옆에 붙는다.
+                -->
+                <div class="legbar" role="tablist">
+                  <button type="button" class="leg on" data-leg="0" role="tab" aria-selected="true">
+                    <i aria-hidden="true">1</i>
+                    <span class="legname">가는 편 선택</span>
+                    <span class="legdetail">
+                      <span class="lv" id="lv0">김포 GMP → 제주 CJU</span>
+                      <span class="lp" id="lp0">항공편을 선택하세요</span>
+                    </span>
+                  </button>
 
-                  <div class="legs" role="tablist">
-                    <button type="button" class="leg on" data-leg="0" role="tab" aria-selected="true">
-                      <i aria-hidden="true">1</i>가는 편
-                    </button>
-                    <button type="button" class="leg" data-leg="1" role="tab" aria-selected="false">
-                      <i aria-hidden="true">2</i>오는 편
-                    </button>
-                  </div>
+                  <button type="button" class="leg" data-leg="1" role="tab" aria-selected="false">
+                    <i aria-hidden="true">2</i>
+                    <span class="legname">오는 편 선택</span>
+                    <span class="legdetail">
+                      <span class="lv" id="lv1" hidden>제주 CJU → 김포 GMP</span>
+                      <span class="lp" id="lp1" hidden>가는 편 선택 후 진행</span>
+                    </span>
+                  </button>
                 </div>
 
                 <!-- 소요 시간은 국내선 전 노선이 사실상 같아 정렬 항목에서 뺐다. -->
@@ -230,15 +285,30 @@
 
             <aside class="side">
               <div class="sc2">
-                <div class="sh">예약 현황<span class="r"><span id="dn">0</span> / 4 완료</span></div>
+                <div class="sh">예약 진행 현황<span class="r"><span id="dn">0</span> / 4 단계</span></div>
                 <div class="track"><i id="fill"></i></div>
                 <div id="rows"></div>
                 <div class="cost">
-                  <div class="lb">예상 총액<small id="costNote">항공은 추천가 기준</small></div>
-                  <div>
-                    <div class="n" id="cTot">—</div>
+                  <div class="costhead">
+                    <span class="lb">예상 총액</span>
+                    <span class="n" id="cTot">—</span>
+                  </div>
+                  <div class="costsub">
+                    <small id="cBase">성인 2명 기준</small>
                     <small id="cPer">인원당 금액 계산 중</small>
                   </div>
+                  <!-- 고른 것만 줄로 남긴다. 총액이 어디서 나온 값인지 보여야 한다. -->
+                  <div class="costlines" id="costLines"></div>
+                  <!--
+                    어떤 값이 추정이고 무엇이 빠졌는지. 카드 맨 아래에 작게 둔다 —
+                    금액 줄 사이에 끼우면 총액을 읽는 눈을 막는다.
+                  -->
+                  <small class="costnote" id="costNote">항공은 추천가 기준</small>
+                  <!--
+                    다음에 할 일 하나만 띄운다. 네 단계를 다 보여주면서 무엇부터 할지는
+                    안 알려주는 화면이 되지 않게 한다.
+                  -->
+                  <button type="button" class="nextstep" id="nextStep" hidden></button>
                 </div>
               </div>
 
