@@ -5,6 +5,7 @@ import org.example.all_my_trip_project.global.response.ErrorResponse;
 import org.example.all_my_trip_project.global.response.ErrorResponse.FieldErrorDetail;
 import org.example.all_my_trip_project.domain.ai.service.AiModelException;
 import org.example.all_my_trip_project.domain.ai.service.AiTripPlanGenerationException;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -45,6 +46,19 @@ public class ApiExceptionHandler {
                         "AI_TRIP_PLAN_GENERATION_FAILED",
                         exception.getMessage()
                 ));
+    }
+
+    /*
+     * 같은 카카오 장소를 두 사람이 담으면 uk_places_external에 걸린다. 이건 오류가 아니라
+     * 중복 방지가 제대로 동작한 것이고, 화면은 409를 받아 기존 장소를 찾아 재사용한다.
+     * 전용 핸들러가 없던 동안에는 만능 Exception 핸들러가 받아 500과 스택트레이스를 남겼다.
+     */
+    @ExceptionHandler(DuplicateKeyException.class)
+    public ResponseEntity<ErrorResponse> handleDuplicateKey(DuplicateKeyException exception) {
+        log.info("이미 있는 데이터를 다시 넣으려 했습니다: {}", exception.getMostSpecificCause().getMessage());
+
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(ErrorResponse.of("DUPLICATE_RESOURCE", "이미 등록된 데이터입니다."));
     }
 
     @ExceptionHandler(IllegalArgumentException.class)
