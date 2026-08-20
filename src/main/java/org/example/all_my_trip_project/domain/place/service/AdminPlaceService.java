@@ -14,6 +14,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.net.URI;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
@@ -100,6 +101,28 @@ public class AdminPlaceService {
                 AdminAuditService.payload("recommended", current.getRecommended()),
                 AdminAuditService.payload("recommended", recommended, "name", current.getName()));
         return requirePlace(placeId);
+    }
+
+    /*
+     * 목록에서 고른 여러 장소를 한 번에 처리한다. 하나씩 부르면 요청마다 목록이 새로 그려져
+     * 번거롭고, 중간에 실패하면 일부만 반영된 상태가 남는다. 한 트랜잭션으로 묶는다.
+     */
+    @Transactional
+    @CacheEvict(cacheNames = "placeDetail", allEntries = true)
+    public int setRecommendedAll(List<Long> placeIds, boolean recommended) {
+        if (placeIds == null || placeIds.isEmpty()) {
+            throw new BusinessException(ErrorCode.INVALID_PLACE_REQUEST);
+        }
+        List<Long> targets = placeIds.stream().filter(id -> id != null && id > 0).distinct().toList();
+        if (targets.isEmpty()) {
+            throw new BusinessException(ErrorCode.INVALID_PLACE_REQUEST);
+        }
+
+        int changed = placeDAO.updateRecommendedAll(targets, recommended);
+        adminAuditService.record("PLACE_RECOMMENDATION_BULK_CHANGE", "PLACE", null,
+                null,
+                AdminAuditService.payload("recommended", recommended, "count", changed));
+        return changed;
     }
 
     private PlaceDTO apply(PlaceDTO place, AdminPlaceRequest request) {

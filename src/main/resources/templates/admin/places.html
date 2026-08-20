@@ -65,6 +65,12 @@
                 <div><h2 id="placeListTitle">등록된 추천 장소</h2><p id="placeCount">불러오는 중</p></div>
                 <a href="/guide" target="_blank" rel="noopener noreferrer">사용자 화면 보기 ↗</a>
               </div>
+              <div class="admin-place-bulk" id="placeBulkBar" hidden>
+                <label class="admin-place-check"><input id="placeSelectAll" type="checkbox" /><span>이 페이지 전체 선택</span></label>
+                <strong id="placeSelectedCount">0곳 선택</strong>
+                <button type="button" id="placeBulkRecommend">추천 등록</button>
+                <button type="button" id="placeBulkUnrecommend">추천 내리기</button>
+              </div>
               <div class="admin-place-list" id="placeList"></div>
               <p class="admin-place-empty" id="placeEmpty" role="status">장소를 불러오는 중입니다.</p>
             </section>

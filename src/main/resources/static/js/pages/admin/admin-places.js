@@ -8,7 +8,8 @@
     ATTRACTION: "관광지", RESTAURANT: "맛집", CAFE: "카페", ACCOMMODATION: "숙박",
     FESTIVAL: "축제", ACTIVITY: "액티비티", TRANSPORT: "교통"
   };
-  const state = { items: [], total: 0, selectedId: null, loading: false };
+  // selectedId는 편집 중인 장소, selectedIds는 일괄 처리로 고른 장소다.
+  const state = { items: [], total: 0, selectedId: null, selectedIds: new Set(), loading: false };
 
   function safeImageUrl(value) {
     if (!value) return "";
@@ -51,7 +52,11 @@
 
   function card(place) {
     const image = safeImageUrl(place.primaryImageUrl);
+    const checked = state.selectedIds.has(String(place.placeId)) ? " checked" : "";
     return `<article class="admin-place-row" data-place-row="${place.placeId}">
+      <label class="admin-place-select">
+        <input type="checkbox" data-place-select="${place.placeId}"${checked} aria-label="${esc(place.name)} 선택" />
+      </label>
       <div class="admin-place-thumb">${image
         ? `<img src="${esc(image)}" alt="${esc(place.name)} 대표 이미지" loading="lazy" />`
         : '<span aria-hidden="true">⌖</span>'}</div>
@@ -68,8 +73,20 @@
     </article>`;
   }
 
+  function renderBulkBar() {
+    const count = state.selectedIds.size;
+    $("placeBulkBar").hidden = state.items.length === 0;
+    $("placeSelectedCount").textContent = count + "곳 선택";
+    $("placeBulkRecommend").disabled = count === 0;
+    $("placeBulkUnrecommend").disabled = count === 0;
+    // 이 페이지의 항목이 모두 선택됐을 때만 전체 선택을 켠다.
+    $("placeSelectAll").checked = state.items.length > 0
+      && state.items.every((item) => state.selectedIds.has(String(item.placeId)));
+  }
+
   function render() {
     $("placeList").innerHTML = state.items.map(card).join("");
+    renderBulkBar();
     $("placeCount").textContent = `총 ${state.total.toLocaleString("ko-KR")}곳`;
     $("placeEmpty").hidden = state.loading || state.items.length > 0;
     if (state.loading) {
@@ -87,6 +104,8 @@
 
   async function load() {
     state.loading = true;
+    // 목록이 바뀌면 선택도 지운다. 화면에 없는 장소가 선택된 채 남으면 무엇을 처리하는지 알 수 없다.
+    state.selectedIds.clear();
     render();
     try {
       const page = await request("GET", `/api/v1/admin/places?${filters()}`);
@@ -191,6 +210,20 @@
    * 두 스위치가 거의 같은 뜻으로 읽혀 혼동을 주고, 비활성으로 내리면 카카오 장소
    * 중복 확인(search)에서도 빠져 그 장소를 아무도 일정에 담을 수 없게 된다.
    */
+  /* 고른 장소를 한 번에 처리한다. 서버가 한 트랜잭션으로 묶어 일부만 반영되는 일이 없다. */
+  async function bulkRecommend(recommended, button) {
+    const placeIds = [...state.selectedIds].map(Number).filter(Number.isInteger);
+    if (!placeIds.length) return;
+    button.disabled = true;
+    try {
+      await request("PATCH", "/api/v1/admin/places/recommendation", { placeIds, recommended });
+      state.selectedIds.clear();
+      await load();
+    } catch (error) {
+      notice(error.message || "추천 상태를 바꾸지 못했습니다.");
+    } finally { button.disabled = false; }
+  }
+
   async function toggleRecommended(placeId, button) {
     const place = state.items.find((item) => String(item.placeId) === String(placeId));
     if (!place) return;
@@ -272,6 +305,27 @@
       const recommendedButton = event.target.closest("[data-place-recommended]");
       if (recommendedButton) toggleRecommended(recommendedButton.dataset.placeRecommended, recommendedButton);
     });
+
+    // 체크박스는 click이 아니라 change로 받는다. 키보드로 켜고 끌 때도 동작해야 한다.
+    $("placeList").addEventListener("change", (event) => {
+      const box = event.target.closest("[data-place-select]");
+      if (!box) return;
+      const placeId = String(box.dataset.placeSelect);
+      if (box.checked) state.selectedIds.add(placeId);
+      else state.selectedIds.delete(placeId);
+      renderBulkBar();
+    });
+
+    $("placeSelectAll").addEventListener("change", (event) => {
+      state.items.forEach((item) => {
+        if (event.target.checked) state.selectedIds.add(String(item.placeId));
+        else state.selectedIds.delete(String(item.placeId));
+      });
+      render();
+    });
+
+    $("placeBulkRecommend").addEventListener("click", (event) => bulkRecommend(true, event.target));
+    $("placeBulkUnrecommend").addEventListener("click", (event) => bulkRecommend(false, event.target));
   }
 
   document.addEventListener("DOMContentLoaded", () => { bind(); resetEditor(); load(); });

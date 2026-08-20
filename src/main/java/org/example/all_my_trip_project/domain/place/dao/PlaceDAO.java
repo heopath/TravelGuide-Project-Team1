@@ -43,6 +43,9 @@ public class PlaceDAO {
     public int update(PlaceDTO place) { return placeMapper.update(place); }
     public int updateActive(Long placeId, boolean active) { return placeMapper.updateActive(placeId, active); }
     public int updateRecommended(Long placeId, boolean recommended) { return placeMapper.updateRecommended(placeId, recommended); }
+    public int updateRecommendedAll(java.util.List<Long> placeIds, boolean recommended) {
+        return placeMapper.updateRecommendedAll(placeIds, recommended);
+    }
     public int updatePrimaryImage(Long placeId, String imageUrl, String altText) {
         return placeMapper.updatePrimaryImage(placeId, imageUrl, altText);
     }

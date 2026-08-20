@@ -200,6 +200,14 @@
         WHERE place_id = #{placeId}
     </update>
 
+    <update id="updateRecommendedAll">
+        UPDATE places SET is_recommended = #{recommended}, updated_at = CURRENT_TIMESTAMP(6)
+        WHERE place_id IN
+        <foreach collection="placeIds" item="placeId" open="(" separator="," close=")">
+            #{placeId}
+        </foreach>
+    </update>
+
     <update id="updatePrimaryImage">
         UPDATE place_images
         SET image_url = #{imageUrl}, alt_text = #{altText}

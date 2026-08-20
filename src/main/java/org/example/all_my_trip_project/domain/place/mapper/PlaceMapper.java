@@ -40,6 +40,8 @@ public interface PlaceMapper {
     int update(PlaceDTO place);
     int updateActive(@Param("placeId") Long placeId, @Param("active") boolean active);
     int updateRecommended(@Param("placeId") Long placeId, @Param("recommended") boolean recommended);
+    int updateRecommendedAll(@Param("placeIds") java.util.List<Long> placeIds,
+                             @Param("recommended") boolean recommended);
     int updatePrimaryImage(@Param("placeId") Long placeId,
                            @Param("imageUrl") String imageUrl,
                            @Param("altText") String altText);
