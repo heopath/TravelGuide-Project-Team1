@@ -18,8 +18,6 @@
     loading: false,
     loaded: false,
     products: [],
-    /* null이면 상품 목록, 값이 있으면 그 상품의 시간대 화면이다. */
-    detail: null,
     reservation: null,
     error: null,
     /*
@@ -65,6 +63,12 @@
       + `${String(at.getHours()).padStart(2, "0")}:${String(at.getMinutes()).padStart(2, "0")} 오픈`;
   }
 
+  /** 상세 페이지로 넘길 때 여행을 이어 준다. 없으면 여행에 안 붙은 티켓으로 산다. */
+  function tripQuery() {
+    const tripId = currentTripId();
+    return tripId ? `?tripId=${encodeURIComponent(tripId)}` : "";
+  }
+
   /* 여행은 이제 선택이다. 있으면 예약에 붙이고, 없으면 여행 없는 티켓으로 산다. */
   function currentTripId() {
     const value = new URL(location.href).searchParams.get("tripId") || "";
@@ -103,60 +107,20 @@
       </div>
       <div class="ticket-action">
         <strong>${won(product.minUnitPrice)}</strong><small>1인 최저가 · 실습가</small>
-        <button type="button" data-ticket-open="${product.productId}">${upcoming ? "미리 보기" : "날짜 고르기"}</button>
+        <a class="ticket-open" href="/booking/tickets/${product.productId}${tripQuery()}"
+           data-ticket-open="${product.productId}">${upcoming ? "미리 보기" : "자세히 보기"}</a>
       </div>
     </article>`;
-  }
-
-  function slotCard(offer) {
-    /* 오픈 전에는 담을 수 없다. 눌리는 버튼을 두면 눌러 보고서야 안 된다는 걸 안다. */
-    const upcoming = isUpcoming(offer);
-    const time = offer.startTime
-      ? `${hhmm(offer.startTime)}${offer.endTime ? `–${hhmm(offer.endTime)}` : ""}`
-      : "시간 자유";
-    return `<article class="ticket-card" data-ticket-slot="${offer.slotId}">
-      <div class="ticket-copy">
-        <span>${esc(offer.usageDate)} · ${esc(time)}</span>
-        <h3>${esc(offer.optionName)}</h3>
-        <p>${esc(offer.placeName)}</p>
-        <small>남은 수량 ${offer.remainingQuantity}개 · 1인 최대 ${offer.maxQuantityPerUser}개</small>
-      </div>
-      <div class="ticket-action">
-        <strong>${won(offer.unitPrice)}</strong><small>1인 · 실습가</small>
-        <label>수량 <input type="number" min="1" max="${offer.maxQuantityPerUser}" value="1" data-ticket-quantity${
-          upcoming ? " disabled" : ""}></label>
-        <button type="button" data-ticket-reserve="${offer.slotId}"${upcoming ? " disabled" : ""}>${
-          upcoming ? "오픈 전이에요" : "모의 예약 담기"}</button>
-      </div>
-    </article>`;
-  }
-
-  function detailHeader(product) {
-    return `<div class="ticket-detail-head">
-      <button type="button" data-ticket-back>← 상품 목록</button>
-      <div>
-        <h3>${esc(product.productName)}</h3>
-        <p>${esc(product.placeName)} · ${esc(periodLabel(product))}</p>
-      </div>
-    </div>`;
   }
 
   function render() {
     const list = $("ticketList");
     /* 화면을 다시 그릴 때마다 카운트다운 대상이 바뀐다. 그릴 때 함께 맞춘다. */
     window.setTimeout(syncCountdown, 0);
-    if (state.detail) {
-      list.innerHTML = detailHeader(state.detail.product)
-        + state.detail.slots.map(slotCard).join("");
-    } else {
-      list.innerHTML = state.products.map(productCard).join("");
-    }
+    list.innerHTML = state.products.map(productCard).join("");
     if (state.loading) return status("티켓 정보를 불러오는 중이에요.");
     if (state.error) return status(state.error, true);
-    if (state.detail && !state.detail.slots.length) {
-      return status("이 상품은 지금 살 수 있는 시간대가 없어요.", true);
-    }
-    if (!state.detail && state.loaded && !state.products.length) {
+    if (state.loaded && !state.products.length) {
       return status("지금 판매 중인 실습 티켓이 없습니다.");
     }
     $("ticketStatus").hidden = true;
@@ -202,10 +166,6 @@
   /** 오픈 시각이 지났을 때 한 번만 다시 받는다. */
   async function reloadAfterOpen() {
     if (state.loading) return;
-    if (state.detail) {
-      await openProduct(state.detail.product.productId);
-      return;
-    }
     state.loaded = false;
     await loadProducts();
   }
@@ -241,27 +201,6 @@
     }
   }
 
-  async function openProduct(productId) {
-    state.loading = true;
-    state.error = null;
-    render();
-    try {
-      state.detail = await jsonRequest(`/api/v1/tickets/products/${encodeURIComponent(productId)}`);
-      syncClock(state.detail?.serverTime);
-    } catch (error) {
-      state.error = "상품 정보를 불러오지 못했습니다.";
-    } finally {
-      state.loading = false;
-      render();
-    }
-  }
-
-  function backToList() {
-    state.detail = null;
-    state.error = null;
-    render();
-  }
-
   async function restore() {
     const tripId = currentTripId();
     try {
@@ -287,33 +226,6 @@
     });
   }
 
-  async function reserve(slotId, button) {
-    const card = button.closest("[data-ticket-slot]");
-    const quantity = Math.max(1, Number(card.querySelector("[data-ticket-quantity]").value) || 1);
-    button.disabled = true;
-    try {
-      const requestKey = crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${slotId}`;
-      const tripId = currentTripId();
-      /* tripId는 있을 때만 싣는다. 없으면 여행에 붙지 않은 티켓으로 산다. */
-      const request = { slotId: Number(slotId), quantity, requestKey };
-      if (tripId) request.tripId = Number(tripId);
-      const queue = await jsonRequest("/api/v1/booking-queue/entries", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Accept: "application/json" },
-        body: JSON.stringify(request),
-      });
-      if (queue.status === "READY") {
-        selected(await completeQueuedReservation(queue.token));
-      } else {
-        location.href = `/booking/queue?token=${encodeURIComponent(queue.token)}`;
-      }
-    } catch (error) {
-      status(error.message === "TICKET_REQUEST_FAILED" ? "티켓을 담지 못했습니다." : error.message, true);
-    } finally {
-      button.disabled = false;
-    }
-  }
-
   function bind() {
     window.addEventListener("allmytrips:booking-tab-changed", (event) => {
       if (event.detail?.tab === "ticket") loadProducts();
@@ -324,14 +236,10 @@
       status("모의 예약을 취소했습니다. 취소한 수량은 다시 예약할 수 있습니다.");
       void restore();
     });
-    $("ticketList").addEventListener("click", (event) => {
-      const back = event.target.closest("[data-ticket-back]");
-      if (back) return backToList();
-      const open = event.target.closest("[data-ticket-open]");
-      if (open) return void openProduct(open.dataset.ticketOpen);
-      const button = event.target.closest("[data-ticket-reserve]");
-      if (button) void reserve(button.dataset.ticketReserve, button);
-    });
+    /*
+      상세는 링크다. 예전에는 목록 안에서 시간대를 펼쳤는데, 무엇을 사는지(어디서·몇 시에·
+      얼마에)를 볼 자리가 없었다. 상품 하나를 통째로 보여주는 화면으로 옮겼다. (#281)
+     */
   }
 
   document.addEventListener("DOMContentLoaded", () => {
@@ -339,5 +247,5 @@
     restore();
     if (new URL(location.href).searchParams.get("tab") === "ticket") loadProducts();
   });
-  window.__ticketBooking = { state, loadProducts, openProduct, reserve, restore };
+  window.__ticketBooking = { state, loadProducts, restore };
 })();
