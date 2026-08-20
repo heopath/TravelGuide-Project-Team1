@@ -559,9 +559,20 @@ export function initTickets() {
         ticket,
         button,
     ) {
-        if (!window.confirm(
-            "모의 결제를 진행할까요? 실제 결제는 이루어지지 않고, 결제하면 티켓이 발급됩니다.",
-        )) {
+        /*
+         * 결제수단을 고르게 한다. (#281) 고르는 창은 예약 화면과 같은 것을 쓴다 —
+         * `core/payment-methods.js`가 window에 붙여 둔다. 취소하면 null이라 앞서 쓰던
+         * window.confirm 자리에 그대로 들어간다.
+         */
+        const picked = await window.AllMyTripsPayment.choose({
+            summary: `${ticket.productName || "티켓"} · ${formatAmount(
+                ticket.totalAmount,
+                ticket.currency,
+            )}`,
+            confirmLabel: "모의 결제하기",
+        });
+
+        if (!picked) {
             return;
         }
 
@@ -582,8 +593,10 @@ export function initTickets() {
                 {
                     method: "POST",
                     body: JSON.stringify({
-                        method: "CARD",
+                        method: picked.method,
                         idempotencyKey,
+                        easyPayProvider:
+                            picked.easyPayProvider,
                     }),
                 },
             );

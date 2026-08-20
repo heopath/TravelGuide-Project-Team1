@@ -413,6 +413,8 @@
     </div>
 
     <div th:replace="~{fragments/scripts :: appScripts}"></div>
+    <!-- 결제수단 선택 창. flights.js가 결제할 때 window.AllMyTripsPayment로 부른다. (#281) -->
+    <script th:src="@{/js/core/payment-methods.js}" src="../../static/js/core/payment-methods.js"></script>
     <script th:src="@{/js/pages/booking/flights.js}" src="../../static/js/pages/booking/flights.js"></script>
     <script th:src="@{/js/pages/booking/accommodations.js}" src="../../static/js/pages/booking/accommodations.js"></script>
     <script th:src="@{/js/pages/booking/tickets.js}" src="../../static/js/pages/booking/tickets.js"></script>

@@ -6,6 +6,7 @@ const path = require("path");
 const ROOT = path.resolve(__dirname, "../../..");
 const HTML = path.join(ROOT, "src/main/resources/templates/mypage/mypage.html");
 const JS = path.join(ROOT, "src/main/resources/static/js/pages/mypage/mypage-tickets.js");
+const PAYMENT_METHODS = path.join(ROOT, "src/main/resources/static/js/core/payment-methods.js");
 
 let passed = 0;
 let failed = 0;
@@ -66,6 +67,8 @@ async function boot(responder, toasts) {
     url: "http://localhost/mypage", runScripts: "outside-only",
   });
   const w = dom.window;
+  /* 결제수단 선택 창. 화면에서도 모듈보다 먼저 올라간다. (#281) */
+  w.eval(fs.readFileSync(PAYMENT_METHODS, "utf8"));
   const calls = [];
   const init = loadModule(w, {
     request: async (url, options = {}) => {
@@ -275,15 +278,28 @@ async function run() {
       /\d+분 안에 결제해야/.test(d.querySelector("[data-pay-remain]").textContent),
       d.querySelector("[data-pay-remain]")?.textContent);
 
-    d.defaultView.confirm = () => true;
     d.querySelector("[data-ticket-pay]").click();
+
+    /* 결제수단을 고르기 전에는 결제가 나가면 안 된다. (#281) */
+    await until(() => d.querySelector(".pay-method-overlay") !== null);
+    test("결제 전에 결제수단을 고르게 한다", d.querySelector(".pay-method-overlay") !== null);
+    test("고르기 전에는 결제하지 않는다", paid === null);
+    test("모의 결제라는 사실을 고르는 자리에서 밝힌다",
+      d.querySelector(".pay-method-notice")?.textContent.includes("실제 돈이 빠져나가지 않"));
+
+    d.querySelector('.pay-method-overlay input[value="EASY_PAY:TOSS_PAY"]').click();
+    d.querySelector(".pay-method-overlay .primary-button").click();
+
     await until(() => paid !== null);
     await until(() => listCalls > 1);
 
     test("결제는 POST로 보낸다",
       calls.some((c) => c.method === "POST" && c.url.includes("/ticket-reservations/5/payment")));
     test("멱등키를 담는다", typeof paid.idempotencyKey === "string" && paid.idempotencyKey.length > 0);
-    test("결제수단을 담는다", paid.method === "CARD");
+    test("고른 결제수단을 담는다", paid.method === "EASY_PAY");
+    /* 카카오페이·토스는 method가 같아서 사업자가 없으면 어디로 결제됐는지 남지 않는다. */
+    test("간편결제는 사업자도 담는다", paid.easyPayProvider === "TOSS_PAY");
+    test("결제하면 선택 창이 닫힌다", d.querySelector(".pay-method-overlay") === null);
     test("결제 후 목록을 다시 받는다", listCalls > 1);
     test("결제 결과를 알린다", toasts.some((m) => m.includes("결제가 완료")));
   }

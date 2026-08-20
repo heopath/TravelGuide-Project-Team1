@@ -52,6 +52,7 @@ import java.util.stream.Collectors;
 public class PaymentService {
 
     private static final String PROVIDER_MOCK = "MOCK";
+    private static final String METHOD_EASY_PAY = "EASY_PAY";
     private static final int TOKEN_BYTES = 32;
 
     /**
@@ -91,6 +92,13 @@ public class PaymentService {
             throw new BusinessException(ErrorCode.INVALID_PAYMENT_REQUEST);
         }
         String idempotencyKey = request.idempotencyKey().trim();
+        /*
+         * 요청이 성립하는지를 예약을 잠그기 전에 본다. 뒤로 미루면 잘못된 요청 하나가
+         * 그 예약의 잠금을 잡았다가 400으로 끝나, 같은 예약을 결제하려는 다른 요청이
+         * 이유 없이 기다린다.
+         */
+        String method = request.method().toUpperCase(Locale.ROOT);
+        String provider = resolveProvider(method, request.easyPayProvider());
 
         PaymentResultResponse replayed = replay(userId, idempotencyKey, reservationId);
         if (replayed != null) return replayed;
@@ -102,8 +110,8 @@ public class PaymentService {
         PaymentDTO payment = PaymentDTO.builder()
                 .reservationId(reservationId)
                 .idempotencyKey(idempotencyKey)
-                .provider(PROVIDER_MOCK)
-                .method(request.method().toUpperCase(Locale.ROOT))
+                .provider(provider)
+                .method(method)
                 .amount(reservation.getTotalAmount())
                 .currencyCode(reservation.getCurrencyCode())
                 .build();
@@ -166,6 +174,30 @@ public class PaymentService {
                 requireReservation(previous.getReservationId()),
                 paymentDAO.findTicketsByReservation(previous.getReservationId()),
                 true);
+    }
+
+    /**
+     * 결제 기록에 남길 사업자 이름을 정한다. (#281)
+     *
+     * <p>간편결제는 카카오페이·토스가 각각 다른 곳으로 가는데, {@code method}는 둘 다
+     * {@code EASY_PAY}라 어디로 결제됐는지가 기록에 안 남는다. 사업자를 {@code provider}에
+     * 적어 남긴다. 환불이나 문의는 결국 그 사업자에게 가야 한다.
+     *
+     * <p>앞에 {@code MOCK_}을 붙이는 것은, 나중에 진짜 카카오페이를 붙였을 때 기록만 보고
+     * 실제 승인인지 모의 결제인지 갈릴 수 있어야 하기 때문이다.
+     */
+    private String resolveProvider(String method, String easyPayProvider) {
+        boolean chosen = easyPayProvider != null && !easyPayProvider.isBlank();
+        if (!METHOD_EASY_PAY.equals(method)) {
+            /*
+             * 간편결제가 아닌데 사업자가 함께 오면 거른다. 조용히 무시하면 화면이 고른 것과
+             * 남는 기록이 어긋나고, 화면 쪽 실수를 아무도 모르게 된다.
+             */
+            if (chosen) throw new BusinessException(ErrorCode.INVALID_PAYMENT_REQUEST);
+            return PROVIDER_MOCK;
+        }
+        if (!chosen) throw new BusinessException(ErrorCode.INVALID_PAYMENT_REQUEST);
+        return PROVIDER_MOCK + "_" + easyPayProvider.toUpperCase(Locale.ROOT);
     }
 
     private void requirePayable(PayableReservationDTO reservation) {
