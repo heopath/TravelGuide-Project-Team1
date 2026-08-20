@@ -362,7 +362,8 @@
   font-size: clamp(16px, 1.45vw, 20px); line-height: 1.1; white-space: nowrap;
   letter-spacing: -0.04em; color: var(--primary); font-weight: 800;
 }
-.page-flights .cost small { display: block; font-size: 11px; color: var(--muted); font-weight: 600; text-align: right; margin-top: 2px; }
+/* 예전 DOM용. .cost 안의 모든 small을 오른쪽으로 밀어 내역 줄 주석까지 끌고 갔다. */
+.page-flights .cost .costsub small { display: block; font-size: 11px; color: var(--muted); font-weight: 600; }
 
 /* 제휴 고지는 항상 보여야 한다. */
 .page-flights .disc {
