@@ -55,6 +55,11 @@ async function main() {
     const page = await target();
     const socket = await connect(page.webSocketDebuggerUrl);
     await send(socket, "Page.enable");
+    /*
+     * 창을 앞으로 가져온다. 뒤에 있으면 Chrome이 그리기를 늦춰, 스스로 크기를 재는
+     * 위젯(토스 결제창 등)이 높이 0으로 남는다. 창은 떴는데 속이 빈 채로 찍힌다.
+     */
+    await send(socket, "Page.bringToFront");
 
     const seen = {};
     let done = 0;

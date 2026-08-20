@@ -28,8 +28,8 @@ sandbox.figma.ui = { onmessage: null, postMessage() {} };
 
 const vm = require("node:vm");
 const context = vm.createContext(sandbox);
-vm.runInContext(source + "\n;globalThis.__test = { SCREENS, normalize, findFrame, storyScreens };", context);
-const { SCREENS, normalize, findFrame, storyScreens } = sandbox.__test;
+vm.runInContext(source + "\n;globalThis.__test = { SCREENS, MODALS, MODAL_GROUPS, normalize, findFrame, storyScreens };", context);
+const { SCREENS, MODALS, MODAL_GROUPS, normalize, findFrame, storyScreens } = sandbox.__test;
 
 let passed = 0;
 let failed = 0;
@@ -117,6 +117,28 @@ test("대소문자를 가리지 않는다", normalize("QR 결제") === normalize
         groups.every((g, i) => i === 0 || g === groups[i - 1]
             || !groups.slice(0, i).includes(g)), groups.join(","));
     test("홈이 맨 앞이다", story[0].group === "home" && story[0].path === "/home");
+}
+
+/* ── 모달 목록 ── */
+{
+    test("모달 목록이 비어 있지 않다", MODALS.length > 0, String(MODALS.length));
+    test("모든 모달에 번호·이름·묶음·여는 방법이 있다",
+        MODALS.every((m) => m.no && m.name && m.group && m.open),
+        JSON.stringify(MODALS.find((m) => !(m.no && m.name && m.group && m.open))));
+    /* 캡처 파일 이름이 번호에서 나온다. 겹치면 한 장이 다른 카드를 덮어쓴다. */
+    test("번호가 겹치지 않는다",
+        new Set(MODALS.map((m) => m.no)).size === MODALS.length);
+    test("번호가 M으로 시작하고 숫자로 끝난다",
+        MODALS.every((m) => /^M\d+$/.test(m.no)),
+        MODALS.filter((m) => !/^M\d+$/.test(m.no)).map((m) => m.no).join(","));
+    /* 묶음이 목록에 없으면 그 카드는 어느 섹션에도 안 들어가고 조용히 사라진다. */
+    test("모든 묶음이 배치 순서에 있다",
+        MODALS.every((m) => MODAL_GROUPS.includes(m.group)),
+        MODALS.filter((m) => !MODAL_GROUPS.includes(m.group)).map((m) => m.group).join(","));
+    /* 여는 방법이 화면의 전역을 부르지 않으면 캡처할 때 아무 일도 일어나지 않는다. */
+    test("여는 방법이 화면 전역을 부른다",
+        MODALS.every((m) => m.open.indexOf("AllMyTrips") === 0),
+        MODALS.filter((m) => m.open.indexOf("AllMyTrips") !== 0).map((m) => m.no).join(","));
 }
 
 console.log("\n" + passed + " passed, " + failed + " failed");

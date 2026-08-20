@@ -51,6 +51,7 @@
 
 <div class="actions">
   <button class="ghost" id="story">스토리보드 만들기</button>
+  <button class="ghost" id="modal">모달 페이지 만들기</button>
 </div>
 <p class="lead" style="margin:-6px 0 12px">
   누르면 캡처 파일을 고르는 창이 뜹니다. <code>shots</code> 폴더의 PNG를 전부 선택하세요.
@@ -113,17 +114,21 @@
    * 파일 이름(sb-01.png)이 어느 카드인지 정한다 — 고른 순서는 믿지 않는다.
    */
   const shots = document.getElementById("shots");
-  document.getElementById("story").onclick = () => shots.click();
+  /* 어느 버튼으로 들어왔는지 기억해 둔다. 파일 고르는 창은 하나를 같이 쓴다. */
+  let picking = "storyboard";
+  document.getElementById("story").onclick = () => { picking = "storyboard"; shots.click(); };
+  document.getElementById("modal").onclick = () => { picking = "modals"; shots.click(); };
 
   shots.onchange = async () => {
     const files = [...shots.files];
     const images = [];
     for (const file of files) {
-      if (!/^sb-\d+\.png$/i.test(file.name)) continue;
+      const wanted = picking === "modals" ? /^m\d+\.png$/i : /^sb-\d+\.png$/i;
+      if (!wanted.test(file.name)) continue;
       images.push({ file: file.name.toLowerCase(), bytes: [...new Uint8Array(await file.arrayBuffer())] });
     }
     out.innerHTML = '<p class="empty">캡처 ' + images.length + "장으로 스토리보드를 만드는 중…</p>";
-    parent.postMessage({ pluginMessage: { type: "storyboard", images } }, "*");
+    parent.postMessage({ pluginMessage: { type: picking === "modals" ? "modals" : "storyboard", images } }, "*");
   };
 
   onmessage = (event) => {

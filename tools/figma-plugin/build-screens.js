@@ -38,8 +38,27 @@ function readScreens() {
     return screens;
 }
 
+/** modals.json을 그대로 심는다. 여는 방법까지 함께 가야 캡처와 카드가 같은 것을 가리킨다. */
+function readModals() {
+    const spec = JSON.parse(fs.readFileSync(path.join(__dirname, "modals.json"), "utf8"));
+    if (!Array.isArray(spec.modals) || spec.modals.length === 0) {
+        throw new Error("modals.json에 모달이 없습니다.");
+    }
+    return spec.modals;
+}
+
+function replaceBlock(code, begin, end, body) {
+    const from = code.indexOf(begin);
+    const to = code.indexOf(end);
+    if (from < 0 || to < 0) throw new Error("code.js에서 " + begin + " 구간을 찾지 못했습니다.");
+    return code.slice(0, from) + begin + "\n"
+        + "/* 손으로 고치지 마세요. build-screens.js가 만들어 넣습니다. */\n"
+        + body + "\n" + code.slice(to);
+}
+
 function main() {
     const screens = readScreens();
+    const modals = readModals();
     const code = fs.readFileSync(CODE_JS, "utf8");
 
     const begin = code.indexOf(BEGIN);
@@ -57,8 +76,15 @@ function main() {
         + "const SCREENS = [\n" + body + "\n];\n"
         + code.slice(end);
 
-    fs.writeFileSync(CODE_JS, replaced);
-    console.log(`화면 ${screens.length}개를 code.js에 심었습니다.`);
+    const withModals = replaceBlock(replaced, "// <modals>", "// </modals>",
+        "const MODALS = [\n"
+        + modals.map((m) => "  " + JSON.stringify({
+            no: m.no, name: m.name, group: m.group, open: m.open, note: m.note || "",
+        }) + ",").join("\n")
+        + "\n];");
+
+    fs.writeFileSync(CODE_JS, withModals);
+    console.log(`화면 ${screens.length}개, 모달 ${modals.length}개를 code.js에 심었습니다.`);
 }
 
 main();

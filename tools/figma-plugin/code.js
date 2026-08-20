@@ -58,6 +58,38 @@ const SCREENS = [
 ];
 // </screens>
 
+// <modals>
+/* 손으로 고치지 마세요. build-screens.js가 만들어 넣습니다. */
+const MODALS = [
+  {"no":"M01","name":"목적지 검색","group":"안내","open":"AllMyTripsModal.openModal('destination')","note":""},
+  {"no":"M02","name":"날짜 선택","group":"안내","open":"AllMyTripsModal.openModal('date')","note":""},
+  {"no":"M03","name":"인원 선택","group":"안내","open":"AllMyTripsModal.openModal('guests')","note":""},
+  {"no":"M04","name":"약관 상세","group":"안내","open":"AllMyTripsModal.openModal('terms')","note":""},
+  {"no":"M05","name":"새 여행 만들기","group":"안내","open":"AllMyTripsModal.openModal('new-trip')","note":""},
+  {"no":"M06","name":"일정에 장소 추가","group":"안내","open":"AllMyTripsModal.openModal('add-place')","note":""},
+  {"no":"M07","name":"일정 충돌 경고","group":"경고","open":"AllMyTripsModal.openModal('conflict')","note":""},
+  {"no":"M08","name":"여행 공유","group":"안내","open":"AllMyTripsModal.openModal('share')","note":""},
+  {"no":"M09","name":"AI 추천 적용","group":"안내","open":"AllMyTripsModal.openModal('apply-ai')","note":""},
+  {"no":"M10","name":"예약 옵션 및 결제","group":"결제","open":"AllMyTripsModal.openModal('payment')","note":""},
+  {"no":"M11","name":"예약 취소 및 환불","group":"경고","open":"AllMyTripsModal.openModal('refund')","note":""},
+  {"no":"M12","name":"대기열 만료","group":"경고","open":"AllMyTripsModal.openModal('queue')","note":""},
+  {"no":"M13","name":"여행 사진 업로드","group":"안내","open":"AllMyTripsModal.openModal('upload')","note":""},
+  {"no":"M14","name":"로그인 필요","group":"안내","open":"AllMyTripsModal.openModal('login-required')","note":""},
+  {"no":"M15","name":"회원 탈퇴","group":"경고","open":"AllMyTripsModal.openModal('delete-account')","note":""},
+  {"no":"M16","name":"상품 및 재고 수정","group":"안내","open":"AllMyTripsModal.openModal('admin-product')","note":""},
+  {"no":"M17","name":"결제수단 선택","group":"결제","open":"AllMyTripsPayment.choose({ summary: '제주 아쿠아리움 입장권 · 40,000원', confirmLabel: '다음', allowQr: true })","note":""},
+  {"no":"M18","name":"카드 결제","group":"결제","open":"AllMyTripsCheckout.cardCheckout({ summary: '제주 아쿠아리움 입장권 · 성인 2매', amountText: '40,000원' })","note":""},
+  {"no":"M19","name":"계좌이체","group":"결제","open":"AllMyTripsCheckout.transferCheckout({ summary: '제주 아쿠아리움 입장권 · 성인 2매', amountText: '40,000원', method: 'TRANSFER' })","note":""},
+  {"no":"M20","name":"가상계좌","group":"결제","open":"AllMyTripsCheckout.transferCheckout({ summary: '제주 아쿠아리움 입장권 · 성인 2매', amountText: '40,000원', method: 'VIRTUAL_ACCOUNT' })","note":""},
+  {"no":"M21","name":"QR 간편결제","group":"결제","open":"AllMyTripsCheckout.easyPayCheckout({ summary: '제주 아쿠아리움 입장권 · 성인 2매', amountText: '40,000원', provider: 'QR_PAY', drawQr: function (t) { return AllMyTripsQr.createQrSvg(t, { label: '결제 승인 QR' }); }, issueQr: async function () { return { approveUrl: location.origin + '/pay/qr?token=example', expiresAt: new Date(Date.now() + 300000).toISOString(), serverTime: new Date().toISOString() }; }, pollPaid: async function () { return false; } })","note":"QR은 서버에서 받은 토큰으로 그린다. 찍을 때는 예시 토큰을 넣는다 — 실제 결제 토큰을 스토리보드에 남기지 않는다."},
+  {"no":"M22","name":"카카오페이 이동","group":"결제","open":"AllMyTripsCheckout.kakaoCheckout({ summary: '제주 아쿠아리움 입장권 · 성인 2매', amountText: '40,000원', ready: async function () { return { redirectUrl: 'https://online-pay.kakao.com/example' }; } })","note":""},
+  {"no":"M23","name":"토스 결제위젯","group":"결제","open":"AllMyTripsCheckout.tossCheckout({ summary: '제주 아쿠아리움 입장권 · 성인 2매', amountText: '40,000원', amount: 40000, reservationId: 1, orderName: '제주 아쿠아리움 입장권' })","note":"토스 SDK를 받아 그리므로 뜨는 데 시간이 더 걸린다."},
+  {"no":"M24","name":"확인 대화상자","group":"경고","open":"AllMyTripsDialog.confirm({ title: '결제한 예약을 취소할까요?', message: '발급된 티켓이 무효가 됩니다.\\n취소하면 되돌릴 수 없습니다.', confirmLabel: '예약 취소', tone: 'danger' })","note":"브라우저 기본 confirm을 대신한다. 손님이 `추가 대화상자 생성 안 함`에 체크하면 기본 confirm은 묻지도 않고 false를 돌려줘, 버튼이 안 눌리는 것처럼 보였다. (#276)"},
+  {"no":"M25","name":"전체 화면 목록","group":"안내","open":"AllMyTripsModal.openDirectory()","note":""},
+  {"no":"M26","name":"불러오는 중","group":"안내","open":"AllMyTripsLoading.show()","note":""},
+];
+// </modals>
+
 /** 폰으로 쓰는 화면. 데스크톱 크기로 만들면 시안에서 크기가 거짓말을 한다. */
 const MOBILE_PATHS = ["/admin/scan"];
 
@@ -465,6 +497,129 @@ function buildStoryboard(images) {
 }
 
 
+const MODAL_PAGE = "14 · 모달 & 상태";
+
+/** 모달 묶음 순서. 손님이 자주 보는 것부터 둔다. */
+const MODAL_GROUPS = ["안내", "결제", "경고"];
+
+/**
+ * 모달 카드 한 장.
+ *
+ * <p>화면 카드와 같은 머리띠를 쓴다. 다른 모양으로 두면 같은 스토리보드인데 두 벌처럼
+ * 보인다. 다만 주소 자리에는 <b>여는 방법</b>을 적는다 — 모달은 주소가 없고, 어떻게
+ * 띄우는지가 그 자리에서 알아야 할 값이다.
+ */
+function buildModalCard(modal, font, bold, image) {
+    const frame = figma.createFrame();
+    frame.name = modal.no + " · " + modal.name;
+    frame.resize(CARD.width, CARD.band + CARD.body);
+    frame.fills = [{ type: "SOLID", color: { r: 1, g: 1, b: 1 } }];
+    frame.clipsContent = true;
+
+    const band = figma.createRectangle();
+    band.resize(CARD.width, CARD.band);
+    band.fills = [{ type: "SOLID", color: BAND }];
+    frame.appendChild(band);
+
+    const title = text(font, modal.no + " · " + modal.group + " · " + modal.name, 17, INK, bold);
+    title.x = 24;
+    title.y = 15;
+    frame.appendChild(title);
+
+    const how = text(font, modal.open, 12, MUTED);
+    how.x = 470;
+    how.y = 18;
+    how.resize(980, 18);
+    frame.appendChild(how);
+
+    const rule = figma.createRectangle();
+    rule.resize(CARD.width, 1);
+    rule.y = CARD.band;
+    rule.fills = [{ type: "SOLID", color: LINE }];
+    frame.appendChild(rule);
+
+    if (image) {
+        const shot = figma.createRectangle();
+        const ratio = image.width / image.height;
+        let w = CARD.width;
+        let h = Math.round(CARD.width / ratio);
+        if (h > CARD.body) { h = CARD.body; w = Math.round(CARD.body * ratio); }
+        shot.resize(w, h);
+        shot.x = Math.round((CARD.width - w) / 2);
+        shot.y = CARD.band + Math.round((CARD.body - h) / 2);
+        shot.fills = [{ type: "IMAGE", imageHash: image.hash, scaleMode: "FILL" }];
+        frame.appendChild(shot);
+    } else {
+        const note = text(font, "캡처 없음 — " + modal.no.toLowerCase() + ".png", 16, MUTED);
+        note.x = 24;
+        note.y = CARD.band + 24;
+        frame.appendChild(note);
+    }
+
+    /* 왜 이렇게 생겼는지 적어 둔 모달이 있다. 그 사유가 카드에 남아야 다음 사람이 안다. */
+    if (modal.note) {
+        const why = text(font, modal.note, 13, MUTED);
+        why.x = 24;
+        why.y = CARD.band + CARD.body - 56;
+        why.resize(CARD.width - 48, 40);
+        frame.appendChild(why);
+    }
+
+    return frame;
+}
+
+function buildModalBoard(images) {
+    const page = figma.root.children.find((p) => p.name === MODAL_PAGE) || figma.createPage();
+    page.name = MODAL_PAGE;
+    for (const node of page.children.slice()) node.remove();
+
+    const cardH = CARD.band + CARD.body;
+    let cursorY = 0;
+    let made = 0;
+    let withShot = 0;
+
+    for (const group of MODAL_GROUPS) {
+        const inGroup = MODALS.filter((m) => m.group === group);
+        if (inGroup.length === 0) continue;
+
+        const rows = Math.ceil(inGroup.length / PER_ROW);
+        const cols = Math.min(inGroup.length, PER_ROW);
+        const width = cols * CARD.width + (cols - 1) * CARD_GAP.x + SECTION_PAD * 2;
+        const height = rows * cardH + (rows - 1) * CARD_GAP.y + SECTION_PAD * 2;
+
+        let container = page;
+        let originX = 0;
+        let originY = cursorY;
+        try {
+            const section = figma.createSection();
+            section.name = group + " (" + inGroup.length + "장)";
+            section.x = 0;
+            section.y = cursorY;
+            section.resizeWithoutConstraints(width, height);
+            page.appendChild(section);
+            container = section;
+            originX = 0;
+            originY = 0;
+        } catch (error) {
+            /* 섹션을 못 만드는 버전이면 페이지에 그대로 놓는다. */
+        }
+
+        inGroup.forEach((modal, i) => {
+            const image = images.byFile[modal.no.toLowerCase() + ".png"];
+            const card = buildModalCard(modal, images.font, images.bold, image);
+            container.appendChild(card);
+            card.x = originX + SECTION_PAD + (i % PER_ROW) * (CARD.width + CARD_GAP.x);
+            card.y = originY + SECTION_PAD + Math.floor(i / PER_ROW) * (cardH + CARD_GAP.y);
+            made += 1;
+            if (image) withShot += 1;
+        });
+
+        cursorY += height + 240;
+    }
+
+    return { page: page.name, cards: made, withShot: withShot };
+}
+
 figma.ui.onmessage = async (message) => {
     try {
         if (message.type === "inspect") {
@@ -502,6 +657,27 @@ figma.ui.onmessage = async (message) => {
             const result = buildStoryboard({ font: font, bold: bold, byFile: byFile });
             figma.ui.postMessage({ type: "storyboard-done", result: result });
             figma.notify(`${result.cards}장을 "${result.page}"에 만들었습니다. `
+                + `캡처 ${result.withShot}장.`);
+            return;
+        }
+        if (message.type === "modals") {
+            const font = await pickFont();
+            const bold = await pickBoldFont(font);
+            const byFile = {};
+
+            for (const item of message.images || []) {
+                try {
+                    const image = figma.createImage(new Uint8Array(item.bytes));
+                    const size = await image.getSizeAsync();
+                    byFile[item.file] = { hash: image.hash, width: size.width, height: size.height };
+                } catch (error) {
+                    /* 한 장이 잘못돼도 나머지는 만든다. */
+                }
+            }
+
+            const result = buildModalBoard({ font: font, bold: bold, byFile: byFile });
+            figma.ui.postMessage({ type: "storyboard-done", result: result });
+            figma.notify(`모달 ${result.cards}장을 "${result.page}"에 만들었습니다. `
                 + `캡처 ${result.withShot}장.`);
             return;
         }
