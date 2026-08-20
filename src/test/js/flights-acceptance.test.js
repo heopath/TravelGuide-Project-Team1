@@ -277,8 +277,9 @@ async function run() {
     } } }));
     T("티켓 모의 예약 금액이 예상 총액에 반영된다",
       $("cTot").textContent === won(76000 * PAX + 94000 * PAX + 40000));
+    /* 네 칸(가는 편·오는 편·숙소·티켓) 중 하나라 25%다. (#281) */
     T("티켓 모의 예약이 진행률과 출처 안내에 반영된다",
-      $("dn").textContent === "1" && $("fill").style.width === "33%"
+      $("dn").textContent === "1" && $("fill").style.width === "25%"
         && $("costNote").textContent.includes("티켓 모의 예약가")
         && $("rows").textContent.includes("실제 결제 아님"));
 
@@ -361,6 +362,14 @@ async function run() {
     T("예약번호 입력 후 진행 → 구간 라벨에 `확정` 표시", $("lp0").textContent.includes("확정"));
     T("오는 편으로 이동한다", d.querySelectorAll(".leg")[1].classList.contains("on"));
 
+    /* 절반을 끝낸 상태가 진행률에 나타나야 한다. 이것이 4칸으로 쪼갠 이유다. (#281) */
+    T("가는 편만 마쳐도 진행률이 오른다",
+      $("dn").textContent === "1" && $("fill").style.width === "25%");
+    T("진행 현황이 가는 편·오는 편을 따로 센다",
+      d.querySelectorAll("#rows [data-side-leg]").length === 2
+      && $("rows").textContent.includes("가는 편 항공")
+      && $("rows").textContent.includes("오는 편 항공"));
+
     // 오는 편: 예약번호 없이 `나중에`로 닫아도 자가 신고는 남는다
     api.openOut("mock:ke1284");
     await api.goOut();
@@ -371,9 +380,13 @@ async function run() {
 
     const total = 89000 * PAX + 94000 * PAX;
     T("왕복 모두 표시 완료 시 총액이 유지된다", $("cTot").textContent === won(total));
-    T("왕복 완료 시에만 진행 카운트 1", $("dn").textContent === "1");
-    T("진행바 33%", $("fill").style.width === "33%");
-    T("탭 카운트 1", $("tabCount").textContent === "1");
+    /*
+     * 가는 편과 오는 편을 따로 센다. (#281) 예전에는 왕복을 한 칸으로 묶어, 가는 편만
+     * 표시한 사람에게 0/3이 나왔다 — 절반을 끝냈는데 아무것도 안 한 것처럼 보였다.
+     */
+    T("왕복을 마치면 항공 두 칸이 함께 찬다", $("dn").textContent === "2");
+    T("진행바 50%", $("fill").style.width === "50%");
+    T("탭 카운트 2", $("tabCount").textContent === "2");
     // 숙소·티켓 행은 계속 `예상`이므로 항공 행(첫 행)만 본다.
     T("우측 항공 행에서 `예상` 라벨이 사라진다",
       !d.querySelector("#rows .sr").innerHTML.includes("<small>예상</small>"));

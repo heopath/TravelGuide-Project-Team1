@@ -282,17 +282,37 @@
   }
 
   /* ────────── 우측 패널 ────────── */
-  function sideRows() {
-    const bothConfirmed = status(OUTBOUND) === "CONFIRMED" && status(INBOUND) === "CONFIRMED";
-    const air = bothConfirmed ? ["확정", "o", "g"]
-      : airDone() ? ["예약함 (직접 표시)", "o", "g"]
-      : state.userReportedBooked[OUTBOUND] ? ["오는 편 남음", "w", "b"]
-      : ["선택 중", "w", "b"];
+  /**
+   * 항공 한 편의 진행 현황 줄. (#281 시안)
+   *
+   * <p>가는 편과 오는 편을 따로 센다. 예전에는 `왕복 항공` 한 줄이라 가는 편만 표시한
+   * 상태가 진행률에 전혀 반영되지 않았다 — 절반을 끝냈는데 0/3이었다.
+   */
+  function legRow(leg) {
+    const st = status(leg);
+    const reported = state.userReportedBooked[leg];
+    const label = st === "CONFIRMED" ? ["확정", "o"]
+      : reported ? ["예약함 (직접 표시)", "o"]
+      : state.picked[leg] ? ["선택함", "w"]
+      : leg === INBOUND && !state.userReportedBooked[OUTBOUND] ? ["가는 편 먼저", ""]
+      : ["선택 대기", ""];
+    const price = legPrice(leg);
 
+    return {
+      tab: "flight", leg, done: reported,
+      ic: "✈", icc: reported ? "g" : "b",
+      nm: leg === OUTBOUND ? "가는 편 항공" : "오는 편 항공",
+      ds: label[0], dsc: label[1],
+      pv: hasOffers() && price > 0 ? won(price) : "—",
+      sub: reported ? `성인 ${search.adults}명 총액` : "예상",
+      dim: !(hasOffers() && price > 0)
+    };
+  }
+
+  function sideRows() {
     const rows = [
-      { tab: "flight", done: airDone(),
-        ic: "✈", icc: air[2], nm: "왕복 항공", ds: air[0], dsc: air[1],
-        pv: hasOffers() ? (airTotal() > 0 ? won(airTotal()) : "미정") : "—", sub: airIsEstimate() ? "예상" : `성인 ${search.adults}명 총액`, dim: false },
+      legRow(OUTBOUND),
+      legRow(INBOUND),
       { tab: "hotel", done: hotelDone(),
         ic: "▤", icc: hotelDone() ? "g" : "n", nm: "숙소",
         ds: hotelDone() ? `선택 완료 · ${hotelSelection.name}` : "선택 전", dsc: hotelDone() ? "o" : "",
@@ -311,7 +331,8 @@
      * 행을 누르면 그 탭으로 간다. 진행 현황을 보다가 "숙소 선택 전"을 발견했을 때 위쪽
      * 탭을 다시 찾아 누르게 두지 않는다. 눌러도 되는 자리라는 표시로 오른쪽에 꺾쇠를 둔다.
      */
-    return rows.map((r) => `<button type="button" class="sr${r.done ? " done" : ""}" data-side-tab="${r.tab}">
+    return rows.map((r) => `<button type="button" class="sr${r.done ? " done" : ""}" data-side-tab="${r.tab}"${
+      r.leg === undefined ? "" : ` data-side-leg="${r.leg}"`}>
       <div class="ic ${r.icc}" aria-hidden="true">${r.done ? "✓" : r.ic}</div>
       <div class="tx"><div class="nm">${r.nm}</div><div class="ds ${r.dsc}">${r.ds}</div></div>
       <div class="pv ${r.dim ? "n" : ""}">${r.pv}<small>${r.sub}</small></div>
@@ -360,10 +381,22 @@
     const ticketLabel = ticketDone() ? "티켓 모의 예약가" : "티켓 미선택";
     text("costNote", `${airLabel} · ${hotelLabel} · ${ticketLabel}`);
 
-    const done = (airDone() ? 1 : 0) + (hotelDone() ? 1 : 0) + (ticketDone() ? 1 : 0);
+    /*
+     * 네 단계로 센다. 가는 편·오는 편·숙소·티켓. (#281 시안)
+     *
+     * 예전에는 왕복 항공을 한 칸으로 묶어 셋이었는데, 가는 편만 표시한 사람에게 0/3이
+     * 나왔다. 절반을 끝냈는데 아무것도 안 한 것처럼 보였다.
+     */
+    const steps = [
+      state.userReportedBooked[OUTBOUND],
+      state.userReportedBooked[INBOUND],
+      hotelDone(),
+      ticketDone()
+    ];
+    const done = steps.filter(Boolean).length;
     text("dn", done);
     text("tabCount", done);
-    $("fill").style.width = Math.round((done / 3) * 100) + "%";
+    $("fill").style.width = Math.round((done / steps.length) * 100) + "%";
 
     renderMine();
   }
@@ -1059,7 +1092,10 @@
     /* 진행 현황의 행은 다시 그려지므로 개별 요소가 아니라 담는 칸에 한 번만 건다. */
     $("rows").addEventListener("click", (e) => {
       const row = e.target.closest("[data-side-tab]");
-      if (row) setTab(row.dataset.sideTab);
+      if (!row) return;
+      setTab(row.dataset.sideTab);
+      /* 항공은 어느 편 줄을 눌렀는지까지 따라간다. 탭만 바꾸면 다시 편을 골라야 한다. */
+      if (row.dataset.sideLeg !== undefined) setLeg(Number(row.dataset.sideLeg));
     });
 
     /* 카드는 다시 그려지므로 개별 버튼이 아니라 컨테이너에 한 번만 건다. */
