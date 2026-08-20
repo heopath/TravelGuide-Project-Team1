@@ -1,7 +1,9 @@
 package org.example.all_my_trip_project.domain.place.controller;
 
 import org.example.all_my_trip_project.domain.place.dto.PlaceDTO;
+import org.example.all_my_trip_project.domain.place.dto.PlaceImageBackfillResult;
 import org.example.all_my_trip_project.domain.place.service.AdminPlaceService;
+import org.example.all_my_trip_project.domain.place.service.PlaceImageBackfillService;
 import org.example.all_my_trip_project.global.config.ApiSecurityConfig;
 import org.example.all_my_trip_project.global.security.AuthenticatedUser;
 import org.junit.jupiter.api.Test;
@@ -22,6 +24,7 @@ import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(AdminPlaceController.class)
@@ -38,6 +41,31 @@ class AdminPlaceSecurityTest {
 
     @MockitoBean
     private AdminPlaceService adminPlaceService;
+
+    @MockitoBean
+    private PlaceImageBackfillService placeImageBackfillService;
+
+    /* 이미지 채우기는 외부 API를 장소 수만큼 부른다. 아무나 누를 수 있으면 안 된다. */
+    @Test
+    void rejectsNormalUserOnImageBackfill() throws Exception {
+        mockMvc.perform(post("/api/v1/admin/places/images/backfill")
+                        .with(authentication(user("USER")))
+                        .with(csrf().asHeader()))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void allowsAdminOnImageBackfill() throws Exception {
+        when(placeImageBackfillService.backfill(0L, null))
+                .thenReturn(new PlaceImageBackfillResult(3, 2, 12L, true, 0));
+
+        mockMvc.perform(post("/api/v1/admin/places/images/backfill")
+                        .with(authentication(user("ADMIN")))
+                        .with(csrf().asHeader()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.filled").value(2))
+                .andExpect(jsonPath("$.data.done").value(true));
+    }
 
     @Test
     void rejectsNormalUser() throws Exception {

@@ -9,7 +9,13 @@
     FESTIVAL: "축제", ACTIVITY: "액티비티", TRANSPORT: "교통"
   };
   // selectedId는 편집 중인 장소, selectedIds는 일괄 처리로 고른 장소다.
-  const state = { items: [], total: 0, selectedId: null, selectedIds: new Set(), loading: false };
+  // backfillCursor는 이미지 채우기가 어디까지 훑었는지 기억한다.
+  const state = {
+    items: [], total: 0, selectedId: null, selectedIds: new Set(), loading: false, backfillCursor: 0
+  };
+
+  /* 한 번 누를 때 도는 묶음 수. 서버가 묶음마다 외부 API를 부르므로 무한정 돌지 않는다. */
+  const MAX_BACKFILL_BATCHES = 20;
 
   function safeImageUrl(value) {
     if (!value) return "";
@@ -224,6 +230,45 @@
     } finally { button.disabled = false; }
   }
 
+  /*
+   * 대표 이미지가 비어 있는 장소를 훑어 채운다.
+   *
+   * 장소마다 외부 API를 한 번씩 부르므로 서버가 한 묶음씩만 처리한다. 여기서 done이 될
+   * 때까지 이어 부르되, 커서(nextAfter)로 넘긴다. 이미지를 못 찾은 장소는 다음에도 결과가
+   * 비어 있어서, 커서 없이 "남은 개수"만 보고 돌면 영영 끝나지 않는다.
+   */
+  async function backfillImages(button) {
+    const status = $("placeImageBackfillStatus");
+    button.disabled = true;
+    let scanned = 0;
+    let filled = 0;
+    try {
+      for (let batch = 0; batch < MAX_BACKFILL_BATCHES; batch += 1) {
+        const result = await request("POST",
+          `/api/v1/admin/places/images/backfill?after=${state.backfillCursor}`);
+        scanned += Number(result?.scanned || 0);
+        filled += Number(result?.filled || 0);
+        // 커서는 state에 남긴다. 다시 눌렀을 때 0부터 시작하면 사진이 없는 장소를
+        // 매번 다시 조회하게 되고, 그 구간을 넘어가지 못한다.
+        state.backfillCursor = Number(result?.nextAfter ?? state.backfillCursor);
+        status.textContent = `${scanned}곳 확인, ${filled}곳에 이미지를 넣었습니다.`;
+        if (result?.done) {
+          state.backfillCursor = 0;
+          status.textContent = filled
+            ? `끝났습니다. ${scanned}곳을 확인해 ${filled}곳에 이미지를 넣었습니다.`
+            : `끝났습니다. ${scanned}곳을 확인했지만 확실한 사진을 찾지 못했습니다.`;
+          await load();
+          return;
+        }
+      }
+      // 여기까지 왔으면 아직 남았다. 한 번에 다 도는 것보다 다시 누르게 하는 편이 안전하다.
+      status.textContent = `${scanned}곳 확인, ${filled}곳 완료. 남은 장소가 있어 다시 눌러 주세요.`;
+      await load();
+    } catch (error) {
+      status.textContent = error.message || "이미지를 채우지 못했습니다.";
+    } finally { button.disabled = false; }
+  }
+
   async function toggleRecommended(placeId, button) {
     const place = state.items.find((item) => String(item.placeId) === String(placeId));
     if (!place) return;
@@ -324,10 +369,11 @@
       render();
     });
 
+    $("placeImageBackfill").addEventListener("click", (event) => backfillImages(event.target));
     $("placeBulkRecommend").addEventListener("click", (event) => bulkRecommend(true, event.target));
     $("placeBulkUnrecommend").addEventListener("click", (event) => bulkRecommend(false, event.target));
   }
 
   document.addEventListener("DOMContentLoaded", () => { bind(); resetEditor(); load(); });
-  window.__adminPlaces = { state, load, edit, resetEditor, payload, geocodeAddress };
+  window.__adminPlaces = { state, load, edit, resetEditor, payload, geocodeAddress, backfillImages };
 })();

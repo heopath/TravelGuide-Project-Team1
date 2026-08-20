@@ -8,7 +8,9 @@ import org.example.all_my_trip_project.domain.place.dto.AdminPlaceRecommendation
 import org.example.all_my_trip_project.domain.place.dto.AdminPlaceRequest;
 import org.example.all_my_trip_project.domain.place.dto.AdminPlaceVisibilityRequest;
 import org.example.all_my_trip_project.domain.place.dto.PlaceDTO;
+import org.example.all_my_trip_project.domain.place.dto.PlaceImageBackfillResult;
 import org.example.all_my_trip_project.domain.place.service.AdminPlaceService;
+import org.example.all_my_trip_project.domain.place.service.PlaceImageBackfillService;
 import org.example.all_my_trip_project.global.response.ApiResponse;
 import org.springframework.context.annotation.Profile;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -28,6 +30,23 @@ import org.springframework.web.bind.annotation.RestController;
 public class AdminPlaceController {
 
     private final AdminPlaceService adminPlaceService;
+    private final PlaceImageBackfillService placeImageBackfillService;
+
+    /**
+     * 대표 이미지가 비어 있는 기존 장소를 한 묶음씩 채운다.
+     *
+     * <p>장소마다 외부 API를 한 번씩 부르므로 한 요청에서 전부 처리하지 않는다. 응답의
+     * {@code nextAfter}를 {@code after}로 넘겨 {@code done}이 될 때까지 이어서 부른다.
+     */
+    @PostMapping("/images/backfill")
+    public ApiResponse<PlaceImageBackfillResult> backfillImages(
+            @RequestParam(defaultValue = "0") long after,
+            @RequestParam(required = false) Integer size) {
+        PlaceImageBackfillResult result = placeImageBackfillService.backfill(after, size);
+        return ApiResponse.success(
+                "장소 " + result.scanned() + "곳을 확인해 " + result.filled() + "곳에 대표 이미지를 넣었습니다.",
+                result);
+    }
 
     @GetMapping
     public ApiResponse<AdminPlacePage> list(
