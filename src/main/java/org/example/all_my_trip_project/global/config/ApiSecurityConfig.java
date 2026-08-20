@@ -143,7 +143,8 @@ public class ApiSecurityConfig {
                         // 토스 결제 승인. 어느 예약인지는 주문번호에서 꺼내고, 그 예약의
                         // 주인인지를 서비스가 다시 본다. (#281)
                         .requestMatchers(
-                                "/api/v1/payments/toss/**"
+                                "/api/v1/payments/toss/**",
+                                "/api/v1/payments/kakao/**"
                         )
                         .authenticated()
 

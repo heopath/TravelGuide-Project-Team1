@@ -54,7 +54,7 @@ async function boot(query, options = {}) {
   const calls = [];
 
   if (options.returnTo !== undefined) {
-    w.sessionStorage.setItem("allmytrips.tossReturnTo", options.returnTo);
+    w.sessionStorage.setItem("allmytrips.payReturnTo", options.returnTo);
   }
 
   w.fetch = async (url, request = {}) => {

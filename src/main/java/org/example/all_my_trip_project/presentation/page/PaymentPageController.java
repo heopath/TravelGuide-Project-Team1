@@ -29,6 +29,18 @@ public class PaymentPageController {
         return "payment/toss-return";
     }
 
+    /**
+     * 카카오페이 결제창에서 돌아오는 화면. (#281)
+     *
+     * <p>성공·취소·실패가 모두 이 주소로 돌아온다. 카카오는 성공일 때만 {@code pg_token}을
+     * 붙여 주므로, 그 값이 있는지로 가른다. 취소·실패는 우리가 미리 붙여 둔 {@code result}로
+     * 어느 쪽인지 구분한다.
+     */
+    @GetMapping("/pay/kakao")
+    public String kakaoReturn() {
+        return "payment/kakao-return";
+    }
+
     @GetMapping("/pay/qr")
     public String qrApprove() {
         return "payment/qr-approve";

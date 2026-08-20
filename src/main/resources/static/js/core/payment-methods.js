@@ -68,6 +68,20 @@
             label: "토스페이먼츠로 결제",
             hint: "카드·간편결제 · 실제 결제창(테스트)",
         },
+        /*
+         * 카카오페이도 진짜 결제사를 거친다. (#281) 다만 토스와 달리 결제창을 우리 화면 안에
+         * 띄우지 못해, 카카오 화면으로 아예 다녀온다. 그래서 흐름을 따로 둔다.
+         *
+         * 시크릿 키가 없는 환경에서는 목록에 넣지 않는다 — 골라도 창이 안 뜬다.
+         */
+        {
+            id: "KAKAO",
+            method: "EASY_PAY",
+            provider: "KAKAO_PAY",
+            flow: "KAKAO",
+            label: "카카오페이로 결제",
+            hint: "실제 카카오페이 결제창(테스트)",
+        },
         {
             id: "TRANSFER",
             method: "TRANSFER",
@@ -93,22 +107,33 @@
     }
 
     /**
+     * 카카오페이 결제가 켜져 있는지.
+     *
+     * <p>카카오는 화면이 쓸 공개 키가 없다 — 결제 시작부터 서버가 부른다. 그래서 키가 아니라
+     * 켜졌는지만 실어 준다.
+     */
+    function kakaoReady() {
+        const meta = document.querySelector('meta[name="kakao-pay-enabled"]');
+        return Boolean(meta && meta.content === "true");
+    }
+
+    /**
      * 결제 기록에 남은 값을 사람이 읽는 이름으로 되돌린다. (#281)
      *
      * <p>서버는 `결제사_사업자`로 적는다 — 모의 카카오페이면 {@code MOCK_KAKAO_PAY},
-     * 토스를 거친 토스페이면 {@code TOSS_TOSS_PAY}다. 손님에게는 어느 결제사를 거쳤는지가
+     * 카카오를 거친 카카오페이면 {@code KAKAO_KAKAO_PAY}다. 손님에게는 어느 결제사를 거쳤는지가
      * 아니라 무엇으로 냈는지가 중요하므로, 앞의 결제사를 떼고 맞춘다.
      *
      * <p>간편결제가 아니면 사업자 자리가 없어 결제사만 적힌다({@code MOCK}, {@code TOSS}).
      * 그때는 수단만으로 맞춘다 — 떼고 나면 빈 문자열이 되기 때문이다.
      */
     function labelOf(method, provider) {
-        const cleaned = String(provider || "").replace(/^(MOCK|TOSS)_?/, "");
+        const cleaned = String(provider || "").replace(/^(MOCK|TOSS|KAKAO)_?/, "");
         const found = METHODS.find(
             (item) => item.method === method
                 && (item.provider || "") === cleaned
-                /* 여러 항목이 같은 수단을 쓴다. 카드 자리에는 첫 항목이 온다. */
-                && item.flow !== "TOSS",
+                /* 여러 항목이 같은 수단을 쓴다. 먼저 놓인 모의 결제 쪽 이름을 쓴다. */
+                && !item.flow,
         );
         return found ? found.label : "결제";
     }
@@ -161,6 +186,7 @@
             const offered = METHODS.filter((item) => {
                 if (item.flow === "QR") return Boolean(settings.allowQr);
                 if (item.flow === "TOSS") return Boolean(tossReady());
+                if (item.flow === "KAKAO") return Boolean(kakaoReady());
                 return true;
             });
             offered.forEach((item) => {
@@ -205,8 +231,18 @@
              * 토스도 테스트 키라 돈이 나가지 않는다. 다만 그쪽은 실제 결제창을 거치므로
              * `모의 결제`라고만 적으면 결제창이 뜬 순간 손님이 당황한다.
              */
-            notice.textContent = tossReady()
-                ? "실제 돈이 빠져나가지 않습니다. 토스는 테스트 결제창, 나머지는 모의 결제입니다."
+            /*
+             * 켜져 있는 것만 이름을 부른다. 카카오가 꺼져 있는데 "카카오페이는 테스트
+             * 결제창"이라고 적으면, 목록에 남아 있는 모의 카카오페이를 가리키는 말이 되어
+             * 사실과 어긋난다.
+             */
+            const real = [];
+            if (tossReady()) real.push("토스");
+            if (kakaoReady()) real.push("카카오페이");
+
+            notice.textContent = real.length
+                ? `실제 돈이 빠져나가지 않습니다. ${real.join("·")}는 테스트 결제창이고, `
+                    + "나머지는 모의 결제입니다."
                 : "모의 결제입니다. 실제 돈이 빠져나가지 않고, 결제하면 티켓이 발급됩니다.";
             panel.appendChild(notice);
 

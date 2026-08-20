@@ -687,6 +687,20 @@
      * 토스는 우리 창에서 결제가 끝나지 않는다. 결제창에서 인증을 마치면 브라우저가
      * /pay/toss로 넘어가고 그 화면이 승인을 요청한다. 그래서 여기서 돌아오지 않는다.
      */
+    /*
+     * 카카오페이도 우리 창에서 끝나지 않는다. 카카오 화면으로 아예 다녀와
+     * /pay/kakao가 승인을 요청한다. 그래서 여기서 돌아오지 않는다.
+     */
+    if (picked.flow === "KAKAO") {
+      return checkout.kakaoCheckout({
+        ...view,
+        ready: async () => {
+          const payload = await request("POST", "/api/v1/payments/kakao/ready", { reservationId });
+          return payload?.data;
+        }
+      });
+    }
+
     if (picked.flow === "TOSS") {
       return checkout.tossCheckout({
         ...view,
