@@ -16,6 +16,8 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.OffsetDateTime;
+import java.util.Locale;
+import java.util.Set;
 
 /**
  * QR 결제. (#281)
@@ -53,8 +55,15 @@ public class PaymentQrService {
      */
     private static final Duration QR_TTL = Duration.ofMinutes(5);
 
-    /** 결제수단 기록에 남을 이름. 화면 흐름이 QR일 뿐 결제 자체는 간편결제로 친다. */
-    private static final String QR_EASY_PAY_PROVIDER = "QR_PAY";
+    /**
+     * 결제수단 기록에 남을 이름. 화면 흐름이 QR일 뿐 결제 자체는 간편결제로 친다.
+     *
+     * <p>카카오페이·토스페이 창에서 띄운 QR이면 그 사업자로 남는다. 어느 창에서 결제했는지가
+     * 기록에 없으면 환불이나 문의 때 갈 곳을 알 수 없다.
+     */
+    private static final String DEFAULT_QR_PROVIDER = "QR_PAY";
+    private static final Set<String> QR_PROVIDERS =
+            Set.of("QR_PAY", "KAKAO_PAY", "TOSS_PAY");
     private static final String METHOD_EASY_PAY = "EASY_PAY";
 
     private final PaymentDAO paymentDAO;
@@ -64,7 +73,13 @@ public class PaymentQrService {
 
     /** 결제받을 QR을 띄운다. 아직 아무 일도 일어나지 않는다 — 승인해야 결제된다. */
     @Transactional(readOnly = true)
-    public PaymentQrIssueResponse issue(Long userId, Long reservationId) {
+    public PaymentQrIssueResponse issue(Long userId, Long reservationId, String provider) {
+        String easyPayProvider = provider == null || provider.isBlank()
+                ? DEFAULT_QR_PROVIDER
+                : provider.toUpperCase(Locale.ROOT);
+        if (!QR_PROVIDERS.contains(easyPayProvider)) {
+            throw new BusinessException(ErrorCode.INVALID_PAYMENT_REQUEST);
+        }
         TicketReservationDTO reservation = requireOwnedReservation(userId, reservationId);
         /*
          * 결제할 수 없는 예약에는 QR을 만들지 않는다. 만들어 주면 손님이 스캔한 뒤에야
@@ -87,7 +102,8 @@ public class PaymentQrService {
         }
 
         return new PaymentQrIssueResponse(
-                reservationId, signer.sign(reservationId, userId, expiresAt), expiresAt, now);
+                reservationId, signer.sign(reservationId, userId, expiresAt, easyPayProvider),
+                easyPayProvider, expiresAt, now);
     }
 
     /** 스캔한 기기에 보여줄 내용. 금액을 확인하고 누르게 한다. */
@@ -106,6 +122,7 @@ public class PaymentQrService {
                 reservation.getTotalAmount(),
                 reservation.getCurrency(),
                 !"PENDING".equals(reservation.getStatus()),
+                parsed.provider(),
                 parsed.expiresAt(),
                 OffsetDateTime.now(clock));
     }
@@ -121,7 +138,7 @@ public class PaymentQrService {
     public PaymentResultResponse approve(Long userId, String token) {
         PaymentQrSigner.Token parsed = requireToken(userId, token);
         return paymentService.pay(userId, parsed.reservationId(),
-                new PaymentRequest(METHOD_EASY_PAY, idempotencyKey(parsed), QR_EASY_PAY_PROVIDER));
+                new PaymentRequest(METHOD_EASY_PAY, idempotencyKey(parsed), parsed.provider()));
     }
 
     /** 서명 12바이트를 그대로 쓴다. 토큰마다 다르고 100자를 넘지 않는다. */

@@ -16,6 +16,8 @@ import java.time.OffsetDateTime;
 public record PaymentQrIssueResponse(
         Long reservationId,
         String token,
+        /** 어느 간편결제 창에서 띄운 QR인지. 화면이 그 사업자 모양으로 그린다. */
+        String easyPayProvider,
         OffsetDateTime expiresAt,
         OffsetDateTime serverTime
 ) {}

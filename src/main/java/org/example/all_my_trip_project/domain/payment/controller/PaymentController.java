@@ -20,6 +20,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
@@ -60,9 +61,14 @@ public class PaymentController {
     @PostMapping("/payment/qr")
     public ApiResponse<PaymentQrIssueResponse> issuePaymentQr(
             @AuthenticationPrincipal AuthenticatedUser principal,
-            @PathVariable Long reservationId) {
+            @PathVariable Long reservationId,
+            /*
+             * 어느 간편결제 창에서 띄운 QR인지. 안 보내면 그냥 QR 결제다.
+             * 서명이 덮으므로 스캔한 쪽이 사업자를 바꿔치기할 수 없다.
+             */
+            @RequestParam(value = "provider", required = false) String provider) {
         return ApiResponse.success("결제 QR을 띄웠습니다.",
-                paymentQrService.issue(requireUserId(principal), reservationId));
+                paymentQrService.issue(requireUserId(principal), reservationId, provider));
     }
 
     @GetMapping("/tickets")

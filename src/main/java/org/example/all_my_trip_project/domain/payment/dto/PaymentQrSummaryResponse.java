@@ -19,6 +19,8 @@ public record PaymentQrSummaryResponse(
         String currency,
         /** 이미 결제가 끝난 예약인지. 스캔이 늦었을 때 화면이 다른 말을 해야 한다. */
         boolean alreadyPaid,
+        /** 어느 간편결제 창에서 띄운 QR인지. 스캔한 기기가 같은 사업자 모양으로 그린다. */
+        String easyPayProvider,
         OffsetDateTime expiresAt,
         OffsetDateTime serverTime
 ) {}

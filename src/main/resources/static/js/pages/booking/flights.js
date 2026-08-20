@@ -672,6 +672,47 @@
     </div>`).join("");
   }
 
+  /**
+   * 고른 수단에 맞는 결제창을 띄운다. (모의) 닫으면 null이다.
+   *
+   * <p>마이페이지 `내 티켓`과 같은 창을 쓴다 — core/payment-checkout.js 한 곳이다.
+   * 두 화면이 각자 그리면 한쪽만 고쳐져 결제 흐름이 갈린다.
+   */
+  function runTicketCheckout(reservationId, picked, summary) {
+    const checkout = window.AllMyTripsCheckout;
+    const amountText = summaryAmountText(summary);
+    const view = { summary, amountText };
+
+    if (picked.method === "CARD") return checkout.cardCheckout(view);
+    if (picked.method === "TRANSFER" || picked.method === "VIRTUAL_ACCOUNT") {
+      return checkout.transferCheckout({ ...view, method: picked.method });
+    }
+
+    return checkout.easyPayCheckout({
+      ...view,
+      provider: picked.easyPayProvider || "QR_PAY",
+      drawQr: (text) => window.AllMyTripsQr.createQrSvg(text, { label: "결제 승인 QR" }),
+      issueQr: async (provider) => {
+        const payload = await request("POST",
+          `/api/v1/ticket-reservations/${reservationId}/payment/qr`
+          + `?provider=${encodeURIComponent(provider)}`);
+        return payload?.data;
+      },
+      /* 발권이 곧 결제 완료다. 티켓이 하나라도 생기면 폰에서 승인이 끝난 것이다. */
+      pollPaid: async () => {
+        const payload = await request("GET",
+          `/api/v1/ticket-reservations/${reservationId}/tickets`);
+        return Array.isArray(payload?.data) && payload.data.length > 0;
+      }
+    });
+  }
+
+  /** 요약 문구(`상품 · 10,000원`)에서 금액만 떼어낸다. */
+  function summaryAmountText(summary) {
+    const matched = /([\d,]+원)/.exec(String(summary || ""));
+    return matched ? matched[1] : "";
+  }
+
   function renderSummaryMine(container) {
     const items = bookingSummary.items || [];
     const flights = items.filter((item) => item.type === "FLIGHT");
@@ -1321,25 +1362,42 @@
       const payTicket = e.target.closest("[data-mine-ticket-pay]");
       if (payTicket) {
         /* 결제수단을 고르게 한다. (#281) 마이페이지 `내 티켓`과 같은 창을 쓴다. */
+        const summary = payTicket.dataset.mineTicketSummary || "";
         const picked = await window.AllMyTripsPayment.choose({
-          summary: payTicket.dataset.mineTicketSummary || "",
-          confirmLabel: "모의 결제하기",
+          summary,
+          confirmLabel: "다음",
+          /* QR 인코더를 올려 둔 화면에서만 QR 결제를 내준다. 못 그리는 창을 띄우지 않는다. */
+          allowQr: Boolean(window.AllMyTripsQr),
         });
         if (!picked) return;
         payTicket.disabled = true;
         try {
           const reservationId = payTicket.dataset.mineTicketPay;
           /*
-           * 멱등키를 화면에서 만든다. 응답이 유실되어 다시 눌러도 같은 키로 들어가면 서버가
-           * 앞의 결과를 그대로 돌려주고 두 번 결제되지 않는다.
+           * 고른 수단의 결제창을 한 번 더 거친다. 카드면 카드 정보를 넣고, 간편결제면 QR을
+           * 폰으로 승인하고, 계좌면 입금을 확인한다. 닫으면 아무 일도 일어나지 않는다.
            */
-          const idempotencyKey = crypto.randomUUID
-            ? crypto.randomUUID()
-            : `pay-${reservationId}-${Date.now()}`;
-          const result = await request("POST", `/api/v1/ticket-reservations/${reservationId}/payment`,
-            { method: picked.method, idempotencyKey, easyPayProvider: picked.easyPayProvider });
-          /* request()는 data가 아니라 응답 전체를 돌려준다. */
-          issuedTickets[reservationId] = result?.data?.tickets || [];
+          const checkout = await runTicketCheckout(reservationId, picked, summary);
+          if (!checkout) {
+            payTicket.disabled = false;
+            return;
+          }
+          /* 간편결제는 폰에서 이미 승인돼 결제가 끝났다. 다시 결제하지 않는다. */
+          if (!checkout.paid) {
+            /*
+             * 멱등키를 화면에서 만든다. 응답이 유실되어 다시 눌러도 같은 키로 들어가면 서버가
+             * 앞의 결과를 그대로 돌려주고 두 번 결제되지 않는다.
+             */
+            const idempotencyKey = crypto.randomUUID
+              ? crypto.randomUUID()
+              : `pay-${reservationId}-${Date.now()}`;
+            /* 카드 정보는 보내지 않는다. 우리 결제 API는 카드번호를 받지 않는다. */
+            const result = await request("POST", `/api/v1/ticket-reservations/${reservationId}/payment`,
+              { method: checkout.method || picked.method, idempotencyKey,
+                easyPayProvider: checkout.easyPayProvider || picked.easyPayProvider });
+            /* request()는 data가 아니라 응답 전체를 돌려준다. */
+            issuedTickets[reservationId] = result?.data?.tickets || [];
+          }
           bookingSummary = null;
           await loadBookingSummary();
           sync();
