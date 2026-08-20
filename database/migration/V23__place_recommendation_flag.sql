@@ -14,13 +14,23 @@ COMMENT ON COLUMN places.is_recommended IS 'Whether the place is shown on the cu
 
 -- 기존 데이터 백필.
 --
--- 관리자 등록 경로(AdminPlaceService)는 external_provider를 설정하지 않는다.
--- AdminPlaceRequest DTO에 해당 필드 자체가 없다. 반대로 사용자가 일정에 담는 경로는
--- 카카오 검색 결과이므로 항상 external_provider='KAKAO'가 붙는다.
--- 따라서 아래 조건으로 관리자 등록분만 켤 수 있다.
+-- 이 변경 전까지 추천 목록은 is_active=TRUE인 장소 전부였다. 배포로 목록이 갑자기
+-- 비지 않도록 그 상태를 그대로 옮기되, 사용자가 담아서 들어온 것만 뺀다.
+--
+-- 사용자 유입 경로는 모두 카카오다.
+--   - 일정에 장소 담기(schedule.js -> POST /api/v1/places)
+--   - AI 일정 저장(AiTripPlanPersistenceService)
+--   - 주변 장소 탐색(KakaoPlaceDiscoveryService)
+-- 셋 다 external_provider='KAKAO'로 저장된다.
+--
+-- 나머지(관리자 등록은 NULL, 시드는 LOCAL_SEED)는 노출을 유지한다.
+-- "관리자 등록(NULL)만 켠다"로 잡으면 시드 등 다른 provider가 통째로 내려간다.
+--
+-- 관리자가 카카오에서 온 장소를 추천으로 쓰고 있었다면 이 백필에서 함께 꺼진다.
+-- 둘을 구분할 값이 없기 때문이며, 관리자 화면에서 다시 켤 수 있다.
 UPDATE places
    SET is_recommended = TRUE
- WHERE external_provider IS NULL
+ WHERE (external_provider IS NULL OR external_provider <> 'KAKAO')
    AND is_active = TRUE;
 
 -- 추천 목록 조회가 is_recommended로 거르므로 함께 태운다.
