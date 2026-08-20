@@ -208,6 +208,65 @@ class SupportChatBotOrchestratorTest {
         verify(service, times(2)).recordBotReply(eq(ROOM_ID), any());
     }
 
+    /*
+     * heopath 6차 리뷰: 소유권을 얻는 쪽(putIfAbsent → 별도 put(TRUE))도 "확인"과 "표시
+     * 남기기"가 두 연산으로 나뉘어 있으면, 그 사이 기존 실행이 조건부 삭제로 먼저 끝나고
+     * 뒤늦은 put(TRUE)가 map에 주인 없는 표시를 남길 수 있다. 그러면 이후 그 방의 모든
+     * 트리거가 "이미 처리 중"으로 오판해 조용히 버려진다.
+     *
+     * 이 틈은 이제 두 연산이 아니라 Map.compute() 하나뿐이라 "그 사이"라는 시점 자체가
+     * 코드에 존재하지 않는다 — 그래서 이전 리뷰들처럼 특정 순간에 스레드를 멈춰 재현할
+     * 지점이 없다(고정하려는 대상이 애초에 두 문장 사이의 틈이었는데, 그 틈을 하나의 원자적
+     * 호출로 없앴기 때문이다). 대신 같은 방에 실제 스레드 두 개를 반복해서 동시에 경합시켜,
+     * 어떤 스케줄링으로 겹치더라도 트리거가 한 번도 유실되지 않는지(=주인 없는 표시가 생기지
+     * 않는지) 여러 라운드에 걸쳐 검증한다. 방을 항상 빈 대화로 두면 성공한 트리거마다 정확히
+     * 한 번 응답을 만들므로, 라운드를 거듭할수록 응답 수가 라운드 수만큼 계속 늘어나는지로
+     * "그 방이 그 뒤로도 계속 응답 가능한 상태인지"(주인 없는 표시로 영구히 막히지 않았는지)
+     * 확인할 수 있다.
+     */
+    @Test
+    @DisplayName("소유권 획득 경합이 반복돼도 주인 없는 잠금이 남아 이후 트리거를 막지 않는다")
+    void doesNotLeaveOrphanedLockWhenAcquisitionRacesWithCompletion() throws Exception {
+        AtomicInteger replyCalls = new AtomicInteger();
+        when(client.reply(any())).thenAnswer(invocation -> {
+            replyCalls.incrementAndGet();
+            return new SupportChatBotReply("안녕하세요.", false);
+        });
+
+        int rounds = 200;
+        for (int round = 1; round <= rounds; round++) {
+            CountDownLatch bothReady = new CountDownLatch(2);
+            CountDownLatch go = new CountDownLatch(1);
+            Runnable fireTrigger = () -> {
+                bothReady.countDown();
+                try {
+                    go.await(2, TimeUnit.SECONDS);
+                } catch (InterruptedException interrupted) {
+                    Thread.currentThread().interrupt();
+                }
+                orchestrator.onTrigger(new SupportChatBotTriggerEvent(ROOM_ID));
+            };
+            Thread t1 = new Thread(fireTrigger);
+            Thread t2 = new Thread(fireTrigger);
+            t1.start();
+            t2.start();
+            assertThat(bothReady.await(2, TimeUnit.SECONDS)).isTrue();
+            go.countDown(); /* 두 트리거가 최대한 같은 순간에 소유권을 다투게 한다. */
+            t1.join(2000);
+            t2.join(2000);
+
+            /*
+             * 이 라운드에서 주인 없는 표시가 생겼다면, 이 방은 이제 영구히 "처리 중"으로
+             * 보여 이후 모든 라운드의 트리거가 조용히 버려진다 — 즉 누적 응답 수가 여기서
+             * 멈추고 더는 늘지 않는다. 매 라운드 끝에 즉시 확인해 어느 라운드에서
+             * 발생했는지도 알 수 있게 한다.
+             */
+            assertThat(replyCalls.get())
+                    .as("라운드 %d 이후 누적 응답 수 — 주인 없는 잠금이 생기면 더 이상 늘지 않는다", round)
+                    .isGreaterThanOrEqualTo(round);
+        }
+    }
+
     @Test
     @DisplayName("응답이 끝나면 다음 요청은 다시 정상적으로 처리된다")
     void acceptsNewTriggerAfterCompletion() {

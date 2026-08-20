@@ -12,6 +12,7 @@ import org.springframework.transaction.event.TransactionalEventListener;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * {@link SupportChatBotTriggerEvent}를 받아 Gemini를 부르고 결과를 반영한다.
@@ -57,6 +58,17 @@ import java.util.concurrent.ConcurrentHashMap;
  * 그 사이의 어떤 순간에 트리거가 와도 안전하다. 놓친 트리거가 있었다면 {@link #respond}를
  * 한 번 더 부르는데, 이때도 워터마크 비교로 판단하므로 실제로 새 메시지가 없었다면(트리거만
  * 왔을 뿐 내용은 이미 반영돼 있었다면) Gemini를 다시 부르지 않는다.
+ *
+ * <p><b>소유권을 얻는 쪽도 "확인"과 "표시 남기기"가 따로면 반대 방향으로 틀린다.</b>
+ * {@code putIfAbsent()}로 기존 실행이 있는지 확인한 다음 별도로 {@code put(TRUE)}를 하면, 그
+ * 사이(확인은 했지만 표시는 아직 안 남긴 순간) 기존 실행이 "더 없다"고 판단해 조건부 삭제로
+ * 먼저 빠져나갈 수 있다. 그러면 뒤늦은 {@code put(TRUE)}가 map에 <b>주인 없는 표시</b>를
+ * 남긴다 — 그 방을 처리하는 실행은 이제 아무도 없는데, map에는 여전히 값이 남아 있어 이후
+ * 모든 트리거가 "이미 처리 중"으로 오판하고 조용히 버려진다(heopath 6차 리뷰). 그래서 "이미
+ * 처리 중인 실행이 있는지 확인"과 "없으면 내가 소유자가 되고, 있으면 표시만 남기기"를
+ * {@link Map#compute}로 하나의 원자적 연산으로 묶는다 — 확인과 그에 따른 조치 사이에 어떤
+ * 틈도 남기지 않아야, 기존 실행이 그 순간 막 잠금을 지우더라도 정확히 둘 중 하나로만
+ * 귀결된다: 내가 새 소유자가 되어 직접 처리하거나, 기존 실행에게 표시가 안전하게 전달된다.
  */
 @Component
 @Profile("!ui")
@@ -87,13 +99,9 @@ public class SupportChatBotOrchestrator {
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void onTrigger(SupportChatBotTriggerEvent event) {
         Long roomId = event.roomId();
-        if (inFlight.putIfAbsent(roomId, Boolean.FALSE) != null) {
-            /*
-             * 이미 이 방을 처리하는 실행이 있다. 그 실행이 막 "더 없다"고 판단하고 잠금을
-             * 놓으려는 참일 수 있으니, 트리거를 그냥 버리지 않고 표시를 남긴다 — 소유자가
-             * 잠금을 놓기 직전 이 표시를 원자적으로 확인하므로 놓치지 않는다.
-             */
-            inFlight.put(roomId, Boolean.TRUE);
+        if (!acquireOrMarkMissed(roomId)) {
+            /* 이미 이 방을 처리하는 실행이 있다 — 표시만 안전하게 남기고 빠진다. 그 실행이
+               이 순간 막 종료됐다면 acquireOrMarkMissed()가 대신 내게 소유권을 준다. */
             return;
         }
         try {
@@ -116,6 +124,28 @@ public class SupportChatBotOrchestrator {
             inFlight.remove(roomId);
             throw exception;
         }
+    }
+
+    /**
+     * 이 방을 처리할 소유권을 얻거나, 이미 처리 중인 실행에게 표시만 남긴다.
+     *
+     * <p>"이미 처리 중인지 확인"과 그에 따른 조치(소유권 획득 또는 표시 남기기)를
+     * {@link Map#compute}로 하나의 원자적 연산으로 묶는다. 따로 하면(확인 → 그 사이 기존
+     * 실행이 조건부 삭제로 먼저 끝남 → 뒤늦게 표시만 남김) map에 주인 없는 표시가 남아
+     * 이후 트리거를 전부 흡수해 버린다(heopath 6차 리뷰).
+     *
+     * @return 이 호출이 소유권을 얻었으면 {@code true}.
+     */
+    private boolean acquireOrMarkMissed(Long roomId) {
+        AtomicBoolean acquired = new AtomicBoolean(false);
+        inFlight.compute(roomId, (id, current) -> {
+            if (current == null) {
+                acquired.set(true);
+                return Boolean.FALSE; /* 아무도 처리 중이 아니었다 — 내가 소유자가 된다. */
+            }
+            return Boolean.TRUE; /* 이미 처리 중이다 — 놓칠 뻔한 트리거 표시만 남긴다. */
+        });
+        return acquired.get();
     }
 
     /**
