@@ -14,6 +14,8 @@ const HTML = path.join(ROOT, "src/main/resources/templates/booking/flights.html"
 const SCRIPT = path.join(ROOT, "src/main/resources/static/js/pages/booking/flights.js");
 /* 결제수단 선택 창. 화면에서도 flights.js보다 먼저 올라간다. (#281) */
 const PAYMENT_METHODS = path.join(ROOT, "src/main/resources/static/js/core/payment-methods.js");
+/* 확인 대화상자. 브라우저 기본 confirm을 대신한다. */
+const DIALOG = path.join(ROOT, "src/main/resources/static/js/core/dialog.js");
 
 let passed = 0;
 let failed = 0;
@@ -137,6 +139,7 @@ async function boot(options = {}) {
   // 정적 마크업이 금액처럼 보이는 값을 미리 박아두지 않았는지 먼저 확인한다.
   const staticTotal = d.getElementById("cTot").textContent.trim();
 
+  w.eval(fs.readFileSync(DIALOG, "utf8"));
   w.eval(fs.readFileSync(PAYMENT_METHODS, "utf8"));
   w.eval(fs.readFileSync(SCRIPT, "utf8"));
 
@@ -153,6 +156,20 @@ async function boot(options = {}) {
 
 function json(body) {
   return { ok: true, status: 200, json: async () => body };
+}
+
+/**
+ * 되묻기 창에서 확인을 누른다.
+ *
+ * 브라우저 기본 confirm이 아니라 화면 안 대화상자다 — 기본 대화상자는 손님이 한 번
+ * 차단하면 묻지도 않고 false를 돌려줘 버튼이 안 눌리는 것처럼 보였다.
+ */
+async function answerDialog(d, accept = true) {
+  await until(() => d.querySelector("[data-amt-dialog]"));
+  const dialog = d.querySelector("[data-amt-dialog]");
+  const text = dialog.textContent;
+  dialog.querySelector(accept ? ".amt-dialog-ok" : ".amt-dialog-cancel").click();
+  return text;
 }
 
 /**
@@ -337,6 +354,7 @@ async function run() {
         && d.getElementById("mineList").textContent.includes("실제 결제 아님"));
 
     d.querySelector("[data-mine-ticket-cancel]").click();
+    await answerDialog(d);
     await until(() => calls.includes("DELETE /api/v1/ticket-reservations/30"));
     await until(() => d.getElementById("mineList").textContent.includes("취소됨"));
     T("내 예약에서 티켓 모의 예약 취소 API를 호출한다",
@@ -589,8 +607,7 @@ async function run() {
      * 취소 뒤에는 화면에 남은 티켓도 지워야 한다. 무효가 된 코드를 계속 보여주면
      * 손님이 그것을 들고 현장에 간다.
      */
-    const asked = [];
-    const { d, w, calls } = await boot({
+    const { d, calls } = await boot({
       query: "?tripId=10&tab=mine",
       summary: ticketSummary("CONFIRMED", "결제 완료"),
       tickets: [{ ticketNumber: "AMT-TKN-AAA", validFrom: null, validUntil: null }]
@@ -600,12 +617,11 @@ async function run() {
     d.querySelector("[data-mine-ticket-show]").click();
     await until(() => d.querySelector(".mn-ticket"));
 
-    w.confirm = (question) => { asked.push(question); return true; };
     d.querySelector("[data-mine-ticket-cancel]").click();
+    const asked = await answerDialog(d);
     await until(() => calls.some((c) => c.startsWith("DELETE /api/v1/ticket-reservations/30")));
 
-    T("결제 취소 전에 티켓이 무효가 된다고 알린다",
-      asked.length === 1 && asked[0].includes("사용할 수 없게"));
+    T("결제 취소 전에 티켓이 무효가 된다고 알린다", asked.includes("사용할 수 없게"));
     await until(() => !d.querySelector(".mn-ticket"));
     T("취소하면 화면에 남은 티켓도 지운다", !d.querySelector(".mn-ticket"));
   }

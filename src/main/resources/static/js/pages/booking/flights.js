@@ -1374,10 +1374,20 @@
          * 결제 전 취소와 같은 문구를 쓰면 티켓이 사라지는 줄 모르고 누른다.
          */
         const paid = cancelTicket.dataset.mineTicketPaid === "1";
-        const question = paid
-          ? "결제를 취소할까요? 발급된 티켓은 더 이상 사용할 수 없게 됩니다."
-          : "이 모의 예약을 취소할까요? 취소한 수량은 다시 예약할 수 있게 됩니다.";
-        if (!window.confirm(question)) return;
+        /*
+         * 브라우저 기본 confirm을 쓰지 않는다. 손님이 한 번이라도 "이 페이지에서 추가
+         * 대화상자 생성 안 함"에 체크하면 그 뒤로 묻지도 않고 false가 돌아와, 취소
+         * 버튼이 아예 안 눌리는 것처럼 보인다. 실제로 그 증상이 있었다.
+         */
+        const confirmed = await window.AllMyTripsDialog.confirm({
+          title: paid ? "결제를 취소할까요?" : "모의 예약을 취소할까요?",
+          message: paid
+            ? "환불 처리되고, 발급된 티켓은 더 이상 사용할 수 없게 됩니다."
+            : "취소한 수량은 다시 예약할 수 있게 됩니다.",
+          confirmLabel: paid ? "결제 취소" : "예약 취소",
+          tone: "danger"
+        });
+        if (!confirmed) return;
         cancelTicket.disabled = true;
         try {
           const reservationId = cancelTicket.dataset.mineTicketCancel;

@@ -408,3 +408,49 @@
 .pay-approve-amount dd { font-size: 18px; font-weight: 800; }
 .pay-approve-remain { margin: 0; color: #9a5f08; font-size: 13px; font-weight: 700; }
 .pay-approve-notice { margin: 0; color: #9a5f08; font-size: 12px; line-height: 1.5; }
+
+/* 화면 안 확인 대화상자 (core/dialog.js)
+   브라우저 기본 confirm은 한 번 차단되면 묻지도 않고 false를 돌려줘, 버튼이
+   안 눌리는 것처럼 보인다. 그 자리를 대신한다. */
+.amt-dialog-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1300;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(17, 24, 39, 0.45);
+}
+.amt-dialog {
+  width: 100%;
+  max-width: 380px;
+  padding: 22px;
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 18px 40px rgba(17, 24, 39, 0.22);
+}
+.amt-dialog-title { margin: 0 0 8px; font-size: 16px; font-weight: 800; }
+.amt-dialog-text { margin: 0 0 6px; color: #4b5468; font-size: 14px; line-height: 1.6; }
+.amt-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 18px;
+}
+.amt-dialog-cancel,
+.amt-dialog-ok {
+  min-height: 42px;
+  padding: 0 18px;
+  border-radius: 12px;
+  border: 1px solid #e4e8f4;
+  background: #fff;
+  color: #4b5468;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.amt-dialog-cancel:hover { border-color: #c9d0f2; }
+.amt-dialog-ok { border: 0; background: var(--gradient, linear-gradient(120deg, #5b6bff, #8b5cf6)); color: #fff; }
+/* 되돌릴 수 없는 동작은 색으로도 갈라 둔다. */
+.amt-dialog-ok.danger { background: #e14b4b; }
