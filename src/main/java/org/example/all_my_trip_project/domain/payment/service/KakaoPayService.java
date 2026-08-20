@@ -137,7 +137,8 @@ public class KakaoPayService {
      * 않는다</b> — 결제를 시작할 때 서버가 적어 둔 기록에서 꺼낸다.
      *
      * <p>멱등키로 거래번호를 쓴다. 결제 하나에 하나뿐인 값이라 돌아오는 주소를 두 번 열거나
-     * 새로고침해도 결제가 두 번 만들어지지 않는다.
+     * 새로고침해도 결제가 두 번 만들어지지 않는다. 그전에 이미 기록된 결제인지 먼저 보고,
+     * 맞으면 카카오를 부르지 않고 그 결과를 그대로 돌려준다.
      */
     @Transactional
     public PaymentResultResponse approve(Long userId, String pgToken) {
@@ -150,6 +151,14 @@ public class KakaoPayService {
 
         TicketReservationDTO reservation = requireOwnReservation(userId, reservationId);
 
+        /*
+         * 이미 기록된 결제면 카카오에 묻지 않고 그대로 돌려준다. 카카오는 승인된 거래를 다시
+         * 승인해 주지 않는데, 그 거절을 손님에게 그대로 보이면 결제가 끝났는데도 "결제를 다시
+         * 시작해 주세요"라고 말하게 된다. 돌아오는 주소를 새로고침하면 바로 이 경우다.
+         */
+        PaymentResultResponse recorded = paymentService.findRecorded(userId, tid, reservationId);
+        if (recorded != null) return recorded;
+
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("cid", cid);
         body.put("tid", tid);
@@ -161,11 +170,10 @@ public class KakaoPayService {
         requireSameAmount(reservation, approved);
 
         /*
-         * 승인이 끝났으니 기록을 지운다. 남겨 두면 새로고침이 같은 거래번호로 카카오를 다시
-         * 부르고, 이미 승인된 거래라 카카오 쪽 실패만 쌓인다. 우리 결제는 멱등키가 막지만
-         * 바깥에 부질없는 요청을 보내지 않는 편이 낫다.
+         * 승인이 끝나도 기록을 지우지 않는다. 지우면 새로고침이 거래번호를 잃어, 이미 끝난
+         * 결제를 찾지 못하고 "결제를 다시 시작해 주세요"라고 말하게 된다. 그대로 두면 위의
+         * findRecorded가 찾아내고, 남은 기록은 TTL이 치운다. 다음 결제는 ready가 덮어쓴다.
          */
-        forget(userId);
 
         /*
          * 카드로 결제했더라도 우리 기록에는 간편결제(카카오페이)로 남긴다. 손님이 고른 것도,
