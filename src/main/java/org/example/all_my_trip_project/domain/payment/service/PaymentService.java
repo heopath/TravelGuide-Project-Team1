@@ -182,6 +182,18 @@ public class PaymentService {
      * <p>다른 예약에 쓰인 키로 들어오면 거부한다. 그대로 통과시키면 A를 결제한 응답을 받고
      * B가 결제됐다고 믿게 된다.
      */
+    /**
+     * 같은 멱등키로 이미 기록된 결제가 있으면 그 결과를 돌려준다. 없으면 {@code null}이다.
+     *
+     * <p>실제 결제사를 거치는 흐름이 <b>결제사에 승인을 묻기 전에</b> 부른다. 이미 승인된
+     * 결제를 다시 물으면 결제사가 거절하는데, 그 거절을 그대로 손님에게 보이면 "결제
+     * 실패"라고 말하게 된다 — 결제는 이미 됐고 티켓도 나온 상태인데도. 돌아오는 주소를
+     * 새로고침하면 바로 그 일이 벌어진다.
+     */
+    PaymentResultResponse findRecorded(Long userId, String idempotencyKey, Long reservationId) {
+        return replay(userId, idempotencyKey, reservationId);
+    }
+
     private PaymentResultResponse replay(Long userId, String idempotencyKey, Long reservationId) {
         PaymentDTO previous = paymentDAO.findByIdempotencyKey(userId, idempotencyKey).orElse(null);
         if (previous == null) return null;
