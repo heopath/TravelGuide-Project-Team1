@@ -119,7 +119,8 @@ public class AdminPlaceService {
         }
 
         int changed = placeDAO.updateRecommendedAll(targets, recommended);
-        adminAuditService.record("PLACE_RECOMMENDATION_BULK_CHANGE", "PLACE", null,
+        // admin_audit_logs.action_type이 VARCHAR(30)이라 이름을 그 안에 맞춘다.
+        adminAuditService.record("PLACE_RECOMMEND_BULK", "PLACE", null,
                 null,
                 AdminAuditService.payload("recommended", recommended, "count", changed));
         return changed;
