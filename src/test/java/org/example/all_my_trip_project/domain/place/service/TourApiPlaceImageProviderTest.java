@@ -1,87 +1,181 @@
 package org.example.all_my_trip_project.domain.place.service;
 
+import com.sun.net.httpserver.HttpServer;
 import org.example.all_my_trip_project.domain.accommodation.provider.TourApiProperties;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-import java.lang.reflect.Method;
+import java.io.OutputStream;
 import java.math.BigDecimal;
+import java.net.InetSocketAddress;
+import java.nio.charset.StandardCharsets;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * 이미지 매칭은 "엉뚱한 사진을 붙이지 않는 것"이 목적이라 경계를 고정해 둔다.
- * 좌표 반경 안에 있어도 이름이 닮지 않으면 넣지 않는다.
+ *
+ * <p>가짜 TourAPI를 로컬에 띄우고 실제 요청을 보낸다. 내부 메서드를 리플렉션으로 부르면
+ * 두 단계가 어떻게 이어지는지, 1단계가 비었을 때 2단계로 넘어가는지를 볼 수 없다.
  */
 class TourApiPlaceImageProviderTest {
 
-    private final TourApiPlaceImageProvider provider =
-            new TourApiPlaceImageProvider(new TourApiProperties());
+    private static final BigDecimal LAT = new BigDecimal("35.1585232");
+    private static final BigDecimal LON = new BigDecimal("129.1598547");
+    /** 위 좌표에서 약 70m 떨어진 지점. 500m 안쪽이다. */
+    private static final String NEAR_LAT = "35.15915";
+    private static final String NEAR_LON = "129.15985";
+    /** 강릉쯤. 100km 밖이다. */
+    private static final String FAR_LAT = "37.7519";
+    private static final String FAR_LON = "128.8761";
 
-    private Optional<String> bestImage(String body, String placeName) throws Exception {
-        Method method = TourApiPlaceImageProvider.class
-                .getDeclaredMethod("bestImage", String.class, String.class);
-        method.setAccessible(true);
-        @SuppressWarnings("unchecked")
-        Optional<String> result = (Optional<String>) method.invoke(provider, body, placeName);
-        return result;
+    private HttpServer server;
+    private final AtomicReference<String> nearbyBody = new AtomicReference<>(emptyBody());
+    private final AtomicReference<String> keywordBody = new AtomicReference<>(emptyBody());
+    private final AtomicInteger keywordCalls = new AtomicInteger();
+
+    @BeforeEach
+    void startServer() throws Exception {
+        server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+        server.createContext("/KorService2/locationBasedList2", exchange -> respond(exchange, nearbyBody.get()));
+        server.createContext("/KorService2/searchKeyword2", exchange -> {
+            keywordCalls.incrementAndGet();
+            respond(exchange, keywordBody.get());
+        });
+        server.start();
     }
 
-    private String body(String... titleAndImagePairs) {
-        StringBuilder items = new StringBuilder();
-        for (int index = 0; index < titleAndImagePairs.length; index += 2) {
-            if (index > 0) items.append(',');
-            items.append("{\"title\":\"").append(titleAndImagePairs[index])
-                 .append("\",\"firstimage\":\"").append(titleAndImagePairs[index + 1]).append("\"}");
+    @AfterEach
+    void stopServer() {
+        server.stop(0);
+    }
+
+    @Test
+    @DisplayName("좌표 반경 안에서 이름이 같으면 그 사진을 쓴다")
+    void usesNearbyImageWhenNameMatches() {
+        nearbyBody.set(body(item("해운대해수욕장", "https://img/haeundae.jpg", NEAR_LAT, NEAR_LON)));
+
+        assertThat(find("해운대해수욕장")).contains("https://img/haeundae.jpg");
+        assertThat(keywordCalls).hasValue(0);
+    }
+
+    @Test
+    @DisplayName("반경 안에 있어도 이름이 다르면 쓰지 않는다")
+    void ignoresNearbyPlaceWithDifferentName() {
+        nearbyBody.set(body(item("국립민속박물관", "https://img/folk.jpg", NEAR_LAT, NEAR_LON)));
+
+        assertThat(find("스타벅스 경복궁점")).isEmpty();
+    }
+
+    @Test
+    @DisplayName("사진이 없는 항목은 후보에서 뺀다")
+    void skipsItemsWithoutImage() {
+        nearbyBody.set(body(item("해운대해수욕장", "", NEAR_LAT, NEAR_LON)));
+
+        assertThat(find("해운대해수욕장")).isEmpty();
+    }
+
+    /*
+     * 넓은 장소는 카카오 좌표와 관광공사 좌표가 떨어져 있어 반경 안에 안 잡힌다.
+     * 이때 이름으로 찾고 좌표로 확인하는 2단계가 없으면 영영 사진이 없다.
+     */
+    @Test
+    @DisplayName("좌표로 못 찾으면 이름으로 검색해 좌표로 확인한다")
+    void fallsBackToKeywordSearch() {
+        keywordBody.set(body(item("해운대해수욕장", "https://img/haeundae.jpg", NEAR_LAT, NEAR_LON)));
+
+        assertThat(find("해운대해수욕장")).contains("https://img/haeundae.jpg");
+        assertThat(keywordCalls).hasValue(1);
+    }
+
+    /* "동백섬" ↔ "해운대 동백섬". 비율은 0.5뿐이지만 좌표가 붙어 있으면 같은 장소다. */
+    @Test
+    @DisplayName("아주 가까우면 이름이 조금 달라도 같은 장소로 본다")
+    void acceptsWeakerNameMatchWhenVeryClose() {
+        keywordBody.set(body(item("해운대 동백섬", "https://img/dongbaek.jpg", NEAR_LAT, NEAR_LON)));
+
+        assertThat(find("동백섬")).contains("https://img/dongbaek.jpg");
+    }
+
+    /* "남산공원"은 서울·강릉·고성·화순에 다 있다. 이름만으로는 고를 수 없다. */
+    @Test
+    @DisplayName("멀리 있는 같은 이름은 다른 장소로 본다")
+    void rejectsSameNameFarAway() {
+        keywordBody.set(body(item("강릉 남산공원", "https://img/gangneung.jpg", FAR_LAT, FAR_LON)));
+
+        assertThat(find("남산공원")).isEmpty();
+    }
+
+    /*
+     * 이름을 눅이는 것이 위험한 이유는 "경복궁"에 "경복궁역" 사진이 붙는 경우다.
+     * 가장 닮은 것을 고르므로 진짜 경복궁이 함께 있으면 그쪽이 이긴다.
+     */
+    @Test
+    @DisplayName("후보가 여럿이면 이름이 가장 닮은 것을 쓴다")
+    void picksTheClosestNameAmongCandidates() {
+        keywordBody.set(body(
+                item("경복궁역", "https://img/station.jpg", NEAR_LAT, NEAR_LON),
+                item("경복궁", "https://img/palace.jpg", NEAR_LAT, NEAR_LON)));
+
+        assertThat(find("경복궁")).contains("https://img/palace.jpg");
+    }
+
+    /* "한강"은 "더한강"에 0.67로 걸린다. 짧은 이름은 겹치는 글자가 적어 비율이 쉽게 오른다. */
+    @Test
+    @DisplayName("이름이 너무 짧으면 검색으로 확인하지 않는다")
+    void doesNotSearchByVeryShortName() {
+        keywordBody.set(body(item("더한강", "https://img/restaurant.jpg", NEAR_LAT, NEAR_LON)));
+
+        assertThat(find("한강")).isEmpty();
+        assertThat(keywordCalls).hasValue(0);
+    }
+
+    @Test
+    @DisplayName("서비스키가 없으면 호출하지 않는다")
+    void doesNothingWithoutServiceKey() {
+        TourApiProperties properties = new TourApiProperties();
+        properties.setBaseUrl(baseUrl());
+
+        assertThat(new TourApiPlaceImageProvider(properties).findImageUrl("경복궁", LAT, LON)).isEmpty();
+        assertThat(keywordCalls).hasValue(0);
+    }
+
+    private Optional<String> find(String placeName) {
+        TourApiProperties properties = new TourApiProperties();
+        properties.setBaseUrl(baseUrl());
+        properties.setServiceKey("test-key");
+        return new TourApiPlaceImageProvider(properties).findImageUrl(placeName, LAT, LON);
+    }
+
+    private String baseUrl() {
+        return "http://127.0.0.1:" + server.getAddress().getPort() + "/KorService2";
+    }
+
+    private static void respond(com.sun.net.httpserver.HttpExchange exchange, String json)
+            throws java.io.IOException {
+        byte[] payload = json.getBytes(StandardCharsets.UTF_8);
+        exchange.getResponseHeaders().add("Content-Type", "application/json");
+        exchange.sendResponseHeaders(200, payload.length);
+        try (OutputStream out = exchange.getResponseBody()) {
+            out.write(payload);
         }
-        return "{\"response\":{\"body\":{\"items\":{\"item\":[" + items + "]}}}}";
     }
 
-    @Test
-    void 이름이_같으면_이미지를_쓴다() throws Exception {
-        assertThat(bestImage(body("경복궁", "https://img/gyeongbok.jpg"), "경복궁"))
-                .contains("https://img/gyeongbok.jpg");
+    private static String item(String title, String image, String latitude, String longitude) {
+        return "{\"title\":\"" + title + "\",\"firstimage\":\"" + image + "\","
+                + "\"mapy\":\"" + latitude + "\",\"mapx\":\"" + longitude + "\"}";
     }
 
-    @Test
-    void 표기가_조금_달라도_충분히_닮으면_쓴다() throws Exception {
-        // "석굴암"(3자)이 "석굴암석굴"(5자)에 들어 있어 비율 0.6으로 임계값을 만족한다.
-        assertThat(bestImage(body("석굴암석굴", "https://img/seokguram.jpg"), "석굴암"))
-                .contains("https://img/seokguram.jpg");
+    private static String body(String... items) {
+        return "{\"response\":{\"body\":{\"items\":{\"item\":[" + String.join(",", items) + "]}}}}";
     }
 
-    @Test
-    void 이름이_많이_길어지면_같은_장소로_보지_않는다() throws Exception {
-        /*
-         * "경복궁"과 "경복궁근정전"은 비율 0.5라 넣지 않는다.
-         * 근정전은 경복궁 안의 건물이라 사람이 보기엔 관련 있지만, 같은 판정 폭을 넓히면
-         * "경복궁"과 "경복궁역"처럼 다른 장소까지 통과한다. 놓치는 쪽을 택한다.
-         */
-        assertThat(bestImage(body("경복궁근정전", "https://img/geunjeongjeon.jpg"), "경복궁"))
-                .isEmpty();
-    }
-
-    @Test
-    void 반경_안에_있어도_이름이_다르면_넣지_않는다() throws Exception {
-        // 근처 다른 관광지가 잡히는 경우다. 사진이 있어도 쓰지 않는다.
-        assertThat(bestImage(body("국립민속박물관", "https://img/folk.jpg"), "스타벅스 경복궁점"))
-                .isEmpty();
-    }
-
-    @Test
-    void 사진이_없는_항목은_후보에서_빠진다() throws Exception {
-        assertThat(bestImage(body("경복궁", ""), "경복궁")).isEmpty();
-    }
-
-    @Test
-    void 후보가_없으면_비어_있다() throws Exception {
-        assertThat(bestImage("{\"response\":{\"body\":{\"items\":\"\"}}}", "경복궁")).isEmpty();
-    }
-
-    @Test
-    void 서비스키가_없으면_호출하지_않는다() {
-        // 키가 비어 있으면 네트워크를 타지 않고 곧바로 빈 값을 준다.
-        assertThat(provider.findImageUrl("경복궁", new BigDecimal("37.5796"), new BigDecimal("126.9770")))
-                .isEmpty();
+    private static String emptyBody() {
+        return "{\"response\":{\"body\":{\"items\":\"\"}}}";
     }
 }
