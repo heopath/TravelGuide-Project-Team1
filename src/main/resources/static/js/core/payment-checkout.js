@@ -505,7 +505,178 @@
         });
     }
 
+    /* ── 토스페이먼츠 결제위젯 ── */
+
+    const TOSS_SDK = "https://js.tosspayments.com/v2/standard";
+    let sdkLoading = null;
+
+    /**
+     * 설정된 클라이언트 키. 비어 있으면 토스를 쓰지 않는다.
+     *
+     * <p>화면이 meta 태그로 실어 준다. 서버 설정에 키가 없으면 빈 값이라, 키를 넣지 않은
+     * 환경에서는 토스 결제수단 자체가 목록에 뜨지 않는다.
+     */
+    function tossClientKey() {
+        const meta = document.querySelector('meta[name="toss-client-key"]');
+        return (meta && meta.content) || "";
+    }
+
+    /** SDK는 처음 쓸 때 한 번만 받는다. 결제창을 안 여는 손님에게 미리 받게 하지 않는다. */
+    function loadTossSdk() {
+        if (window.TossPayments) return Promise.resolve(window.TossPayments);
+        if (sdkLoading) return sdkLoading;
+
+        sdkLoading = new Promise((resolve, reject) => {
+            const script = document.createElement("script");
+            script.src = TOSS_SDK;
+            script.async = true;
+            script.addEventListener("load", () => resolve(window.TossPayments));
+            script.addEventListener("error", () => {
+                sdkLoading = null;
+                reject(new Error("토스 결제창을 불러오지 못했어요."));
+            });
+            document.head.appendChild(script);
+        });
+        return sdkLoading;
+    }
+
+    /**
+     * 주문번호. `AMT-{예약번호}-{난수}` 모양이다.
+     *
+     * <p>서버가 이 값에서 예약을 꺼낸다 — 주문번호는 결제창을 띄울 때 토스에 함께 넘어가
+     * 그 결제에 묶이므로, 화면이 승인만 다른 예약에 붙일 수 없다.
+     */
+    function orderIdOf(reservationId) {
+        const random = window.crypto?.randomUUID
+            ? window.crypto.randomUUID().replace(/-/g, "").slice(0, 12)
+            : String(Date.now());
+        return `AMT-${reservationId}-${random}`;
+    }
+
+    /**
+     * 토스 결제창(위젯)을 띄운다.
+     *
+     * <p>여기서 결제가 끝나지 않는다. 토스가 인증을 마치면 successUrl로 브라우저를 돌려보내고,
+     * 그 화면이 서버에 승인을 요청한다. 승인은 시크릿 키가 필요해 서버만 할 수 있다.
+     *
+     * <p>테스트 키를 쓰면 실제 돈이 오가지 않는다. 그 사실을 창 안에 적어 둔다.
+     */
+    async function tossCheckout(settings) {
+        const clientKey = tossClientKey();
+        if (!clientKey) return null;
+
+        const TossPayments = await loadTossSdk();
+        const root = overlay("토스 결제");
+        const box = panel(null);
+
+        box.append(head("토스페이먼츠 결제", settings.summary), amountRow(settings.amountText));
+
+        const widgetBox = document.createElement("div");
+        widgetBox.className = "pay-toss-widget";
+        widgetBox.dataset.tossPaymentMethod = "";
+
+        const agreementBox = document.createElement("div");
+        agreementBox.dataset.tossAgreement = "";
+
+        const error = document.createElement("p");
+        error.className = "pay-checkout-error";
+        error.dataset.payError = "";
+        error.hidden = true;
+
+        box.append(widgetBox, agreementBox, error,
+            notice("토스페이먼츠 테스트 결제창입니다. 실제 돈이 빠져나가지 않습니다."));
+
+        const buttons = actions("취소", "결제하기");
+        buttons.confirm.disabled = true;
+        box.appendChild(buttons.wrap);
+        root.appendChild(box);
+        document.body.appendChild(root);
+
+        /*
+         * customerKey는 손님을 구분하는 값이다. 예약 번호로 만들면 같은 사람이 다른 예약을
+         * 결제할 때마다 다른 사람으로 보여 간편결제 등록이 쌓이지 않는다. 로그인 사용자
+         * 식별자가 화면에 없으므로 브라우저에 하나 만들어 두고 계속 쓴다.
+         */
+        const customerKey = rememberedCustomerKey();
+
+        const widgets = TossPayments(clientKey).widgets({ customerKey });
+        await widgets.setAmount({ currency: "KRW", value: settings.amount });
+        await Promise.all([
+            widgets.renderPaymentMethods({ selector: "[data-toss-payment-method]", variantKey: "DEFAULT" }),
+            widgets.renderAgreement({ selector: "[data-toss-agreement]", variantKey: "AGREEMENT" })
+        ]);
+        buttons.confirm.disabled = false;
+
+        return new Promise((resolve) => {
+            let closed = false;
+
+            buttons.cancel.addEventListener("click", () => finish(null));
+            buttons.confirm.addEventListener("click", async () => {
+                buttons.confirm.disabled = true;
+                error.hidden = true;
+                try {
+                    /*
+                     * 여기서 화면이 토스로 넘어간다. 돌아오는 주소에 결제 결과가 실려 오고,
+                     * 그 화면이 승인을 요청한다.
+                     */
+                    rememberReturn();
+                    await widgets.requestPayment({
+                        orderId: orderIdOf(settings.reservationId),
+                        orderName: settings.orderName || "티켓 예약",
+                        successUrl: `${window.location.origin}/pay/toss`,
+                        failUrl: `${window.location.origin}/pay/toss`
+                    });
+                } catch (exception) {
+                    /* 손님이 결제창에서 닫은 경우가 대부분이라 오류로 떠들지 않는다. */
+                    error.textContent = exception?.message || "결제를 진행하지 못했어요.";
+                    error.hidden = false;
+                    buttons.confirm.disabled = false;
+                }
+            });
+
+            function finish(result) {
+                if (closed) return;
+                closed = true;
+                root.remove();
+                resolve(result);
+            }
+        });
+    }
+
+    /**
+     * 결제를 시작한 화면을 적어 둔다.
+     *
+     * <p>토스에서 돌아오면 /pay/toss가 열린다. 그 화면은 손님이 어디서 결제를 시작했는지
+     * 알 방법이 없어서, 여기서 남겨 둬야 마이페이지든 예약 화면이든 제자리로 보낼 수 있다.
+     */
+    function rememberReturn() {
+        try {
+            window.sessionStorage.setItem("allmytrips.tossReturnTo",
+                window.location.pathname + window.location.search);
+        } catch (error) {
+            /* 저장을 막아둔 브라우저다. 돌아가는 화면이 기본 주소로 보낼 뿐 결제는 된다. */
+        }
+    }
+
+    /** 같은 브라우저에서는 같은 손님으로 본다. 간편결제 등록이 매번 초기화되지 않게 한다. */
+    function rememberedCustomerKey() {
+        const KEY = "allmytrips.tossCustomerKey";
+        try {
+            const saved = window.localStorage.getItem(KEY);
+            if (saved) return saved;
+            const made = window.crypto?.randomUUID
+                ? window.crypto.randomUUID()
+                : `amt-${Date.now()}`;
+            window.localStorage.setItem(KEY, made);
+            return made;
+        } catch (error) {
+            /* 저장을 막아둔 브라우저다. 이번 결제만 쓰는 값으로 넘어간다. */
+            return `amt-${Date.now()}`;
+        }
+    }
+
     window.AllMyTripsCheckout = {
-        cardCheckout, transferCheckout, easyPayCheckout, BRANDS, luhnValid, cardBrand, withRo
+        cardCheckout, transferCheckout, easyPayCheckout, tossCheckout, tossClientKey,
+        BRANDS, luhnValid, cardBrand, withRo
     };
 })();

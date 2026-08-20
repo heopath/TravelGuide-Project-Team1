@@ -521,6 +521,12 @@
 /* 카드사는 번호를 치는 동안 라벨 옆에 뜬다. */
 .pay-card-brand { margin-left: 6px; color: var(--primary, #5b6bff); font-style: normal; font-weight: 800; }
 
+/*
+ * 토스 결제위젯이 그려지는 자리. 안쪽 모양은 토스가 iframe으로 그리므로 우리가 손대지
+ * 못한다. 여기서는 자리와 여백만 잡는다. 높이를 고정하면 결제수단 수에 따라 잘린다.
+ */
+.pay-toss-widget { margin-top: 6px; min-height: 220px; }
+.pay-checkout .pay-toss-widget + div { margin-top: 2px; }
 .pay-checkout-error { margin: 10px 0 0; color: #d64545; font-size: 12.5px; font-weight: 700; }
 .pay-checkout-error[hidden] { display: none; }
 .pay-checkout-notice { margin: 12px 0 0; color: #9a5f08; font-size: 12px; line-height: 1.5; }

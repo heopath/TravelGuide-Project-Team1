@@ -36,10 +36,14 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 /**
- * 티켓 모의 결제와 발권.
+ * 티켓 결제와 발권.
  *
- * <p><b>실제 돈이 오가지 않습니다.</b> {@code provider}는 항상 {@code MOCK}이고, 요청과 승인이
- * 같은 순간에 끝납니다. 실제 PG를 붙이면 승인 콜백을 기다리는 단계가 생깁니다.
+ * <p><b>실제 돈이 오가지 않습니다.</b> 대부분의 결제수단은 모의라 {@code provider}가
+ * {@code MOCK}이고, 요청과 승인이 같은 순간에 끝납니다.
+ *
+ * <p>예외는 토스페이먼츠입니다. 그쪽은 실제 결제사가 승인한 뒤 이 자리로 들어오므로
+ * {@code provider}에 {@code TOSS}가 적히고, 그 결제사가 준 키가
+ * {@code provider_payment_key}에 남습니다. 기록만 보고 모의인지 실제 승인인지 갈립니다.
  *
  * <p>결제·확정·발권을 <b>한 트랜잭션</b>에서 끝냅니다. 셋 중 하나만 성공한 상태는 어느 것도
  * 쓸모가 없습니다. 결제됐는데 예약이 PENDING이면 만료 정리가 자리를 회수해 가고, 확정됐는데
@@ -80,13 +84,27 @@ public class PaymentService {
     private final SecureRandom random = new SecureRandom();
 
     /**
-     * 결제하고 그 자리에서 발권한다.
+     * 모의 결제하고 그 자리에서 발권한다.
      *
      * <p>같은 멱등키로 다시 들어오면 결제를 새로 만들지 않고 앞의 결과를 그대로 돌려준다.
      * 결제 버튼을 두 번 누르거나 응답이 유실되어 재시도하는 경우다.
      */
-    @Transactional
     public PaymentResultResponse pay(Long userId, Long reservationId, PaymentRequest request) {
+        return pay(userId, reservationId, request, null, null);
+    }
+
+    /**
+     * 결제하고 그 자리에서 발권한다.
+     *
+     * @param acquirer           승인한 결제사. {@code null}이면 모의 결제로 기록한다.
+     *                           기록만 보고 실제 승인인지 갈릴 수 있어야 한다.
+     * @param providerPaymentKey 결제사가 준 결제 키. 모의 결제에는 없다.
+     *                           {@code (provider, provider_payment_key)}가 UNIQUE라,
+     *                           같은 승인이 두 번 기록되는 일을 DB가 막는다.
+     */
+    @Transactional
+    public PaymentResultResponse pay(Long userId, Long reservationId, PaymentRequest request,
+                                     String acquirer, String providerPaymentKey) {
         requireUser(userId);
         if (reservationId == null || reservationId < 1) {
             throw new BusinessException(ErrorCode.INVALID_PAYMENT_REQUEST);
@@ -98,7 +116,7 @@ public class PaymentService {
          * 이유 없이 기다린다.
          */
         String method = request.method().toUpperCase(Locale.ROOT);
-        String provider = resolveProvider(method, request.easyPayProvider());
+        String provider = resolveProvider(method, request.easyPayProvider(), acquirer);
 
         PaymentResultResponse replayed = replay(userId, idempotencyKey, reservationId);
         if (replayed != null) return replayed;
@@ -111,6 +129,7 @@ public class PaymentService {
                 .reservationId(reservationId)
                 .idempotencyKey(idempotencyKey)
                 .provider(provider)
+                .providerPaymentKey(providerPaymentKey)
                 .method(method)
                 .amount(reservation.getTotalAmount())
                 .currencyCode(reservation.getCurrencyCode())
@@ -183,10 +202,13 @@ public class PaymentService {
      * {@code EASY_PAY}라 어디로 결제됐는지가 기록에 안 남는다. 사업자를 {@code provider}에
      * 적어 남긴다. 환불이나 문의는 결국 그 사업자에게 가야 한다.
      *
-     * <p>앞에 {@code MOCK_}을 붙이는 것은, 나중에 진짜 카카오페이를 붙였을 때 기록만 보고
-     * 실제 승인인지 모의 결제인지 갈릴 수 있어야 하기 때문이다.
+     * <p>앞에 결제사를 붙이는 것은, 기록만 보고 실제 승인인지 모의 결제인지 갈릴 수 있어야
+     * 하기 때문이다. 모의 결제는 {@code MOCK}, 토스를 거친 결제는 {@code TOSS}로 시작한다.
      */
-    private String resolveProvider(String method, String easyPayProvider) {
+    private String resolveProvider(String method, String easyPayProvider, String acquirer) {
+        String prefix = acquirer == null || acquirer.isBlank()
+                ? PROVIDER_MOCK
+                : acquirer.toUpperCase(Locale.ROOT);
         boolean chosen = easyPayProvider != null && !easyPayProvider.isBlank();
         if (!METHOD_EASY_PAY.equals(method)) {
             /*
@@ -194,10 +216,10 @@ public class PaymentService {
              * 남는 기록이 어긋나고, 화면 쪽 실수를 아무도 모르게 된다.
              */
             if (chosen) throw new BusinessException(ErrorCode.INVALID_PAYMENT_REQUEST);
-            return PROVIDER_MOCK;
+            return prefix;
         }
         if (!chosen) throw new BusinessException(ErrorCode.INVALID_PAYMENT_REQUEST);
-        return PROVIDER_MOCK + "_" + easyPayProvider.toUpperCase(Locale.ROOT);
+        return prefix + "_" + easyPayProvider.toUpperCase(Locale.ROOT);
     }
 
     private void requirePayable(PayableReservationDTO reservation) {

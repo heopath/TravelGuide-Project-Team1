@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="All My Trips 토스 결제 결과" />
+    <title>결제 확인 — All My Trips</title>
+    <link rel="icon" th:href="@{/images/icons/app-icon.png}" href="../../static/images/icons/app-icon.png" />
+    <link rel="stylesheet" th:href="@{/css/common/reset.css}" href="../../static/css/common/reset.css" />
+    <link rel="stylesheet" th:href="@{/css/common/layout.css}" href="../../static/css/common/layout.css" />
+    <link rel="stylesheet" th:href="@{/css/common/components.css}" href="../../static/css/common/components.css" />
+  </head>
+  <body class="page-pay-toss" data-route="/pay/toss">
+    <div class="app">
+      <div th:replace="~{fragments/header :: header('')}"></div>
+      <main id="page-content">
+        <section class="page-shell">
+          <section class="page-heading">
+            <div>
+              <h1>결제 확인</h1>
+              <p>토스에서 돌아온 결제를 확인하고 있어요.</p>
+            </div>
+          </section>
+
+          <!--
+            결제 결과는 주소(?paymentKey=…)에 실려 온다. 승인은 화면이 하지 못한다 —
+            시크릿 키가 필요해 서버만 부를 수 있고, 이 화면은 서버에 승인을 요청할 뿐이다.
+          -->
+          <section class="white-panel pay-approve" data-toss-return>
+            <p data-toss-state>결제를 확인하는 중입니다…</p>
+
+            <dl class="pay-approve-detail" data-toss-detail hidden>
+              <div><dt>주문번호</dt><dd data-toss-order>—</dd></div>
+              <div class="pay-approve-amount"><dt>결제 금액</dt><dd data-toss-amount>—</dd></div>
+            </dl>
+
+            <p class="pay-approve-notice" data-toss-notice hidden>
+              토스페이먼츠 테스트 결제입니다. 실제 돈이 빠져나가지 않습니다.
+            </p>
+
+            <a class="primary-button wide" data-toss-back href="#" hidden>돌아가기</a>
+          </section>
+        </section>
+      </main>
+      <div th:replace="~{fragments/modals :: modalRoots}"></div>
+      <div th:replace="~{fragments/footer :: footer}"></div>
+    </div>
+    <div th:replace="~{fragments/scripts :: appScripts}"></div>
+    <script
+            type="module"
+            th:src="@{/js/pages/payment/toss-return.js}"
+            src="../../static/js/pages/payment/toss-return.js"
+    ></script>
+  </body>
+</html>

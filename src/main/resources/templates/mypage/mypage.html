@@ -4,6 +4,12 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="description" content="All My Trips 마이 페이지" />
+  <!--
+    토스 결제창이 쓰는 공개 키. 서버 설정(payment.toss.client-key)에서 온다.
+    비어 있으면 결제수단 목록에 토스가 뜨지 않는다. 시크릿 키는 여기 오지 않는다 —
+    승인은 서버만 하고, 브라우저에 있으면 누구나 우리 이름으로 승인을 부를 수 있다.
+  -->
+  <meta name="toss-client-key" th:content="${tossClientKey}" content="" />
 
   <title>마이 페이지 — All My Trips</title>
 
