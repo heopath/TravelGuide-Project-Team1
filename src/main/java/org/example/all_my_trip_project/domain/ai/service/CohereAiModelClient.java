@@ -41,6 +41,12 @@ public class CohereAiModelClient implements AiModelClient {
     // 일정 화면은 종료 시각이 24:00과 같아지는 경우도 자정 초과로 취급한다.
     // AI 추천도 같은 기준을 사용하므로 2시간 체류 기준 마지막 시작 시각은 21:30이다.
     private static final int LATEST_RECOMMENDATION_START_MINUTES = 21 * 60 + 30;
+    private static final String STRICT_JSON_RETRY_INSTRUCTION = """
+
+            Your previous response did not satisfy the schedule JSON contract.
+            Retry once and return only valid JSON: every day must have at least one item, and every item must have
+            a non-empty HH:mm time, name, and reason. Do not include Markdown or explanatory text outside JSON.
+            """;
     private static final Pattern TIME_PATTERN = Pattern.compile("^([01]\\d|2[0-3]):[0-5]\\d$");
     private static final DateTimeFormatter TIME_FORMATTER = DateTimeFormatter.ofPattern("HH:mm");
     private static final List<AiGuideResponse.ExternalLink> DEFAULT_EXTERNAL_LINKS = List.of(
@@ -82,24 +88,48 @@ public class CohereAiModelClient implements AiModelClient {
     @Override
     public AiGuideResponse generate(AiGuideRequest request, List<AiConversationTurn> conversationHistory,
                                     AiGuideContext context, List<RagSearchResult> ragResults) {
+        String prompt = createPrompt(request, conversationHistory, context, ragResults);
         try {
-            CohereGuideContent content = objectMapper.readValue(
-                    extractJson(requestModel(createPrompt(request, conversationHistory, context, ragResults))),
-                    CohereGuideContent.class
-            );
-            content = normalize(content);
-            content = moveItemsToAvailableTimes(content, context);
-            validate(content);
+            CohereGuideContent content;
+            try {
+                content = generateContent(prompt, context);
+            } catch (AiModelException exception) {
+                if (!isRetryableFormatFailure(exception)) {
+                    throw exception;
+                }
+                content = generateContent(prompt + STRICT_JSON_RETRY_INSTRUCTION, context);
+            }
 
             List<String> sources = new ArrayList<>(List.of("Cohere AI", "질문: " + request.question()));
             return new AiGuideResponse(content.answer(), content.days(), DEFAULT_EXTERNAL_LINKS, sources);
-        } catch (JsonProcessingException exception) {
-            throw new AiModelException("Cohere response is not valid JSON", exception);
         } catch (AiModelException exception) {
             throw exception;
         } catch (Exception exception) {
             throw new AiModelException("Cohere request failed", exception);
         }
+    }
+
+    private CohereGuideContent generateContent(String prompt, AiGuideContext context) {
+        try {
+            CohereGuideContent content = objectMapper.readValue(
+                    extractJson(requestModel(prompt)), CohereGuideContent.class);
+            content = normalize(content);
+            content = moveItemsToAvailableTimes(content, context);
+            validate(content);
+            return content;
+        } catch (JsonProcessingException exception) {
+            throw new AiModelException("Cohere response is not valid JSON", exception);
+        }
+    }
+
+    private boolean isRetryableFormatFailure(AiModelException exception) {
+        String message = exception.getMessage();
+        return message != null && (message.contains("response is not valid JSON")
+                || message.contains("invalid fenced JSON response")
+                || message.contains("returned an empty response")
+                || message.contains("missing guide data")
+                || message.contains("invalid day")
+                || message.contains("invalid schedule item"));
     }
 
     private String requestModel(String prompt) {
@@ -213,6 +243,9 @@ public class CohereAiModelClient implements AiModelClient {
 
                 Scheduling rules:
                 - Existing itinerary entries in Travel context belong to their stated DAY only.
+                - Never return an existing itinerary venue as a new recommendation item.
+                - For a request asking for another or different place, never return a real venue already named
+                  in Recent conversation as a new recommendation item.
                 - The existing schedule explicitly lists unavailable time windows. Treat every listed window as unavailable.
                 - Never return an item time that overlaps an existing entry or another returned item on the same DAY.
                 - When an existing entry has no end time, reserve two hours after its start time.

@@ -18,6 +18,7 @@ import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Stream;
 
 @Service
@@ -40,11 +41,13 @@ public class AiGuideService {
         var context = contextService.load(userId, request);
         String placeSearchQuestion = resolvePlaceSearchQuestion(request.question(), history);
         List<RagSearchResult> ragResults = loadRagResults(placeSearchQuestion, context);
+        ragResults = excludeScheduledPlaces(ragResults, context);
         ragResults = excludePreviouslySuggestedPlaces(ragResults, history, request.question());
         AiGuideResponse response = aiModelClient.generate(
                 request, history, context, ragResults);
+        response = excludeFinalResponsePlaces(response, context, history, request.question());
         response = enrichVerifiedPlaces(response, ragResults, request.question());
-        conversationHistoryService.append(userId, request.tripId(), request.question(), response.answer());
+        conversationHistoryService.append(userId, request.tripId(), request.question(), toConversationAnswer(response));
         return response;
     }
 
@@ -91,17 +94,47 @@ public class AiGuideService {
         if (!isAlternativeRequest(question) || places == null || places.isEmpty() || history == null) {
             return places;
         }
-        String previousAnswers = history.stream()
-                .map(AiConversationTurn::answer)
-                .filter(answer -> answer != null)
-                .map(this::normalizePlaceName)
-                .collect(java.util.stream.Collectors.joining(" "));
-        if (previousAnswers.isBlank()) {
+        Set<String> previousSuggestedPlaceNames = extractPreviouslySuggestedPlaceNames(history);
+        if (previousSuggestedPlaceNames.isEmpty()) {
             return places;
         }
         return places.stream()
                 .filter(place -> place.placeName() == null
-                        || !previousAnswers.contains(normalizePlaceName(place.placeName())))
+                        || !previousSuggestedPlaceNames.contains(normalizePlaceName(place.placeName())))
+                .toList();
+    }
+
+    /**
+     * 일정에 이미 저장된 장소는 추천 후보에서 제외한다. 기준 장소로 사용된 장소는
+     * 주변 검색의 앵커로만 쓰며, 결과 카드로 다시 추천하지 않는다.
+     */
+    private List<RagSearchResult> excludeScheduledPlaces(List<RagSearchResult> places,
+                                                          org.example.all_my_trip_project.domain.ai.dto.AiGuideContext context) {
+        if (places == null || places.isEmpty() || context == null || context.trip() == null) {
+            return places;
+        }
+
+        Set<Long> scheduledPlaceIds = context.trip().days().stream()
+                .filter(day -> day != null && day.items() != null)
+                .flatMap(day -> day.items().stream())
+                .map(org.example.all_my_trip_project.domain.ai.dto.AiGuideContext.Item::placeId)
+                .filter(java.util.Objects::nonNull)
+                .collect(java.util.stream.Collectors.toSet());
+        Set<String> scheduledPlaceNames = context.trip().days().stream()
+                .filter(day -> day != null && day.items() != null)
+                .flatMap(day -> day.items().stream())
+                .map(org.example.all_my_trip_project.domain.ai.dto.AiGuideContext.Item::title)
+                .filter(title -> title != null && !title.isBlank())
+                .map(this::normalizePlaceName)
+                .collect(java.util.stream.Collectors.toSet());
+
+        if (scheduledPlaceIds.isEmpty() && scheduledPlaceNames.isEmpty()) {
+            return places;
+        }
+        return places.stream()
+                .filter(place -> place.placeId() == null || !scheduledPlaceIds.contains(place.placeId()))
+                .filter(place -> place.placeName() == null
+                        || !scheduledPlaceNames.contains(normalizePlaceName(place.placeName())))
                 .toList();
     }
 
@@ -114,6 +147,116 @@ public class AiGuideService {
         }
         return normalized.contains("다른곳") || normalized.contains("다른데")
                 || normalized.contains("말고") || normalized.contains("또추천") || normalized.contains("다시추천");
+    }
+
+    /**
+     * 모델이 여행 문맥이나 이전 답변에서 본 장소를 다시 반환하더라도, 화면으로 보내기 전에
+     * 마지막으로 제외한다. 후보 목록과 프롬프트는 보조 수단이며, 이 검사가 최종 안전장치다.
+     */
+    private AiGuideResponse excludeFinalResponsePlaces(AiGuideResponse response,
+                                                        org.example.all_my_trip_project.domain.ai.dto.AiGuideContext context,
+                                                        List<AiConversationTurn> history,
+                                                        String question) {
+        if (response == null || response.days() == null) {
+            return response;
+        }
+
+        Set<Long> scheduledPlaceIds = new HashSet<>();
+        Set<String> scheduledPlaceNames = new HashSet<>();
+        if (context != null && context.trip() != null) {
+            context.trip().days().stream()
+                    .filter(day -> day != null && day.items() != null)
+                    .flatMap(day -> day.items().stream())
+                    .forEach(item -> {
+                        if (item.placeId() != null) {
+                            scheduledPlaceIds.add(item.placeId());
+                        }
+                        if (item.title() != null && !item.title().isBlank()) {
+                            scheduledPlaceNames.add(normalizePlaceName(item.title()));
+                        }
+                    });
+        }
+
+        Set<String> previousSuggestedPlaceNames = isAlternativeRequest(question) && history != null
+                ? extractPreviouslySuggestedPlaceNames(history)
+                : Set.of();
+
+        if (scheduledPlaceIds.isEmpty() && scheduledPlaceNames.isEmpty() && previousSuggestedPlaceNames.isEmpty()) {
+            return response;
+        }
+
+        List<AiGuideDayResponse> filteredDays = response.days().stream()
+                .filter(day -> day != null && day.items() != null)
+                .map(day -> new AiGuideDayResponse(day.day(), day.title(), day.items().stream()
+                        .filter(item -> !isExcludedFinalItem(item, scheduledPlaceIds, scheduledPlaceNames,
+                                previousSuggestedPlaceNames))
+                        .toList()))
+                .filter(day -> !day.items().isEmpty())
+                .toList();
+        if (filteredDays.isEmpty()) {
+            return new AiGuideResponse(
+                    "이미 일정에 있거나 최근에 추천한 장소와 겹쳐 새로운 장소를 제안하지 못했어요. "
+                            + "지역, 업종 또는 원하는 시간대를 조금 다르게 알려주시면 다시 찾아볼게요.",
+                    List.of(), response.externalLinks(), response.sources());
+        }
+        return new AiGuideResponse(response.answer(), filteredDays, response.externalLinks(), response.sources());
+    }
+
+    private boolean isExcludedFinalItem(AiGuideItemResponse item,
+                                        Set<Long> scheduledPlaceIds,
+                                        Set<String> scheduledPlaceNames,
+                                        Set<String> previousSuggestedPlaceNames) {
+        if (item.placeId() != null && scheduledPlaceIds.contains(item.placeId())) {
+            return true;
+        }
+        String normalizedName = normalizePlaceName(item.name());
+        if (scheduledPlaceNames.contains(normalizedName)) {
+            return true;
+        }
+        return previousSuggestedPlaceNames.contains(normalizedName);
+    }
+
+    private Set<String> extractPreviouslySuggestedPlaceNames(List<AiConversationTurn> history) {
+        if (history == null || history.isEmpty()) {
+            return Set.of();
+        }
+        return history.stream()
+                .map(AiConversationTurn::answer)
+                .filter(answer -> answer != null && !answer.isBlank())
+                .flatMap(answer -> Stream.of(answer.split("\\R")))
+                .map(String::trim)
+                .filter(line -> line.startsWith("[추천 장소]"))
+                .flatMap(line -> Stream.of(line.substring("[추천 장소]".length()).split(",")))
+                .map(this::normalizePlaceName)
+                .filter(name -> !name.isBlank())
+                .collect(java.util.stream.Collectors.toSet());
+    }
+
+    /**
+     * 다음 "다른 곳 추천" 요청에서 카드에만 표시된 상호명도 제외할 수 있도록
+     * 모델의 설명 문장과 최종 카드 장소명을 함께 대화 이력에 남긴다.
+     */
+    private String toConversationAnswer(AiGuideResponse response) {
+        if (response == null) {
+            return "";
+        }
+        String answer = response.answer() == null ? "" : response.answer();
+        if (response.days() == null) {
+            return answer;
+        }
+
+        Map<String, String> placeNamesByNormalizedName = new LinkedHashMap<>();
+        response.days().stream()
+                .filter(day -> day != null && day.items() != null)
+                .flatMap(day -> day.items().stream())
+                .map(AiGuideItemResponse::name)
+                .filter(name -> name != null && !name.isBlank())
+                .forEach(name -> placeNamesByNormalizedName.putIfAbsent(normalizePlaceName(name), name));
+
+        if (placeNamesByNormalizedName.isEmpty()) {
+            return answer;
+        }
+        return answer + "\n[추천 장소] " + String.join(", ", placeNamesByNormalizedName.values());
     }
 
     private AiGuideResponse enrichVerifiedPlaces(AiGuideResponse response, List<RagSearchResult> ragResults,
@@ -141,6 +284,7 @@ public class AiGuideService {
                 .toList();
         HashSet<Long> usedPlaceIds = new HashSet<>();
         List<AiGuideDayResponse> days = response.days().stream()
+                .filter(day -> day != null && day.items() != null)
                 .map(day -> new AiGuideDayResponse(day.day(), day.title(), day.items().stream()
                         .map(item -> {
                             RagSearchResult exactPlace = uniquePlacesByName.get(normalizePlaceName(item.name()));
@@ -183,21 +327,32 @@ public class AiGuideService {
     }
 
     private String expectedCategoryForFallback(AiGuideItemResponse item, String question) {
-        String value = (String.valueOf(item.name()) + " " + String.valueOf(item.reason()) + " "
-                + String.valueOf(question)).toLowerCase(Locale.ROOT);
+        String name = String.valueOf(item.name()).toLowerCase(Locale.ROOT);
+        String reason = String.valueOf(item.reason()).toLowerCase(Locale.ROOT);
+
+        // A single question can request both food and coffee. The item text must win over the whole question.
+        String category = categoryFromText(name);
+        if (category != null) {
+            return category;
+        }
+        category = categoryFromText(reason);
+        return category != null ? category : categoryFromText(String.valueOf(question).toLowerCase(Locale.ROOT));
+    }
+
+    private String categoryFromText(String value) {
+        if (value.contains("\uB9DB\uC9D1") || value.contains("\uC2DD\uB2F9") || value.contains("\uC810\uC2EC")
+                || value.contains("\uC800\uB141") || value.contains("\uC74C\uC2DD") || value.contains("\uBE0C\uB7F0\uCE58")) {
+            return "RESTAURANT";
+        }
         if (value.contains("\uCE74\uD398") || value.contains("\uCEE4\uD53C")) {
             return "CAFE";
-        }
-        if (value.contains("\uB9DB\uC9D1") || value.contains("\uC2DD\uB2F9") || value.contains("\uC810\uC2EC")
-                || value.contains("\uC800\uB141") || value.contains("\uC74C\uC2DD")) {
-            return "RESTAURANT";
         }
         if (value.contains("\uC1FC\uD551") || value.contains("\uD328\uC158") || value.contains("\uD3B8\uC9D1\uC0F5")
                 || value.contains("\uAD00\uAD11") || value.contains("\uC0B0\uCC45") || value.contains("\uB3C4\uBCF4")
                 || value.contains("\uAD6C\uACBD")) {
             return "ATTRACTION";
         }
-        return expectedCategory(item, question);
+        return null;
     }
 
     private boolean isGenericPlaceItem(AiGuideItemResponse item) {
@@ -207,16 +362,7 @@ public class AiGuideService {
     }
 
     private String expectedCategory(AiGuideItemResponse item, String question) {
-        String value = (String.valueOf(item.name()) + " " + String.valueOf(item.reason()) + " "
-                + String.valueOf(question)).toLowerCase(Locale.ROOT);
-        if (value.contains("카페") || value.contains("커피")) {
-            return "CAFE";
-        }
-        if (value.contains("맛집") || value.contains("식당") || value.contains("점심") || value.contains("저녁")
-                || value.contains("음식")) {
-            return "RESTAURANT";
-        }
-        return null;
+        return expectedCategoryForFallback(item, question);
     }
 
     private AiGuideItemResponse toVerifiedItem(AiGuideItemResponse item, RagSearchResult place, boolean replaceGenericName) {
