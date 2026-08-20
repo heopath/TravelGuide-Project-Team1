@@ -24,9 +24,10 @@ async function main() {
   let items = [
     { placeId: 1, category: "ATTRACTION", name: "성산일출봉", countryCode: "KR",
       region: "제주특별자치도", city: "서귀포시", address: "성산읍", latitude: 33.4587,
-      longitude: 126.9425, description: "제주 대표 관광지", primaryImageUrl: "https://img.example/1.jpg", active: true },
-    { placeId: 2, category: "CAFE", name: "숨긴 카페", countryCode: "KR",
-      region: "제주특별자치도", city: "제주시", active: false }
+      longitude: 126.9425, description: "제주 대표 관광지", primaryImageUrl: "https://img.example/1.jpg",
+      active: true, recommended: true },
+    { placeId: 2, category: "CAFE", name: "추천 안 한 카페", countryCode: "KR",
+      region: "제주특별자치도", city: "제주시", active: true, recommended: false }
   ];
   const dom = new JSDOM(fs.readFileSync(HTML, "utf8"), {
     url: "http://localhost/admin/places", runScripts: "outside-only"
@@ -63,10 +64,15 @@ async function main() {
 
   T("관리자 대시보드에서 추천 장소 관리 화면으로 이동할 수 있다",
     fs.readFileSync(DASHBOARD, "utf8").includes('data-route="/admin/places"'));
-  T("공개 장소와 숨긴 장소를 모두 관리 목록에 표시한다",
+  /*
+   * V23에서 is_active(데이터가 유효한가)와 is_recommended(추천장소에 노출할까)가 갈렸다.
+   * 이 화면의 목적은 추천 큐레이션이라 목록도 추천 여부로 표시한다.
+   */
+  T("추천한 장소와 추천 안 한 장소를 모두 관리 목록에 표시한다",
     d.getElementById("placeList").textContent.includes("성산일출봉")
-      && d.getElementById("placeList").textContent.includes("숨긴 카페")
-      && d.getElementById("placeList").textContent.includes("숨김"));
+      && d.getElementById("placeList").textContent.includes("추천 안 한 카페")
+      && d.getElementById("placeList").textContent.includes("추천중")
+      && d.getElementById("placeList").textContent.includes("추천 아님"));
   T("대표 이미지가 있으면 목록에 표시한다", d.querySelectorAll(".admin-place-thumb img").length === 1);
 
   d.querySelector('[data-place-edit="1"]').click();
@@ -89,12 +95,13 @@ async function main() {
     calls.some((call) => call.method === "POST" && call.url === "/api/v1/admin/places"
       && call.body.category === "ACTIVITY"));
 
-  await until(() => d.querySelector('[data-place-visible="2"]'));
-  d.querySelector('[data-place-visible="2"]').click();
+  await until(() => d.querySelector('[data-place-recommended="2"]'));
+  d.querySelector('[data-place-recommended="2"]').click();
   await until(() => calls.some((call) => call.method === "PATCH"));
-  T("숨긴 장소를 삭제하지 않고 다시 공개할 수 있다",
+  /* 장소 데이터를 지우지 않고 추천에서만 내리거나 올린다. */
+  T("추천 안 한 장소를 삭제하지 않고 추천에 올릴 수 있다",
     calls.some((call) => call.method === "PATCH"
-      && call.url === "/api/v1/admin/places/2/visibility" && call.body.active === true));
+      && call.url === "/api/v1/admin/places/2/recommendation" && call.body.recommended === true));
 
   /* ── 좌표: 필수가 아니지만, 비면 지도에서 조용히 빠진다 ── */
   {

@@ -509,6 +509,8 @@
     </div>
 
     <div th:replace="~{fragments/scripts :: appScripts}"></div>
+    <!-- 확인 대화상자. 브라우저 기본 confirm이 차단돼도 되묻기가 동작해야 한다. -->
+    <script th:src="@{/js/core/dialog.js}" src="../../static/js/core/dialog.js"></script>
     <!-- 결제수단 선택 창. flights.js가 결제할 때 window.AllMyTripsPayment로 부른다. (#281) -->
     <script th:src="@{/js/core/payment-methods.js}" src="../../static/js/core/payment-methods.js"></script>
     <script th:src="@{/js/pages/booking/flights.js}" src="../../static/js/pages/booking/flights.js"></script>

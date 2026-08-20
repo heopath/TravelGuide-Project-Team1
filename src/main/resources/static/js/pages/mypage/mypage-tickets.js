@@ -985,11 +985,22 @@ function createTicketScreen(mode) {
          * 결제한 예약을 취소하면 발급된 티켓이 무효가 된다. 결제 전 취소와 같은 문구를
          * 쓰면 티켓이 사라지는 줄 모르고 누른다. 예약 화면도 둘을 갈라 묻는다. (#276)
          */
-        if (!window.confirm(
-            ticket.status === "CONFIRMED"
-                ? "결제한 예약을 취소할까요? 환불되고, 발급된 티켓은 사용할 수 없게 됩니다."
-                : "이 예약을 취소할까요? 잡아둔 자리가 다시 열립니다.",
-        )) {
+        const paid = ticket.status === "CONFIRMED";
+        const confirmed =
+            await window.AllMyTripsDialog.confirm({
+                title: paid
+                    ? "결제를 취소할까요?"
+                    : "예약을 취소할까요?",
+                message: paid
+                    ? "환불 처리되고, 발급된 티켓은 사용할 수 없게 됩니다."
+                    : "잡아둔 자리가 다시 열립니다.",
+                confirmLabel: paid
+                    ? "결제 취소"
+                    : "예약 취소",
+                tone: "danger",
+            });
+
+        if (!confirmed) {
             return;
         }
 

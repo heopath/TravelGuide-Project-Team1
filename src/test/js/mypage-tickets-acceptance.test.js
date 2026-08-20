@@ -7,6 +7,7 @@ const ROOT = path.resolve(__dirname, "../../..");
 const HTML = path.join(ROOT, "src/main/resources/templates/mypage/mypage.html");
 const JS = path.join(ROOT, "src/main/resources/static/js/pages/mypage/mypage-tickets.js");
 const PAYMENT_METHODS = path.join(ROOT, "src/main/resources/static/js/core/payment-methods.js");
+const DIALOG = path.join(ROOT, "src/main/resources/static/js/core/dialog.js");
 
 let passed = 0;
 let failed = 0;
@@ -70,6 +71,7 @@ async function boot(responder, toasts) {
   });
   const w = dom.window;
   /* 결제수단 선택 창. 화면에서도 모듈보다 먼저 올라간다. (#281) */
+  w.eval(fs.readFileSync(DIALOG, "utf8"));
   w.eval(fs.readFileSync(PAYMENT_METHODS, "utf8"));
   const calls = [];
   const init = loadModule(w, {
@@ -94,6 +96,7 @@ async function bootHistory(responder, toasts) {
     url: "http://localhost/mypage?view=tickets", runScripts: "outside-only",
   });
   const w = dom.window;
+  w.eval(fs.readFileSync(DIALOG, "utf8"));
   w.eval(fs.readFileSync(PAYMENT_METHODS, "utf8"));
   const calls = [];
   loadModule(w, {
