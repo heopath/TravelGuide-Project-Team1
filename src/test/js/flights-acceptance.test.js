@@ -16,6 +16,8 @@ const SCRIPT = path.join(ROOT, "src/main/resources/static/js/pages/booking/fligh
 const PAYMENT_METHODS = path.join(ROOT, "src/main/resources/static/js/core/payment-methods.js");
 /* 확인 대화상자. 브라우저 기본 confirm을 대신한다. */
 const DIALOG = path.join(ROOT, "src/main/resources/static/js/core/dialog.js");
+/* 수단별 결제창(카드 입력·간편결제 QR·계좌 안내). */
+const CHECKOUT = path.join(ROOT, "src/main/resources/static/js/core/payment-checkout.js");
 
 let passed = 0;
 let failed = 0;
@@ -141,6 +143,7 @@ async function boot(options = {}) {
 
   w.eval(fs.readFileSync(DIALOG, "utf8"));
   w.eval(fs.readFileSync(PAYMENT_METHODS, "utf8"));
+  w.eval(fs.readFileSync(CHECKOUT, "utf8"));
   w.eval(fs.readFileSync(SCRIPT, "utf8"));
 
   // 파싱이 아직 끝나지 않았으면 jsdom이 DOMContentLoaded를 알아서 쏜다.
@@ -182,6 +185,25 @@ async function pickPaymentMethod(d, id) {
   const overlay = d.querySelector(".pay-method-overlay");
   if (id) overlay.querySelector(`input[value="${id}"]`).click();
   overlay.querySelector(".primary-button").click();
+}
+
+/**
+ * 카드 결제창을 채우고 결제한다.
+ *
+ * 4242…는 카드사가 시험용으로 공개한 번호다. Luhn 검사를 통과하므로 형식 검증을 그대로
+ * 태울 수 있다.
+ */
+async function fillCard(d, number = "4242424242424242") {
+  await until(() => d.querySelector("[data-pay-checkout]"));
+  const set = (name, value) => {
+    const input = d.querySelector(`[data-pay-field="${name}"]`);
+    input.value = value;
+    input.dispatchEvent(new d.defaultView.Event("input", { bubbles: true }));
+  };
+  set("cardNumber", number);
+  set("cardExpiry", "1230");
+  set("cardCvc", "123");
+  d.querySelector(".pay-checkout-confirm").click();
 }
 
 /** 티켓 한 건만 담긴 통합 조회 응답. 결제 전후를 상태만 바꿔 만든다. */
@@ -565,7 +587,24 @@ async function run() {
     T("결제수단을 고르기 전에는 결제하지 않는다",
       !calls.some((c) => c.includes("/payment")));
 
-    await pickPaymentMethod(d, "EASY_PAY:KAKAO_PAY");
+    await pickPaymentMethod(d, "CARD");
+
+    /*
+     * 수단을 골랐다고 바로 결제되지 않는다. 카드 결제창을 한 번 더 거친다 — 실제 결제가
+     * 그렇게 생겼고, 그 단계를 흉내 내야 흐름을 그대로 배울 수 있다.
+     */
+    await until(() => d.querySelector("[data-pay-checkout]"));
+    T("수단을 고르면 그 수단의 결제창이 뜬다", Boolean(d.querySelector(".pay-card-form")));
+    T("결제창을 통과하기 전에는 결제하지 않는다",
+      !calls.some((c) => c.includes("POST /api/v1/ticket-reservations/30/payment")));
+
+    /* 오타 난 카드번호는 마지막 자리 검사(Luhn)에서 걸린다. */
+    await fillCard(d, "4242424242424241");
+    T("카드번호가 틀리면 결제하지 않고 이유를 알린다",
+      d.querySelector("[data-pay-error]")?.hidden === false
+        && !calls.some((c) => c.includes("POST /api/v1/ticket-reservations/30/payment")));
+
+    await fillCard(d);
     await until(() => calls.some((c) => c.includes("POST /api/v1/ticket-reservations/30/payment")));
     await until(() => d.querySelectorAll(".mn-ticket").length === 2);
 
@@ -573,10 +612,11 @@ async function run() {
     T("결제는 결제 API로 보낸다",
       calls.some((c) => c === "POST /api/v1/ticket-reservations/30/payment"));
     T("결제 요청에 멱등키를 담는다", typeof body.idempotencyKey === "string" && body.idempotencyKey.length > 0);
-    T("고른 결제수단을 그대로 보낸다", body.method === "EASY_PAY");
-    /* 카카오페이·토스는 method가 같아서 사업자를 함께 보내지 않으면 구분되지 않는다. */
-    T("간편결제는 사업자를 함께 보낸다", body.easyPayProvider === "KAKAO_PAY");
-    T("고른 뒤에는 선택 창이 닫힌다", !d.querySelector(".pay-method-overlay"));
+    T("고른 결제수단을 그대로 보낸다", body.method === "CARD");
+    /* 카드번호는 우리 서버로 보내지 않는다. 받을 이유가 없고, 받으면 지켜야 한다. */
+    T("카드 정보는 서버로 보내지 않는다",
+      !/4242|cardNumber|cvc/i.test(w.__lastPaymentBody || ""));
+    T("결제창을 통과하면 창이 닫힌다", !d.querySelector("[data-pay-checkout]"));
     T("발급된 티켓을 수량만큼 그린다", d.querySelectorAll(".mn-ticket").length === 2);
     T("입장 코드를 화면에 보여준다",
       d.querySelector(".mn-ticket-code")?.textContent === "tok-aaa");

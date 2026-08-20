@@ -79,7 +79,7 @@ class PaymentQrServiceTest {
     void issuesQr() {
         reservationIs("PENDING", OffsetDateTime.now().plusMinutes(15));
 
-        PaymentQrIssueResponse issued = service.issue(USER_ID, RESERVATION_ID);
+        PaymentQrIssueResponse issued = service.issue(USER_ID, RESERVATION_ID, null);
 
         assertThat(issued.token()).isNotBlank();
         assertThat(issued.expiresAt()).isAfter(issued.serverTime());
@@ -97,7 +97,7 @@ class PaymentQrServiceTest {
         OffsetDateTime reservationExpiry = OffsetDateTime.now().plusMinutes(2);
         reservationIs("PENDING", reservationExpiry);
 
-        PaymentQrIssueResponse issued = service.issue(USER_ID, RESERVATION_ID);
+        PaymentQrIssueResponse issued = service.issue(USER_ID, RESERVATION_ID, null);
 
         assertThat(issued.expiresAt()).isEqualTo(reservationExpiry);
     }
@@ -107,7 +107,7 @@ class PaymentQrServiceTest {
     void refusesQrForPaidReservation() {
         reservationIs("CONFIRMED", null);
 
-        assertThatThrownBy(() -> service.issue(USER_ID, RESERVATION_ID))
+        assertThatThrownBy(() -> service.issue(USER_ID, RESERVATION_ID, null))
                 .isInstanceOf(BusinessException.class)
                 .hasFieldOrPropertyWithValue("errorCode", ErrorCode.RESERVATION_NOT_PAYABLE);
     }
@@ -117,7 +117,7 @@ class PaymentQrServiceTest {
     void refusesQrForOtherUser() {
         reservationIs("PENDING", OffsetDateTime.now().plusMinutes(15));
 
-        assertThatThrownBy(() -> service.issue(OTHER_USER_ID, RESERVATION_ID))
+        assertThatThrownBy(() -> service.issue(OTHER_USER_ID, RESERVATION_ID, null))
                 .isInstanceOf(BusinessException.class)
                 .hasFieldOrPropertyWithValue("errorCode", ErrorCode.TICKET_RESERVATION_NOT_FOUND);
     }
@@ -128,7 +128,7 @@ class PaymentQrServiceTest {
     @DisplayName("승인하면 QR 간편결제로 결제된다")
     void approvesAsQrEasyPay() {
         reservationIs("PENDING", OffsetDateTime.now().plusMinutes(15));
-        String token = service.issue(USER_ID, RESERVATION_ID).token();
+        String token = service.issue(USER_ID, RESERVATION_ID, null).token();
 
         service.approve(USER_ID, token);
 
@@ -140,6 +140,32 @@ class PaymentQrServiceTest {
     }
 
     /*
+     * 카카오페이 창에서 띄운 QR은 카카오페이로 남아야 한다. 어느 창에서 결제했는지가
+     * 기록에 없으면 환불이나 문의 때 갈 곳을 알 수 없다.
+     */
+    @Test
+    @DisplayName("간편결제 창에서 띄운 QR은 그 사업자로 기록된다")
+    void keepsProviderFromCheckoutWindow() {
+        reservationIs("PENDING", OffsetDateTime.now().plusMinutes(15));
+        String token = service.issue(USER_ID, RESERVATION_ID, "KAKAO_PAY").token();
+
+        service.approve(USER_ID, token);
+
+        ArgumentCaptor<PaymentRequest> request = ArgumentCaptor.forClass(PaymentRequest.class);
+        verify(paymentService).pay(eq(USER_ID), eq(RESERVATION_ID), request.capture());
+        assertThat(request.getValue().easyPayProvider()).isEqualTo("KAKAO_PAY");
+    }
+
+    /* 사업자는 서명이 덮는다. 스캔한 쪽이 바꿔치기하면 서명이 어긋나 통하지 않는다. */
+    @Test
+    @DisplayName("모르는 사업자로는 QR을 띄우지 않는다")
+    void refusesUnknownProvider() {
+        assertThatThrownBy(() -> service.issue(USER_ID, RESERVATION_ID, "NAVER_PAY"))
+                .isInstanceOf(BusinessException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.INVALID_PAYMENT_REQUEST);
+    }
+
+    /*
      * 승인 버튼을 두 번 누르거나 응답이 유실돼 다시 보내는 경우다. 멱등키를 화면이 만들면
      * 폰과 PC가 서로 다른 키를 만들어 같은 QR로 두 번 결제될 수 있다.
      */
@@ -147,7 +173,7 @@ class PaymentQrServiceTest {
     @DisplayName("같은 QR을 두 번 승인해도 멱등키가 같다")
     void reusesIdempotencyKeyForSameQr() {
         reservationIs("PENDING", OffsetDateTime.now().plusMinutes(15));
-        String token = service.issue(USER_ID, RESERVATION_ID).token();
+        String token = service.issue(USER_ID, RESERVATION_ID, null).token();
 
         service.approve(USER_ID, token);
         service.approve(USER_ID, token);
@@ -162,7 +188,7 @@ class PaymentQrServiceTest {
     @Test
     @DisplayName("만료된 QR로는 결제하지 않는다")
     void refusesExpiredQr() {
-        String expired = signer.sign(RESERVATION_ID, USER_ID, OffsetDateTime.now().minusSeconds(1));
+        String expired = signer.sign(RESERVATION_ID, USER_ID, OffsetDateTime.now().minusSeconds(1), "QR_PAY");
 
         assertThatThrownBy(() -> service.approve(USER_ID, expired))
                 .isInstanceOf(BusinessException.class)
@@ -178,7 +204,7 @@ class PaymentQrServiceTest {
     @DisplayName("QR을 만든 사람만 승인할 수 있다")
     void refusesApprovalByAnotherUser() {
         reservationIs("PENDING", OffsetDateTime.now().plusMinutes(15));
-        String token = service.issue(USER_ID, RESERVATION_ID).token();
+        String token = service.issue(USER_ID, RESERVATION_ID, null).token();
 
         assertThatThrownBy(() -> service.approve(OTHER_USER_ID, token))
                 .isInstanceOf(BusinessException.class)
@@ -191,7 +217,7 @@ class PaymentQrServiceTest {
     @DisplayName("고쳐 만든 QR은 통하지 않는다")
     void refusesForgedToken() {
         reservationIs("PENDING", OffsetDateTime.now().plusMinutes(15));
-        String token = service.issue(USER_ID, RESERVATION_ID).token();
+        String token = service.issue(USER_ID, RESERVATION_ID, null).token();
         String forged = token.substring(0, token.indexOf('.')) + ".AAAAAAAAAAAAAAAA";
 
         assertThatThrownBy(() -> service.approve(USER_ID, forged))
@@ -204,7 +230,7 @@ class PaymentQrServiceTest {
     @DisplayName("다른 열쇠로 만든 QR은 통하지 않는다")
     void refusesTokenFromAnotherKey() {
         String elsewhere = new PaymentQrSigner("another-secret")
-                .sign(RESERVATION_ID, USER_ID, OffsetDateTime.now().plusMinutes(5));
+                .sign(RESERVATION_ID, USER_ID, OffsetDateTime.now().plusMinutes(5), "QR_PAY");
 
         assertThatThrownBy(() -> service.approve(USER_ID, elsewhere))
                 .isInstanceOf(BusinessException.class)
@@ -217,7 +243,7 @@ class PaymentQrServiceTest {
     @DisplayName("스캔한 기기에 결제 내용을 보여준다")
     void showsSummaryBeforeApproving() {
         reservationIs("PENDING", OffsetDateTime.now().plusMinutes(15));
-        String token = service.issue(USER_ID, RESERVATION_ID).token();
+        String token = service.issue(USER_ID, RESERVATION_ID, null).token();
 
         PaymentQrSummaryResponse summary = service.summary(USER_ID, token);
 
@@ -232,7 +258,7 @@ class PaymentQrServiceTest {
     @DisplayName("이미 결제가 끝났으면 그 사실을 알린다")
     void marksAlreadyPaid() {
         reservationIs("PENDING", OffsetDateTime.now().plusMinutes(15));
-        String token = service.issue(USER_ID, RESERVATION_ID).token();
+        String token = service.issue(USER_ID, RESERVATION_ID, null).token();
         reservationIs("CONFIRMED", null);
 
         assertThat(service.summary(USER_ID, token).alreadyPaid()).isTrue();

@@ -32,7 +32,7 @@ public class PaymentQrSigner {
 
     private static final String ALGORITHM = "HmacSHA256";
     private static final int SIGNATURE_BYTES = 12;
-    private static final int PAYLOAD_FIELDS = 3;
+    private static final int PAYLOAD_FIELDS = 4;
 
     private final SecretKeySpec key;
 
@@ -57,11 +57,19 @@ public class PaymentQrSigner {
         this.key = new SecretKeySpec(bytes, ALGORITHM);
     }
 
-    /** 토큰 한 건. 서명 부분은 멱등키로도 쓰인다 — 같은 QR을 두 번 승인해도 한 번만 결제된다. */
-    public record Token(Long reservationId, Long userId, OffsetDateTime expiresAt, String signature) {}
+    /**
+     * 토큰 한 건. 서명 부분은 멱등키로도 쓰인다 — 같은 QR을 두 번 승인해도 한 번만 결제된다.
+     *
+     * <p>{@code provider}는 어느 간편결제 창에서 띄운 QR인지다. 서명이 덮으므로 스캔한 쪽이
+     * 사업자를 바꿔치기할 수 없다 — 카카오페이 창에서 띄운 QR이 토스로 기록되면 환불·문의
+     * 때 갈 곳이 어긋난다.
+     */
+    public record Token(Long reservationId, Long userId, OffsetDateTime expiresAt,
+                        String provider, String signature) {}
 
-    public String sign(Long reservationId, Long userId, OffsetDateTime expiresAt) {
-        String payload = reservationId + "." + userId + "." + expiresAt.toEpochSecond();
+    public String sign(Long reservationId, Long userId, OffsetDateTime expiresAt, String provider) {
+        String payload = reservationId + "." + userId + "." + expiresAt.toEpochSecond()
+                + "." + provider;
         return encode(payload) + "." + signatureOf(payload);
     }
 
@@ -103,6 +111,7 @@ public class PaymentQrSigner {
                     OffsetDateTime.ofInstant(
                             java.time.Instant.ofEpochSecond(Long.parseLong(fields[2])),
                             java.time.ZoneId.systemDefault()),
+                    fields[3],
                     parts[1]));
         } catch (NumberFormatException exception) {
             return Optional.empty();
