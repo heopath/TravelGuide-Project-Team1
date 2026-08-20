@@ -174,6 +174,8 @@ document.addEventListener("DOMContentLoaded", function () {
       const params = new URLSearchParams({
         page: "0",
         size: selectedCategory ? "100" : "20",
+        // 추천장소는 관리자가 등록한 것만 보여준다. 사용자가 일정에 담아서 생긴 장소는 제외된다.
+        recommended: "true",
       });
       if (keyword) params.set("keyword", keyword);
       if (selectedCategory) params.set("category", selectedCategory);

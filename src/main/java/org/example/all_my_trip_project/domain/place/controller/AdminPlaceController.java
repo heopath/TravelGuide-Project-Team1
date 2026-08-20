@@ -3,6 +3,7 @@ package org.example.all_my_trip_project.domain.place.controller;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.example.all_my_trip_project.domain.place.dto.AdminPlacePage;
+import org.example.all_my_trip_project.domain.place.dto.AdminPlaceRecommendationRequest;
 import org.example.all_my_trip_project.domain.place.dto.AdminPlaceRequest;
 import org.example.all_my_trip_project.domain.place.dto.AdminPlaceVisibilityRequest;
 import org.example.all_my_trip_project.domain.place.dto.PlaceDTO;
@@ -55,5 +56,14 @@ public class AdminPlaceController {
             @Valid @RequestBody AdminPlaceVisibilityRequest request) {
         return ApiResponse.success(request.active() ? "추천 장소를 공개했습니다." : "추천 장소를 숨겼습니다.",
                 adminPlaceService.setVisibility(placeId, request.active()));
+    }
+
+    @PatchMapping("/{placeId}/recommendation")
+    public ApiResponse<PlaceDTO> recommendation(
+            @PathVariable Long placeId,
+            @Valid @RequestBody AdminPlaceRecommendationRequest request) {
+        return ApiResponse.success(
+                request.recommended() ? "추천장소에 노출합니다." : "추천장소에서 내렸습니다.",
+                adminPlaceService.setRecommended(placeId, request.recommended()));
     }
 }

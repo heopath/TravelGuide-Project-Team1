@@ -41,39 +41,39 @@ class PlaceControllerTest {
 
     @Test
     void listUsesAuthenticatedUserForFavoriteOrdering() {
-        when(placeService.getPage(42L, 0, 20)).thenReturn(List.of());
+        when(placeService.getPage(42L, false, 0, 20)).thenReturn(List.of());
 
-        assertThat(placeController.list(principal, 0, 20, null, null, null, null).data())
+        assertThat(placeController.list(principal, 0, 20, null, null, null, null, false).data())
                 .isEmpty();
 
-        verify(placeService).getPage(42L, 0, 20);
+        verify(placeService).getPage(42L, false, 0, 20);
     }
 
     @Test
     void anonymousListKeepsPublicPlaceLookup() {
-        when(placeService.getPage(null, 0, 20)).thenReturn(List.of());
+        when(placeService.getPage(null, false, 0, 20)).thenReturn(List.of());
 
-        assertThat(placeController.list(null, 0, 20, null, null, null, null).data())
+        assertThat(placeController.list(null, 0, 20, null, null, null, null, false).data())
                 .isEmpty();
 
-        verify(placeService).getPage(null, 0, 20);
+        verify(placeService).getPage(null, false, 0, 20);
     }
 
     @Test
     void searchUsesAuthenticatedUserForFavoriteOrdering() {
-        when(placeService.search(42L, "서울", "CAFE", null, null, 0, 20))
+        when(placeService.search(42L, false, "서울", "CAFE", null, null, 0, 20))
                 .thenReturn(List.of());
 
-        assertThat(placeController.list(principal, 0, 20, "서울", "CAFE", null, null).data())
+        assertThat(placeController.list(principal, 0, 20, "서울", "CAFE", null, null, false).data())
                 .isEmpty();
 
-        verify(placeService).search(42L, "서울", "CAFE", null, null, 0, 20);
+        verify(placeService).search(42L, false, "서울", "CAFE", null, null, 0, 20);
     }
 
     @Test
     void listUsesVersionedPathDefaultsAndCommonResponse() throws Exception {
         PlaceDTO place = PlaceDTO.builder().placeId(1L).name("해운대").build();
-        when(placeService.getPage(null, 0, 20)).thenReturn(List.of(place));
+        when(placeService.getPage(null, false, 0, 20)).thenReturn(List.of(place));
 
         mockMvc.perform(get("/api/v1/places"))
                 .andExpect(status().isOk())
@@ -82,6 +82,6 @@ class PlaceControllerTest {
                 .andExpect(jsonPath("$.data[0].placeId").value(1))
                 .andExpect(jsonPath("$.data[0].name").value("해운대"));
 
-        verify(placeService).getPage(null, 0, 20);
+        verify(placeService).getPage(null, false, 0, 20);
     }
 }

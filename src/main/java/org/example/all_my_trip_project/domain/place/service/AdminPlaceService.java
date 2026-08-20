@@ -85,6 +85,23 @@ public class AdminPlaceService {
         return requirePlace(placeId);
     }
 
+    /*
+     * 추천장소 화면 노출 여부. is_active(데이터 유효성)와 분리된 값이라 별도 토글이다.
+     * 사용자가 일정에 담아서 생긴 장소는 기본값 FALSE로 들어오므로, 관리자가 켜야만 노출된다.
+     */
+    @Transactional
+    @CacheEvict(cacheNames = "placeDetail", key = "#placeId")
+    public PlaceDTO setRecommended(Long placeId, boolean recommended) {
+        PlaceDTO current = requirePlace(placeId);
+        if (placeDAO.updateRecommended(placeId, recommended) != 1) {
+            throw new BusinessException(ErrorCode.PLACE_NOT_FOUND);
+        }
+        adminAuditService.record("PLACE_RECOMMENDATION_CHANGE", "PLACE", placeId,
+                AdminAuditService.payload("recommended", current.getRecommended()),
+                AdminAuditService.payload("recommended", recommended, "name", current.getName()));
+        return requirePlace(placeId);
+    }
+
     private PlaceDTO apply(PlaceDTO place, AdminPlaceRequest request) {
         place.setCategory(request.category().trim().toUpperCase(Locale.ROOT));
         place.setName(request.name().trim());

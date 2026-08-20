@@ -33,15 +33,16 @@ public class PlaceDAO {
     public long countAdmin(String keyword, String category, Boolean active) {
         return placeMapper.countAdmin(keyword, category, active);
     }
-    public List<PlaceDTO> findPage(Long userId, int offset, int size) {
-        return placeMapper.findPage(userId, offset, size);
+    public List<PlaceDTO> findPage(Long userId, boolean recommendedOnly, int offset, int size) {
+        return placeMapper.findPage(userId, recommendedOnly, offset, size);
     }
-    public List<PlaceDTO> search(Long userId, String keyword, String category, String region,
-                                 Long styleId, int offset, int size) {
-        return placeMapper.search(userId, keyword, category, region, styleId, offset, size);
+    public List<PlaceDTO> search(Long userId, boolean recommendedOnly, String keyword, String category,
+                                 String region, Long styleId, int offset, int size) {
+        return placeMapper.search(userId, recommendedOnly, keyword, category, region, styleId, offset, size);
     }
     public int update(PlaceDTO place) { return placeMapper.update(place); }
     public int updateActive(Long placeId, boolean active) { return placeMapper.updateActive(placeId, active); }
+    public int updateRecommended(Long placeId, boolean recommended) { return placeMapper.updateRecommended(placeId, recommended); }
     public int updatePrimaryImage(Long placeId, String imageUrl, String altText) {
         return placeMapper.updatePrimaryImage(placeId, imageUrl, altText);
     }
