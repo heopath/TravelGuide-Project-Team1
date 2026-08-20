@@ -57,8 +57,16 @@ public class TourApiPlaceImageProvider {
      * 키가 없거나, 후보가 없거나, 이름이 충분히 닮지 않으면 비어 있는 값을 준다.
      */
     public Optional<String> findImageUrl(String placeName, BigDecimal latitude, BigDecimal longitude) {
-        if (!properties.isConfigured() || placeName == null || placeName.isBlank()
-                || latitude == null || longitude == null) {
+        /*
+         * 왜 이미지가 안 붙었는지 알 수 없으면 고칠 수도 없다. 실패한 이유를 남긴다.
+         * 조용히 비워두면 "키가 없는 것"과 "이름이 안 맞은 것"을 구분할 수 없다.
+         */
+        if (!properties.isConfigured()) {
+            log.info("TourAPI 서비스키가 없어 장소 이미지를 채우지 않는다. place={}", placeName);
+            return Optional.empty();
+        }
+        if (placeName == null || placeName.isBlank() || latitude == null || longitude == null) {
+            log.info("이름이나 좌표가 없어 장소 이미지를 찾지 않는다. place={}", placeName);
             return Optional.empty();
         }
 
@@ -90,25 +98,40 @@ public class TourApiPlaceImageProvider {
     }
 
     private Optional<String> bestImage(String body, String placeName) throws Exception {
-        JsonNode items = objectMapper.readTree(body)
-                .path("response").path("body").path("items").path("item");
-        if (!items.isArray()) return Optional.empty();
+        JsonNode root = objectMapper.readTree(body);
+        String resultCode = root.path("response").path("header").path("resultCode").asText("");
+        JsonNode items = root.path("response").path("body").path("items").path("item");
+
+        if (!items.isArray()) {
+            // 정상 응답이어도 주변에 관광정보가 없으면 items가 빈 문자열로 온다.
+            // 키가 잘못됐을 때도 여기로 오므로 resultCode를 함께 남긴다.
+            log.info("TourAPI 후보 없음. resultCode={} place={}", resultCode, placeName);
+            return Optional.empty();
+        }
 
         String target = normalize(placeName);
         String bestImage = null;
+        String bestTitle = null;
         double bestScore = 0;
+        int withImage = 0;
 
         for (JsonNode item : items) {
             String image = firstNonBlank(text(item, "firstimage"), text(item, "firstimage2"));
             if (image.isBlank()) continue;
+            withImage++;
 
             double score = nameSimilarity(target, normalize(text(item, "title")));
             if (score > bestScore) {
                 bestScore = score;
                 bestImage = image;
+                bestTitle = text(item, "title");
             }
         }
-        return bestScore >= NAME_MATCH_THRESHOLD ? Optional.ofNullable(bestImage) : Optional.empty();
+
+        boolean matched = bestScore >= NAME_MATCH_THRESHOLD;
+        log.info("TourAPI 이미지 매칭 place={} 후보={}건(사진있음 {}) 최고={} 점수={} 채택={}",
+                placeName, items.size(), withImage, bestTitle, String.format("%.2f", bestScore), matched);
+        return matched ? Optional.ofNullable(bestImage) : Optional.empty();
     }
 
     /**
