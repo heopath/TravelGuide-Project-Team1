@@ -95,9 +95,12 @@ async function run() {
     T("사이드바에 검표 항목이 있다",
       /data-admin-panel="validation">[\s\S]*?<em class="live">실연동<\/em>/.test(markup));
     T("입장 코드 입력창이 있다", section.includes("data-validation-token"));
-    T("결과 필터에 입장·사용됨·기간 밖·없는 코드가 있다",
+    T("QR 스캔을 우선 사용하도록 안내한다",
+      section.includes("QR 스캔 화면 열기") && section.includes('href="/admin/scan"'));
+    T("결과 필터에 입장·사용됨·취소·기간 밖·없는 코드가 있다",
       section.includes('data-validation-result="SUCCESS"')
       && section.includes('data-validation-result="ALREADY_USED"')
+      && section.includes('data-validation-result="CANCELLED"')
       && section.includes('data-validation-result="EXPIRED"')
       && section.includes('data-validation-result="NOT_FOUND"'));
     T("페이지 스크립트를 실제로 불러온다", markup.includes("/js/pages/admin/admin-validation.js"));
@@ -113,6 +116,25 @@ async function run() {
     T("결과를 한국어로 보여준다",
       rows(d)[0].querySelector("[data-validation-result-cell]").textContent === "입장");
     T("검표자를 보여준다", rows(d)[0].textContent.includes("민재"));
+    T("수동 입력과 QR 스캔 경로를 구분한다",
+      rows(d)[0].querySelector("[data-validation-channel]").textContent === "수동 입력");
+    T("불러온 기록 수를 보여준다",
+      d.querySelector("[data-validation-count]").textContent === "최근 기록 2건");
+  }
+  {
+    const { d } = await boot(() => ok([
+      logEntry(1, {
+        validationResult: "EXPIRED",
+        validationChannel: "MOCK_SCANNER",
+        failureReason: "이용 가능 기간이 지났습니다.",
+      })
+    ]));
+    await until(() => rows(d).length === 1);
+
+    T("실패한 기록에 이유를 함께 보여준다",
+      rows(d)[0].querySelector("[data-validation-failure-reason]").textContent.includes("기간"));
+    T("카메라 검표 기록은 QR 스캔으로 표시한다",
+      rows(d)[0].querySelector("[data-validation-channel]").textContent === "QR 스캔");
   }
   {
     // 없는 코드로 시도한 기록에는 티켓이 없다. 빈칸으로 두지 않는다.
@@ -132,7 +154,8 @@ async function run() {
         return ok({
           result: "SUCCESS", admitted: true, message: "입장하실 수 있어요.",
           ticketNumber: "AMT-TKN-AAA", productName: "아쿠아리움", optionName: "성인",
-          usageDate: "2026-08-18", usedAt: "2026-08-16T09:00:00Z"
+          usageDate: "2026-08-18", usedAt: "2026-08-16T09:00:00Z",
+          validFrom: "2026-08-18T09:00:00Z", validUntil: "2026-08-18T18:00:00Z"
         });
       }
       return ok([]);
@@ -151,8 +174,14 @@ async function run() {
     T("손님에게 읽어 줄 문장을 보여준다", message(d) === "입장하실 수 있어요.");
     T("어떤 티켓인지 함께 보여준다",
       d.querySelector("[data-validation-ticket]")?.textContent.includes("AMT-TKN-AAA"));
+    T("입장 가능한 시간을 함께 보여준다",
+      d.querySelector("[data-validation-validity]")?.textContent.includes("입장 가능 시간"));
     /* 다음 손님을 바로 받아야 한다. */
     T("확인 뒤 입력창을 비운다", d.querySelector("[data-validation-token]").value === "");
+    d.querySelector("[data-validation-next]").click();
+    T("다음 손님 검표를 누르면 이전 결과를 닫는다", box(d).hidden === true);
+    T("다음 검표를 위해 입력창에 초점을 돌린다",
+      d.activeElement === d.querySelector("[data-validation-token]"));
   }
 
   /* ── 검표 실패도 결과로 보여준다 ── */
@@ -225,6 +254,13 @@ async function run() {
     await until(() => calls.length > 1);
 
     T("결과 필터를 요청에 담는다", calls[calls.length - 1].url.includes("result=EXPIRED"));
+    T("선택한 결과 필터를 보조기기에도 알린다",
+      d.querySelector('[data-validation-result="EXPIRED"]').getAttribute("aria-pressed") === "true");
+
+    d.querySelector("[data-validation-refresh]").click();
+    await until(() => calls.length > 2);
+    T("새로고침은 현재 결과 필터를 유지한다",
+      calls[calls.length - 1].url.includes("result=EXPIRED"));
   }
 
   /* ── 요청 자체가 실패한 경우 ── */
