@@ -74,6 +74,13 @@ async function run() {
     T("현재 버전을 입력란과 요약에 함께 표시한다",
       d.querySelector("[data-version-current]").textContent === "v0.9.0"
         && d.querySelector("[data-version-input]").value === "v0.9.0");
+    d.querySelector("[data-version-input]").value = "v0.9.2";
+    d.querySelector("[data-version-input]").dispatchEvent(new d.defaultView.Event("input", { bubbles: true }));
+    T("입력값이 바뀌면 변경 취소 버튼을 연다",
+      d.querySelector("[data-version-reset]").disabled === false);
+    d.querySelector("[data-version-reset]").click();
+    T("변경 취소는 서버 요청 없이 저장된 버전으로 되돌린다",
+      d.querySelector("[data-version-input]").value === "v0.9.0" && calls.length === 1);
   }
 
   {

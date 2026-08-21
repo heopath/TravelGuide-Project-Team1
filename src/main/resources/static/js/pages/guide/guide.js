@@ -3,7 +3,7 @@ document.addEventListener("DOMContentLoaded", function () {
   const form = document.querySelector("[data-place-search]");
   const keywordInput = document.querySelector("#guide-keyword");
   const categoryButtons = Array.from(document.querySelectorAll("[data-category]"));
-  const showAllButton = document.querySelector("[data-show-all]");
+  /* "전체"도 data-category=""인 같은 줄의 버튼이라 따로 다루지 않는다. */
   const results = document.querySelector("[data-place-results]");
   const state = document.querySelector("[data-place-state]");
   const resultCount = document.querySelector("[data-result-count]");
@@ -202,7 +202,6 @@ document.addEventListener("DOMContentLoaded", function () {
       button.classList.toggle("selected", selected);
       button.setAttribute("aria-pressed", String(selected));
     });
-    showAllButton.classList.toggle("selected", !selectedCategory);
     loadPlaces();
     document.querySelector(".place-results-panel").scrollIntoView({ behavior: "smooth", block: "start" });
   }
@@ -216,10 +215,6 @@ document.addEventListener("DOMContentLoaded", function () {
     button.addEventListener("click", function () {
       selectCategory(button.dataset.category);
     });
-  });
-
-  showAllButton.addEventListener("click", function () {
-    selectCategory("");
   });
 
   document.body.dataset.pageReady = "true";

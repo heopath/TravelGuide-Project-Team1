@@ -18,22 +18,58 @@
     </div>`;
   document.body.appendChild(root);
 
-  const minimumDuration = 1400;
+  /*
+   * 기다릴 일이 있을 때만 띄운다.
+   *
+   * 예전에는 링크를 누르거나 요청이 나가는 즉시 화면 전체를 덮고, 최소 1.4초를
+   * 채운 뒤에야 사라졌다. 그래서 100ms 만에 끝나는 화면에도 로딩이 1.4초 머물렀고,
+   * 어디를 눌러도 로딩이 보인다는 인상을 줬다. 빠른 화면이 오히려 느려 보였다.
+   *
+   * 이제 SHOW_DELAY 안에 끝나면 아예 띄우지 않는다. 사람이 기다린다고 느끼기 전에
+   * 끝난 일에는 로딩이 필요 없다. 한 번 뜬 뒤에는 MINIMUM_VISIBLE만큼은 남겨,
+   * 떴다가 곧바로 사라지는 깜빡임을 막는다.
+   */
+  const SHOW_DELAY = 300;
+  const MINIMUM_VISIBLE = 400;
+
   let activeRequests = 0;
   let shownAt = 0;
+  let showTimer = null;
   let hideTimer = null;
 
-  function show() {
-    if (!root.classList.contains("is-active")) shownAt = Date.now();
-    if (hideTimer) window.clearTimeout(hideTimer);
+  function isVisible() {
+    return root.classList.contains("is-active");
+  }
+
+  function paint() {
+    showTimer = null;
+    shownAt = Date.now();
     root.classList.add("is-active");
     root.setAttribute("aria-hidden", "false");
   }
 
+  function show() {
+    if (hideTimer) {
+      window.clearTimeout(hideTimer);
+      hideTimer = null;
+    }
+    /* 이미 떠 있거나 띄우기로 예약돼 있으면 시계를 다시 돌리지 않는다. */
+    if (isVisible() || showTimer) return;
+    showTimer = window.setTimeout(paint, SHOW_DELAY);
+  }
+
   function hide() {
     activeRequests = 0;
-    const remaining = minimumDuration - (Date.now() - shownAt);
-    if (remaining > 0 && root.classList.contains("is-active")) {
+    /* 아직 뜨기 전이면 없던 일로 한다. 이 경우가 대부분이고, 그래서 조용하다. */
+    if (showTimer) {
+      window.clearTimeout(showTimer);
+      showTimer = null;
+      return;
+    }
+    if (!isVisible()) return;
+
+    const remaining = MINIMUM_VISIBLE - (Date.now() - shownAt);
+    if (remaining > 0) {
       hideTimer = window.setTimeout(hide, remaining);
       return;
     }
@@ -43,8 +79,10 @@
   }
 
   function hideImmediately() {
+    if (showTimer) window.clearTimeout(showTimer);
     if (hideTimer) window.clearTimeout(hideTimer);
     activeRequests = 0;
+    showTimer = null;
     hideTimer = null;
     root.classList.remove("is-active");
     root.setAttribute("aria-hidden", "true");

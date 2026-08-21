@@ -48,30 +48,21 @@
                 <h2 id="category-title">카테고리로 찾아보기</h2>
                 <p>관심 있는 여행 카테고리를 선택해 보세요.</p>
               </div>
-              <button type="button" class="show-all-button selected" data-show-all>전체 장소 보기</button>
             </div>
-            <div class="category-card-grid" role="group" aria-label="장소 카테고리">
-              <button type="button" class="category-card category-card-attraction" data-category="ATTRACTION" aria-pressed="false">
-                <strong>관광지</strong><small>명소와 볼거리</small>
-              </button>
-              <button type="button" class="category-card category-card-restaurant" data-category="RESTAURANT" aria-pressed="false">
-                <strong>맛집</strong><small>지역의 특별한 한 끼</small>
-              </button>
-              <button type="button" class="category-card category-card-cafe" data-category="CAFE" aria-pressed="false">
-                <strong>카페</strong><small>감성적인 휴식 공간</small>
-              </button>
-              <button type="button" class="category-card category-card-accommodation" data-category="ACCOMMODATION" aria-pressed="false">
-                <strong>숙소</strong><small>머물고 싶은 공간</small>
-              </button>
-              <button type="button" class="category-card category-card-activity" data-category="ACTIVITY" aria-pressed="false">
-                <strong>체험</strong><small>직접 즐기는 여행</small>
-              </button>
-              <button type="button" class="category-card category-card-festival" data-category="FESTIVAL" aria-pressed="false">
-                <strong>축제</strong><small>계절과 지역의 즐거움</small>
-              </button>
-              <button type="button" class="category-card category-card-transport" data-category="TRANSPORT" aria-pressed="false">
-                <strong>교통</strong><small>편리한 이동 정보</small>
-              </button>
+            <!--
+              카테고리는 글자만으로 고른다. 사진 카드는 자리를 크게 차지하는 데 비해
+              알려주는 것이 이름뿐이었고, 정작 보러 온 장소 목록을 아래로 밀어냈다.
+              "전체"도 따로 떨어진 버튼이 아니라 같은 줄의 첫 항목으로 둔다.
+            -->
+            <div class="category-tabs" role="group" aria-label="장소 카테고리">
+              <button type="button" class="category-tab selected" data-category="" aria-pressed="true">전체</button>
+              <button type="button" class="category-tab" data-category="ATTRACTION" aria-pressed="false">관광지</button>
+              <button type="button" class="category-tab" data-category="RESTAURANT" aria-pressed="false">맛집</button>
+              <button type="button" class="category-tab" data-category="CAFE" aria-pressed="false">카페</button>
+              <button type="button" class="category-tab" data-category="ACCOMMODATION" aria-pressed="false">숙소</button>
+              <button type="button" class="category-tab" data-category="ACTIVITY" aria-pressed="false">체험</button>
+              <button type="button" class="category-tab" data-category="FESTIVAL" aria-pressed="false">축제</button>
+              <button type="button" class="category-tab" data-category="TRANSPORT" aria-pressed="false">교통</button>
             </div>
           </section>
 

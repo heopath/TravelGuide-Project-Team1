@@ -8,6 +8,7 @@ import org.springframework.ai.vectorstore.VectorStore;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.IntStream;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -98,5 +99,23 @@ class PlaceRagServiceTest {
         assertThat(service.search("Seongsu cafe")).containsExactly(
                 new org.example.all_my_trip_project.domain.rag.dto.RagSearchResult("place:2", "verified place")
         );
+    }
+
+    @Test
+    void restoresVerifiedPlaceMetadataByPlaceIdForTimeAdjustment() {
+        PlaceDTO place = PlaceDTO.builder()
+                .placeId(65L).name("서울명예도로 끼리끼리3길").category("ATTRACTION")
+                .address("서울 마포구 연남동 255-30")
+                .websiteUrl("https://place.map.kakao.com/894873893")
+                .build();
+        when(placeDAO.findById(65L)).thenReturn(Optional.of(place));
+
+        var result = service.findByPlaceId(65L);
+
+        assertThat(result).hasValueSatisfying(found -> {
+            assertThat(found.placeId()).isEqualTo(65L);
+            assertThat(found.placeName()).isEqualTo("서울명예도로 끼리끼리3길");
+            assertThat(found.placeUrl()).isEqualTo("https://place.map.kakao.com/894873893");
+        });
     }
 }

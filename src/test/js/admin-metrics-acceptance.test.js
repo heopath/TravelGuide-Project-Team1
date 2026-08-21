@@ -1,4 +1,4 @@
-/* 관리자 운영 지표 수용 기준
+/* 관리자 운영 홈 지표 수용 기준
  * 실행: src/test/js 에서 `npm test`
  */
 const { JSDOM } = require("jsdom");
@@ -66,7 +66,7 @@ async function boot(responder) {
 }
 
 const value = (d, name) =>
-  d.querySelector(`[data-admin-section="metrics"] [data-metric="${name}"]`).textContent;
+  d.querySelector(`[data-admin-section="overview"] [data-metric="${name}"]`).textContent;
 const note = (d) => d.querySelector("[data-metrics-note]").textContent;
 
 async function run() {
@@ -74,14 +74,14 @@ async function run() {
   {
     const markup = readMarkup(HTML);
     const section = markup.slice(
-      markup.indexOf('data-admin-section="metrics"'),
-      markup.indexOf('data-admin-section="products"')
+      markup.indexOf('data-admin-section="overview"'),
+      markup.indexOf('data-admin-section="version"')
     );
 
-    T("운영 지표 패널은 실연동으로 표시된다",
-      /<span class="admin-tag live" data-admin-state="metrics">실연동<\/span>/.test(section));
-    T("사이드바의 운영 지표 항목도 실연동이다",
-      /data-admin-panel="metrics">[\s\S]*?<em class="live">실연동<\/em>/.test(markup));
+    T("운영 홈 패널은 실연동으로 표시된다",
+      /<span class="admin-tag live" data-admin-state="overview">실연동<\/span>/.test(section));
+    T("사이드바에 운영 홈 항목이 있다",
+      /data-admin-panel="overview">[\s\S]*?<em class="live">실연동<\/em>/.test(markup));
     T("네 칸의 값 자리가 모두 비어 있다",
       (section.match(/<strong data-metric="[a-zA-Z]+">—<\/strong>/g) || []).length === 4);
     T("마크업에 집계 숫자가 박혀 있지 않다", !/\d{1,3},\d{3}/.test(section));
@@ -94,7 +94,7 @@ async function run() {
     const { d, calls } = await boot(() => ok(metrics()));
     await until(() => value(d, "todayReservations") !== "—");
 
-    T("운영 지표 API를 호출한다", calls[0] === "/api/v1/admin/operation-metrics");
+    T("운영 현황 API를 호출한다", calls[0] === "/api/v1/admin/operation-metrics");
     T("오늘 예약 수를 천 단위로 보여준다", value(d, "todayReservations") === "1,284");
     T("미처리 문의 수를 보여준다", value(d, "openInquiries") === "7");
     T("재고 경고 수를 보여준다", value(d, "lowStockSlots") === "3");

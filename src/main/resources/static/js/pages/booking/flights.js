@@ -30,6 +30,36 @@
     KUV: "군산", WJU: "원주", YNY: "양양", MWX: "무안", KPO: "포항"
   };
 
+  /*
+   * 여행의 목적지 이름을 공항으로 바꾼다.
+   *
+   * 목적지는 "부산", "부산광역시", "강원도 속초시"처럼 자유롭게 들어온다. 공항 이름과
+   * 도시 이름이 다른 곳도 있어(부산의 공항은 김해, 속초는 양양) 코드 이름만으로는 못 찾는다.
+   * 그래서 도시·지역 이름을 따로 적는다.
+   *
+   * 긴 이름부터 본다. "서귀포"가 "서울"보다 먼저 걸려야 제주로 간다.
+   */
+  const DESTINATION_AIRPORTS = [
+    ["서귀포", "CJU"], ["제주", "CJU"],
+    ["부산", "PUS"], ["김해", "PUS"],
+    ["인천", "ICN"], ["김포", "GMP"], ["서울", "GMP"],
+    ["대구", "TAE"], ["경주", "KPO"], ["포항", "KPO"],
+    ["광주", "KWJ"], ["목포", "MWX"], ["무안", "MWX"], ["전남", "MWX"],
+    ["순천", "RSU"], ["여수", "RSU"],
+    ["청주", "CJJ"], ["충북", "CJJ"], ["충청북도", "CJJ"],
+    ["울산", "USN"], ["진주", "HIN"], ["사천", "HIN"],
+    ["군산", "KUV"], ["전북", "KUV"], ["전라북도", "KUV"],
+    ["속초", "YNY"], ["강릉", "YNY"], ["양양", "YNY"],
+    ["원주", "WJU"], ["강원", "YNY"],
+  ].sort((a, b) => b[0].length - a[0].length);
+
+  const airportOf = (destinationName) => {
+    const text = String(destinationName || "");
+    if (!text) return null;
+    const hit = DESTINATION_AIRPORTS.find(([name]) => text.includes(name));
+    return hit ? hit[1] : null;
+  };
+
   const airportName = (code) => AIRPORT_NAMES[String(code || "").toUpperCase()] || "";
   const airportLabel = (code) => {
     const name = airportName(code);
@@ -70,6 +100,8 @@
   let sortKey = "rec";
   let pendingOfferId = null;
   let tripId = null;
+  /* 주소에 destination이 있었는지. 여행 목적지 자동 채움을 막는 데 쓴다. */
+  let destinationFromUrl = false;
   let initialTab = "flight";
   let search = { origin: "GMP", destination: "CJU", departureDate: null, returnDate: null, adults: 2 };
   let hotelSelection = null;
@@ -678,67 +710,6 @@
    * <p>마이페이지 `내 티켓`과 같은 창을 쓴다 — core/payment-checkout.js 한 곳이다.
    * 두 화면이 각자 그리면 한쪽만 고쳐져 결제 흐름이 갈린다.
    */
-  function runTicketCheckout(reservationId, picked, summary) {
-    const checkout = window.AllMyTripsCheckout;
-    const amountText = summaryAmountText(summary);
-    const view = { summary, amountText };
-
-    /*
-     * 토스는 우리 창에서 결제가 끝나지 않는다. 결제창에서 인증을 마치면 브라우저가
-     * /pay/toss로 넘어가고 그 화면이 승인을 요청한다. 그래서 여기서 돌아오지 않는다.
-     */
-    /*
-     * 카카오페이도 우리 창에서 끝나지 않는다. 카카오 화면으로 아예 다녀와
-     * /pay/kakao가 승인을 요청한다. 그래서 여기서 돌아오지 않는다.
-     */
-    if (picked.flow === "KAKAO") {
-      return checkout.kakaoCheckout({
-        ...view,
-        ready: async () => {
-          const payload = await request("POST", "/api/v1/payments/kakao/ready", { reservationId });
-          return payload?.data;
-        }
-      });
-    }
-
-    if (picked.flow === "TOSS") {
-      return checkout.tossCheckout({
-        ...view,
-        reservationId,
-        amount: Number(amountText.replace(/[^\d]/g, "")),
-        orderName: String(summary || "티켓 예약").split(" · ")[0]
-      });
-    }
-
-    if (picked.method === "CARD") return checkout.cardCheckout(view);
-    if (picked.method === "TRANSFER" || picked.method === "VIRTUAL_ACCOUNT") {
-      return checkout.transferCheckout({ ...view, method: picked.method });
-    }
-
-    return checkout.easyPayCheckout({
-      ...view,
-      provider: picked.easyPayProvider || "QR_PAY",
-      drawQr: (text) => window.AllMyTripsQr.createQrSvg(text, { label: "결제 승인 QR" }),
-      issueQr: async (provider) => {
-        const payload = await request("POST",
-          `/api/v1/ticket-reservations/${reservationId}/payment/qr`
-          + `?provider=${encodeURIComponent(provider)}`);
-        return payload?.data;
-      },
-      /* 발권이 곧 결제 완료다. 티켓이 하나라도 생기면 폰에서 승인이 끝난 것이다. */
-      pollPaid: async () => {
-        const payload = await request("GET",
-          `/api/v1/ticket-reservations/${reservationId}/tickets`);
-        return Array.isArray(payload?.data) && payload.data.length > 0;
-      }
-    });
-  }
-
-  /** 요약 문구(`상품 · 10,000원`)에서 금액만 떼어낸다. */
-  function summaryAmountText(summary) {
-    const matched = /([\d,]+원)/.exec(String(summary || ""));
-    return matched ? matched[1] : "";
-  }
 
   function renderSummaryMine(container) {
     const items = bookingSummary.items || [];
@@ -1193,6 +1164,8 @@
     search.returnDate = params.get("returnDate") || iso(back);
     search.origin = (params.get("origin") || "GMP").toUpperCase();
     search.destination = (params.get("destination") || "CJU").toUpperCase();
+    /* 주소로 직접 지정했으면 여행 목적지로 덮어쓰지 않는다. 고른 쪽이 이긴다. */
+    destinationFromUrl = params.has("destination");
     search.adults = Number(params.get("adults")) || 2;
 
     $("f-origin").value = search.origin;
@@ -1216,6 +1189,19 @@
       if (trip?.startDate) { search.departureDate = trip.startDate; $("f-depart").value = trip.startDate; }
       if (trip?.endDate) { search.returnDate = trip.endDate; $("f-return").value = trip.endDate; }
       if (trip?.companionCount) { search.adults = trip.companionCount; $("f-adults").value = String(trip.companionCount); }
+
+      /*
+       * 부산으로 가는 여행을 짜고 예약으로 넘어왔는데 도착지가 제주로 남아 있으면,
+       * 손님은 매번 코드를 지우고 다시 쳐야 한다. 여행이 정해 놓은 곳을 채워 준다.
+       *
+       * 출발지와 같아지는 경우(서울 여행)에는 두지 않는다. 같은 공항으로 가는
+       * 항공편은 없어서 빈 결과만 보게 된다.
+       */
+      const arrival = destinationFromUrl ? null : airportOf(trip?.destinationName);
+      if (arrival && arrival !== search.origin) {
+        search.destination = arrival;
+        $("f-destination").value = arrival;
+      }
     } catch (e) { /* 여행 정보를 못 읽어도 기본 조건으로 비교는 할 수 있다 */ }
   }
 
@@ -1390,41 +1376,19 @@
       if (payTicket) {
         /* 결제수단을 고르게 한다. (#281) 마이페이지 `내 티켓`과 같은 창을 쓴다. */
         const summary = payTicket.dataset.mineTicketSummary || "";
-        const picked = await window.AllMyTripsPayment.choose({
-          summary,
-          confirmLabel: "다음",
-          /* QR 인코더를 올려 둔 화면에서만 QR 결제를 내준다. 못 그리는 창을 띄우지 않는다. */
-          allowQr: Boolean(window.AllMyTripsQr),
-        });
-        if (!picked) return;
-        payTicket.disabled = true;
+        const reservationId = payTicket.dataset.mineTicketPay;
         try {
-          const reservationId = payTicket.dataset.mineTicketPay;
           /*
-           * 고른 수단의 결제창을 한 번 더 거친다. 카드면 카드 정보를 넣고, 간편결제면 QR을
-           * 폰으로 승인하고, 계좌면 입금을 확인한다. 닫으면 아무 일도 일어나지 않는다.
+           * 수단 고르기부터 승인까지는 공용 모듈이 한다. 티켓 판매 페이지도 같은 결제를 하는데,
+           * 두 곳에 같은 코드를 두면 한쪽만 고쳐지는 날이 온다. (#281)
            */
-          const checkout = await runTicketCheckout(reservationId, picked, summary);
-          if (!checkout) {
-            payTicket.disabled = false;
-            return;
-          }
-          /* 간편결제는 폰에서 이미 승인돼 결제가 끝났다. 다시 결제하지 않는다. */
-          if (!checkout.paid) {
-            /*
-             * 멱등키를 화면에서 만든다. 응답이 유실되어 다시 눌러도 같은 키로 들어가면 서버가
-             * 앞의 결과를 그대로 돌려주고 두 번 결제되지 않는다.
-             */
-            const idempotencyKey = crypto.randomUUID
-              ? crypto.randomUUID()
-              : `pay-${reservationId}-${Date.now()}`;
-            /* 카드 정보는 보내지 않는다. 우리 결제 API는 카드번호를 받지 않는다. */
-            const result = await request("POST", `/api/v1/ticket-reservations/${reservationId}/payment`,
-              { method: checkout.method || picked.method, idempotencyKey,
-                easyPayProvider: checkout.easyPayProvider || picked.easyPayProvider });
-            /* request()는 data가 아니라 응답 전체를 돌려준다. */
-            issuedTickets[reservationId] = result?.data?.tickets || [];
-          }
+          const paid = await window.AllMyTripsTicketPayment.pay({
+            reservationId, summary, request,
+            /* 수단을 고르는 동안에는 잠그지 않는다. 창을 닫고 마음을 바꾸는 일이 흔하다. */
+            onStart: () => { payTicket.disabled = true; },
+          });
+          if (paid.cancelled) return;
+          if (paid.tickets) issuedTickets[reservationId] = paid.tickets;
           bookingSummary = null;
           await loadBookingSummary();
           sync();

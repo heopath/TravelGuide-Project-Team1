@@ -3781,6 +3781,20 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   });
   const saveButton = document.querySelector("[data-schedule-save]");
+
+  /*
+   * 짜 놓은 여행을 들고 예약으로 넘어간다. tripId를 함께 넘겨야 예약 화면이 목적지·날짜·
+   * 인원을 그 여행에서 채우고, 고른 항공편도 그 여행에 붙는다.
+   */
+  const bookingButton = document.querySelector("[data-schedule-booking]");
+  if (bookingButton) bookingButton.addEventListener("click", function () {
+    if (!activeTripId) {
+      toast("먼저 여행을 저장해 주세요.");
+      return;
+    }
+    window.location.href = "/booking/flights?tripId=" + encodeURIComponent(activeTripId);
+  });
+
   if (saveButton) saveButton.addEventListener("click", async function () {
     if (savingTrip) return;
     if (!activeTripId || !activeTrip) {
@@ -3808,7 +3822,9 @@ document.addEventListener("DOMContentLoaded", function () {
       draft.trip = saved;
       sessionStorage.setItem("tripDraft", JSON.stringify(draft));
       saveButton.textContent = "✓ 저장 완료";
-      toast("내 여행에 저장되었습니다.");
+      /* 저장이 끝이 아니라는 것을 알린다. 다음에 할 일이 예약이다. */
+      toast("내 여행에 저장되었습니다. 이제 예약할 수 있어요.");
+      if (bookingButton) bookingButton.classList.add("is-next");
     } catch (error) {
       saveButton.disabled = false;
       saveButton.textContent = "▣ 여행 저장하기";
