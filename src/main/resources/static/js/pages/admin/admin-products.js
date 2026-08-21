@@ -86,7 +86,7 @@
 
   /* 재고가 0인 것과 시간대를 아직 안 만든 것은 다른 상태다. 합계만 쓰면 구분이 안 된다. */
   function stockLabel(product) {
-    if (!product.slotCount) return "시간대 없음";
+    if (!product.slotCount) return "판매 회차 없음";
     return `${number(product.remainingQuantity)} / ${number(product.totalQuantity)}`;
   }
 
@@ -130,7 +130,7 @@
     if (!product.optionCount) {
       const note = document.createElement("small");
       note.dataset.productNote = "";
-      note.textContent = "옵션 없음";
+      note.textContent = "티켓 종류 없음";
       nameCell.appendChild(note);
     }
 
@@ -144,9 +144,9 @@
     const actionCell = document.createElement("span");
     actionCell.className = "admin-row-actions";
     actionCell.append(
-      actionButton("수정", { productEdit: String(product.ticketProductId) },
+      actionButton("상품 정보 수정", { productEdit: String(product.ticketProductId) },
         function () { openForm(product); }),
-      actionButton("시간대", { productSlots: String(product.ticketProductId) },
+      actionButton("회차·재고 관리", { productSlots: String(product.ticketProductId) },
         function (event) { openSlots(product, event.currentTarget); })
     );
 
@@ -323,7 +323,7 @@
     if (slot.optionActive === false || slot.status !== "OPEN") {
       const closed = document.createElement("small");
       closed.dataset.slotClosed = "";
-      closed.textContent = slot.optionActive === false ? "옵션 비활성" : "시간대 닫힘";
+      closed.textContent = slot.optionActive === false ? "티켓 종류 판매 숨김" : "회차 판매 중지";
       infoCell.appendChild(closed);
     }
 
@@ -346,7 +346,7 @@
     }));
     /* 삭제는 없다. reservation_items가 시간대를 참조해 지우면 팔린 예약을 되짚을 수 없다. */
     actionCell.appendChild(actionButton(
-      slot.status === "OPEN" ? "닫기" : "열기", {}, function () {
+      slot.status === "OPEN" ? "판매 중지" : "판매 재개", {}, function () {
         toggleSlotStatus(slot, item);
       }));
 
@@ -410,15 +410,15 @@
     }
 
     const slotCountCell = document.createElement("span");
-    slotCountCell.textContent = option.slotCount ? `시간대 ${option.slotCount}개` : "시간대 없음";
+    slotCountCell.textContent = option.slotCount ? `회차 ${option.slotCount}개` : "회차 없음";
 
     const orderCell = document.createElement("span");
     orderCell.textContent = `순서 ${option.sortOrder}`;
 
     const actionCell = document.createElement("span");
-    actionCell.appendChild(actionButton("수정", {}, function () { fillOptionForm(option); }));
+    actionCell.appendChild(actionButton("종류 수정", {}, function () { fillOptionForm(option); }));
     actionCell.appendChild(actionButton(
-      option.isActive === false ? "켜기" : "끄기", {}, function () {
+      option.isActive === false ? "판매 표시" : "판매 숨김", {}, function () {
         saveOption(Object.assign({}, optionPayload(option), { isActive: option.isActive === false }),
           option.ticketProductOptionId);
       }));
@@ -450,7 +450,7 @@
     optionField("sortOrder").value = option
       ? String(option.sortOrder)
       : String(loadedOptions.length + 1);
-    if (optionSubmit) optionSubmit.textContent = option ? "옵션 저장" : "옵션 추가";
+    if (optionSubmit) optionSubmit.textContent = option ? "티켓 종류 저장" : "티켓 종류 추가";
     if (optionReset) optionReset.hidden = !option;
     if (optionMessage) optionMessage.textContent = "";
   }
@@ -469,7 +469,7 @@
       fillOptionForm(null);
       await reloadSlotPanel();
     } catch (error) {
-      if (optionMessage) optionMessage.textContent = error.message || "옵션을 저장하지 못했어요.";
+      if (optionMessage) optionMessage.textContent = error.message || "티켓 종류를 저장하지 못했어요.";
     } finally {
       if (optionSubmit) optionSubmit.disabled = false;
     }
@@ -538,7 +538,7 @@
     if (!currentProduct) return;
     const optionId = Number(slotField("ticketProductOptionId").value);
     if (!optionId) {
-      slotFormMessage.textContent = "옵션을 먼저 등록해 주세요.";
+      slotFormMessage.textContent = "티켓 종류를 먼저 등록해 주세요.";
       return;
     }
     const weekdays = slotWeekdays
@@ -570,7 +570,7 @@
       renderSlots();
       await refreshOptions();
     } catch (error) {
-      slotFormMessage.textContent = error.message || "시간대를 등록하지 못했어요.";
+      slotFormMessage.textContent = error.message || "판매 회차를 등록하지 못했어요.";
     } finally {
       if (slotSubmit) slotSubmit.disabled = false;
     }
@@ -674,11 +674,11 @@
     if (!shown.length) {
       slotEmpty.hidden = false;
       if (allSlots.length) {
-        slotEmpty.textContent = "이 기간에는 시간대가 없어요. 기간을 넓히거나 전체 보기를 눌러 주세요.";
+        slotEmpty.textContent = "이 기간에는 판매 회차가 없어요. 기간을 넓히거나 전체 보기를 눌러 주세요.";
       } else {
         slotEmpty.textContent = loadedOptions.length
-          ? "등록된 시간대가 없어요. 위에서 시간대를 추가하면 예약을 받을 수 있어요."
-          : "옵션을 먼저 등록해 주세요. 시간대는 옵션에 달려요.";
+          ? "등록된 판매 회차가 없어요. 위에서 회차를 등록하면 예약을 받을 수 있어요."
+          : "티켓 종류를 먼저 등록해 주세요. 판매 회차는 티켓 종류별로 등록합니다.";
       }
       return;
     }
@@ -695,7 +695,7 @@
     optionList.replaceChildren();
     if (!loadedOptions.length) {
       optionEmpty.hidden = false;
-      optionEmpty.textContent = "등록된 옵션이 없어요. 옵션에 가격과 1인 구매 한도가 붙어요.";
+      optionEmpty.textContent = "등록된 티켓 종류가 없어요. 종류별로 가격과 1인 구매 한도를 정할 수 있어요.";
     } else {
       optionEmpty.hidden = true;
       loadedOptions.forEach(function (option) { optionList.appendChild(optionRow(option)); });
@@ -713,7 +713,7 @@
     } catch (error) {
       loadedOptions = [];
       optionEmpty.hidden = false;
-      optionEmpty.textContent = error.message || "옵션을 불러오지 못했어요.";
+      optionEmpty.textContent = error.message || "티켓 종류를 불러오지 못했어요.";
     }
     const slots = await request(
       `/api/v1/admin/ticket-products/${currentProduct.ticketProductId}/slots`);
@@ -733,10 +733,10 @@
     resetSlotView();
     /* 열린 사실을 키보드 사용자도 바로 알 수 있게 모달 안으로 초점을 옮긴다. */
     if (slotClose) slotClose.focus();
-    slotTitle.textContent = `${product.name} · 옵션과 시간대`;
+    slotTitle.textContent = `${product.name} · 판매 설정`;
     slotList.replaceChildren();
     slotEmpty.hidden = false;
-    slotEmpty.textContent = "시간대를 불러오는 중이에요.";
+    slotEmpty.textContent = "판매 회차를 불러오는 중이에요.";
     buildWeekdays();
     fillOptionForm(null);
     if (slotFormMessage) slotFormMessage.textContent = "";
@@ -748,7 +748,7 @@
     try {
       await reloadSlotPanel();
     } catch (error) {
-      slotEmpty.textContent = error.message || "시간대를 불러오지 못했어요.";
+      slotEmpty.textContent = error.message || "판매 회차를 불러오지 못했어요.";
     }
   }
 

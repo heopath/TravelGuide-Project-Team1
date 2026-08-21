@@ -52,7 +52,12 @@ async function boot(responder) {
   const calls = [];
 
   w.fetch = async (url, request = {}) => {
-    calls.push({ url: String(url), method: (request.method || "GET").toUpperCase(), body: request.body });
+    calls.push({
+      url: String(url),
+      method: (request.method || "GET").toUpperCase(),
+      body: request.body,
+      allMyTripsLoading: request.allMyTripsLoading,
+    });
     return responder(String(url), request || {});
   };
 
@@ -92,6 +97,8 @@ async function run() {
     test("버튼이 눌리는 상태다", el(d, "[data-mighty-open]").disabled !== true);
     test("눌리기 전에는 서버를 부르지 않는다",
       el(d, "[data-mighty-log]").children.length === 0);
+    test("입력 폼은 공통 전체 화면 로더를 사용하지 않는다",
+      el(d, "[data-mighty-form]").hasAttribute("data-no-global-loading"));
   }
 
   /* ── 열기 ── */
@@ -107,6 +114,8 @@ async function run() {
     test("기존 상담 채팅을 그대로 부른다",
       calls.some((c) => c.url === "/api/v1/support/chat" && c.method === "POST"),
       calls.map((c) => c.method + " " + c.url).join(" | "));
+    test("마이티 조회는 전체 화면 로더를 띄우지 않는다",
+      calls.find((c) => c.url === "/api/v1/support/chat")?.allMyTripsLoading === false);
     test("대화창이 열린다", el(d, "[data-mighty-panel]").hidden === false);
     test("보조기기에도 열렸다고 알린다",
       el(d, "[data-mighty-open]").getAttribute("aria-expanded") === "true");
@@ -117,6 +126,23 @@ async function run() {
     test("상대가 누구인지 밝힌다", lines[0].querySelector("small").textContent === "마이티");
     /* 상담원이 받으면 마이티가 아니라 사람이 답하는 것이다. 그걸 숨기면 안 된다. */
     test("손님 말에는 보낸이를 붙이지 않는다", lines[1].querySelector("small") === null);
+  }
+
+  /* ── 응답이 느릴 때 ── */
+  {
+    const pending = new Promise(() => {});
+    const { w, d, calls } = await boot(() => pending);
+    el(d, "[data-mighty-open]").click();
+    await until(() => calls.length === 1);
+
+    test("느린 동안에는 봇 창 안에서만 불러오는 중이라고 알린다",
+      el(d, "[data-mighty-empty]").textContent.includes("불러오는 중"));
+
+    /* 수동 새로고침이나 3초 확인이 겹쳐도 진행 중인 요청 하나만 남아야 한다. */
+    w.AllMyTripsMighty.refresh();
+    w.AllMyTripsMighty.refresh();
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    test("응답이 늦어도 조회 요청을 겹쳐 보내지 않는다", calls.length === 1, String(calls.length));
   }
 
   /* ── 상태 문구 ── */

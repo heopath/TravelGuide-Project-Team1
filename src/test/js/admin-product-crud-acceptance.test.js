@@ -203,17 +203,17 @@ async function run() {
     d.querySelector('[data-product-slots="1"]').click();
     await until(() => slotRows(d).length === 2);
 
-    T("시간대 목록을 상품 주소로 조회한다",
+    T("판매 회차 목록을 상품 주소로 조회한다",
       calls.some((c) => c.url === "/api/v1/admin/ticket-products/1/slots"));
-    T("옵션명과 이용일을 함께 보여준다",
+    T("티켓 종류명과 이용일을 함께 보여준다",
       slotRows(d)[0].querySelector("strong").textContent === "성인"
         && slotRows(d)[0].querySelector("small").textContent.includes("2026-09-15"));
     T("예약 수량을 따로 보여준다",
       slotRows(d)[0].querySelector("[data-slot-reserved]").textContent === "12");
     T("전체 수량은 예약 수 미만으로 못 내리게 최솟값을 건다",
       slotRows(d)[0].querySelector('[data-slot-total="9"]').min === "12");
-    T("닫힌 시간대는 이유를 표시한다",
-      slotRows(d)[1].querySelector("[data-slot-closed]").textContent === "시간대 닫힘");
+    T("판매 중지된 회차는 이유를 표시한다",
+      slotRows(d)[1].querySelector("[data-slot-closed]").textContent === "회차 판매 중지");
   }
 
   /* ── 재고 조정 ── */
@@ -275,9 +275,9 @@ async function run() {
     });
     await until(() => rows(d).length === 1);
     d.querySelector('[data-product-slots="1"]').click();
-    await until(() => d.querySelector("[data-slot-empty]").textContent.includes("시간대가 없어요"));
+    await until(() => d.querySelector("[data-slot-empty]").textContent.includes("판매 회차가 없어요"));
 
-    T("시간대가 없으면 예약을 못 받는다는 것을 알린다",
+    T("판매 회차가 없으면 예약을 못 받는다는 것을 알린다",
       d.querySelector("[data-slot-empty]").textContent.includes("예약을 받을 수 있어요"));
   }
 
@@ -297,12 +297,12 @@ async function run() {
     /* hidden은 처음부터 false라 대기 조건이 못 된다. 실제로 채워진 문구를 기다린다. */
     await until(() => d.querySelector("[data-option-empty]").textContent.trim() !== "");
 
-    T("옵션이 없으면 옵션부터 만들라고 안내한다",
-      d.querySelector("[data-slot-empty]").textContent.includes("옵션을 먼저 등록"));
-    T("옵션이 없다는 것도 따로 알린다",
-      d.querySelector("[data-option-empty]").textContent.includes("등록된 옵션이 없어요"));
-    T("목록에서도 옵션 없음을 표시한다",
-      rows(d)[0].querySelector("[data-product-note]").textContent === "옵션 없음");
+    T("티켓 종류가 없으면 종류부터 만들라고 안내한다",
+      d.querySelector("[data-slot-empty]").textContent.includes("티켓 종류를 먼저 등록"));
+    T("티켓 종류가 없다는 것도 따로 알린다",
+      d.querySelector("[data-option-empty]").textContent.includes("등록된 티켓 종류가 없어요"));
+    T("목록에서도 티켓 종류 없음을 표시한다",
+      rows(d)[0].querySelector("[data-product-note]").textContent === "티켓 종류 없음");
   }
 
   /* ── 시간대 모달 ── */
@@ -318,7 +318,7 @@ async function run() {
      * 예전에는 목록 아래에 펼쳤다. 상품 스무 줄만큼 내려간 자리에 열려, 누른 사람 눈에는
      * 아무 일도 안 일어난 것처럼 보였다.
      */
-    T("시간대는 모달로 뜬다",
+    T("회차·재고 관리는 모달로 뜬다",
       backdrop.classList.contains("modal-backdrop")
         && Boolean(d.querySelector("[data-slot-card]")));
     T("모달인 것을 보조기기에도 알린다",
