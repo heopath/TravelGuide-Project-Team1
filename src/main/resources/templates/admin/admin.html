@@ -649,28 +649,53 @@
                 <div class="admin-section-head">
                   <div class="admin-section-title">
                     <h2 id="auditTitle">변경 이력</h2>
-                    <p class="admin-section-description">관리자가 변경한 대상과 이전·이후 값을 확인합니다.</p>
+                    <p class="admin-section-description">누가 무엇을 변경했는지 확인하고 필요한 기록을 자세히 살펴봅니다.</p>
                   </div>
                   <span class="admin-tag live" data-admin-state="audit">실연동</span>
-                  <div class="admin-filter" role="group" aria-label="동작 필터" data-audit-filter>
-                    <button type="button" class="admin-chip on" data-audit-action="">전체</button>
-                  </div>
                 </div>
                 <p class="admin-notice" data-audit-notice role="status" hidden></p>
                 <div class="white-panel admin-panel">
-                  <label class="admin-search">
-                    <span class="sr-only">대상 검색</span>
-                    <input type="search" data-audit-search autocomplete="off"
-                           placeholder="대상 번호로 검색 후 Enter (예: 20)" />
-                  </label>
+                  <div class="admin-audit-controls">
+                    <div class="admin-filter" role="group" aria-label="동작 필터" data-audit-filter>
+                      <button type="button" class="admin-chip on" data-audit-action="" aria-pressed="true">전체</button>
+                    </div>
+                    <form class="admin-audit-search" data-audit-search-form>
+                      <label class="admin-search">
+                        <span class="sr-only">대상 번호 검색</span>
+                        <input type="search" data-audit-search autocomplete="off"
+                               placeholder="대상 번호 검색 (예: 상품 20번은 20 입력)" />
+                      </label>
+                      <button type="submit" class="admin-chip">검색</button>
+                      <button type="button" class="admin-chip" data-audit-search-clear hidden>검색 해제</button>
+                      <button type="button" class="admin-chip" data-audit-refresh>새로고침</button>
+                    </form>
+                    <p class="admin-hint admin-audit-count" data-audit-count role="status"></p>
+                  </div>
                   <div class="admin-table-head admin-audit-row">
-                    <span>시각</span><span>관리자</span><span>동작</span><span>변경 내용</span>
+                    <span>시각</span><span>관리자</span><span>동작·대상</span><span>변경 요약</span><span>상세</span>
                   </div>
                   <div data-audit-list class="admin-table-body"></div>
                   <p class="admin-empty" data-audit-empty role="status">
                     변경 이력을 불러오는 중이에요.
                   </p>
                   <div class="admin-pagination" data-audit-pagination></div>
+                </div>
+
+                <div class="modal-backdrop admin-audit-modal" data-audit-modal hidden>
+                  <div class="modal-card" data-audit-modal-card role="dialog" aria-modal="true"
+                       aria-labelledby="auditDetailTitle" tabindex="-1">
+                    <button type="button" class="modal-close" data-audit-modal-close aria-label="상세 닫기">×</button>
+                    <h3 id="auditDetailTitle">변경 이력 상세</h3>
+                    <p class="admin-audit-detail-summary" data-audit-detail-summary></p>
+                    <dl class="admin-audit-meta" data-audit-detail-meta></dl>
+                    <div class="admin-audit-change-detail">
+                      <h4>변경된 값</h4>
+                      <div data-audit-detail-changes></div>
+                    </div>
+                    <div class="modal-actions">
+                      <button type="button" class="secondary-button" data-audit-modal-cancel>닫기</button>
+                    </div>
+                  </div>
                 </div>
               </section>
 

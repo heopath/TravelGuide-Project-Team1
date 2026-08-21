@@ -454,14 +454,88 @@ body.page-admin #page-content {
 /* 요일 체크박스는 폼 전체 규칙(width:100%)에 걸리면 칸을 다 차지한다. */
 .page-admin .admin-weekday-set input { width: auto; }
 
-/* 변경 내용이 여러 줄이라 행 높이가 들쭉날쭉하다. 위쪽 정렬이 읽기 편하다. */
-.page-admin .admin-audit-row { grid-template-columns: 120px 96px 150px 1fr; align-items: start; }
+/* 목록은 한 줄 요약으로 훑고, 전체 전후 값과 요청 정보는 상세 창에서 확인한다. */
+.page-admin .admin-audit-controls {
+  margin-bottom: 14px;
+  padding-bottom: 14px;
+  display: grid;
+  gap: 10px;
+  border-bottom: 1px solid var(--border);
+}
+.page-admin .admin-audit-controls .admin-filter { margin: 0; }
+.page-admin .admin-audit-search {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.page-admin .admin-audit-search .admin-search {
+  flex: 1 1 100%;
+  min-width: 0;
+  margin: 0;
+}
+.page-admin .admin-audit-count { margin: 0; }
+.page-admin .admin-audit-row {
+  grid-template-columns: 108px 86px 146px minmax(180px, 1fr) 82px;
+  align-items: start;
+}
 .page-admin .admin-audit-row > span { padding: 10px 0; }
 .page-admin .admin-audit-row strong { display: block; }
 .page-admin .admin-audit-row small { display: block; margin-top: 2px; color: var(--muted); font-size: 11px; }
 .page-admin .admin-audit-row [data-audit-time] { color: var(--muted); font-size: 11.5px; }
-.page-admin .admin-audit-row [data-audit-change] small { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+.page-admin .admin-audit-row [data-audit-change] { min-width: 0; }
+.page-admin .admin-audit-row [data-audit-change] small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.page-admin .admin-audit-row .admin-audit-more { color: var(--primary); font-weight: 700; }
 .page-admin .admin-audit-row [data-audit-empty-payload] { color: var(--muted); font-size: 11px; }
+
+body[data-audit-modal-open] { overflow: hidden; }
+.page-admin .admin-audit-modal .modal-card {
+  width: min(720px, calc(100vw - 32px));
+  max-height: min(760px, calc(100vh - 48px));
+  overflow-y: auto;
+}
+.page-admin .admin-audit-modal h3 { margin: 0 42px 8px 0; }
+.page-admin .admin-audit-detail-summary {
+  margin: 0 0 16px;
+  color: var(--primary);
+  font-size: 13px;
+  font-weight: 800;
+}
+.page-admin .admin-audit-meta {
+  margin: 0;
+  padding: 14px 16px;
+  display: grid;
+  grid-template-columns: 96px minmax(0, 1fr);
+  gap: 8px 14px;
+  border-radius: 12px;
+  background: #f7f8fc;
+  font-size: 12px;
+  line-height: 1.5;
+}
+.page-admin .admin-audit-meta dt { color: var(--muted); font-weight: 750; }
+.page-admin .admin-audit-meta dd { min-width: 0; margin: 0; overflow-wrap: anywhere; }
+.page-admin .admin-audit-change-detail { margin-top: 20px; }
+.page-admin .admin-audit-change-detail h4 { margin: 0 0 10px; font-size: 14px; }
+.page-admin .admin-audit-change-row {
+  display: grid;
+  grid-template-columns: 120px repeat(2, minmax(0, 1fr));
+  border-bottom: 1px solid var(--border);
+}
+.page-admin .admin-audit-change-row:last-child { border-bottom: 0; }
+.page-admin .admin-audit-change-row span {
+  min-width: 0;
+  padding: 10px 12px;
+  overflow-wrap: anywhere;
+  font-size: 12px;
+  line-height: 1.5;
+}
+.page-admin .admin-audit-change-row span + span { border-left: 1px solid var(--border); }
+.page-admin .admin-audit-change-row.is-head { border-radius: 8px 8px 0 0; background: #f7f8fc; }
+.page-admin .admin-audit-change-row.is-head span { color: var(--muted); font-size: 11px; font-weight: 800; }
 
 /* ── 티켓 검표 ── */
 
@@ -969,6 +1043,16 @@ body[data-member-modal-open] { overflow: hidden; }
     grid-template-columns: minmax(0, 1fr) 56px 56px 160px;
   }
   .page-admin .admin-member-row > :nth-child(4) { display: none; }
+
+  /* 조작 이력은 변경 요약을 남기고 관리자 칸을 감춰 다섯 칸을 네 칸으로 줄인다. */
+  .page-admin .admin-audit-row {
+    min-width: 520px;
+    grid-template-columns: 96px 140px minmax(180px, 1fr) 82px;
+  }
+  .page-admin .admin-audit-row > :nth-child(2) { display: none; }
+  .page-admin .admin-audit-meta { grid-template-columns: 82px minmax(0, 1fr); }
+  .page-admin .admin-audit-change-row { min-width: 520px; }
+  .page-admin .admin-audit-change-detail { overflow-x: auto; }
 
   /* 검표 기록은 입력 경로·검표자를 숨겨 세 칸으로 줄인다. 현장에서는 결과와 티켓이 먼저다. */
   .page-admin .admin-validation-row { min-width: 520px; grid-template-columns: 108px 120px minmax(0, 1fr); }
