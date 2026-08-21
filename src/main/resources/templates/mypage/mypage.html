@@ -300,6 +300,7 @@
             <!-- 최근 본 여행지 -->
             <section
                     class="white-panel mypage-panel mypage-empty-panel"
+                    data-recent-panel
             >
               <div class="mypage-panel-head">
                 <div class="mypage-panel-title">
@@ -314,7 +315,17 @@
                 </div>
               </div>
 
-              <div class="mypage-empty-content">
+              <!-- 목록을 받으면 JS가 채우고 아래 빈 상태를 감춥니다. -->
+              <div
+                      class="recent-place-list"
+                      data-recent-list
+                      hidden
+              ></div>
+
+              <div
+                      class="mypage-empty-content"
+                      data-recent-empty
+              >
                 <div
                         class="mypage-empty-icon"
                         aria-hidden="true"

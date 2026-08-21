@@ -121,6 +121,15 @@ public class ApiSecurityConfig {
                         )
                         .authenticated()
 
+                        // 최근 본 여행지는 내 것만 본다. 비로그인은 볼 목록 자체가 없다.
+                        // 기록(POST /places/*/view)은 비로그인도 부를 수 있게 두고
+                        // 컨트롤러에서 조용히 넘어간다. 상세 화면은 로그인 없이도 열린다.
+                        .requestMatchers(
+                                HttpMethod.GET,
+                                "/api/v1/places/recent"
+                        )
+                        .authenticated()
+
                         .requestMatchers(
                                 HttpMethod.PATCH,
                                 "/api/v1/place-reviews/*"
