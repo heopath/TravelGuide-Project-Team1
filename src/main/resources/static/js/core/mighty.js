@@ -31,10 +31,12 @@
      * 편이 모든 화면에서 똑같이 도는 방법이다.
      */
     const POLL_MS = 3000;
+    const REQUEST_TIMEOUT_MS = 12000;
 
     let timer = null;
     let known = 0;
     let sending = false;
+    let refreshing = false;
 
     function say(message) {
         empty.textContent = message;
@@ -42,26 +44,45 @@
     }
 
     async function call(url, body) {
-        const response = await fetch(url, {
-            method: "POST",
-            credentials: "same-origin",
-            headers: {
-                Accept: "application/json",
-                ...(body ? { "Content-Type": "application/json" } : {}),
-            },
-            ...(body ? { body: JSON.stringify(body) } : {}),
-        });
+        const controller = typeof window.AbortController === "function"
+            ? new window.AbortController()
+            : null;
+        const timeout = controller
+            ? window.setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
+            : null;
 
-        if (response.status === 401) {
-            const error = new Error("로그인이 필요해요.");
-            error.needsLogin = true;
+        try {
+            const response = await fetch(url, {
+                method: "POST",
+                credentials: "same-origin",
+                headers: {
+                    Accept: "application/json",
+                    ...(body ? { "Content-Type": "application/json" } : {}),
+                },
+                ...(body ? { body: JSON.stringify(body) } : {}),
+                ...(controller ? { signal: controller.signal } : {}),
+                /* 봇 창 안에 로딩 안내가 있으므로 화면 전체를 가리지 않는다. */
+                allMyTripsLoading: false,
+            });
+
+            if (response.status === 401) {
+                const error = new Error("로그인이 필요해요.");
+                error.needsLogin = true;
+                throw error;
+            }
+            const payload = await response.json().catch(() => null);
+            if (!response.ok || !payload?.success) {
+                throw new Error(payload?.message || "지금은 답할 수 없어요.");
+            }
+            return payload.data;
+        } catch (error) {
+            if (error?.name === "AbortError") {
+                throw new Error("응답이 늦어지고 있어요. 잠시 후 다시 시도해 주세요.");
+            }
             throw error;
+        } finally {
+            if (timeout !== null) window.clearTimeout(timeout);
         }
-        const payload = await response.json().catch(() => null);
-        if (!response.ok || !payload?.success) {
-            throw new Error(payload?.message || "지금은 답할 수 없어요.");
-        }
-        return payload.data;
     }
 
     /** 방 상태를 사람이 읽는 말로. 답을 기다려도 되는지가 여기서 갈린다. */
@@ -107,6 +128,9 @@
     }
 
     async function refresh() {
+        /* 3초 확인 주기보다 응답이 늦어도 같은 요청을 계속 쌓지 않는다. */
+        if (refreshing) return;
+        refreshing = true;
         try {
             draw(await call("/api/v1/support/chat"));
         } catch (error) {
@@ -118,6 +142,8 @@
                 return;
             }
             say(error.message);
+        } finally {
+            refreshing = false;
         }
     }
 
@@ -136,6 +162,8 @@
         openButton.setAttribute("aria-expanded", "true");
         dot.hidden = true;
         form.hidden = false;
+        state.textContent = "마이티를 연결하는 중이에요";
+        say("대화를 불러오는 중이에요.");
         refresh();
         start();
         input.focus();
