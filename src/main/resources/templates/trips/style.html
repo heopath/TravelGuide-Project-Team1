@@ -72,7 +72,6 @@
               <button type="button" data-style-group="transport" data-style-value="TAXI">택시</button>
               <button type="button" data-style-group="transport" data-style-value="WALK_BIKE">도보·자전거</button>
               <button type="button" data-style-group="transport" data-style-value="MIXED">상황에 따라 혼합</button>
-              <button type="button" data-style-group="transport" data-style-value="NO_PREFERENCE">선호없음</button>
             </div>
             <p class="field-error" id="transportError" aria-live="polite"></p>
           </div>
@@ -85,7 +84,6 @@
               <button type="button" data-style-group="food" data-style-value="VALUE">가성비 식당</button>
               <button type="button" data-style-group="food" data-style-value="FINE_DINING">고급 식당</button>
               <button type="button" data-style-group="food" data-style-value="VEGETARIAN">채식</button>
-              <button type="button" data-style-group="food" data-style-value="NO_PREFERENCE">선호 없음</button>
             </div>
             <p class="field-error" id="foodError" aria-live="polite"></p>
           </div>
@@ -98,7 +96,6 @@
               <button type="button" data-style-group="accommodation" data-style-value="GUESTHOUSE">게스트하우스·호스텔</button>
               <button type="button" data-style-group="accommodation" data-style-value="HANOK">한옥</button>
               <button type="button" data-style-group="accommodation" data-style-value="CAMPING">캠핑·글램핑</button>
-              <button type="button" data-style-group="accommodation" data-style-value="NO_PREFERENCE">선호 없음</button>
             </div>
             <p class="field-error" id="accommodationError" aria-live="polite"></p>
           </div>
@@ -111,7 +108,7 @@
           <div class="boarding-pass-title-editor" id="tripTitleEditor" hidden>
             <label for="tripTitleInput">여행 이름</label>
             <div>
-              <input id="tripTitleInput" type="text" maxlength="20" />
+            <input id="tripTitleInput" type="text" maxlength="15" />
               <button id="tripTitleSaveButton" type="button">저장</button>
               <button id="tripTitleCancelButton" type="button">취소</button>
             </div>
@@ -139,7 +136,7 @@
   <div th:replace="~{fragments/footer :: footer}"></div>
 </div>
 <div th:replace="~{fragments/scripts :: appScripts}"></div>
-<script th:src="@{/js/pages/trips/style.js}" src="../../static/js/pages/trips/style.js"></script>
+<script th:src="@{/js/pages/trips/style.js(v=20260821-title-sync)}" src="../../static/js/pages/trips/style.js?v=20260821-title-sync"></script>
 <div th:replace="~{fragments/mighty :: mighty}"></div>
 <script th:src="@{/js/core/mighty.js}" src="../../static/js/core/mighty.js"></script>
 </body>

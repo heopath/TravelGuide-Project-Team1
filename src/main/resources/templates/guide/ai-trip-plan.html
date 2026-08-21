@@ -17,21 +17,13 @@
       <div th:replace="~{fragments/header :: header('trips')}"></div>
       <main id="page-content">
         <section class="page-shell ai-plan-shell">
-          <section class="page-heading basic-wizard-heading">
-            <ol class="wizard">
-              <li class="done"><span>1</span><b>계획 방식</b><i></i></li>
-              <li class="done"><span>2</span><b>기본 정보</b><i></i></li>
-              <li class="done"><span>3</span><b>여행 스타일</b><i></i></li>
-              <li class="active"><span>4</span><b>추천 결과</b></li>
-            </ol>
-          </section>
           <section class="page-heading">
             <div>
               <span class="section-eyebrow">AI TRIP PLANNER</span>
-              <h1>AI가 여행계획을 준비하고 있어요</h1>
-              <p>입력한 기본정보와 여행 스타일을 바탕으로 일정 초안을 만들어 드릴게요.</p>
+              <h1 data-plan-heading>AI가 여행계획을 준비하고 있어요</h1>
+              <p data-plan-description>입력한 기본정보와 여행 스타일을 바탕으로 일정 초안을 만들고 있어요.</p>
             </div>
-            <button type="button" class="outline-button" data-route="/trips/new/style">여행 스타일 수정</button>
+            <button type="button" class="outline-button" data-route="/trips/new/style">← 여행 스타일 수정</button>
           </section>
 
           <section class="trip-condition-card" aria-label="입력한 여행 조건">
@@ -48,20 +40,24 @@
                 <p>입력한 여행 조건을 확인한 뒤 다시 시도해 주세요.</p>
                 <button type="button" class="outline-button" data-plan-retry>다시 시도</button>
               </div>
-              <section data-plan-result hidden>
-                <span class="section-eyebrow">YOUR AI PLAN</span>
-                <h2 data-plan-title></h2>
-                <p class="plan-summary" data-plan-summary></p>
-                <p class="plan-source" data-plan-source></p>
-                <section class="plan-map-section">
-                  <div class="plan-map-title"><div><span class="section-eyebrow">RECOMMENDED ROUTE</span><h3 data-plan-map-day>DAY 1 추천 장소 지도</h3></div><p>번호 순서대로 이동해 보세요.</p></div>
-                  <div class="plan-map" data-plan-map aria-label="AI 추천 장소 지도"></div>
-                  <p class="plan-map-status" data-plan-map-status>카카오 지도 준비 중</p>
+              <section data-plan-result hidden class="plan-result-content">
+                <div class="plan-result-main white-panel">
+                  <span class="section-eyebrow">YOUR AI PLAN</span>
+                  <h2 data-plan-title></h2>
+                  <p class="plan-summary" data-plan-summary></p>
+                  <p class="plan-source" data-plan-source></p>
+                  <section class="plan-map-section">
+                    <div class="plan-map-title"><div><span class="section-eyebrow">RECOMMENDED ROUTE</span><h3 data-plan-map-day>DAY 1 추천 장소 지도</h3></div><p>번호 순서대로 이동해 보세요.</p></div>
+                    <div class="plan-map" data-plan-map aria-label="AI 추천 장소 지도"></div>
+                    <p class="plan-map-status" data-plan-map-status>카카오 지도 준비 중</p>
+                  </section>
+                </div>
+                <aside class="plan-result-side" aria-label="추천 장소와 일별 일정">
                   <ol class="plan-place-list" data-plan-place-list></ol>
-                </section>
-                <div class="plan-day-tabs" data-plan-day-tabs aria-label="일정 날짜 선택"></div>
-                <div class="plan-days" data-plan-days></div>
-                <button type="button" class="primary-button" data-plan-save>이 일정으로 직접 수정하기</button>
+                  <div class="plan-day-tabs" data-plan-day-tabs aria-label="일정 날짜 선택"></div>
+                  <div class="plan-days" data-plan-days></div>
+                </aside>
+                <button type="button" class="primary-button plan-save-button" data-plan-save>이 일정으로 직접 수정하기</button>
               </section>
             </section>
           </div>
@@ -73,7 +69,7 @@
     <div th:replace="~{fragments/scripts :: appScripts}"></div>
     <script th:if="${kakaoJavascriptKey != null and !kakaoJavascriptKey.isBlank()}"
             th:src="|https://dapi.kakao.com/v2/maps/sdk.js?appkey=${kakaoJavascriptKey}&amp;libraries=services&amp;autoload=false|"></script>
-    <script th:src="@{/js/pages/guide/ai-trip-plan.js}" src="../../static/js/pages/guide/ai-trip-plan.js" defer></script>
+    <script th:src="@{/js/pages/guide/ai-trip-plan.js(v=20260821-title-sync)}" src="../../static/js/pages/guide/ai-trip-plan.js?v=20260821-title-sync" defer></script>
   <div th:replace="~{fragments/mighty :: mighty}"></div>
   <script th:src="@{/js/core/mighty.js}" src="../../static/js/core/mighty.js"></script>
   </body>
