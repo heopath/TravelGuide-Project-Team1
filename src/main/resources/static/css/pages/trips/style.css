@@ -21,18 +21,6 @@ body.page-style .page-shell {
   padding: 46px 0 28px;
 }
 
-body.page-style .page-heading.basic-wizard-heading {
-  width: min(1280px, calc(100% - 48px));
-  min-height: 124px;
-  margin: 0 auto !important;
-  padding: 0;
-  display: block;
-}
-
-body.page-style .page-heading.basic-wizard-heading .wizard {
-  margin-top: 8px;
-}
-
 body.page-style .style-board {
   width: min(1280px, calc(100% - 48px));
   margin: 0 auto !important;
@@ -43,14 +31,8 @@ body.page-style .style-board {
     padding-top: 34px;
   }
 
-  body.page-style .page-heading.basic-wizard-heading,
   body.page-style .style-board {
     width: min(100% - 28px, 640px);
-  }
-
-  body.page-style .page-heading.basic-wizard-heading {
-    min-height: auto;
-    margin-bottom: 24px !important;
   }
 }
 body.page-style .style-actions { position: absolute; right: 38px; bottom: 28px; display: flex; gap: 12px; }
@@ -147,28 +129,10 @@ body.page-style .style-section h2::before {
   }
 }
 
-/* 최종 정렬: 베이직 페이지의 단계 표시와 동일한 구성 */
+/* 최종 정렬: 베이직 페이지와 동일한 상단 여백 */
 body.page-style .page-shell {
   width: 100% !important;
   padding: 46px 0 28px !important;
-}
-
-body.page-style .page-heading.basic-wizard-heading {
-  width: min(1280px, calc(100% - 48px)) !important;
-  min-height: 124px !important;
-  margin: 0 auto !important;
-  padding: 0 !important;
-  display: block !important;
-}
-
-body.page-style .page-heading.basic-wizard-heading .wizard {
-  margin: 8px 0 0 !important;
-}
-
-/* Keep the style step indicator close to the form board, like the basic page. */
-body.page-style .page-heading.basic-wizard-heading {
-  min-height: 72px !important;
-  margin-bottom: 0 !important;
 }
 
 body.page-style .style-board {
@@ -181,14 +145,8 @@ body.page-style .style-board {
     padding-top: 34px !important;
   }
 
-  body.page-style .page-heading.basic-wizard-heading,
   body.page-style .style-board {
     width: min(100% - 28px, 640px) !important;
-  }
-
-  body.page-style .page-heading.basic-wizard-heading {
-    min-height: auto !important;
-    margin-bottom: 8px !important;
   }
 }
 
@@ -319,8 +277,6 @@ body.page-style .style-actions .style-next { grid-column: 2 !important; }
 }
 
 /* 가독성 개선 및 장식 요소 정리 */
-body.page-style .page-heading > div > i { display: none !important; }
-body.page-style .page-heading p { margin-top: 10px; color: #52617d; font-size: 15px; line-height: 1.65; letter-spacing: -.015em; }
 body.page-style .style-section { min-width: 0; }
 body.page-style .style-section h2 { color: #111b43; font-size: 20px; line-height: 1.35; letter-spacing: -.035em; }
 body.page-style .style-description { margin-top: 8px; margin-bottom: 16px; color: #52617d; font-size: 14px; line-height: 1.6; letter-spacing: -.015em; }
@@ -333,7 +289,6 @@ body.page-style .selected-summary strong { min-height: 58px; font-size: 15px; li
 body.page-style .selected-summary p { font-size: 13px; line-height: 1.65; }
 body.page-style .field-error { font-size: 13px; line-height: 1.5; }
 @media (max-width: 760px) {
-  body.page-style .page-heading p { font-size: 14px; }
   body.page-style .style-section h2 { font-size: 18px; }
   body.page-style .pill-grid button, body.page-style .segmented button { min-height: 46px; font-size: 13px; }
 }
@@ -377,33 +332,7 @@ body.page-style .style-section h2 + .style-description {
   }
 }
 
-/* 여행 스타일 페이지 제목 하단 안내문 */
-body.page-style .page-heading > div > p {
-  display: block;
-  width: 100%;
-  margin: 12px 0 0 2px;
-  color: #34486f;
-  font-size: 17px;
-  font-weight: 650;
-  line-height: 1.65;
-  letter-spacing: -.025em;
-  text-align: left;
-}
-
-@media (max-width: 760px) {
-  body.page-style .page-heading > div > p {
-    margin-top: 9px;
-    font-size: 15px;
-  }
-}
-
 /* 최종 화면 정리 */
-body.page-style .page-heading h1::after,
-body.page-style .page-heading h2::after {
-  content: none !important;
-  display: none !important;
-}
-
 body.page-style .style-section h2 {
   margin-bottom: 18px !important;
 }
@@ -453,13 +382,6 @@ body.page-style .budget-scale button:not(.selected):hover::before {
   background: #6075f2 !important;
   box-shadow: 0 0 0 1px #6075f2, 0 0 0 4px #e5eaff !important;
   transform: scale(1.05);
-}
-
-/* 아이콘 통일: 운영체제별로 모양이 달라지는 유니코드 기호 제거 */
-body.page-style .page-heading h1::after,
-body.page-style .page-heading h2::after {
-  content: none !important;
-  display: none !important;
 }
 
 body.page-style .style-section h2::before,
@@ -1000,51 +922,6 @@ body.page-style #page-content {
   background:
     radial-gradient(circle at 84% 8%, rgba(91, 116, 255, .09), transparent 28%),
     linear-gradient(180deg, #f8faff 0%, #f4f7fc 100%);
-}
-
-/* 페이지 상단 제목 */
-body.page-style .page-heading {
-  width: min(1280px, calc(100% - 48px));
-  margin: 0 auto;
-  padding: 48px 0 26px;
-}
-
-body.page-style .page-heading > div {
-  position: relative;
-}
-
-body.page-style .page-heading h1,
-body.page-style .page-heading h2 {
-  margin: 0;
-  color: var(--style-navy);
-  font-size: clamp(30px, 2.45vw, 42px);
-  font-weight: 850;
-  line-height: 1.18;
-  letter-spacing: -.055em;
-}
-
-body.page-style .page-heading h1::after,
-body.page-style .page-heading h2::after {
-  content: "✦";
-  display: inline-block;
-  margin-left: 10px;
-  color: #6e82ff;
-  font-size: .55em;
-  vertical-align: top;
-  transform: translateY(-5px);
-}
-
-body.page-style .page-heading > div > p {
-  margin: 14px 0 0 2px;
-  color: #7683a2;
-  font-size: 15px;
-  font-weight: 500;
-  line-height: 1.65;
-  letter-spacing: -.018em;
-}
-
-body.page-style .page-heading h1 span {
-  color: var(--style-primary);
 }
 
 /* 전체 레이아웃 */
@@ -1711,7 +1588,6 @@ body.page-style .field-error {
 }
 
 @media (max-width: 900px) {
-  body.page-style .page-heading,
   body.page-style .style-board {
     width: min(100% - 36px, 760px);
   }
@@ -1743,20 +1619,6 @@ body.page-style .field-error {
 @media (max-width: 760px) {
   body.page-style #page-content {
     min-height: calc(100vh - 64px);
-  }
-
-  body.page-style .page-heading {
-    width: calc(100% - 28px);
-    padding: 30px 0 20px;
-  }
-
-  body.page-style .page-heading h1,
-  body.page-style .page-heading h2 {
-    font-size: 28px;
-  }
-
-  body.page-style .page-heading > div > p {
-    font-size: 14px;
   }
 
   body.page-style .style-board {
@@ -1907,23 +1769,6 @@ body.page-style .style-section h2::before { content: "" !important; display: blo
 @media (max-width: 760px) { body.page-style .style-section h2::before { flex-basis: 4px !important; width: 4px !important; height: 22px !important; } }
 
 
-/* Wizard typography parity with the basic page. */
-body.page-style .wizard b {
-  font-size: 18px !important;
-  font-weight: 800 !important;
-  letter-spacing: -0.81px !important;
-}
-
-/* Keep the style page step indicator aligned with the slightly larger basic one. */
-body.page-style .page-heading.basic-wizard-heading .wizard li span {
-  width: 50px !important;
-  height: 50px !important;
-  font-size: 16px !important;
-}
-
-body.page-style .page-heading.basic-wizard-heading .wizard li b {
-  font-size: 20px !important;
-}
 /* Title editor and next-step CTA use clean, directional controls without decorative diamonds. */
 body.page-style #tripTitleError::before,
 body.page-style .boarding-pass-title-editor #tripTitleError::before {

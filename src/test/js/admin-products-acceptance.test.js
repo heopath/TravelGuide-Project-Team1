@@ -99,6 +99,12 @@ async function run() {
     T("마크업에 재고 숫자가 박혀 있지 않다", !/\d{1,3},\d{3}/.test(section));
     T("상품 목록과 빈 상태 자리는 그대로 쓴다",
       section.includes('id="productList"') && section.includes('id="productEmpty"'));
+    T("판매 설정은 티켓 종류와 판매 회차 순서로 설명한다",
+      section.includes("1. 티켓 종류")
+        && section.includes("2. 판매 회차 등록")
+        && section.includes("3. 등록된 회차·재고"));
+    T("판매 설정 닫기는 오른쪽 위 공통 닫기 버튼을 쓴다",
+      /class="modal-close admin-slot-close"[^>]*data-slot-close[^>]*aria-label="판매 설정 닫기"/.test(section));
   }
 
   /* ── 목록 조회 ── */
@@ -117,6 +123,9 @@ async function run() {
     T("재고를 남은 수량과 전체 수량으로 보여준다",
       rows(d)[0].querySelector("[data-product-stock]").textContent === "75 / 120");
     T("목록이 채워지면 안내 문구를 감춘다", d.getElementById("productEmpty").hidden === true);
+    T("상품 자체 수정과 회차 관리를 구분해 적는다",
+      rows(d)[0].textContent.includes("상품 정보 수정")
+        && rows(d)[0].textContent.includes("회차·재고 관리"));
   }
 
   /* ── 시간대가 없는 상품은 재고 0과 구분한다 ── */
@@ -127,9 +136,9 @@ async function run() {
     ])));
     await until(() => rows(d).length === 2);
 
-    T("시간대가 없으면 시간대 없음으로 표시한다",
-      rows(d)[0].querySelector("[data-product-stock]").textContent === "시간대 없음");
-    T("시간대가 있고 재고가 0이면 수량으로 표시한다",
+    T("판매 회차가 없으면 판매 회차 없음으로 표시한다",
+      rows(d)[0].querySelector("[data-product-stock]").textContent === "판매 회차 없음");
+    T("판매 회차가 있고 재고가 0이면 수량으로 표시한다",
       rows(d)[1].querySelector("[data-product-stock]").textContent === "0 / 30");
   }
 
@@ -138,8 +147,8 @@ async function run() {
     const { d } = await boot(() => ok(page([product(1, { optionCount: 0 })])));
     await until(() => rows(d).length === 1);
 
-    T("옵션이 없는 상품에는 옵션 없음을 표시한다",
-      rows(d)[0].querySelector("[data-product-note]").textContent === "옵션 없음");
+    T("티켓 종류가 없는 상품에는 그 이유를 표시한다",
+      rows(d)[0].querySelector("[data-product-note]").textContent === "티켓 종류 없음");
   }
 
   /* ── 판매 상태 변경 ── */

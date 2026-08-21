@@ -4,14 +4,6 @@ body.page-plan #page-content { min-height: calc(100vh - 78px); }
 body.page-plan .site-footer { display: none; }
 
 .plan-shell { width: min(1340px, calc(100% - 96px)); margin: 0 auto; padding: 52px 0 70px; }
-.plan-wizard { width: fit-content; display: flex; justify-content: flex-start; align-items: center; margin: 0 auto 34px; padding: 0; list-style: none; }
-.plan-wizard li { display: flex; align-items: center; color: #68728b; white-space: nowrap; }
-.plan-wizard li.active { color: var(--primary, #365df5); }
-.plan-wizard li b { margin: 0 14px 0 12px; line-height: 1; }
-.plan-wizard li i { width: 60px; height: 2px; margin-right: 14px; background: #d9dfec; }
-.plan-wizard li span { width: 50px; height: 50px; display: grid; place-items: center; border-radius: 50%; background: #e9edf5; color: #68728b; font-size: 16px; font-weight: 800; font-style: normal; }
-.plan-wizard li.active span { background: var(--primary, #365df5); color: #fff; box-shadow: 0 7px 18px rgba(54, 93, 245, .25); }
-.plan-wizard li b { font-size: 20px; font-weight: 800; }
 
 .plan-heading { text-align: center; }
 .plan-context { width: fit-content; margin: 0 auto 22px; padding: 7px 17px; border-radius: 20px; background: #eef2ff; color: #3160e8; font-size: 16px; font-weight: 800; }
@@ -62,8 +54,8 @@ body.page-plan .site-footer { display: none; }
 .blossom { position: absolute; width: 110px; height: 65px; border-radius: 50%; background: radial-gradient(circle at 30% 50%, #ffe5f1 0 12%, transparent 13%), radial-gradient(circle at 52% 32%, #f7c8e0 0 14%, transparent 15%), radial-gradient(circle at 70% 58%, #ffe9f4 0 12%, transparent 13%), #9aaab8; filter: blur(.2px); }
 .blossom-a { right: 4%; bottom: 12%; transform: rotate(-12deg); }.blossom-b { right: 27%; bottom: 6%; transform: scale(.7) rotate(18deg); opacity: .8; }
 
-@media (max-width: 900px) { .plan-shell { padding-top: 36px; } .plan-wizard li i { width: 34px; margin-right: 10px; } }
-@media (max-width: 680px) { .plan-shell { width: min(100% - 28px, 560px); padding-top: 28px; } .plan-wizard { width: max-content; margin-left: 0; justify-content: flex-start; overflow-x: auto; padding-bottom: 6px; } .plan-wizard li b { margin-left: 9px; margin-right: 9px; } .plan-wizard li i { width: 24px; margin-right: 7px; } .plan-wizard li span { width: 42px; height: 42px; font-size: 13px; } .plan-wizard li b { font-size: 18px; } .plan-heading h1 { font-size: 29px; } .plan-heading > p:last-child { font-size: 13px; line-height: 1.5; } .plan-choice-grid { width: min(100%, 360px); grid-template-columns: 1fr; gap: 18px; } .plan-card { width: 100%; height: auto; aspect-ratio: 2 / 3; } }
+@media (max-width: 900px) { .plan-shell { padding-top: 36px; } }
+@media (max-width: 680px) { .plan-shell { width: min(100% - 28px, 560px); padding-top: 28px; } .plan-heading h1 { font-size: 29px; } .plan-heading > p:last-child { font-size: 13px; line-height: 1.5; } .plan-choice-grid { width: min(100%, 360px); grid-template-columns: 1fr; gap: 18px; } .plan-card { width: 100%; height: auto; aspect-ratio: 2 / 3; } }
 
 /* 제공된 원본 화면의 카드 이미지를 그대로 사용한다. */
 .plan-card-scene {

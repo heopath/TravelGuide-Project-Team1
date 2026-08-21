@@ -335,20 +335,32 @@
                 <div class="modal-backdrop admin-slot-backdrop" data-slot-panel hidden>
                   <div class="modal-card admin-slot-card" role="dialog" aria-modal="true"
                        aria-labelledby="slotTitle" data-slot-card>
-                  <div class="admin-section-head">
-                    <h3 id="slotTitle" data-slot-title>시간대 재고</h3>
-                    <button type="button" class="text-button" data-slot-close>닫기</button>
+                  <div class="admin-section-head admin-slot-head">
+                    <div>
+                      <h3 id="slotTitle" data-slot-title>티켓 종류와 판매 회차 관리</h3>
+                      <p>티켓 종류를 만든 뒤 예약받을 날짜·시간과 판매 수량을 등록하세요.</p>
+                    </div>
+                    <button type="button" class="modal-close admin-slot-close" data-slot-close
+                            aria-label="판매 설정 닫기">×</button>
                   </div>
+                  <p class="admin-slot-guide">
+                    <strong>등록 순서</strong>
+                    ① 성인권·아동권 같은 티켓 종류 만들기 → ② 날짜·시간별 판매 회차 등록 → ③ 예약 수량과 재고 확인
+                  </p>
                   <!--
                     옵션이 먼저다. 시간대는 옵션에 달리므로(ticket_time_slots는 상품이 아니라
                     옵션을 참조한다) 옵션이 하나도 없으면 시간대를 만들 수 없다.
                   -->
-                  <h4 class="admin-subhead">옵션</h4>
+                  <section class="admin-slot-section" aria-labelledby="ticketTypeTitle">
+                  <h4 class="admin-subhead" id="ticketTypeTitle">1. 티켓 종류</h4>
+                  <p class="admin-slot-description">
+                    성인권·아동권처럼 가격과 1인 구매 한도가 다른 티켓을 구분합니다.
+                  </p>
                   <div data-option-list class="admin-table-body"></div>
                   <p class="admin-empty" data-option-empty role="status"></p>
 
                   <form class="admin-product-form" data-option-form>
-                    <label><span>옵션명</span>
+                    <label><span>티켓 종류명</span>
                       <input data-option-field="name" maxlength="150" required />
                     </label>
                     <label><span>가격</span>
@@ -362,25 +374,30 @@
                     </label>
                     <p class="admin-hint" data-option-message role="status"></p>
                     <div class="admin-form-buttons">
-                      <button type="button" class="text-button" data-option-reset hidden>새 옵션으로</button>
-                      <button type="submit" class="primary-button" data-option-submit>옵션 추가</button>
+                      <button type="button" class="text-button" data-option-reset hidden>새 티켓 종류</button>
+                      <button type="submit" class="primary-button" data-option-submit>티켓 종류 추가</button>
                     </div>
                   </form>
+                  </section>
 
                   <!--
                     시간대는 기간으로 받는다. 하루씩 만들게 하면 한 달 판매를 여는 데 30번을
                     눌러야 하고, 중간에 빠뜨린 날이 생겨도 아무도 알아채지 못한다.
                   -->
-                  <h4 class="admin-subhead">시간대 등록</h4>
+                  <section class="admin-slot-section" aria-labelledby="saleSlotTitle">
+                  <h4 class="admin-subhead" id="saleSlotTitle">2. 판매 회차 등록</h4>
+                  <p class="admin-slot-description">
+                    티켓 종류를 고른 뒤 예약받을 날짜·시간과 회차별 판매 수량을 등록합니다.
+                  </p>
                   <form class="admin-product-form" data-slot-form>
-                    <label><span>옵션</span>
+                    <label><span>티켓 종류</span>
                       <select data-slot-field="ticketProductOptionId" required></select>
                     </label>
                     <!--
                       수량 기본값은 JS가 넣는다. 마크업에 숫자를 박아두면 서버에서 온 값과
                       구분되지 않아, 화면을 읽는 사람이 실제 재고로 오해한다.
                     -->
-                    <label><span>수량(시간대당)</span>
+                    <label><span>회차별 판매 수량</span>
                       <input type="number" data-slot-field="totalQuantity" min="0" required />
                     </label>
                     <label><span>이용 시작일</span>
@@ -402,11 +419,16 @@
                       종료일을 비우면 시작일 하루만 만들어요. 시각을 비우면 종일권이 돼요.
                     </p>
                     <div class="admin-form-buttons">
-                      <button type="submit" class="primary-button" data-slot-submit>시간대 추가</button>
+                      <button type="submit" class="primary-button" data-slot-submit>판매 회차 등록</button>
                     </div>
                   </form>
+                  </section>
 
-                  <h4 class="admin-subhead">등록된 시간대</h4>
+                  <section class="admin-slot-section" aria-labelledby="saleStockTitle">
+                  <h4 class="admin-subhead" id="saleStockTitle">3. 등록된 회차·재고</h4>
+                  <p class="admin-slot-description">
+                    예약된 수량을 확인하고 전체 판매 수량이나 판매 상태를 조정합니다.
+                  </p>
                   <!--
                     기간을 좁혀 본다. 한 상품에 시간대가 백 개를 넘는 일이 흔해서, 다 그리면
                     찾으려는 날짜까지 한참 내려야 한다. 기본은 오늘부터 두 주다.
@@ -422,10 +444,11 @@
                     <span class="admin-hint" data-slot-count role="status"></span>
                   </div>
                   <div class="admin-table-head admin-slot-row">
-                    <span>옵션 · 이용일</span><span>예약</span><span>전체 수량</span><span></span>
+                    <span>티켓 종류 · 이용일</span><span>예약됨</span><span>판매 수량</span><span>관리</span>
                   </div>
                   <div data-slot-list class="admin-table-body"></div>
                   <p class="admin-empty" data-slot-empty role="status"></p>
+                  </section>
                   </div>
                 </div>
               </section>

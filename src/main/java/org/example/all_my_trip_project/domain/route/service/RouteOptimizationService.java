@@ -25,6 +25,7 @@ import org.springframework.web.client.RestClientResponseException;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -34,6 +35,7 @@ import java.util.Map;
 @RequiredArgsConstructor
 @Slf4j
 public class RouteOptimizationService {
+
     private final TripService tripService;
     private final PlaceService placeService;
     private final CacheManager cacheManager;
@@ -293,12 +295,22 @@ public class RouteOptimizationService {
     }
 
     public RouteOptimizationResponse optimize(Long userId, Long tripDayId, String criterionValue, String modeValue) {
+        return optimize(userId, tripDayId, criterionValue, modeValue, null);
+    }
+
+    public RouteOptimizationResponse optimize(
+            Long userId,
+            Long tripDayId,
+            String criterionValue,
+            String modeValue,
+            List<Long> requestedOrderIds) {
         OptimizationCriterion criterion = OptimizationCriterion.parse(criterionValue);
         TransportMode mode = TransportMode.parse(modeValue);
         if (restApiKey == null || restApiKey.isBlank()) {
             throw new BusinessException(ErrorCode.ROUTE_NOT_CONFIGURED);
         }
-        List<ItineraryItemDTO> allItems = tripService.getItems(userId, tripDayId);
+        List<ItineraryItemDTO> allItems = applyRequestedOrder(
+                tripService.getItems(userId, tripDayId), requestedOrderIds);
         List<ItineraryItemDTO> placeItems = allItems.stream()
                 .filter(item -> item.getPlaceId() != null)
                 .toList();
@@ -334,12 +346,30 @@ public class RouteOptimizationService {
                 optimized.distancePriorityApplied());
     }
 
+    private List<ItineraryItemDTO> applyRequestedOrder(
+            List<ItineraryItemDTO> items,
+            List<Long> requestedOrderIds) {
+        if (requestedOrderIds == null || requestedOrderIds.isEmpty()) return items;
+        Map<Long, Integer> orderMap = new HashMap<>();
+        for (int index = 0; index < requestedOrderIds.size(); index++) {
+            Long itemId = requestedOrderIds.get(index);
+            if (itemId != null) orderMap.putIfAbsent(itemId, index);
+        }
+        return items.stream()
+                .sorted(Comparator.comparingInt(item -> orderMap.getOrDefault(
+                        item.getItineraryItemId(), Integer.MAX_VALUE)))
+                .toList();
+    }
+
     private Map<RouteEdge, Leg> buildLegMatrix(
             List<ItineraryItemDTO> items,
             Map<Long, PlaceDTO> places,
             OptimizationCriterion criterion,
             TransportMode mode) {
         Map<RouteEdge, Leg> matrix = new HashMap<>();
+        OptimizationCriterion routeCriterion = criterion == OptimizationCriterion.DISTANCE
+                ? OptimizationCriterion.TIME
+                : criterion;
         for (ItineraryItemDTO from : items) {
             for (ItineraryItemDTO to : items) {
                 if (from == to) continue;
@@ -349,7 +379,7 @@ public class RouteOptimizationService {
                     matrix.put(edge, directions(
                             places.get(from.getItineraryItemId()),
                             places.get(to.getItineraryItemId()),
-                            criterion,
+                            routeCriterion,
                             mode));
                 } catch (BusinessException error) {
                     if (error.getErrorCode() != ErrorCode.ROUTE_NOT_FOUND) throw error;

@@ -20,31 +20,81 @@ document.addEventListener("DOMContentLoaded", function () {
     message: document.querySelector("#basicFormMessage"),
     nextButton: document.querySelector("#basicNextButton"),
   };
+  if ([
+    fields.destination,
+    fields.destinationLabel,
+    fields.destinationTrigger,
+    fields.startDate,
+    fields.endDate,
+    fields.totalBudget,
+    fields.budgetPerPerson,
+    fields.budgetPerPersonHint,
+    fields.travelerCountValue,
+    fields.travelerCountMinus,
+    fields.travelerCountPlus,
+    fields.duration,
+    fields.message,
+    fields.nextButton
+  ].some(function (field) { return !field; })) return;
   const companionButtons = document.querySelectorAll("[data-companion]");
   let selectedCompanion = "";
   let selectedDestination = null;
   let saving = false;
   let calendarViewDate = new Date();
   let destinationSearchTimer = null;
-  let destinationRequestId = 0;
   let travelerCount = 1;
   const MAX_TRAVELERS = 20;
   const MAX_TRIP_DAYS = 30;
   const companionTypeMap = { ALONE: "SOLO", FRIEND: "FRIENDS", COUPLE: "COUPLE", FAMILY: "FAMILY", PARENTS: "FAMILY", CHILDREN: "FAMILY" };
 
+  /*
+   * 목적지 목록.
+   *
+   * 예전에는 /api/v1/places를 검색해 지역명을 추려 썼다. 그런데 그 표에는 사용자가
+   * 일정에 담은 카카오 장소가 모두 들어오고, 카카오는 region·city를 늘 채워주지 않는다.
+   * 지역을 모르면 장소 이름으로 대신 채우고 있어서 "오장동흥남집 본점", "월드타워식당가"
+   * 같은 가게가 목적지 후보로 올라왔다. 실제로 활성 장소 273곳 중 140곳이 그랬다.
+   *
+   * 목적지는 성격상 고정된 목록이다. 사용자가 무엇을 담았는지에 따라 흔들려서는 안 된다.
+   *
+   * 국내 이름은 TourApiAccommodationSearchProvider의 지역 표(AREAS)에 있는 정식명칭을
+   * 그대로 쓴다. 여기 label이 trips.destination_name으로 그대로 저장되고, 숙소 조회가
+   * 그 문자열을 지역 코드로 되돌리기 때문에 두 곳의 표기가 어긋나면 안 된다.
+   */
   const DEFAULT_DESTINATIONS = [
-    { label: "서울", value: "SEOUL", countryCode: "KR" },
-    { label: "부산", value: "BUSAN", countryCode: "KR" },
-    { label: "제주도", value: "JEJU", countryCode: "KR" },
-    { label: "경주", value: "GYEONGJU", countryCode: "KR" },
-    { label: "강릉", value: "GANGNEUNG", countryCode: "KR" },
-    { label: "도쿄", value: "TOKYO", countryCode: "JP" },
-    { label: "오사카", value: "OSAKA", countryCode: "JP" },
-    { label: "파리", value: "PARIS", countryCode: "FR" },
-    { label: "바르셀로나", value: "BARCELONA", countryCode: "ES" },
-    { label: "방콕", value: "BANGKOK", countryCode: "TH" },
-    { label: "다낭", value: "DA_NANG", countryCode: "VN" },
-    { label: "뉴욕", value: "NEW_YORK", countryCode: "US" },
+    { label: "서울특별시", value: "서울특별시", countryCode: "KR", aliases: ["서울"] },
+    { label: "부산광역시", value: "부산광역시", countryCode: "KR", aliases: ["부산"] },
+    { label: "인천광역시", value: "인천광역시", countryCode: "KR", aliases: ["인천"] },
+    { label: "대전광역시", value: "대전광역시", countryCode: "KR", aliases: ["대전"] },
+    { label: "대구광역시", value: "대구광역시", countryCode: "KR", aliases: ["대구"] },
+    { label: "광주광역시", value: "광주광역시", countryCode: "KR", aliases: ["광주"] },
+    { label: "울산광역시", value: "울산광역시", countryCode: "KR", aliases: ["울산"] },
+    { label: "세종특별자치시", value: "세종특별자치시", countryCode: "KR", aliases: ["세종"] },
+    { label: "경기도", value: "경기도", countryCode: "KR", aliases: ["경기"] },
+    { label: "강원특별자치도", value: "강원특별자치도", countryCode: "KR", aliases: ["강원", "강원도"] },
+    { label: "충청북도", value: "충청북도", countryCode: "KR", aliases: ["충북"] },
+    { label: "충청남도", value: "충청남도", countryCode: "KR", aliases: ["충남"] },
+    { label: "전북특별자치도", value: "전북특별자치도", countryCode: "KR", aliases: ["전북", "전라북도"] },
+    { label: "전라남도", value: "전라남도", countryCode: "KR", aliases: ["전남"] },
+    { label: "경상북도", value: "경상북도", countryCode: "KR", aliases: ["경북"] },
+    { label: "경상남도", value: "경상남도", countryCode: "KR", aliases: ["경남"] },
+    { label: "제주특별자치도", value: "제주특별자치도", countryCode: "KR", aliases: ["제주", "제주도"] },
+    /*
+     * 광역시·도만 두면 "강릉"을 고르려는 사람이 강원특별자치도를 눌러야 한다.
+     * 이미 여행이 많이 만들어진 도시들이라 그대로 남긴다. 숙소 조회는 광역 지역을
+     * 못 찾으면 키워드 검색으로 넘어가므로 이 이름들도 처리된다.
+     */
+    { label: "강릉", value: "강릉", countryCode: "KR" },
+    { label: "경주", value: "경주", countryCode: "KR" },
+    { label: "여수", value: "여수", countryCode: "KR" },
+    { label: "전주", value: "전주", countryCode: "KR" },
+    { label: "도쿄", value: "도쿄", countryCode: "JP" },
+    { label: "오사카", value: "오사카", countryCode: "JP" },
+    { label: "파리", value: "파리", countryCode: "FR" },
+    { label: "바르셀로나", value: "바르셀로나", countryCode: "ES" },
+    { label: "방콕", value: "방콕", countryCode: "TH" },
+    { label: "다낭", value: "다낭", countryCode: "VN" },
+    { label: "뉴욕", value: "뉴욕", countryCode: "US" },
   ];
   const COUNTRY_NAMES = {
     KR: "대한민국",
@@ -74,25 +124,6 @@ document.addEventListener("DOMContentLoaded", function () {
     return countryName ? destination.label + " · " + countryName : destination.label;
   }
 
-  function getCityName(place) {
-    const region = String(place.region || "").trim();
-    const city = String(place.city || "").trim();
-    const metropolitanNames = {
-      서울: "서울특별시",
-      부산: "부산광역시",
-      대구: "대구광역시",
-      인천: "인천광역시",
-      광주: "광주광역시",
-      대전: "대전광역시",
-      울산: "울산광역시",
-      세종: "세종특별자치시",
-    };
-
-    // API의 city 값이 수영구·해운대구처럼 구 단위로 내려오면 상위 도시명만 사용한다.
-    if (region && city.endsWith("구")) return metropolitanNames[region] || region;
-    if (region && metropolitanNames[region]) return metropolitanNames[region];
-    return city || region || String(place.name || "").trim();
-  }
 
   function readDraft() {
     try {
@@ -111,15 +142,7 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   function updateFlowUi() {
-    const ai = isAiPlan();
-    const aiStep = document.querySelector("[data-ai-step]");
-    const finalStep = document.querySelector("[data-final-step]");
-    if (aiStep) aiStep.hidden = false;
-    if (finalStep) {
-      finalStep.querySelector("span").textContent = "4";
-      finalStep.querySelector("b").textContent = ai ? "추천 결과" : "여행 일정";
-    }
-    fields.nextButton.textContent = "여행 스타일 설정 →";
+    fields.nextButton.textContent = "다음으로->";
   }
 
   function buildAutoTitle(destinationLabel, startDate) {
@@ -340,40 +363,22 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   }
 
-  async function searchDestinations(keyword, list) {
-    const requestId = ++destinationRequestId;
-    renderDestinationResults(list, [], "목적지를 찾는 중입니다.");
-    const params = new URLSearchParams({ page: "0", size: "100" });
-    if (keyword) params.set("keyword", keyword);
-    try {
-      const response = await fetch("/api/v1/places?" + params.toString(), {
-        headers: { Accept: "application/json" },
-        allMyTripsLoading: false,
-      });
-      if (!response.ok) throw new Error("목적지 검색 요청에 실패했습니다.");
-      const payload = await response.json();
-      const places = Array.isArray(payload) ? payload : (payload.data || payload.content || []);
-      const unique = new Map();
-      places.forEach(function (place) {
-        const label = getCityName(place);
-        if (!label || unique.has(label)) return;
-        unique.set(label, {
-          label: label,
-          value: place.placeId || place.id || place.region || place.city || place.name,
-          countryCode: place.countryCode,
-        });
-      });
-      if (requestId !== destinationRequestId) return;
-      renderDestinationResults(list, Array.from(unique.values()).slice(0, 8), "일치하는 도시나 지역이 없습니다.");
-    } catch (error) {
-      if (requestId !== destinationRequestId) return;
-      const normalizedKeyword = keyword.toLowerCase();
-      const fallback = DEFAULT_DESTINATIONS.filter(function (destination) {
-        const matchesKeyword = !normalizedKeyword || destination.label.toLowerCase().includes(normalizedKeyword);
-        return matchesKeyword;
-      });
-      renderDestinationResults(list, fallback.slice(0, 8), "일치하는 도시나 지역이 없습니다.");
-    }
+  /** "충남"으로 "충청남도"를 찾을 수 있도록 정식명칭과 줄임말을 함께 본다. */
+  function destinationMatches(destination, normalizedKeyword) {
+    if (!normalizedKeyword) return true;
+    const names = [destination.label].concat(destination.aliases || []);
+    return names.some(function (name) {
+      return name.toLowerCase().includes(normalizedKeyword);
+    });
+  }
+
+  /* 고정 목록에서 고른다. 서버를 부르지 않으므로 결과가 매번 같고 순서도 흔들리지 않는다. */
+  function searchDestinations(keyword, list) {
+    const normalizedKeyword = String(keyword || "").trim().toLowerCase();
+    const matched = DEFAULT_DESTINATIONS.filter(function (destination) {
+      return destinationMatches(destination, normalizedKeyword);
+    });
+    renderDestinationResults(list, matched.slice(0, 8), "일치하는 도시나 지역이 없습니다.");
   }
 
   function validate() {
@@ -442,7 +447,6 @@ document.addEventListener("DOMContentLoaded", function () {
       titleAutoGenerated: previous.titleAutoGenerated !== false,
       destination: fields.destination.value.trim(),
       destinationLabel: fields.destinationLabel.textContent,
-      country: selectedDestination && selectedDestination.countryCode || "",
       countryCode: selectedDestination && selectedDestination.countryCode || "",
       startDate: fields.startDate.value,
       endDate: fields.endDate.value,
@@ -459,7 +463,7 @@ document.addEventListener("DOMContentLoaded", function () {
     fields.nextButton.setAttribute("aria-busy", String(active));
     fields.nextButton.textContent = active
       ? (isAiPlan() ? "입력 내용 저장 중..." : "여행 정보 저장 중...")
-      : "여행 스타일 설정 →";
+      : "다음으로->";
   }
 
   function manualTripPayload(draft) {
@@ -617,10 +621,7 @@ document.addEventListener("DOMContentLoaded", function () {
       if (event.key === "ArrowDown" && options.length) {
         event.preventDefault();
         options[0].focus();
-      }
-    });
-    destinationSearchInput.addEventListener("keydown", function (event) {
-      if (event.key === "Enter") {
+      } else if (event.key === "Enter") {
         event.preventDefault();
         const firstOption = destinationList.querySelector(".destination-option");
         if (firstOption) {
@@ -813,7 +814,7 @@ document.addEventListener("DOMContentLoaded", function () {
   fields.startDate.value = saved.startDate || "";
   fields.endDate.value = saved.endDate || "";
   travelerCount = Math.min(MAX_TRAVELERS, Math.max(1, Number(saved.travelerCount) || 1));
-  fields.totalBudget.value = saved.totalBudget ?? saved.budgetPerPerson ?? "";
+  fields.totalBudget.value = saved.totalBudget ?? "";
   if (saved.companion) {
     const savedButton = document.querySelector('[data-companion="' + saved.companion + '"]');
     if (savedButton) selectCompanion(savedButton, false);

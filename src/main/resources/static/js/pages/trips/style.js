@@ -4,6 +4,13 @@ document.addEventListener("DOMContentLoaded", function () {
   const previousButton = document.querySelector("#stylePreviousButton");
   const nextButton = document.querySelector("#styleNextButton");
   const formMessage = document.querySelector("#styleFormMessage");
+  const summaryFields = {
+    basic: document.querySelector("#basicSummary"),
+    purpose: document.querySelector("#purposeSummary"),
+    style: document.querySelector("#styleSummary"),
+    preference: document.querySelector("#preferenceSummary"),
+    title: document.querySelector("#tripTitleDisplay")
+  };
   if (!previousButton || !nextButton || !formMessage) return;
 
   const labels = {
@@ -16,6 +23,14 @@ document.addEventListener("DOMContentLoaded", function () {
     HOTEL: "호텔", RESORT: "리조트", PENSION: "펜션·풀빌라", GUESTHOUSE: "게스트하우스·호스텔", HANOK: "한옥", CAMPING: "캠핑·글램핑",
     NO_PREFERENCE: "선호 없음", ALONE: "혼자", FRIEND: "친구", COUPLE: "연인", PARENTS: "부모님", CHILDREN: "아이와 함께"
   };
+  const companionLabels = {
+    ALONE: "혼자",
+    FRIEND: "친구",
+    COUPLE: "연인",
+    FAMILY: "가족",
+    PARENTS: "부모님",
+    CHILDREN: "아이와 함께"
+  };
   const state = { purposes: [], pace: "", transportPreference: "", foodPreference: "", accommodationStyle: "" };
   const groupConfig = {
     schedule: ["pace", "scheduleError"],
@@ -23,111 +38,15 @@ document.addEventListener("DOMContentLoaded", function () {
     food: ["foodPreference", "foodError"],
     accommodation: ["accommodationStyle", "accommodationError"]
   };
-  const companionTypeMap = { ALONE: "SOLO", FRIEND: "FRIENDS", COUPLE: "COUPLE", FAMILY: "FAMILY", PARENTS: "FAMILY", CHILDREN: "FAMILY" };
-  let saving = false;
 
   function readDraft() { try { return JSON.parse(sessionStorage.getItem(DRAFT_KEY) || "{}"); } catch (error) { return {}; } }
   function writeDraft(draft) { sessionStorage.setItem(DRAFT_KEY, JSON.stringify(draft)); }
   function selectButton(button, selected) { button.classList.toggle("selected", selected); button.setAttribute("aria-pressed", String(selected)); }
   function showError(id, message) { const target = document.querySelector("#" + id); if (target) target.textContent = message || ""; }
   function label(value) { return labels[value] || value || ""; }
-  function isAiPlan() { return (readDraft().plan || {}).mode === "AI"; }
-
+  function companionLabel(value) { return companionLabels[value] || value || ""; }
   function updateFlowUi() {
-    const ai = isAiPlan();
-    const finalStep = document.querySelector("[data-final-step]");
-    if (finalStep) finalStep.querySelector("b").textContent = ai ? "추천 결과" : "여행 일정";
-    nextButton.textContent = ai ? "AI 추천 결과 보기" : "여행 일정 만들기 →";
-  }
-
-  async function saveManualStyle(draft, tripId) {
-    const basic = draft.basic || {};
-    const style = draft.style || {};
-
-    const requestBody = {
-      title: basic.title || "나의 여행",
-      destinationName:
-          basic.destinationLabel || basic.destination,
-
-      startDate: basic.startDate,
-      endDate: basic.endDate,
-
-      companionType:
-          companionTypeMap[basic.companion] || "OTHER",
-
-      companionCount:
-          Number(basic.travelerCount || 1),
-
-      /*
-       * 화면에 표시되는 한글 값이 아니라
-       * 실제 선택 코드값을 서버로 전달한다.
-       */
-      purpose:
-          Array.isArray(style.purposes) && style.purposes.length
-              ? style.purposes.join(",")
-              : null,
-
-      budgetAmount:
-          Number(basic.totalBudget || 0),
-
-      currencyCode: "KRW",
-
-      transportPreference:
-          style.transportPreferenceCode || null,
-
-      foodPreference:
-          style.foodPreferenceCode || null,
-
-      pace:
-          style.paceCode || null,
-
-      accommodationStyle:
-          style.accommodationStyleCode || null,
-
-      status: "DRAFT",
-    };
-
-    console.log("=== 여행 스타일 저장 요청 ===");
-    console.log("tripId:", tripId);
-    console.log("requestBody:", requestBody);
-
-    const response = await fetch(
-        "/api/v1/trips/" + tripId,
-        {
-          method: "PUT",
-
-          headers: {
-            "Content-Type": "application/json",
-            Accept: "application/json",
-          },
-
-          body: JSON.stringify(requestBody),
-        }
-    );
-
-    const body = await response
-        .json()
-        .catch(function () {
-          return {};
-        });
-
-    console.log("=== 여행 스타일 저장 응답 ===");
-    console.log("status:", response.status);
-    console.log("body:", body);
-
-    if (response.status === 401) {
-      throw new Error("로그인이 필요합니다.");
-    }
-
-    if (!response.ok) {
-      throw new Error(
-          body.message ||
-          body.detail ||
-          "여행 스타일을 저장하지 못했습니다."
-      );
-    }
-
-    return body.data;
+    nextButton.textContent = "AI 추천 결과 보기";
   }
 
   function saveStyle() {
@@ -148,15 +67,16 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   function updateSummary() {
+    if (!summaryFields.basic || !summaryFields.purpose || !summaryFields.style || !summaryFields.preference || !summaryFields.title) return;
     const basic = readDraft().basic || {};
     const start = basic.startDate ? new Date(basic.startDate + "T00:00:00") : null;
     const end = basic.endDate ? new Date(basic.endDate + "T00:00:00") : null;
     const nights = start && end ? Math.round((end - start) / 86400000) : null;
-    document.querySelector("#basicSummary").textContent = [basic.destinationLabel || basic.destination, label(basic.companion), nights === null ? "" : nights + "박 " + (nights + 1) + "일"].filter(Boolean).join(" · ") || "기본정보를 확인해주세요.";
-    document.querySelector("#purposeSummary").textContent = state.purposes.map(label).join(" + ") || "여행 목적을 선택해주세요.";
-    document.querySelector("#styleSummary").textContent = [label(state.pace), label(state.transportPreference)].filter(Boolean).join(" · ") || "일정과 이동 선호를 선택해주세요.";
-    document.querySelector("#preferenceSummary").textContent = [label(state.foodPreference), label(state.accommodationStyle)].filter(Boolean).join(" · ") || "음식과 숙박 선호를 선택해주세요.";
-    document.querySelector("#tripTitleDisplay").textContent = basic.title || "나의 여행";
+    summaryFields.basic.textContent = [basic.destinationLabel || basic.destination, companionLabel(basic.companion), nights === null ? "" : nights + "박 " + (nights + 1) + "일"].filter(Boolean).join(" · ") || "기본정보를 확인해주세요.";
+    summaryFields.purpose.textContent = state.purposes.map(label).join(" + ") || "여행 목적을 선택해주세요.";
+    summaryFields.style.textContent = [label(state.pace), label(state.transportPreference)].filter(Boolean).join(" · ") || "일정과 이동 선호를 선택해주세요.";
+    summaryFields.preference.textContent = [label(state.foodPreference), label(state.accommodationStyle)].filter(Boolean).join(" · ") || "음식과 숙박 선호를 선택해주세요.";
+    summaryFields.title.textContent = basic.title || "나의 여행";
   }
 
   function validate() {
@@ -193,36 +113,11 @@ document.addEventListener("DOMContentLoaded", function () {
   });
 
   previousButton.addEventListener("click", function () { saveStyle(); window.location.href = "/trips/new/basic"; });
-  nextButton.addEventListener("click", async function () {
-    if (saving) return;
+  nextButton.addEventListener("click", function () {
     formMessage.textContent = "";
     formMessage.classList.remove("is-error");
     if (!validate()) { formMessage.textContent = "선택하지 않은 여행 스타일이 있습니다."; formMessage.classList.add("is-error"); return; }
     saveStyle();
-    if (!isAiPlan()) {
-      const tripId = Number((readDraft().trip || {}).tripId);
-      if (!Number.isInteger(tripId) || tripId < 1) {
-        formMessage.textContent = "저장된 여행 정보를 찾을 수 없습니다. 기본 정보를 다시 저장해주세요.";
-        formMessage.classList.add("is-error");
-        return;
-      }
-      saving = true;
-      nextButton.disabled = true;
-      nextButton.setAttribute("aria-busy", "true");
-      nextButton.textContent = "여행 스타일 저장 중...";
-      try {
-        await saveManualStyle(readDraft(), tripId);
-        window.location.href = "/trips/" + tripId + "/schedule";
-      } catch (error) {
-        saving = false;
-        nextButton.disabled = false;
-        nextButton.removeAttribute("aria-busy");
-        nextButton.textContent = "여행 일정 만들기 →";
-        formMessage.textContent = error && error.message ? error.message : "여행 스타일을 저장하지 못했습니다.";
-        formMessage.classList.add("is-error");
-      }
-      return;
-    }
     window.location.href = "/ai-trip-plan";
   });
 
