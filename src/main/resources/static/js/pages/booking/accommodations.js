@@ -406,6 +406,10 @@
 
   const nightsLabelOf = (offer) => offer.nightsLabel || "";
 
+  /** 실습 요금인지. 목록과 이동 안내가 같은 기준으로 판단해야 한 쪽만 빠지지 않는다. */
+  const isPracticePrice = (offer) =>
+    offer.priceSource === "SANDBOX" || offer.priceSource === "MOCK";
+
   function fillModal(prefix, offer) {
     text(prefix + "tp", offer.typeLabel || "숙소");
     text(prefix + "nm", offer.name);
@@ -413,6 +417,13 @@
     text(prefix + "pr", hasPrice(offer) ? money(offer.totalPrice, offer.currency)
       : (offer.priceSourceLabel || "요금 미제공"));
     text(prefix + "px", `${nightsLabelOf(offer)} 총액`);
+
+    /*
+     * 나가는 순간이 제일 위험하다. 목록에는 실습 요금이라고 적혀 있어도, 마지막으로 보는
+     * 이 화면에서 빠지면 그 사실을 모르고 예약 사이트로 넘어간다. 거기 가격은 다르다.
+     */
+    const note = $(prefix + "pn");
+    if (note) note.hidden = !(hasPrice(offer) && isPracticePrice(offer));
   }
 
   /** 이동 안내 모달. 여기서 바로 내보내지 않는 이유는 새 탭이 열린다는 것을 먼저 알리기 위해서다. */

@@ -97,10 +97,18 @@ public class LiteApiSandboxPriceProvider implements AccommodationPriceProvider {
         return NAME;
     }
 
+    /**
+     * 프로덕션에서도 부른다.
+     *
+     * <p>예전에는 막아 두었다. 가짜 요금을 보고 예약 사이트로 나가면 그 손해를 되돌릴 수
+     * 없다는 이유였다. 지금은 <b>요금 자리와 이동 직전 안내에 실습 요금임을 함께 적어</b>
+     * 그 위험을 줄이고, 요금을 아예 안 보여주는 쪽보다 낫다고 판단해 열었다.
+     *
+     * <p>그래도 이것은 <b>실제 판매가가 아니다.</b> 화면에서 그 표시를 떼면 안 된다.
+     */
     @Override
     public boolean supports(AccommodationSearchQuery query, List<AccommodationOffer> offers) {
-        return !environment.acceptsProfiles(Profiles.of("prod"))
-                && properties.hasSandboxKey()
+        return properties.hasSandboxKey()
                 && offers.stream().anyMatch(this::hasCoordinates);
     }
 

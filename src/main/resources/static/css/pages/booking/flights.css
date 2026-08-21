@@ -1147,3 +1147,18 @@
   color: var(--muted);
 }
 .page-flights .ticket-card .ticket-action button[disabled] { opacity: 0.55; cursor: not-allowed; }
+
+/*
+ * 예약 사이트로 나가기 직전 안내의 실습 요금 표시.
+ *
+ * 목록의 .hotel-practice와 같은 말을 같은 색으로 한다. 마지막으로 보는 화면에서 이
+ * 표시가 빠지면 실습 요금인 줄 모르고 넘어가고, 그쪽 가격은 다르다.
+ */
+.page-flights .mock-note {
+  margin-top: 4px;
+  color: #9a5f08;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.4;
+}
+.page-flights .mock-note[hidden] { display: none; }
