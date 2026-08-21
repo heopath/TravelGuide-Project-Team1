@@ -18,13 +18,6 @@
 
     <main id="page-content">
       <section class="plan-shell">
-        <ol class="plan-wizard" aria-label="여행 계획 단계">
-          <li class="active"><span>1</span><b>계획 방식</b><i></i></li>
-          <li><span>2</span><b>기본 정보</b><i></i></li>
-          <li data-ai-step><span>3</span><b>여행 스타일</b><i></i></li>
-          <li data-final-step><span>3</span><b>여행 일정</b></li>
-        </ol>
-
         <section class="plan-heading" aria-labelledby="planTitle">
           <p class="plan-context">서울 · 친구와 · 3박 4일</p>
           <h1 id="planTitle">여행 계획, 어떻게 시작할까요?</h1>
@@ -64,7 +57,9 @@
     <div th:replace="~{fragments/scripts :: appScripts}"></div>
   </div>
 
-  <script th:src="@{/js/pages/trips/plan.js}" src="../../static/js/pages/trips/plan.js"></script>
+  <script defer
+        th:src="@{/js/pages/trips/plan.js}"
+        src="../../static/js/pages/trips/plan.js"></script>
 <div th:replace="~{fragments/mighty :: mighty}"></div>
 <script th:src="@{/js/core/mighty.js}" src="../../static/js/core/mighty.js"></script>
 </body>
