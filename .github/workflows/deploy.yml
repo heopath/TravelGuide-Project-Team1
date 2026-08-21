@@ -11,6 +11,30 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # 화면 수용 기준. 빌드와 나란히 돌리고, 배포는 둘 다 통과해야 시작합니다.
+  # 이것이 없으면 화면이 깨져도 배포가 그대로 나갑니다 — gradlew build는 서버 테스트만
+  # 돌립니다.
+  frontend:
+    name: 화면 수용 기준
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: src/test/js/package-lock.json
+
+      - name: Install dependencies
+        working-directory: src/test/js
+        run: npm ci
+
+      - name: Run acceptance tests
+        working-directory: src/test/js
+        run: npm test
+
   build:
     name: Build Spring Boot
     runs-on: ubuntu-latest
@@ -67,7 +91,7 @@ jobs:
 
   deploy:
     name: Deploy to EC2
-    needs: build
+    needs: [build, frontend]
     runs-on: ubuntu-latest
     environment: production
 
