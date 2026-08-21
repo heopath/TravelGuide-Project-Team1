@@ -43,10 +43,12 @@ AiGuideController → AiGuideService → AiModelClient
 POST /api/v1/ai-guides/generate
 Content-Type: application/json
 
-{ "question": "부산에서 하루 동안 갈 만한 곳을 추천해줘", "tripId": 12 }
+{ "question": "부산에서 하루 동안 갈 만한 곳을 추천해줘", "tripId": 12, "selectedDayNumber": 1 }
 ```
 
 성공 응답은 `ApiResponse<AiGuideResponse>` 형식이며 `answer`, `days`, `externalLinks`, `sources`를 반환합니다. 일정 항목은 기본 `time`, `name`, `reason` 외에 실제 카카오/RAG 장소와 정확히 일치한 경우에만 `placeId`, `placeCategory`, `placeAddress`, `placeUrl`을 포함합니다. 화면은 이 메타데이터가 있는 항목에만 지도 보기와 일정 추가 기능을 표시합니다.
+
+일정 화면에서 요청하면 현재 선택된 DAY 번호를 선택값 `selectedDayNumber`로 함께 보냅니다. 이 경우 AI는 해당 DAY의 기존 일정만 고려하고, 응답도 해당 DAY 하나만 반환합니다.
 
 ## 로컬 실행
 

@@ -44,8 +44,27 @@ document.addEventListener("DOMContentLoaded", function () {
   const segmentModes = loadSegmentModes();
   const segmentRouteResults = new Map();
   const segmentRouteRequests = new Map();
+  /*
+   * 성공한 이동정보만 담는다. 실패까지 담으면 잠깐 밀린 요청 하나가 그 구간을 영영
+   * "이동정보 없음"으로 굳힌다. 같은 장소인데 어떤 때는 나오고 어떤 때는 안 나오는
+   * 것처럼 보이던 원인이 이것이었다. 실패는 남기지 않으므로 다음에 다시 시도된다.
+   */
   const placeRoutePreviewCache = new Map();
+  /* 같은 구간을 두 칸이 동시에 물어보지 않도록 진행 중인 요청만 잠깐 들고 있는다. */
+  const placeRoutePreviewInFlight = new Map();
   const placeRoutePreviewTargets = new WeakMap();
+
+  /*
+   * 목록을 훑으면 화면에 들어온 칸만큼 요청이 한꺼번에 나간다. 로컬에서는 응답이 빨라
+   * 다 성공하지만, 서버에서는 카카오까지 왕복이 길고 짧은 시간에 몰리면 거절당한다.
+   * 몇 개씩 끊어 보내고, 미리보기이므로 오래 붙잡지 않는다.
+   */
+  const ROUTE_PREVIEW_CONCURRENCY = 3;
+  const ROUTE_PREVIEW_TIMEOUT_MS = 8000;
+  const routePreviewQueue = [];
+  let routePreviewActive = 0;
+  /* 실제로 몇 개까지 동시에 나갔는지. 제한이 도는지 확인할 때 쓴다. */
+  let routePreviewPeak = 0;
   let globalTransportMode = "";
   const travelModeOptions = {
     walk: {label: "도보", icon: "🚶", color: "#3b9cff", endpoint: "/api/v1/routes/walk"},
@@ -2543,6 +2562,72 @@ document.addEventListener("DOMContentLoaded", function () {
     element.textContent = text;
   }
 
+  /* 대기열에 넣어 한 번에 ROUTE_PREVIEW_CONCURRENCY개까지만 나가게 한다. */
+  function enqueueRoutePreview(task) {
+    return new Promise(function (resolve, reject) {
+      routePreviewQueue.push({task, resolve, reject});
+      pumpRoutePreviewQueue();
+    });
+  }
+
+  function pumpRoutePreviewQueue() {
+    while (routePreviewActive < ROUTE_PREVIEW_CONCURRENCY && routePreviewQueue.length) {
+      const job = routePreviewQueue.shift();
+      routePreviewActive += 1;
+      if (routePreviewActive > routePreviewPeak) routePreviewPeak = routePreviewActive;
+      job.task().then(job.resolve, job.reject).finally(function () {
+        routePreviewActive -= 1;
+        pumpRoutePreviewQueue();
+      });
+    }
+  }
+
+  /* 미리보기 하나를 무한정 기다리지 않는다. 끊기면 실패로 두고 다음에 다시 시도한다. */
+  function fetchPlaceRoute(origin, destination) {
+    const controller = new AbortController();
+    const timer = window.setTimeout(function () { controller.abort(); }, ROUTE_PREVIEW_TIMEOUT_MS);
+    return api(travelModeOptions.car.endpoint, {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      signal: controller.signal,
+      body: JSON.stringify({
+        startX: origin.longitude,
+        startY: origin.latitude,
+        endX: destination.longitude,
+        endY: destination.latitude,
+      }),
+    }).finally(function () { window.clearTimeout(timer); });
+  }
+
+  function loadPlaceRoute(key, origin, destination) {
+    /* 캐시 판단을 여기에 둔다. 호출부에만 두면 다른 곳에서 부를 때 조용히 다시 나간다. */
+    const cached = placeRoutePreviewCache.get(key);
+    if (cached) return Promise.resolve(cached);
+    if (placeRoutePreviewInFlight.has(key)) return placeRoutePreviewInFlight.get(key);
+
+    const pending = enqueueRoutePreview(function () {
+      return fetchPlaceRoute(origin, destination);
+    }).then(function (data) {
+      placeRoutePreviewCache.set(key, {ok: true, data});
+      return {ok: true, data};
+    }, function (error) {
+      /*
+       * "길이 없다"와 "못 불러왔다"는 다르다. 앞은 다시 물어도 답이 같으니 캐시해서
+       * 카카오를 더 두드리지 않고, 뒤는 남기지 않아 다음 렌더링에서 다시 시도한다.
+       */
+      if (error?.code === "ROUTE_NOT_FOUND") {
+        placeRoutePreviewCache.set(key, {ok: false, reason: "NOT_FOUND"});
+        return {ok: false, reason: "NOT_FOUND"};
+      }
+      throw error;
+    }).finally(function () {
+      placeRoutePreviewInFlight.delete(key);
+    });
+
+    placeRoutePreviewInFlight.set(key, pending);
+    return pending;
+  }
+
   async function requestPlaceRoutePreview(place, element) {
     const origin = currentPlaceRoutePreviewOrigin();
     const destinationCoordinates = routePreviewCoordinates(place);
@@ -2551,30 +2636,37 @@ document.addEventListener("DOMContentLoaded", function () {
       return;
     }
     if (!destinationCoordinates) {
-      setPlaceRoutePreviewState(element, "unavailable", "🚗 자동차 이동정보 없음");
+      setPlaceRoutePreviewState(element, "unavailable", "🚗 좌표가 없어 이동시간을 알 수 없어요");
       return;
     }
+
     const key = placeRoutePreviewKey(origin, destinationCoordinates);
-    setPlaceRoutePreviewState(element, "loading", "🚗 이동시간 계산 중...");
-    if (!placeRoutePreviewCache.has(key)) {
-      placeRoutePreviewCache.set(key, api(travelModeOptions.car.endpoint, {
-        method: "POST",
-        headers: {"Content-Type": "application/json"},
-        body: JSON.stringify({
-          startX: origin.longitude,
-          startY: origin.latitude,
-          endX: destinationCoordinates.longitude,
-          endY: destinationCoordinates.latitude,
-        }),
-      }).then(function (data) {
-        return {status: "success", data};
-      }).catch(function () {
-        return {status: "error"};
-      }));
+    const cached = placeRoutePreviewCache.get(key);
+    if (cached) {
+      showPlaceRoutePreview(element, cached);
+      return;
     }
-    const result = await placeRoutePreviewCache.get(key);
-    if (result.status !== "success") {
-      setPlaceRoutePreviewState(element, "unavailable", "🚗 자동차 이동정보 없음");
+
+    setPlaceRoutePreviewState(element, "loading", "🚗 이동시간 계산 중...");
+    let result;
+    try {
+      result = await loadPlaceRoute(key, origin, destinationCoordinates);
+    } catch (error) {
+      /*
+       * 이유를 남긴다. 전에는 통째로 삼켜서 거절인지 시간 초과인지 알 방법이 없었고,
+       * 서버에서만 비는 이유를 화면에서도 로그에서도 짚을 수 없었다.
+       */
+      console.warn("[이동정보] 가져오지 못했습니다.",
+        {status: error?.status, code: error?.code, message: error?.message});
+      setPlaceRoutePreviewState(element, "unavailable", "🚗 이동시간을 불러오지 못했어요");
+      return;
+    }
+    showPlaceRoutePreview(element, result);
+  }
+
+  function showPlaceRoutePreview(element, result) {
+    if (!result.ok) {
+      setPlaceRoutePreviewState(element, "unavailable", "🚗 자동차로 가는 길을 찾지 못했어요");
       return;
     }
     setPlaceRoutePreviewState(
@@ -3141,6 +3233,10 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   window.AllMyTripsSchedule = {
+    getActiveDayNumber: function () {
+      const dayNumber = Number(activeDay?.dayNumber);
+      return Number.isInteger(dayNumber) && dayNumber > 0 ? dayNumber : null;
+    },
     getAiRecommendationStates,
     getAiRecommendationTimeConflicts,
     isAiRecommendationOutsideDay,
@@ -3417,5 +3513,16 @@ document.addEventListener("DOMContentLoaded", function () {
   }
   initMap();
   loadSchedule();
+  /*
+   * 이동정보 미리보기는 화면 전체를 띄우지 않고는 확인하기 어렵다. 실패를 캐시하지 않는지,
+   * 동시 요청이 제한되는지는 눈으로 보이지 않는 동작이라 통로를 하나 둔다.
+   * admin-places.js의 window.__adminPlaces와 같은 방식이다.
+   */
+  window.__scheduleRoutePreview = {
+    load: loadPlaceRoute,
+    cache: placeRoutePreviewCache,
+    inFlight: placeRoutePreviewInFlight,
+    peakConcurrency: function () { return routePreviewPeak; },
+  };
   document.body.dataset.pageReady = "true";
 });

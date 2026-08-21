@@ -237,6 +237,20 @@ document.addEventListener("DOMContentLoaded", function () {
     document.dispatchEvent(new CustomEvent("placeDetailLoaded", { detail: { place: place } }));
   }
 
+  /*
+   * 마이페이지 "최근 본 여행지"에 남긴다.
+   *
+   * 화면을 그린 뒤에 부르고, 결과를 기다리지 않는다. 이력은 부가 정보라서
+   * 이것 때문에 상세가 늦게 뜨거나 못 뜨면 안 된다. 비로그인이면 서버가 그냥 넘어간다.
+   */
+  function recordView(placeId) {
+    fetch("/api/v1/places/" + placeId + "/view", {
+      method: "POST",
+      headers: { Accept: "application/json" },
+      allMyTripsLoading: false,
+    }).catch(function () { /* 기록 실패는 사용자에게 알릴 것이 없다 */ });
+  }
+
   async function loadDetail() {
     const match = window.location.pathname.match(/\/guide\/places\/(\d+)$/);
     if (!match) {
@@ -254,6 +268,7 @@ document.addEventListener("DOMContentLoaded", function () {
       const payload = await response.json();
       if (!payload.data) throw new Error("장소 상세 응답이 올바르지 않습니다.");
       renderDetail(payload.data);
+      recordView(match[1]);
     } catch (error) {
       state.textContent = "장소 정보를 불러오지 못했습니다. 추천 장소에서 다시 시도해 주세요.";
       state.classList.add("error");

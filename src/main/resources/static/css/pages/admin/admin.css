@@ -768,3 +768,54 @@ body.page-admin #page-content {
 
   .page-admin .admin-filter { margin-left: 0; }
 }
+
+/* =================================================
+   시간대 모달
+   ================================================= */
+
+/*
+ * 공통 모달(.modal-backdrop / .modal-card)을 그대로 쓰되 폭만 넓힙니다. 기본 600px는
+ * 옵션 표와 시간대 표가 함께 들어가기에 좁습니다.
+ */
+.admin-slot-card {
+  width: min(980px, 96vw);
+  max-height: 88vh;
+  padding: 26px 28px;
+}
+
+.admin-slot-card .admin-section-head {
+  position: sticky;
+  top: -26px;
+  z-index: 1;
+  margin: -26px -28px 14px;
+  padding: 20px 28px 14px;
+  background: #fff;
+}
+
+/* 뒤 목록이 같이 밀리면 모달 안에서 길을 잃습니다. */
+body[data-slot-modal-open] { overflow: hidden; }
+
+.admin-slot-filter {
+  margin: 12px 0 10px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 10px;
+}
+.admin-slot-filter label { display: grid; gap: 4px; }
+.admin-slot-filter label span { color: #7b8194; font-size: 11.5px; font-weight: 700; }
+.admin-slot-filter input {
+  min-height: 36px;
+  padding: 0 10px;
+  border: 1px solid #dfe2ec;
+  border-radius: 8px;
+  font-size: 13px;
+}
+/* 개수는 오른쪽 끝에 둡니다. 걸러진 것을 없는 것으로 읽지 않게 하는 표시입니다. */
+.admin-slot-filter [data-slot-count] { margin-left: auto; }
+
+@media (max-width: 720px) {
+  .admin-slot-card { padding: 20px 16px; }
+  .admin-slot-card .admin-section-head { margin: -20px -16px 12px; padding: 16px 16px 12px; }
+  .admin-slot-filter [data-slot-count] { margin-left: 0; width: 100%; }
+}

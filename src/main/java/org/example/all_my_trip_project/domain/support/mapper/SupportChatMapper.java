@@ -34,9 +34,23 @@ public interface SupportChatMapper {
     /** {@code WAITING}이나 {@code BOT}일 때만 배정한다. 이미 배정된 방은 0건이 된다. */
     int assignRoom(@Param("roomId") Long roomId, @Param("adminId") Long adminId);
 
+    /**
+     * 봇이 사람에게 넘긴다. {@code BOT}일 때만 바뀐다.
+     *
+     * <p>0건이면 그 사이 관리자가 이미 {@code takeover}로 가져갔다는 뜻이다 — 봇 응답을 저장하기
+     * 직전 방 상태를 재확인하는 경쟁 조건 검사(설계 문서 §5)에 이 반환값을 그대로 쓴다.
+     */
+    int markWaiting(@Param("roomId") Long roomId);
+
     int closeRoom(@Param("roomId") Long roomId);
 
     int insertMessage(SupportChatMessageDTO message);
+
+    /**
+     * 방금 넣은 메시지를 닉네임·저장 시각까지 채워 다시 읽는다. {@code insertMessage}는 PK만
+     * 채워 주므로, WebSocket으로 그대로 내보낼 완전한 형태가 필요할 때 쓴다.
+     */
+    Optional<SupportChatMessageDTO> findMessage(@Param("messageId") Long messageId);
 
     /** 방 목록을 최근 대화순으로 세우려면 방마다 들고 있어야 한다. */
     int touchRoom(@Param("roomId") Long roomId);

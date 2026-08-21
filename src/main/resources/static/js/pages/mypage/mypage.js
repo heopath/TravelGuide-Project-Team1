@@ -11,6 +11,10 @@ import {
 } from "./mypage-favorites.js";
 
 import {
+    initRecentPlaces,
+} from "./mypage-recent.js";
+
+import {
     initReviews,
 } from "./mypage-reviews.js";
 
@@ -631,6 +635,7 @@ document.addEventListener(
             initAccount(),
             initTrips(),
             initFavorites(),
+            initRecentPlaces(),
             initReviews(),
             initSupport(),
             /* 상담 채팅은 탭을 열 때 서버를 부른다. 여기서는 화면만 걸어 둔다. */

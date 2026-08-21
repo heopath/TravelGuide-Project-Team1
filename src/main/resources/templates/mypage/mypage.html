@@ -300,6 +300,7 @@
             <!-- 최근 본 여행지 -->
             <section
                     class="white-panel mypage-panel mypage-empty-panel"
+                    data-recent-panel
             >
               <div class="mypage-panel-head">
                 <div class="mypage-panel-title">
@@ -314,7 +315,17 @@
                 </div>
               </div>
 
-              <div class="mypage-empty-content">
+              <!-- 목록을 받으면 JS가 채우고 아래 빈 상태를 감춥니다. -->
+              <div
+                      class="recent-place-list"
+                      data-recent-list
+                      hidden
+              ></div>
+
+              <div
+                      class="mypage-empty-content"
+                      data-recent-empty
+              >
                 <div
                         class="mypage-empty-icon"
                         aria-hidden="true"
@@ -1226,6 +1237,10 @@
 
 <!-- 확인 대화상자. 브라우저 기본 confirm이 차단돼도 되묻기가 동작해야 한다. -->
 <script th:src="@{/js/core/dialog.js}" src="../../static/js/core/dialog.js"></script>
+
+<!-- 상담 채팅 실시간 수신용. 백엔드로 서빙될 때만 뜬다 — 정적 미리보기에서는 없어도 폴백으로 동작한다. -->
+<script th:src="@{/webjars/sockjs-client/1.5.1/sockjs.min.js}"></script>
+<script th:src="@{/webjars/stomp-websocket/2.3.4/stomp.min.js}"></script>
 
 <!--
   결제수단 선택 창. (#281) 모듈이 아니라 고전 스크립트인 이유는 예약 화면(flights.js)이

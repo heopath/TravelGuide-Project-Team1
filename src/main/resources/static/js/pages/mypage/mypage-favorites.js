@@ -1,6 +1,7 @@
 import {
     request,
     renderPagination,
+    normalizeCityName,
 } from "./mypage-common.js";
 
 const FAVORITE_PREVIEW_COUNT = 4;
@@ -89,95 +90,6 @@ export function initFavorites() {
     let selectedFavoriteRegion =
         "ALL";
 
-    function normalizeCityName(
-        region,
-    ) {
-        const value =
-            String(
-                region || "",
-            ).trim();
-
-        if (!value) {
-            return "";
-        }
-
-        const parts =
-            value.split(/\s+/);
-
-        const first =
-            parts[0] || "";
-
-        const second =
-            parts[1] || "";
-
-        if (
-            first.includes(
-                "특별시",
-            ) ||
-            first.includes(
-                "광역시",
-            )
-        ) {
-            return first
-                .replace(
-                    "특별시",
-                    "",
-                )
-                .replace(
-                    "광역시",
-                    "",
-                );
-        }
-
-        if (
-            first.includes(
-                "제주특별자치도",
-            )
-        ) {
-            return "제주";
-        }
-
-        if (
-            first.endsWith("도") &&
-            second
-        ) {
-            return second
-                .replace(
-                    /시$/,
-                    "",
-                )
-                .replace(
-                    /군$/,
-                    "",
-                );
-        }
-
-        return first
-            .replace(
-                "특별자치시",
-                "",
-            )
-            .replace(
-                "특별자치도",
-                "",
-            )
-            .replace(
-                "특별시",
-                "",
-            )
-            .replace(
-                "광역시",
-                "",
-            )
-            .replace(
-                /시$/,
-                "",
-            )
-            .replace(
-                /군$/,
-                "",
-            );
-    }
 
     function createFavoriteCard(
         favorite,

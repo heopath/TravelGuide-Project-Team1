@@ -7,8 +7,10 @@ name: CI
 on:
   pull_request:
     branches: [main, develop]
+  # main에는 걸지 않습니다. 거기로 가는 변경은 PR에서 이미 거쳤고, main push에서는
+  # 배포가 같은 것을 다시 빌드합니다. develop은 직접 올리는 경우가 있어 남깁니다.
   push:
-    branches: [main, develop]
+    branches: [develop]
   workflow_dispatch:
 
 # 같은 브랜치에 연달아 올리면 앞의 실행은 취소합니다. 어차피 볼 것은 마지막 결과입니다.
