@@ -427,6 +427,29 @@ class AiGuideServiceTest {
     }
 
     @Test
+    void keepsSelectedDayWhenQuestionContainsCalendarDate() {
+        AiGuideRequest request = new AiGuideRequest("8월 19일 저녁 맛집 추천", 12L, 2, null);
+        AiGuideContext context = new AiGuideContext(null, List.of());
+        RagSearchResult verifiedRestaurant = new RagSearchResult("place:66", "verified", 66L,
+                "실제 저녁 식당", "RESTAURANT", "서울 종로구", "https://place.map.kakao.com/66");
+        AiGuideResponse modelResponse = new AiGuideResponse("추천", List.of(new AiGuideDayResponse(1, "DAY 1 저녁",
+                List.of(new AiGuideItemResponse("18:00", "실제 저녁 식당", "저녁 식사 추천")))), List.of(), List.of());
+        org.example.all_my_trip_project.domain.rag.service.PlaceRagService ragService = mock(
+                org.example.all_my_trip_project.domain.rag.service.PlaceRagService.class);
+
+        when(conversationHistoryService.load(1L, 12L)).thenReturn(List.of());
+        when(contextService.load(1L, request)).thenReturn(context);
+        when(ragServiceProvider.getIfAvailable()).thenReturn(ragService);
+        when(ragService.search(request.question())).thenReturn(List.of(verifiedRestaurant));
+        when(aiModelClient.generate(request, List.of(), context, List.of(verifiedRestaurant))).thenReturn(modelResponse);
+
+        AiGuideDayResponse actualDay = service.generate(request, false, 1L).days().getFirst();
+
+        assertThat(actualDay.day()).isEqualTo(2);
+        assertThat(actualDay.title()).isEqualTo("DAY 2 저녁");
+    }
+
+    @Test
     void usesOnlyFreshNearbyCandidatesSoOldRagCandidatesDoNotLeakIntoTheRecommendation() {
         AiGuideRequest request = new AiGuideRequest("이재모피자 근처 카페 추천", 12L);
         AiGuideContext context = new AiGuideContext(null, List.of());
@@ -480,8 +503,8 @@ class AiGuideServiceTest {
     }
 
     @Test
-    void usesTheRequestedDaysLastScheduledPlaceAsTheNearbySearchAnchor() {
-        AiGuideRequest request = new AiGuideRequest("DAY 2 점심 먹고 뭐할지 추천해줘", 12L);
+    void usesSelectedDaysLastScheduledPlaceAsTheNearbySearchAnchorWithoutDayWording() {
+        AiGuideRequest request = new AiGuideRequest("점심 먹고 뭐할지 추천해줘", 12L, 2, null);
         AiGuideContext.Item dayOneItem = new AiGuideContext.Item(71L, "DAY 1 식당", LocalTime.of(12, 0), null, "FOOD", null);
         AiGuideContext.Item dayTwoLunch = new AiGuideContext.Item(88L, "DAY 2 점심 식당", LocalTime.of(12, 30), null, "FOOD", null);
         AiGuideContext context = new AiGuideContext(
@@ -551,7 +574,7 @@ class AiGuideServiceTest {
     }
 
     @Test
-    void keepsIndexedCandidatesWhenScheduledAnchorDiscoveryFindsNoFreshPlace() {
+    void doesNotUseIndexedCandidatesWhenScheduledAnchorDiscoveryFindsNoFreshPlace() {
         AiGuideRequest request = new AiGuideRequest("\uC774\uC7AC\uBAA8\uD53C\uC790 \uB2E4\uC74C \uCF54\uC2A4 \uCD94\uCC9C", 12L);
         AiGuideContext.Item scheduledItem = new AiGuideContext.Item(77L, "\uC774\uC7AC\uBAA8\uD53C\uC790", null, null, "FOOD", null);
         AiGuideContext context = new AiGuideContext(
@@ -571,11 +594,11 @@ class AiGuideServiceTest {
         when(ragService.search(request.question())).thenReturn(List.of(indexed));
         when(kakaoPlaceDiscoveryServiceProvider.getIfAvailable()).thenReturn(discoveryService);
         when(discoveryService.discoverAndIndex(request.question(), "\uBD80\uC0B0", 77L)).thenReturn(List.of());
-        when(aiModelClient.generate(request, List.of(), context, List.of(indexed))).thenReturn(response);
+        when(aiModelClient.generate(request, List.of(), context, List.of())).thenReturn(response);
 
         service.generate(request, false, 1L);
 
-        verify(aiModelClient).generate(request, List.of(), context, List.of(indexed));
+        verify(aiModelClient).generate(request, List.of(), context, List.of());
     }
 
     @Test

@@ -42,14 +42,14 @@ public class AiGuideService {
         List<AiConversationTurn> history = conversationHistoryService.load(userId, request.tripId());
         var context = contextService.load(userId, request);
         String placeSearchQuestion = resolvePlaceSearchQuestion(request.question(), history);
-        List<RagSearchResult> ragResults = loadRagResults(placeSearchQuestion, context);
+        List<RagSearchResult> ragResults = loadRagResults(placeSearchQuestion, context, request.selectedDayNumber());
         RagSearchResult referencePlace = loadReferencePlace(request.referencePlaceId());
         ragResults = includeReferencePlace(ragResults, referencePlace);
         ragResults = excludeScheduledPlaces(ragResults, context);
         ragResults = excludePreviouslySuggestedPlaces(ragResults, history, request.question());
         AiGuideResponse response = aiModelClient.generate(
                 request, history, context, ragResults);
-        response = alignDaysWithRequestedDay(response, request.question());
+        response = alignDaysWithRequestedDay(response, request);
         response = attachReferencePlaceToTimeAdjustment(response, request.question(), referencePlace);
         response = excludeFinalResponsePlaces(response, context, history, request.question());
         response = removeUnverifiedGenericItems(enrichVerifiedPlaces(response, ragResults, request.question()));
@@ -494,7 +494,9 @@ public class AiGuideService {
         return value == null ? "" : value.replaceAll("\\s+", "").trim().toLowerCase(Locale.ROOT);
     }
 
-    private List<RagSearchResult> loadRagResults(String question, org.example.all_my_trip_project.domain.ai.dto.AiGuideContext context) {
+    private List<RagSearchResult> loadRagResults(String question,
+                                                   org.example.all_my_trip_project.domain.ai.dto.AiGuideContext context,
+                                                   Integer selectedDayNumber) {
         PlaceRagService service = placeRagServiceProvider.getIfAvailable();
         List<RagSearchResult> indexedResults = service == null ? List.of() : service.search(question);
         KakaoPlaceDiscoveryService discoveryService = kakaoPlaceDiscoveryServiceProvider.getIfAvailable();
@@ -502,7 +504,7 @@ public class AiGuideService {
             return indexedResults;
         }
         String destination = context == null || context.trip() == null ? null : context.trip().destinationName();
-        Long scheduledAnchorPlaceId = findScheduledAnchorPlaceId(question, context);
+        Long scheduledAnchorPlaceId = findScheduledAnchorPlaceId(question, context, selectedDayNumber);
         List<RagSearchResult> discoveredResults = scheduledAnchorPlaceId == null
                 ? discoveryService.discoverAndIndex(question, destination)
                 : discoveryService.discoverAndIndex(question, destination, scheduledAnchorPlaceId);
@@ -512,8 +514,7 @@ public class AiGuideService {
         // An existing itinerary place is an equally reliable local-search anchor even when
         // the user says "after visiting X" instead of explicitly saying "near X".
         // In that case, never merge stale RAG candidates from unrelated regions.
-        if ((scheduledAnchorPlaceId != null || !KakaoPlaceDiscoveryService.extractNearbyAnchor(question).isBlank())
-                && !discoveredResults.isEmpty()) {
+        if (scheduledAnchorPlaceId != null || !KakaoPlaceDiscoveryService.extractNearbyAnchor(question).isBlank()) {
             return discoveredResults;
         }
 
@@ -534,11 +535,11 @@ public class AiGuideService {
      * 질문이 특정 DAY 하나를 가리킬 때 모델이 다른 DAY 번호를 반환하더라도,
      * 추천 카드가 사용자가 요청한 DAY에 추가되도록 응답 범위를 고정한다.
      */
-    private AiGuideResponse alignDaysWithRequestedDay(AiGuideResponse response, String question) {
+    private AiGuideResponse alignDaysWithRequestedDay(AiGuideResponse response, AiGuideRequest request) {
         if (response == null || response.days() == null || response.days().isEmpty()) {
             return response;
         }
-        int requestedDay = extractRequestedDayNumber(question);
+        int requestedDay = resolveRequestedDayNumber(request);
         if (requestedDay <= 0) {
             return response;
         }
@@ -566,7 +567,9 @@ public class AiGuideService {
         return new AiGuideResponse(response.answer(), List.of(correctedDay), response.externalLinks(), response.sources());
     }
 
-    private Long findScheduledAnchorPlaceId(String question, org.example.all_my_trip_project.domain.ai.dto.AiGuideContext context) {
+    private Long findScheduledAnchorPlaceId(String question,
+                                            org.example.all_my_trip_project.domain.ai.dto.AiGuideContext context,
+                                            Integer selectedDayNumber) {
         if (question == null || context == null || context.trip() == null) {
             return null;
         }
@@ -587,7 +590,7 @@ public class AiGuideService {
 
         // "DAY 2 점심 후 뭐 할지"처럼 상호를 다시 적지 않은 후속 질문도
         // 선택한 일차의 마지막 일정 주변에서 실제 장소를 찾아야 한다.
-        int requestedDayNumber = extractRequestedDayNumber(question);
+        int requestedDayNumber = resolveRequestedDayNumber(question, selectedDayNumber);
         if (requestedDayNumber <= 0) {
             return null;
         }
@@ -606,15 +609,26 @@ public class AiGuideService {
         if (question == null || question.isBlank()) {
             return -1;
         }
-        var matcher = java.util.regex.Pattern.compile("(?i)(?:day\\s*|)([1-9][0-9]?)\\s*(?:일차|일|day)?")
+        var matcher = java.util.regex.Pattern.compile("(?i)(?:day\\s*([1-9][0-9]?)|([1-9][0-9]?)\\s*일차)")
                 .matcher(question);
         while (matcher.find()) {
-            String matched = matcher.group();
-            if (matched.toLowerCase(Locale.ROOT).contains("day") || matched.contains("일")) {
-                return Integer.parseInt(matcher.group(1));
-            }
+            String dayNumber = matcher.group(1) != null ? matcher.group(1) : matcher.group(2);
+            return Integer.parseInt(dayNumber);
         }
         return -1;
+    }
+
+    private int resolveRequestedDayNumber(AiGuideRequest request) {
+        if (request == null) {
+            return -1;
+        }
+        return resolveRequestedDayNumber(request.question(), request.selectedDayNumber());
+    }
+
+    private int resolveRequestedDayNumber(String question, Integer selectedDayNumber) {
+        return selectedDayNumber != null && selectedDayNumber > 0
+                ? selectedDayNumber
+                : extractRequestedDayNumber(question);
     }
 
     private boolean matchesQuestionPlace(String normalizedQuestion, String normalizedTitle) {
