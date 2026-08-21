@@ -4,6 +4,13 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="description" content="All My Trips 마이 페이지" />
+  <!--
+    토스 결제창이 쓰는 공개 키. 서버 설정(payment.toss.client-key)에서 온다.
+    비어 있으면 결제수단 목록에 토스가 뜨지 않는다. 시크릿 키는 여기 오지 않는다 —
+    승인은 서버만 하고, 브라우저에 있으면 누구나 우리 이름으로 승인을 부를 수 있다.
+  -->
+  <meta name="toss-client-key" th:content="${tossClientKey}" content="" />
+  <meta name="kakao-pay-enabled" th:content="${kakaoPayEnabled}" content="false" />
 
   <title>마이 페이지 — All My Trips</title>
 
@@ -134,11 +141,15 @@
 
             <button
                     type="button"
-                    disabled
+                    data-open-notifications
             >
               <span aria-hidden="true">◇</span>
               <span>알림</span>
-              <em>준비 중</em>
+              <!--
+                안 읽은 개수. 0이면 감춘다 — 0이 붙어 있으면 읽을 것이 있는 줄 알고
+                눌러 보게 된다.
+              -->
+              <em data-notification-badge hidden></em>
             </button>
 
             <button
@@ -289,6 +300,7 @@
             <!-- 최근 본 여행지 -->
             <section
                     class="white-panel mypage-panel mypage-empty-panel"
+                    data-recent-panel
             >
               <div class="mypage-panel-head">
                 <div class="mypage-panel-title">
@@ -303,7 +315,17 @@
                 </div>
               </div>
 
-              <div class="mypage-empty-content">
+              <!-- 목록을 받으면 JS가 채우고 아래 빈 상태를 감춥니다. -->
+              <div
+                      class="recent-place-list"
+                      data-recent-list
+                      hidden
+              ></div>
+
+              <div
+                      class="mypage-empty-content"
+                      data-recent-empty
+              >
                 <div
                         class="mypage-empty-icon"
                         aria-hidden="true"
@@ -782,6 +804,51 @@
           </section>
 
           <!-- =================================================
+               알림
+               ================================================= -->
+          <section
+                  class="white-panel mypage-notifications-view"
+                  data-notifications-view
+                  hidden
+          >
+
+            <div class="mypage-view-head">
+              <div class="mypage-view-title">
+
+                <button
+                        type="button"
+                        class="mypage-back-button"
+                        data-close-notifications
+                >
+                  ← 이전 화면
+                </button>
+
+                <div>
+                  <h2>알림</h2>
+
+                  <p>
+                    결제와 문의 답변을 알려드립니다.
+                  </p>
+                </div>
+
+              </div>
+
+              <button
+                      type="button"
+                      class="text-button"
+                      data-notifications-read-all
+                      hidden
+              >
+                모두 읽음으로
+              </button>
+            </div>
+
+            <p data-notifications-state>알림을 불러오는 중입니다…</p>
+
+            <ul class="notification-list" data-notifications-list hidden></ul>
+          </section>
+
+          <!-- =================================================
                계정 설정
                ================================================= -->
           <section
@@ -1168,6 +1235,9 @@
 
 <div th:replace="~{fragments/scripts :: appScripts}"></div>
 
+<!-- 확인 대화상자. 브라우저 기본 confirm이 차단돼도 되묻기가 동작해야 한다. -->
+<script th:src="@{/js/core/dialog.js}" src="../../static/js/core/dialog.js"></script>
+
 <!-- 상담 채팅 실시간 수신용. 백엔드로 서빙될 때만 뜬다 — 정적 미리보기에서는 없어도 폴백으로 동작한다. -->
 <script th:src="@{/webjars/sockjs-client/1.5.1/sockjs.min.js}"></script>
 <script th:src="@{/webjars/stomp-websocket/2.3.4/stomp.min.js}"></script>
@@ -1177,6 +1247,8 @@
   IIFE라 import를 쓸 수 없어서다. 아래 모듈보다 먼저 실행되므로 부를 때는 이미 올라와 있다.
 -->
 <script th:src="@{/js/core/payment-methods.js}" src="../../static/js/core/payment-methods.js"></script>
+<!-- 수단별 결제창(카드 입력·간편결제 QR·계좌 안내). -->
+<script th:src="@{/js/core/payment-checkout.js}" src="../../static/js/core/payment-checkout.js"></script>
 
 <script
         type="module"

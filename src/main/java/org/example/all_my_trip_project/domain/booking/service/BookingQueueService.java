@@ -33,6 +33,13 @@ public class BookingQueueService {
 
     public BookingQueueStatusResponse enqueue(Long userId, CreateTicketReservationRequest request) {
         requireUser(userId);
+        /*
+         * 오픈 전에는 줄도 세우지 않는다. (#256)
+         *
+         * 지정 시각 판매는 오픈 전에도 목록에 보이므로 버튼을 눌러 여기까지 온다. 줄부터
+         * 서게 두면 승급된 뒤 예약 단계에서야 거절당하고, 그때는 기다린 시간이 버려진 뒤다.
+         */
+        ticketService.requireSaleOpen(request.slotId());
         String token = UUID.randomUUID().toString().replace("-", "");
         return store.enqueue(userId, request, token, Instant.now(clock));
     }

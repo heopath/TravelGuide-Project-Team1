@@ -14,6 +14,7 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.time.OffsetDateTime;
 import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -48,7 +49,7 @@ class TicketControllerRoutingTest {
     @DisplayName("GET /api/v1/tickets/products 가 붙어 있다")
     void productsIsMapped() throws Exception {
         when(ticketService.products(anyInt(), anyInt(), any()))
-                .thenReturn(new TicketProductPage(List.of(), 0, 20, 0, 0));
+                .thenReturn(new TicketProductPage(List.of(), 0, 20, 0, 0, OffsetDateTime.now()));
 
         mockMvc.perform(get("/api/v1/tickets/products"))
                 .andExpect(status().isOk());
@@ -61,7 +62,7 @@ class TicketControllerRoutingTest {
     @DisplayName("GET /api/v1/tickets/products 는 로그인 없이 볼 수 있다")
     void productsIsPublic() throws Exception {
         when(ticketService.products(anyInt(), anyInt(), any()))
-                .thenReturn(new TicketProductPage(List.of(), 0, 20, 0, 0));
+                .thenReturn(new TicketProductPage(List.of(), 0, 20, 0, 0, OffsetDateTime.now()));
 
         /* 상품 목록은 사기 전에 보는 화면이다. 401이면 둘러볼 수도 없다. */
         mockMvc.perform(get("/api/v1/tickets/products?page=0&size=5&keyword=제주"))
@@ -74,7 +75,7 @@ class TicketControllerRoutingTest {
     @DisplayName("GET /api/v1/tickets/products/{id} 가 붙어 있다")
     void productDetailIsMapped() throws Exception {
         when(ticketService.product(20L)).thenReturn(new TicketProductDetailDTO(
-                TicketProductSummaryDTO.builder().productId(20L).build(), List.of()));
+                TicketProductSummaryDTO.builder().productId(20L).build(), List.of(), OffsetDateTime.now()));
 
         mockMvc.perform(get("/api/v1/tickets/products/20"))
                 .andExpect(status().isOk());

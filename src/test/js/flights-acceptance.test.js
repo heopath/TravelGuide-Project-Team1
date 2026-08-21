@@ -14,6 +14,10 @@ const HTML = path.join(ROOT, "src/main/resources/templates/booking/flights.html"
 const SCRIPT = path.join(ROOT, "src/main/resources/static/js/pages/booking/flights.js");
 /* 결제수단 선택 창. 화면에서도 flights.js보다 먼저 올라간다. (#281) */
 const PAYMENT_METHODS = path.join(ROOT, "src/main/resources/static/js/core/payment-methods.js");
+/* 확인 대화상자. 브라우저 기본 confirm을 대신한다. */
+const DIALOG = path.join(ROOT, "src/main/resources/static/js/core/dialog.js");
+/* 수단별 결제창(카드 입력·간편결제 QR·계좌 안내). */
+const CHECKOUT = path.join(ROOT, "src/main/resources/static/js/core/payment-checkout.js");
 
 let passed = 0;
 let failed = 0;
@@ -137,7 +141,9 @@ async function boot(options = {}) {
   // 정적 마크업이 금액처럼 보이는 값을 미리 박아두지 않았는지 먼저 확인한다.
   const staticTotal = d.getElementById("cTot").textContent.trim();
 
+  w.eval(fs.readFileSync(DIALOG, "utf8"));
   w.eval(fs.readFileSync(PAYMENT_METHODS, "utf8"));
+  w.eval(fs.readFileSync(CHECKOUT, "utf8"));
   w.eval(fs.readFileSync(SCRIPT, "utf8"));
 
   // 파싱이 아직 끝나지 않았으면 jsdom이 DOMContentLoaded를 알아서 쏜다.
@@ -156,6 +162,20 @@ function json(body) {
 }
 
 /**
+ * 되묻기 창에서 확인을 누른다.
+ *
+ * 브라우저 기본 confirm이 아니라 화면 안 대화상자다 — 기본 대화상자는 손님이 한 번
+ * 차단하면 묻지도 않고 false를 돌려줘 버튼이 안 눌리는 것처럼 보였다.
+ */
+async function answerDialog(d, accept = true) {
+  await until(() => d.querySelector("[data-amt-dialog]"));
+  const dialog = d.querySelector("[data-amt-dialog]");
+  const text = dialog.textContent;
+  dialog.querySelector(accept ? ".amt-dialog-ok" : ".amt-dialog-cancel").click();
+  return text;
+}
+
+/**
  * 결제수단 선택 창에서 하나 고르고 결제한다. (#281)
  *
  * id를 주지 않으면 기본값(카드) 그대로 결제한다. 창이 안 뜨면 until이 시간 초과로 죽는다.
@@ -165,6 +185,25 @@ async function pickPaymentMethod(d, id) {
   const overlay = d.querySelector(".pay-method-overlay");
   if (id) overlay.querySelector(`input[value="${id}"]`).click();
   overlay.querySelector(".primary-button").click();
+}
+
+/**
+ * 카드 결제창을 채우고 결제한다.
+ *
+ * 4242…는 카드사가 시험용으로 공개한 번호다. Luhn 검사를 통과하므로 형식 검증을 그대로
+ * 태울 수 있다.
+ */
+async function fillCard(d, number = "4242424242424242") {
+  await until(() => d.querySelector("[data-pay-checkout]"));
+  const set = (name, value) => {
+    const input = d.querySelector(`[data-pay-field="${name}"]`);
+    input.value = value;
+    input.dispatchEvent(new d.defaultView.Event("input", { bubbles: true }));
+  };
+  set("cardNumber", number);
+  set("cardExpiry", "1230");
+  set("cardCvc", "123");
+  d.querySelector(".pay-checkout-confirm").click();
 }
 
 /** 티켓 한 건만 담긴 통합 조회 응답. 결제 전후를 상태만 바꿔 만든다. */
@@ -210,13 +249,30 @@ async function simulateReturn(w, d) {
 async function run() {
   /* ────────── 레이아웃 ────────── */
   {
-    const { w, d, staticTotal } = await boot();
+    const { w, d, staticTotal, calls } = await boot();
     const $ = (id) => d.getElementById(id);
 
-    T("검색 폼이 초기 렌더에서 닫혀 있다", !$("formwrap").classList.contains("open"));
-    $("chg").click();
-    T("조건 변경 클릭 시 열리고 캐럿이 회전한다",
-      $("formwrap").classList.contains("open") && $("chg").classList.contains("open"));
+    /*
+     * 검색 조건은 접지 않는다. (#281) 예전에는 요약 칩과 내용이 겹친다는 이유로 접어 두고
+     * `조건 변경`으로 폈는데, 조건을 고치려면 매번 한 번 더 눌러야 했다.
+     */
+    T("검색 조건이 처음부터 펴져 있다", $("formwrap").classList.contains("open"));
+    T("조건 변경 토글은 없앴다", $("chg") === null);
+    T("요약 칩은 제목 줄에 있다",
+      Boolean(d.querySelector(".page-heading .cond #cond-trip")));
+
+    /* 왕복은 방향을 자주 뒤집는다. 두 칸을 지웠다 다시 치게 두지 않는다. */
+    $("f-origin").value = "GMP";
+    $("f-destination").value = "CJU";
+    /* 부팅 때 이미 가는 편·오는 편을 조회한다. 그 뒤로 늘었는지만 본다. */
+    const searchesBeforeSwap = calls.filter((c) => c.includes("/flights/search")).length;
+    $("swap").click();
+    T("출발지와 도착지를 맞바꾼다",
+      $("f-origin").value === "CJU" && $("f-destination").value === "GMP");
+    /* 뒤집자마자 검색까지 나가면 날짜를 함께 고치려던 사람을 방해한다. */
+    T("맞바꾸기만으로는 검색하지 않는다",
+      calls.filter((c) => c.includes("/flights/search")).length === searchesBeforeSwap);
+    $("swap").click();
     T("정렬 버튼이 정확히 3개다", d.querySelectorAll(".sort .sc").length === 3);
     T("우측 패널이 1개다", d.querySelectorAll(".side .sc2").length === 1);
     T("카드 어디에도 `직항` 텍스트가 없다", !$("list").innerHTML.includes("직항"));
@@ -240,12 +296,18 @@ async function run() {
     T("1인 금액 = 총액 / 인원 (반올림)",
       $("cPer").textContent === "1인 " + won(Math.round(initial / PAX)));
     T("초기 진행 카운트 0", $("dn").textContent === "0" && $("tabCount").textContent === "0");
-    T("항공 행이 `예상`으로 표시된다", $("rows").innerHTML.includes("<small>예상</small>"));
+    /* 금액 내역은 진행 현황 줄이 아니라 예상 총액 아래에 붙는다. (#281 시안) */
+    T("고른 것이 없으면 금액이 추천가 기준임을 밝힌다",
+      $("costLines").textContent.includes("추천 항공편 기준"));
 
     // 다른 항공편 선택 시 총액 즉시 반영 (7C101 76,000원)
     w.__flightBooking.openOut("mock:7c101");
-    T("다른 항공편 선택 시 총액이 즉시 반영된다",
-      $("cTot").textContent === won(76000 * PAX + 94000 * PAX));
+    /*
+     * 하나라도 고르면 총액은 고른 것만 더한다. (#281 시안 2차) 화면에 `✓ 가는 편 항공`이라
+     * 적어 두고 총액에는 안 고른 편이 섞여 있으면 그 숫자는 아무것도 설명하지 못한다.
+     */
+    T("고른 편만 총액에 들어간다", $("cTot").textContent === won(76000 * PAX));
+    T("안 고른 편은 기준 문구가 밝힌다", $("costNote").textContent.includes("항공 1편만 반영"));
 
     // 정렬을 바꿔도 선택이 유지되어야 한다 (offerId 기준)
     d.querySelectorAll(".sc")[1].click();
@@ -259,11 +321,15 @@ async function run() {
       productName: "제주 아쿠아리움 입장권", totalAmount: 40000, status: "PENDING"
     } } }));
     T("티켓 모의 예약 금액이 예상 총액에 반영된다",
-      $("cTot").textContent === won(76000 * PAX + 94000 * PAX + 40000));
+      $("cTot").textContent === won(76000 * PAX + 40000));
+    /*
+     * 앞에서 가는 편을 골랐고 여기서 티켓까지 잡았으니 네 칸 중 둘이다. 단계는 `골랐는가`로
+     * 센다 — 예약 확정은 외부 사이트 일이라 우리가 확인할 수 없다. (#281 시안)
+     */
     T("티켓 모의 예약이 진행률과 출처 안내에 반영된다",
-      $("dn").textContent === "1" && $("fill").style.width === "33%"
+      $("dn").textContent === "2" && $("fill").style.width === "50%"
         && $("costNote").textContent.includes("티켓 모의 예약가")
-        && $("rows").textContent.includes("실제 결제 아님"));
+        && $("costLines").textContent.includes("실제 결제 아님"));
 
     w.dispatchEvent(new w.CustomEvent("allmytrips:accommodation-selected", { detail: { offer: {
       name: "제주 테스트 호텔", totalPrice: null, currency: "KRW",
@@ -310,6 +376,7 @@ async function run() {
         && d.getElementById("mineList").textContent.includes("실제 결제 아님"));
 
     d.querySelector("[data-mine-ticket-cancel]").click();
+    await answerDialog(d);
     await until(() => calls.includes("DELETE /api/v1/ticket-reservations/30"));
     await until(() => d.getElementById("mineList").textContent.includes("취소됨"));
     T("내 예약에서 티켓 모의 예약 취소 API를 호출한다",
@@ -344,6 +411,14 @@ async function run() {
     T("예약번호 입력 후 진행 → 구간 라벨에 `확정` 표시", $("lp0").textContent.includes("확정"));
     T("오는 편으로 이동한다", d.querySelectorAll(".leg")[1].classList.contains("on"));
 
+    /* 절반을 끝낸 상태가 진행률에 나타나야 한다. 이것이 4칸으로 쪼갠 이유다. (#281) */
+    T("가는 편만 마쳐도 진행률이 오른다",
+      $("dn").textContent === "1" && $("fill").style.width === "25%");
+    T("진행 현황이 가는 편·오는 편을 따로 센다",
+      d.querySelectorAll("#rows [data-side-leg]").length === 2
+      && $("rows").textContent.includes("가는 편 선택")
+      && $("rows").textContent.includes("오는 편 선택"));
+
     // 오는 편: 예약번호 없이 `나중에`로 닫아도 자가 신고는 남는다
     api.openOut("mock:ke1284");
     await api.goOut();
@@ -354,13 +429,18 @@ async function run() {
 
     const total = 89000 * PAX + 94000 * PAX;
     T("왕복 모두 표시 완료 시 총액이 유지된다", $("cTot").textContent === won(total));
-    T("왕복 완료 시에만 진행 카운트 1", $("dn").textContent === "1");
-    T("진행바 33%", $("fill").style.width === "33%");
-    T("탭 카운트 1", $("tabCount").textContent === "1");
+    /*
+     * 가는 편과 오는 편을 따로 센다. (#281) 예전에는 왕복을 한 칸으로 묶어, 가는 편만
+     * 표시한 사람에게 0/3이 나왔다 — 절반을 끝냈는데 아무것도 안 한 것처럼 보였다.
+     */
+    T("왕복을 마치면 항공 두 칸이 함께 찬다", $("dn").textContent === "2");
+    T("진행바 50%", $("fill").style.width === "50%");
+    T("탭 카운트 2", $("tabCount").textContent === "2");
     // 숙소·티켓 행은 계속 `예상`이므로 항공 행(첫 행)만 본다.
     T("우측 항공 행에서 `예상` 라벨이 사라진다",
       !d.querySelector("#rows .sr").innerHTML.includes("<small>예상</small>"));
-    T("우측 항공 행이 성인 2명 총액으로 바뀐다", $("rows").innerHTML.includes("성인 2명 총액"));
+    T("예약 표시한 편은 금액 내역이 총액 기준으로 바뀐다",
+      $("costLines").innerHTML.includes("성인 2명 총액"));
   }
 
   /* ────────── 플로우: `나중에` 경로에서도 예약번호가 저장된다 ────────── */
@@ -400,7 +480,8 @@ async function run() {
     await api.reportLater();
     T("`나중에 확인할게요` → 선택은 유지된다", !!d.querySelector(".fl.sel"));
     T("`나중에 확인할게요` → 예약 표시는 되지 않는다", !$("list").innerHTML.includes("직접 표시"));
-    T("`나중에 확인할게요` → 카운트 0", $("tabCount").textContent === "0");
+    /* 단계는 `골랐는가`로 센다. 예약 확정은 외부 사이트 일이라 우리가 확인할 수 없다. */
+    T("`나중에 확인할게요` → 고른 상태이므로 단계는 그대로 1", $("tabCount").textContent === "1");
   }
 
   /* ────────── 일정 연동 (#133) ────────── */
@@ -506,7 +587,24 @@ async function run() {
     T("결제수단을 고르기 전에는 결제하지 않는다",
       !calls.some((c) => c.includes("/payment")));
 
-    await pickPaymentMethod(d, "EASY_PAY:KAKAO_PAY");
+    await pickPaymentMethod(d, "CARD");
+
+    /*
+     * 수단을 골랐다고 바로 결제되지 않는다. 카드 결제창을 한 번 더 거친다 — 실제 결제가
+     * 그렇게 생겼고, 그 단계를 흉내 내야 흐름을 그대로 배울 수 있다.
+     */
+    await until(() => d.querySelector("[data-pay-checkout]"));
+    T("수단을 고르면 그 수단의 결제창이 뜬다", Boolean(d.querySelector(".pay-card-form")));
+    T("결제창을 통과하기 전에는 결제하지 않는다",
+      !calls.some((c) => c.includes("POST /api/v1/ticket-reservations/30/payment")));
+
+    /* 오타 난 카드번호는 마지막 자리 검사(Luhn)에서 걸린다. */
+    await fillCard(d, "4242424242424241");
+    T("카드번호가 틀리면 결제하지 않고 이유를 알린다",
+      d.querySelector("[data-pay-error]")?.hidden === false
+        && !calls.some((c) => c.includes("POST /api/v1/ticket-reservations/30/payment")));
+
+    await fillCard(d);
     await until(() => calls.some((c) => c.includes("POST /api/v1/ticket-reservations/30/payment")));
     await until(() => d.querySelectorAll(".mn-ticket").length === 2);
 
@@ -514,10 +612,11 @@ async function run() {
     T("결제는 결제 API로 보낸다",
       calls.some((c) => c === "POST /api/v1/ticket-reservations/30/payment"));
     T("결제 요청에 멱등키를 담는다", typeof body.idempotencyKey === "string" && body.idempotencyKey.length > 0);
-    T("고른 결제수단을 그대로 보낸다", body.method === "EASY_PAY");
-    /* 카카오페이·토스는 method가 같아서 사업자를 함께 보내지 않으면 구분되지 않는다. */
-    T("간편결제는 사업자를 함께 보낸다", body.easyPayProvider === "KAKAO_PAY");
-    T("고른 뒤에는 선택 창이 닫힌다", !d.querySelector(".pay-method-overlay"));
+    T("고른 결제수단을 그대로 보낸다", body.method === "CARD");
+    /* 카드번호는 우리 서버로 보내지 않는다. 받을 이유가 없고, 받으면 지켜야 한다. */
+    T("카드 정보는 서버로 보내지 않는다",
+      !/4242|cardNumber|cvc/i.test(w.__lastPaymentBody || ""));
+    T("결제창을 통과하면 창이 닫힌다", !d.querySelector("[data-pay-checkout]"));
     T("발급된 티켓을 수량만큼 그린다", d.querySelectorAll(".mn-ticket").length === 2);
     T("입장 코드를 화면에 보여준다",
       d.querySelector(".mn-ticket-code")?.textContent === "tok-aaa");
@@ -548,8 +647,7 @@ async function run() {
      * 취소 뒤에는 화면에 남은 티켓도 지워야 한다. 무효가 된 코드를 계속 보여주면
      * 손님이 그것을 들고 현장에 간다.
      */
-    const asked = [];
-    const { d, w, calls } = await boot({
+    const { d, calls } = await boot({
       query: "?tripId=10&tab=mine",
       summary: ticketSummary("CONFIRMED", "결제 완료"),
       tickets: [{ ticketNumber: "AMT-TKN-AAA", validFrom: null, validUntil: null }]
@@ -559,12 +657,11 @@ async function run() {
     d.querySelector("[data-mine-ticket-show]").click();
     await until(() => d.querySelector(".mn-ticket"));
 
-    w.confirm = (question) => { asked.push(question); return true; };
     d.querySelector("[data-mine-ticket-cancel]").click();
+    const asked = await answerDialog(d);
     await until(() => calls.some((c) => c.startsWith("DELETE /api/v1/ticket-reservations/30")));
 
-    T("결제 취소 전에 티켓이 무효가 된다고 알린다",
-      asked.length === 1 && asked[0].includes("사용할 수 없게"));
+    T("결제 취소 전에 티켓이 무효가 된다고 알린다", asked.includes("사용할 수 없게"));
     await until(() => !d.querySelector(".mn-ticket"));
     T("취소하면 화면에 남은 티켓도 지운다", !d.querySelector(".mn-ticket"));
   }

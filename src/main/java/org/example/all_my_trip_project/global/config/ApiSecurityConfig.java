@@ -121,6 +121,15 @@ public class ApiSecurityConfig {
                         )
                         .authenticated()
 
+                        // 최근 본 여행지는 내 것만 본다. 비로그인은 볼 목록 자체가 없다.
+                        // 기록(POST /places/*/view)은 비로그인도 부를 수 있게 두고
+                        // 컨트롤러에서 조용히 넘어간다. 상세 화면은 로그인 없이도 열린다.
+                        .requestMatchers(
+                                HttpMethod.GET,
+                                "/api/v1/places/recent"
+                        )
+                        .authenticated()
+
                         .requestMatchers(
                                 HttpMethod.PATCH,
                                 "/api/v1/place-reviews/*"
@@ -137,6 +146,21 @@ public class ApiSecurityConfig {
                         .requestMatchers(
                                 "/api/v1/ticket-reservations/*/payment",
                                 "/api/v1/ticket-reservations/*/tickets"
+                        )
+                        .authenticated()
+
+                        // 토스 결제 승인. 어느 예약인지는 주문번호에서 꺼내고, 그 예약의
+                        // 주인인지를 서비스가 다시 본다. (#281)
+                        .requestMatchers(
+                                "/api/v1/payments/toss/**",
+                                "/api/v1/payments/kakao/**"
+                        )
+                        .authenticated()
+
+                        // 알림은 내 것만 봅니다. 주소에 사용자를 받지 않고 로그인한
+                        // 사람의 알림만 다룹니다. (#191)
+                        .requestMatchers(
+                                "/api/v1/notifications/**"
                         )
                         .authenticated()
 

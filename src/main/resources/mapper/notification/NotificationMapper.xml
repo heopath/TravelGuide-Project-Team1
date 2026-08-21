@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.example.all_my_trip_project.domain.notification.mapper.NotificationMapper">
+
+    <insert id="insert" useGeneratedKeys="true"
+            keyProperty="notificationId" keyColumn="notification_id">
+        INSERT INTO notifications (user_id, type, title, body, link)
+        VALUES (#{userId}, #{type}, #{title}, #{body}, #{link})
+    </insert>
+
+    <select id="findMine" resultType="org.example.all_my_trip_project.domain.notification.dto.NotificationDTO">
+        SELECT notification_id, user_id, type, title, body, link, read_at, created_at
+        FROM notifications
+        WHERE user_id = #{userId}
+        ORDER BY created_at DESC, notification_id DESC
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+    <select id="countMine" resultType="long">
+        SELECT COUNT(*) FROM notifications WHERE user_id = #{userId}
+    </select>
+
+    <select id="countUnread" resultType="long">
+        SELECT COUNT(*) FROM notifications
+        WHERE user_id = #{userId} AND read_at IS NULL
+    </select>
+
+    <!--
+      사용자 번호를 조건에 함께 넣습니다. 알림 번호만으로 고치면 남의 알림을 읽음으로
+      바꿀 수 있습니다.
+
+      이미 읽은 것은 건드리지 않습니다. 다시 누를 때마다 시각이 밀리면 "언제 읽었나"가
+      뜻을 잃습니다.
+    -->
+    <update id="markRead">
+        UPDATE notifications
+        SET read_at = CURRENT_TIMESTAMP
+        WHERE notification_id = #{notificationId}
+          AND user_id = #{userId}
+          AND read_at IS NULL
+    </update>
+
+    <update id="markAllRead">
+        UPDATE notifications
+        SET read_at = CURRENT_TIMESTAMP
+        WHERE user_id = #{userId} AND read_at IS NULL
+    </update>
+
+</mapper>

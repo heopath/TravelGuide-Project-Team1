@@ -61,16 +61,19 @@
       이유는, 이 행이 만들어졌다는 것 자체가 이미 승인됐다는 뜻이기 때문이다. 중간 상태를
       남기면 "READY인 채로 멈춘 결제"를 정리하는 처리가 또 필요해진다.
 
-      실제 PG를 붙이면 READY로 만들고 승인 콜백에서 PAID로 바꾸는 두 단계가 된다.
-      그때를 위해 provider_payment_key 칸은 비워 둔다.
+      토스를 거친 결제는 이 행이 만들어지기 전에 이미 결제사가 승인한 상태다. 그래서
+      여기서도 PAID로 넣는다. 그 결제사가 준 키를 provider_payment_key에 남기는데,
+      (provider, provider_payment_key)가 UNIQUE라 같은 승인이 두 번 기록되지 않는다.
+      모의 결제에는 그 키가 없어 비어 있다.
     -->
     <insert id="insertPayment" useGeneratedKeys="true"
             keyProperty="paymentId" keyColumn="payment_id">
         INSERT INTO payments (
-            reservation_id, idempotency_key, provider, method, status,
+            reservation_id, idempotency_key, provider, provider_payment_key, method, status,
             amount, currency_code, approved_at
         ) VALUES (
-            #{reservationId}, #{idempotencyKey}, #{provider}, #{method}, 'PAID',
+            #{reservationId}, #{idempotencyKey}, #{provider}, #{providerPaymentKey},
+            #{method}, 'PAID',
             #{amount}, #{currencyCode}, CURRENT_TIMESTAMP
         )
     </insert>

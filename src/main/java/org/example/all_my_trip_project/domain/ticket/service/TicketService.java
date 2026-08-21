@@ -18,7 +18,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.Clock;
 import java.time.LocalDate;
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
@@ -31,8 +33,17 @@ public class TicketService {
     /** 상품 목록 한 쪽의 최대 개수. 관리자 목록과 같은 값으로 맞춘다. */
     private static final int MAX_PRODUCT_PAGE_SIZE = 100;
 
+    /** 질의가 서버 시각으로 계산해 주는 판매 상태. (#256) */
+    private static final String SALE_STATE_SCHEDULED = "SCHEDULED";
+    private static final String SALE_STATE_ENDED = "ENDED";
+
     private final TicketDAO ticketDAO;
     private final TripDAO tripDAO;
+    /*
+     * 오픈까지 남은 시간의 기준. 화면에 함께 내려 손님 기기 시계가 아니라 이 시각으로
+     * 세게 한다. 시계가 틀어진 사람은 일찍 눌러 실패하거나 늦게 눌러 놓친다.
+     */
+    private final Clock clock = Clock.systemDefaultZone();
 
     @Transactional(readOnly = true)
     public List<TicketOfferDTO> search(String destination, LocalDate from, LocalDate to) {
@@ -73,7 +84,8 @@ public class TicketService {
         long total = ticketDAO.countSellableProducts(normalized);
         int totalPages = total == 0 ? 0 : (int) Math.ceil((double) total / size);
         return new TicketProductPage(
-                ticketDAO.findSellableProducts(normalized, offset, size), page, size, total, totalPages);
+                ticketDAO.findSellableProducts(normalized, offset, size), page, size, total, totalPages,
+                OffsetDateTime.now(clock));
     }
 
     /**
@@ -90,7 +102,8 @@ public class TicketService {
         }
         TicketProductSummaryDTO product = ticketDAO.findSellableProductById(productId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.TICKET_NOT_FOUND));
-        return new TicketProductDetailDTO(product, ticketDAO.findSlotsByProduct(productId));
+        return new TicketProductDetailDTO(
+                product, ticketDAO.findSlotsByProduct(productId), OffsetDateTime.now(clock));
     }
 
     /**
@@ -118,6 +131,13 @@ public class TicketService {
 
         TicketOfferDTO offer = ticketDAO.findSlotForUpdate(request.slotId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.TICKET_NOT_FOUND));
+        /*
+         * 오픈 전에는 잡아 두지 못하게 막는다. (#256)
+         *
+         * 목록에서 오픈 예정으로 보여주는 상품이라 버튼을 눌러도 여기까지는 온다. 조회에서만
+         * 막으면 API를 직접 부르는 쪽이 그대로 뚫는다.
+         */
+        requireOnSale(offer);
         if (request.quantity() > offer.getMaxQuantityPerUser()) {
             throw new BusinessException(ErrorCode.INVALID_TICKET_REQUEST);
         }
@@ -197,6 +217,39 @@ public class TicketService {
         }
         reservation.setTripId(tripId);
         return reservation;
+    }
+
+    /**
+     * 지금 살 수 있는 상품인지. (#256)
+     *
+     * <p>상태는 질의가 서버 시각으로 계산해 넣어 준다. 여기서 다시 시각을 비교하지 않는 이유는,
+     * 잠근 행을 읽은 순간과 계산 시점이 갈리면 같은 요청 안에서 판단이 두 벌 생기기 때문이다.
+     *
+     * <p>오픈 전과 판매 종료를 갈라서 알린다 — 손님에게 해 줄 말이 다르다. 하나는 "그 시각에
+     * 다시 오세요"이고 다른 하나는 "이제 못 삽니다"이다.
+     */
+    /**
+     * 대기열에 서기 전 판매 상태만 본다. (#256)
+     *
+     * <p>오픈 전에 줄부터 서게 두면, 승급된 뒤 예약 단계에서야 거절당한다. 그때는 이미 자리를
+     * 기다린 시간이 버려진 뒤다. 줄 서는 자리에서 미리 막는다.
+     *
+     * <p>여기서 통과해도 예약할 때 다시 본다. 줄을 서 있는 동안 판매가 끝날 수 있다.
+     */
+    @Transactional(readOnly = true)
+    public void requireSaleOpen(Long slotId) {
+        TicketOfferDTO offer = ticketDAO.findSlot(slotId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.TICKET_NOT_FOUND));
+        requireOnSale(offer);
+    }
+
+    private void requireOnSale(TicketOfferDTO offer) {
+        if (SALE_STATE_SCHEDULED.equals(offer.getSaleState())) {
+            throw new BusinessException(ErrorCode.TICKET_SALE_NOT_OPEN);
+        }
+        if (SALE_STATE_ENDED.equals(offer.getSaleState())) {
+            throw new BusinessException(ErrorCode.TICKET_SALE_ENDED);
+        }
     }
 
     private boolean withinTrip(LocalDate usageDate, TripDTO trip) {

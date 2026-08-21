@@ -17,7 +17,7 @@ import java.util.regex.Pattern;
 @Transactional(readOnly = true)
 public class ServiceVersionService {
 
-    public static final String DEFAULT_VERSION = "0.9.0";
+    public static final String DEFAULT_VERSION = "0.0.4";
     public static final String DEFAULT_DISPLAY_VERSION = "v" + DEFAULT_VERSION;
 
     private static final String SETTING_KEY = "footer.version";

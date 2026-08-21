@@ -2,6 +2,7 @@ package org.example.all_my_trip_project.domain.ticket.dto;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
 
@@ -38,5 +39,14 @@ public record AdminTicketProductRequest(
         LocalDate usageStartDate,
 
         @NotNull(message = "이용 종료일을 입력해 주세요.")
-        LocalDate usageEndDate
+        LocalDate usageEndDate,
+
+        /**
+         * 판매 유형. 비워 두면 일반 판매다. (#256)
+         *
+         * <p>{@code SCHEDULED}면 {@code saleStartAt}이 판매 시작이 아니라 <b>오픈 순간</b>이다.
+         * 그 전에도 목록에 나오고, 오픈 전에는 예약이 거부된다.
+         */
+        @Pattern(regexp = "NORMAL|SCHEDULED", message = "판매 유형이 올바르지 않습니다.")
+        String saleType
 ) {}

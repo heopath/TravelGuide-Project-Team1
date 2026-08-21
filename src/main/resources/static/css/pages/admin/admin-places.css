@@ -23,7 +23,17 @@
 .admin-place-section-head p { margin:0; color:#8894ab; font-size:12px; }
 .admin-place-section-head a { color:#6558ff; font-size:12px; font-weight:700; }
 .admin-place-list { display:grid; gap:10px; }
-.admin-place-row { display:grid; grid-template-columns:78px minmax(0,1fr) auto; gap:14px; align-items:center; padding:12px; border:1px solid #e3e7f0; border-radius:13px; background:#fff; }
+/* 맨 앞 열은 일괄 처리용 선택 체크박스다. */
+.admin-place-row { display:grid; grid-template-columns:auto 78px minmax(0,1fr) auto; gap:14px; align-items:center; padding:12px; border:1px solid #e3e7f0; border-radius:13px; background:#fff; }
+.admin-place-select { display:grid; place-items:center; }
+.admin-place-select input { width:16px; height:16px; accent-color:#6558ff; }
+.admin-place-bulk { display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:12px; padding:10px 12px; border:1px solid #e3e7f0; border-radius:11px; background:#f8f9fd; }
+.admin-place-bulk strong { margin-right:auto; color:#3f4d69; font-size:12px; }
+.admin-place-bulk button { border:1px solid #dfe4ef; border-radius:8px; background:#fff; padding:7px 12px; color:#3f4d69; font-size:12px; font-weight:700; }
+.admin-place-bulk button:hover:not(:disabled) { border-color:#7868ff; color:#6558ff; }
+.admin-place-bulk button:disabled { opacity:.45; cursor:not-allowed; }
+/* 일괄 처리 결과는 목록 위에 남겨 둔다. 무엇이 되고 안 됐는지 눈으로 확인해야 한다. */
+.admin-place-bulk-status { margin:-6px 0 12px; padding:0 12px; color:#5b6579; font-size:12px; }
 .admin-place-thumb { width:78px; height:66px; border-radius:10px; overflow:hidden; display:grid; place-items:center; background:#eef1f8; color:#8c98ae; }
 .admin-place-thumb img { width:100%; height:100%; object-fit:cover; }
 .admin-place-copy { min-width:0; }

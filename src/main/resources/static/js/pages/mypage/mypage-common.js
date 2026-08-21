@@ -372,3 +372,39 @@ export function renderPagination(
         next,
     );
 }
+/**
+ * 행정구역 이름을 카드에 들어갈 만큼 줄인다.
+ *
+ * <p>카카오가 주는 지역은 "서울특별시", "제주특별자치도"처럼 길어서 좁은 카드에서 잘린다.
+ * 사람이 알아보는 최소 단위로 줄인다. "경기도 수원시"처럼 도 단위면 시·군 이름이 더 쓸모 있다.
+ *
+ * <p>찜한 여행지와 최근 본 여행지가 같은 장소를 서로 다르게 적으면 다른 곳으로 읽힌다.
+ * 그래서 두 패널이 이 함수를 함께 쓴다.
+ */
+export function normalizeCityName(region) {
+    const value = String(region || "").trim();
+    if (!value) return "";
+
+    const parts = value.split(/\s+/);
+    const first = parts[0] || "";
+    const second = parts[1] || "";
+
+    if (first.includes("특별시") || first.includes("광역시")) {
+        return first.replace("특별시", "").replace("광역시", "");
+    }
+
+    if (first.includes("제주특별자치도")) return "제주";
+
+    /* "경기도 수원시"는 "경기"보다 "수원"이 알아보기 쉽다. */
+    if (first.endsWith("도") && second) {
+        return second.replace(/시$/, "").replace(/군$/, "");
+    }
+
+    return first
+        .replace("특별자치시", "")
+        .replace("특별자치도", "")
+        .replace("특별시", "")
+        .replace("광역시", "")
+        .replace(/시$/, "")
+        .replace(/군$/, "");
+}

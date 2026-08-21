@@ -44,7 +44,8 @@ class TicketQrTokenTest {
     @BeforeEach
     void setUp() {
         paymentDAO = mock(PaymentDAO.class);
-        service = new PaymentService(paymentDAO);
+        service = new PaymentService(paymentDAO,
+                mock(org.example.all_my_trip_project.domain.notification.service.NotificationService.class));
 
         when(paymentDAO.findReservation(RESERVATION_ID)).thenReturn(Optional.of(
                 TicketReservationDTO.builder().reservationId(RESERVATION_ID).userId(USER_ID).build()));

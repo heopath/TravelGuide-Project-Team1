@@ -11,6 +11,10 @@ import {
 } from "./mypage-favorites.js";
 
 import {
+    initRecentPlaces,
+} from "./mypage-recent.js";
+
+import {
     initReviews,
 } from "./mypage-reviews.js";
 
@@ -26,6 +30,11 @@ import {
     initTickets,
     initTicketHistory,
 } from "./mypage-tickets.js";
+
+import {
+    initNotifications,
+    initNotificationBadge,
+} from "./mypage-notifications.js";
 
 document.addEventListener(
     "DOMContentLoaded",
@@ -83,6 +92,22 @@ document.addEventListener(
         const openSupportButtons =
             document.querySelectorAll(
                 "[data-open-support]",
+            );
+
+        /* 알림 화면 (#191) */
+        const notificationsView =
+            document.querySelector(
+                "[data-notifications-view]",
+            );
+
+        const openNotificationButtons =
+            document.querySelectorAll(
+                "[data-open-notifications]",
+            );
+
+        const closeNotificationsButton =
+            document.querySelector(
+                "[data-close-notifications]",
             );
 
         /* 예매한 티켓 화면 (#281) */
@@ -217,6 +242,17 @@ document.addEventListener(
                     },
                 );
 
+            openNotificationButtons
+                .forEach(
+                    (button) => {
+                        setCurrent(
+                            button,
+                            view ===
+                            "notifications",
+                        );
+                    },
+                );
+
             setCurrent(
                 openSettingsButton,
                 view ===
@@ -296,6 +332,19 @@ document.addEventListener(
                 settingsView.hidden =
                     view !==
                     "settings";
+            }
+
+            if (notificationsView) {
+                notificationsView.hidden =
+                    view !== "notifications";
+
+                /*
+                 * 열 때 목록을 받는다. 알림은 읽고 나면 바뀌므로 티켓 화면과 달리
+                 * 한 번만 받고 마는 것이 아니라 열 때마다 다시 받는다.
+                 */
+                if (view === "notifications") {
+                    initNotifications();
+                }
             }
 
             if (ticketsView) {
@@ -466,6 +515,28 @@ document.addEventListener(
                 },
             );
 
+        openNotificationButtons
+            .forEach(
+                (button) => {
+                    button.addEventListener(
+                        "click",
+                        () => {
+                            applyView(
+                                "notifications",
+                            );
+                        },
+                    );
+                },
+            );
+
+        closeNotificationsButton
+            ?.addEventListener(
+                "click",
+                () => {
+                    applyView("dashboard");
+                },
+            );
+
         openSettingsButton
             ?.addEventListener(
                 "click",
@@ -564,11 +635,17 @@ document.addEventListener(
             initAccount(),
             initTrips(),
             initFavorites(),
+            initRecentPlaces(),
             initReviews(),
             initSupport(),
             /* 상담 채팅은 탭을 열 때 서버를 부른다. 여기서는 화면만 걸어 둔다. */
             initSupportChat(),
             initTickets(),
+            /*
+             * 배지만 먼저 받는다. 알림 화면을 열지 않아도 사이드바에 표시가 떠야
+             * 손님이 읽을 것이 있다는 사실을 안다. (#191)
+             */
+            initNotificationBadge(),
         ]).then(
             () => {
                 document.body

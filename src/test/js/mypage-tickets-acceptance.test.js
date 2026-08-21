@@ -7,6 +7,9 @@ const ROOT = path.resolve(__dirname, "../../..");
 const HTML = path.join(ROOT, "src/main/resources/templates/mypage/mypage.html");
 const JS = path.join(ROOT, "src/main/resources/static/js/pages/mypage/mypage-tickets.js");
 const PAYMENT_METHODS = path.join(ROOT, "src/main/resources/static/js/core/payment-methods.js");
+const DIALOG = path.join(ROOT, "src/main/resources/static/js/core/dialog.js");
+/* 수단별 결제창(카드 입력·간편결제 QR·계좌 안내). */
+const CHECKOUT = path.join(ROOT, "src/main/resources/static/js/core/payment-checkout.js");
 
 let passed = 0;
 let failed = 0;
@@ -70,7 +73,9 @@ async function boot(responder, toasts) {
   });
   const w = dom.window;
   /* 결제수단 선택 창. 화면에서도 모듈보다 먼저 올라간다. (#281) */
+  w.eval(fs.readFileSync(DIALOG, "utf8"));
   w.eval(fs.readFileSync(PAYMENT_METHODS, "utf8"));
+  w.eval(fs.readFileSync(CHECKOUT, "utf8"));
   const calls = [];
   const init = loadModule(w, {
     request: async (url, options = {}) => {
@@ -94,6 +99,7 @@ async function bootHistory(responder, toasts) {
     url: "http://localhost/mypage?view=tickets", runScripts: "outside-only",
   });
   const w = dom.window;
+  w.eval(fs.readFileSync(DIALOG, "utf8"));
   w.eval(fs.readFileSync(PAYMENT_METHODS, "utf8"));
   const calls = [];
   loadModule(w, {
@@ -105,6 +111,22 @@ async function bootHistory(responder, toasts) {
   });
   await w.__initTicketHistory();
   return { w, d: w.document, calls };
+}
+
+/**
+ * 카드 결제창을 채우고 결제한다. 4242…는 카드사가 공개한 시험용 번호다.
+ */
+async function fillCard(d, number = "4242424242424242") {
+  await until(() => d.querySelector("[data-pay-checkout]"));
+  const set = (name, value) => {
+    const input = d.querySelector(`[data-pay-field="${name}"]`);
+    input.value = value;
+    input.dispatchEvent(new d.defaultView.Event("input", { bubbles: true }));
+  };
+  set("cardNumber", number);
+  set("cardExpiry", "1230");
+  set("cardCvc", "123");
+  d.querySelector(".pay-checkout-confirm").click();
 }
 
 const tabOf = (d, id) => d.querySelector(`[data-ticket-tab="${id}"]`);
@@ -317,19 +339,29 @@ async function run() {
     test("모의 결제라는 사실을 고르는 자리에서 밝힌다",
       d.querySelector(".pay-method-notice")?.textContent.includes("실제 돈이 빠져나가지 않"));
 
-    d.querySelector('.pay-method-overlay input[value="EASY_PAY:TOSS_PAY"]').click();
+    d.querySelector('.pay-method-overlay input[value="CARD"]').click();
     d.querySelector(".pay-method-overlay .primary-button").click();
 
+    /*
+     * 수단을 골랐다고 바로 결제되지 않는다. 카드 결제창을 한 번 더 거친다 — 실제 결제가
+     * 그렇게 생겼고, 그 단계를 흉내 내야 흐름을 그대로 배울 수 있다.
+     */
+    await until(() => d.querySelector("[data-pay-checkout]") !== null);
+    test("수단을 고르면 그 수단의 결제창이 뜬다", d.querySelector(".pay-card-form") !== null);
+    test("결제창을 통과하기 전에는 결제하지 않는다", paid === null);
+
+    await fillCard(d);
     await until(() => paid !== null);
     await until(() => listCalls > 1);
 
     test("결제는 POST로 보낸다",
       calls.some((c) => c.method === "POST" && c.url.includes("/ticket-reservations/5/payment")));
     test("멱등키를 담는다", typeof paid.idempotencyKey === "string" && paid.idempotencyKey.length > 0);
-    test("고른 결제수단을 담는다", paid.method === "EASY_PAY");
-    /* 카카오페이·토스는 method가 같아서 사업자가 없으면 어디로 결제됐는지 남지 않는다. */
-    test("간편결제는 사업자도 담는다", paid.easyPayProvider === "TOSS_PAY");
-    test("결제하면 선택 창이 닫힌다", d.querySelector(".pay-method-overlay") === null);
+    test("고른 결제수단을 담는다", paid.method === "CARD");
+    /* 카드번호는 우리 서버로 보내지 않는다. 받을 이유가 없고, 받으면 지켜야 한다. */
+    test("카드 정보는 서버로 보내지 않는다",
+      !JSON.stringify(paid).includes("4242"));
+    test("결제하면 결제창이 닫힌다", d.querySelector("[data-pay-checkout]") === null);
     test("결제 후 목록을 다시 받는다", listCalls > 1);
     test("결제 결과를 알린다", toasts.some((m) => m.includes("결제가 완료")));
   }
@@ -380,7 +412,7 @@ async function run() {
     d.querySelector('.pay-method-overlay input[value="QR"]').click();
     d.querySelector(".pay-method-overlay .primary-button").click();
 
-    await until(() => d.querySelector("[data-pay-qr]") !== null);
+    await until(() => d.querySelector("[data-pay-checkout]") !== null);
 
     test("QR 결제를 고르면 결제 QR을 띄운다", qrIssued === 1);
     /* 고른 순간 결제되면 폰으로 승인하는 흐름 자체가 의미가 없다. */
@@ -396,14 +428,14 @@ async function run() {
     test("남은 시간을 밝힌다",
       /\d+분 \d+초 뒤 만료/.test(d.querySelector("[data-pay-qr-remain]").textContent),
       d.querySelector("[data-pay-qr-remain]")?.textContent);
-    test("승인을 기다리는 중이라고 알린다",
-      d.querySelector("[data-pay-qr-state]").textContent.includes("승인을 기다리는"));
+    test("결제 요청을 보냈어요 중이라고 알린다",
+      d.querySelector("[data-pay-qr-state]").textContent.includes("결제 요청을 보냈어요"));
 
     /* 폰에서 승인된 상황. 화면은 물어보다가 티켓이 생긴 것을 보고 끝낸다. */
     approved = true;
-    await until(() => d.querySelector("[data-pay-qr]") === null, 8000);
+    await until(() => d.querySelector("[data-pay-checkout]") === null, 8000);
 
-    test("승인되면 QR 창을 닫는다", d.querySelector("[data-pay-qr]") === null);
+    test("승인되면 QR 창을 닫는다", d.querySelector("[data-pay-checkout]") === null);
     test("승인 결과를 알린다", toasts.some((m) => m.includes("결제가 완료")));
   }
   {
@@ -430,9 +462,9 @@ async function run() {
     await until(() => d.querySelector(".pay-method-overlay") !== null);
     d.querySelector('.pay-method-overlay input[value="QR"]').click();
     d.querySelector(".pay-method-overlay .primary-button").click();
-    await until(() => d.querySelector("[data-pay-qr]") !== null);
+    await until(() => d.querySelector("[data-pay-checkout]") !== null);
 
-    d.querySelector("[data-pay-qr] .text-button").click();
+    d.querySelector("[data-pay-checkout] .pay-checkout-cancel").click();
     const asked = ticketCalls;
     await new Promise((resolve) => setTimeout(resolve, 3000));
 

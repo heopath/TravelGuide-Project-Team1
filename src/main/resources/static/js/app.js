@@ -115,11 +115,13 @@ const ALL_MY_TRIPS_TEMPLATE_ROUTES = {
   "/trips/busan/optimize": "trips/optimize",
   "/guide/themes": "guide/themes",
   "/booking": "booking/flights",
-  "/booking/tickets/blueline": "booking/ticket",
+  "/booking/tickets/1": "booking/ticket",
   "/booking/hotels": "booking/hotels",
   "/booking/flights": "booking/flights",
   "/booking/queue": "booking/queue",
   "/pay/qr": "payment/qr-approve",
+  "/pay/toss": "payment/toss-return",
+  "/pay/kakao": "payment/kakao-return",
   "/mypage": "mypage/mypage",
   "/trips/1/record": "trips/record",
   "/admin": "admin/admin",
@@ -179,7 +181,12 @@ document.addEventListener("submit", function (event) {
     event.preventDefault();
     const input = event.target.querySelector("input");
     if (input && input.value.trim()) {
-      event.target.insertAdjacentHTML("beforebegin", '<div class="user-message">' + input.value + "</div>");
+      // 친 글자를 HTML 문자열로 이어 붙이면 `<img onerror=...>` 같은 입력이 그대로 실행된다.
+      // 요소를 만들어 textContent로 넣으면 무엇을 치든 글자로만 남는다. (CodeQL js/xss-through-dom)
+      const message = document.createElement("div");
+      message.className = "user-message";
+      message.textContent = input.value;
+      event.target.insertAdjacentElement("beforebegin", message);
       input.value = "";
     }
   }
@@ -293,8 +300,12 @@ const ALL_MY_TRIPS_SCREENS = [
     "예약 · 내 예약",
     "booking"
   ],
+  /*
+   * 티켓 상세는 상품 번호로 연다. 목록에서 고른 상품을 그리므로, 목록에 든 번호가
+   * 아니면 상품을 찾을 수 없다는 안내가 뜬다. 여기서는 1번을 대표로 둔다. (#281)
+   */
   [
-    "/booking/tickets/blueline",
+    "/booking/tickets/1",
     "티켓 상세·예약",
     "booking"
   ],
@@ -311,6 +322,21 @@ const ALL_MY_TRIPS_SCREENS = [
   [
     "/pay/qr",
     "QR 결제 승인",
+    "booking"
+  ],
+  /*
+   * 결제사에서 돌아오는 화면 둘. 보통은 토스·카카오페이가 결제 결과를 주소에 실어
+   * 보내지만, 목록에서 그냥 열면 "결제가 취소되었거나 완료되지 않았어요" 안내가 뜬다.
+   * QR 승인 화면과 같은 이유로 결과 없는 주소로 둔다. (#281)
+   */
+  [
+    "/pay/toss",
+    "토스 결제 결과",
+    "booking"
+  ],
+  [
+    "/pay/kakao",
+    "카카오페이 결제 결과",
     "booking"
   ],
   /*
@@ -347,6 +373,11 @@ const ALL_MY_TRIPS_SCREENS = [
   [
     "/mypage?view=support",
     "마이페이지 · 고객센터 문의",
+    "mypage"
+  ],
+  [
+    "/mypage?view=notifications",
+    "마이페이지 · 알림",
     "mypage"
   ],
   [
@@ -417,7 +448,29 @@ const ALL_MY_TRIPS_SCREENS = [
     "/admin?panel=audit",
     "관리자 · 조작 이력",
     "admin"
-  ]
+  ],
+  /*
+   * 사이드바에는 있는데 이 목록에서 빠져 있던 패널 셋이다. 화면 목록으로만 세면
+   * 관리자가 10장인데 실제로는 13장이다. (#191)
+   *
+   * 티켓 검표(validation)와 현장 검표(/admin/scan)는 다른 화면이다. 앞은 관리자
+   * 책상에서 번호로 확인하는 화면이고, 뒤는 현장에서 폰으로 QR을 찍는 화면이다.
+   */
+  [
+    "/admin?panel=version",
+    "관리자 · 서비스 버전",
+    "admin"
+  ],
+  [
+    "/admin?panel=members",
+    "관리자 · 회원 관리",
+    "admin"
+  ],
+  [
+    "/admin?panel=validation",
+    "관리자 · 티켓 검표",
+    "admin"
+  ],
 ];
 
 const MODALS = {

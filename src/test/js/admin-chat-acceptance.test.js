@@ -7,6 +7,7 @@
 const { JSDOM } = require("jsdom");
 const fs = require("fs");
 const path = require("path");
+const { readMarkup } = require("./markup");
 
 const ROOT = path.resolve(__dirname, "../../..");
 const HTML = path.join(ROOT, "src/main/resources/templates/admin/admin.html");
@@ -108,7 +109,7 @@ async function openFirstRoom(d, w, calls) {
 async function run() {
   /* ── 마크업 ── */
   {
-    const markup = fs.readFileSync(HTML, "utf8").replace(/<!--[\s\S]*?-->/g, "");
+    const markup = readMarkup(HTML);
 
     T("상담 채팅이 실연동으로 표시된다",
       /<span class="admin-tag live" data-admin-state="chat">실연동<\/span>/.test(markup));

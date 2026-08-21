@@ -33,6 +33,8 @@ public class PlaceDTO implements Serializable {
     private String primaryImageUrl;
     private BigDecimal averageRating;
     private Boolean active;
+    // 추천장소 화면 노출 여부. active(데이터 유효성)와 별개로 관리자가 정한다.
+    private Boolean recommended;
     private Boolean favorite;
     // PostgreSQL TIMESTAMPTZ의 UTC offset을 보존하기 위한 타입이며 DTO 필드명은 기존과 동일하다.
     private OffsetDateTime createdAt;

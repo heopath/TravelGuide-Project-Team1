@@ -30,6 +30,13 @@ public class TicketProductSummaryDTO {
     private String placeName;
     private String region;
     private String city;
+    /**
+     * 장소 주소와 분류. 상품 상세 화면이 `장소 안내`와 머리말(`체험 · 제주`)에 쓴다.
+     *
+     * <p>주소는 비어 있을 수 있다 — 등록할 때 선택 항목이다. 없으면 그 줄을 뺀다.
+     */
+    private String address;
+    private String category;
     private String imageUrl;
 
     private BigDecimal minUnitPrice;
@@ -37,6 +44,22 @@ public class TicketProductSummaryDTO {
 
     private OffsetDateTime saleStartAt;
     private OffsetDateTime saleEndAt;
+
+    /**
+     * 판매 유형과 지금 상태. (#256)
+     *
+     * <p>{@code saleType}이 {@code SCHEDULED}면 정해진 시각에 열리는 상품이라, 열리기 전에도
+     * 목록에 나온다 — 미리 보여야 손님이 그 시각에 모인다. {@code saleState}는
+     * {@code SCHEDULED}(오픈 전) / {@code ON_SALE} / {@code ENDED}다.
+     *
+     * <p>상태를 화면이 시각 비교로 정하지 않게 서버가 판단해 내린다. 손님 기기 시계는 몇 분씩
+     * 틀어져 있어, 아직 안 열린 상품을 살 수 있는 것처럼 보여주거나 그 반대가 된다.
+     *
+     * <p>{@code opensAt}은 아직 안 열린 지정 시각 판매에만 채운다.
+     */
+    private String saleType;
+    private String saleState;
+    private OffsetDateTime opensAt;
 
     /** 실제로 살 수 있는 시간대가 있는 날의 처음과 끝. 상품에 적힌 이용 기간과 다를 수 있다. */
     private LocalDate firstUsageDate;

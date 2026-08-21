@@ -38,5 +38,4 @@ public interface AiChatSessionRepository extends JpaRepository<AiChatSessionEnti
             @Param("status") String status
     );
 
-    void deleteByUserIdAndTripIdAndStatus(Long userId, Long tripId, String status);
 }

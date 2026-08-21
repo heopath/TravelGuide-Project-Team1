@@ -669,62 +669,57 @@ function createTicketScreen(mode) {
         return `${minutes}분 안에 결제해야 자리가 유지돼요.`;
     }
 
+    /**
+     * 결제. 수단을 고르고, 그 수단의 결제창을 한 번 더 거친다.
+     *
+     * <p>바로 결제되지 않는다 — 카드면 카드 정보를 넣고, 간편결제면 QR을 폰으로 승인하고,
+     * 계좌면 입금을 확인한다. 실제 결제가 그렇게 생겼기 때문이고, 그 단계를 흉내 내야
+     * 상태 전이·멱등키·환불을 실제와 같은 순서로 배울 수 있다.
+     */
     async function payTicket(
         ticket,
         button,
     ) {
-        /*
-         * 결제수단을 고르게 한다. (#281) 고르는 창은 예약 화면과 같은 것을 쓴다 —
-         * `core/payment-methods.js`가 window에 붙여 둔다. 취소하면 null이라 앞서 쓰던
-         * window.confirm 자리에 그대로 들어간다.
-         */
-        const picked = await window.AllMyTripsPayment.choose({
-            summary: `${ticket.productName || "티켓"} · ${formatAmount(
-                ticket.totalAmount,
-                ticket.currency,
-            )}`,
-            confirmLabel: "모의 결제하기",
-            /* QR 결제는 여기서만 내준다. 이유는 payment-methods.js 주석 참고. (#281) */
-            allowQr: true,
-        });
+        const summary = `${ticket.productName || "티켓"} · ${formatAmount(
+            ticket.totalAmount,
+            ticket.currency,
+        )}`;
+        const amountText = formatAmount(
+            ticket.totalAmount,
+            ticket.currency,
+        );
+
+        const picked =
+            await window.AllMyTripsPayment.choose({
+                summary,
+                confirmLabel: "다음",
+                allowQr: true,
+            });
 
         if (!picked) {
-            return;
-        }
-
-        /*
-         * QR 결제는 여기서 끝나지 않는다. QR을 띄우고 손님이 폰으로 스캔해 승인해야
-         * 결제된다. 승인은 다른 기기에서 일어나므로 이 화면은 기다리며 지켜본다.
-         */
-        if (picked.flow === "QR") {
-            await startQrPayment(ticket, button);
             return;
         }
 
         button.disabled = true;
 
         try {
-            /*
-             * 멱등키는 화면에서 만든다. 응답이 유실되어 다시 눌러도 같은 키로 들어가면
-             * 서버가 앞의 결과를 돌려주고 두 번 결제되지 않는다. 예약 화면도 같은 방식이다.
-             */
-            const idempotencyKey =
-                window.crypto?.randomUUID
-                    ? window.crypto.randomUUID()
-                    : `pay-${ticket.reservationId}-${Date.now()}`;
+            const checkout =
+                await runCheckout(ticket, picked, {
+                    summary,
+                    amountText,
+                });
 
-            await request(
-                `/api/v1/ticket-reservations/${ticket.reservationId}/payment`,
-                {
-                    method: "POST",
-                    body: JSON.stringify({
-                        method: picked.method,
-                        idempotencyKey,
-                        easyPayProvider:
-                            picked.easyPayProvider,
-                    }),
-                },
-            );
+            if (!checkout) {
+                /* 결제창에서 닫았다. 아무 일도 일어나지 않았다. */
+                button.disabled = false;
+
+                return;
+            }
+
+            /* 간편결제는 폰에서 이미 승인돼 결제가 끝난 상태다. 다시 결제하지 않는다. */
+            if (!checkout.paid) {
+                await requestPayment(ticket, picked, checkout);
+            }
 
             showToast(
                 "결제가 완료됐어요. 입장 QR을 확인해 주세요.",
@@ -742,240 +737,114 @@ function createTicketScreen(mode) {
         }
     }
 
-    /* ── QR 결제 (#281) ── */
-
-    /**
-     * 결제 QR을 띄우고 승인을 기다린다.
-     *
-     * <p>승인은 이 화면이 아니라 QR을 찍은 폰에서 일어난다. 그래서 결제가 끝났는지를
-     * 이 화면은 알 수 없고, 티켓이 발급됐는지 주기적으로 물어보는 수밖에 없다.
-     * 발권이 곧 결제 완료라 발급된 티켓이 하나라도 생기면 끝난 것이다.
-     */
-    async function startQrPayment(
+    /** 고른 수단에 맞는 결제창을 띄운다. 닫으면 null이다. */
+    function runCheckout(
         ticket,
-        button,
+        picked,
+        view,
     ) {
-        button.disabled = true;
+        const checkout = window.AllMyTripsCheckout;
 
-        let issued;
+        /*
+         * 토스는 우리 창에서 결제가 끝나지 않는다. 결제창에서 인증을 마치면 브라우저가
+         * /pay/toss로 넘어가고 그 화면이 승인을 요청한다. 그래서 여기서 돌아오지 않는다.
+         */
+        /*
+         * 카카오페이도 우리 창에서 끝나지 않는다. 카카오 화면으로 아예 다녀와
+         * /pay/kakao가 승인을 요청한다. 그래서 여기서 돌아오지 않는다.
+         */
+        if (picked.flow === "KAKAO") {
+            return checkout.kakaoCheckout({
+                ...view,
+                ready: () => request("/api/v1/payments/kakao/ready", {
+                    method: "POST",
+                    body: JSON.stringify({ reservationId: ticket.reservationId }),
+                }),
+            });
+        }
 
-        try {
-            issued = await request(
-                `/api/v1/ticket-reservations/${ticket.reservationId}/payment/qr`,
+        if (picked.flow === "TOSS") {
+            return checkout.tossCheckout({
+                ...view,
+                reservationId: ticket.reservationId,
+                amount: Number(ticket.totalAmount),
+                orderName: ticket.productName || "티켓 예약",
+            });
+        }
+
+        if (picked.method === "CARD") {
+            return checkout.cardCheckout(view);
+        }
+
+        if (picked.method === "TRANSFER"
+            || picked.method === "VIRTUAL_ACCOUNT") {
+            return checkout.transferCheckout({
+                ...view,
+                method: picked.method,
+            });
+        }
+
+        /*
+         * 간편결제는 QR을 띄우고 폰에서 승인받는다. 카카오페이·토스도 같은 길을 타되
+         * 사업자를 함께 넘겨, 어느 창에서 결제했는지가 기록에 남게 한다.
+         */
+        return checkout.easyPayCheckout({
+            ...view,
+            provider: picked.easyPayProvider || "QR_PAY",
+            drawQr: (text) => createQrSvg(text, { label: "결제 승인 QR" }),
+            issueQr: (provider) => request(
+                `/api/v1/ticket-reservations/${ticket.reservationId}/payment/qr`
+                + `?provider=${encodeURIComponent(provider)}`,
                 { method: "POST" },
-            );
-        } catch (error) {
-            showToast(
-                error.message ||
-                "결제 QR을 띄우지 못했어요.",
-            );
-
-            button.disabled = false;
-
-            return;
-        }
-
-        openQrPaymentPanel(ticket, button, issued);
-    }
-
-    function openQrPaymentPanel(
-        ticket,
-        button,
-        issued,
-    ) {
-        const overlay =
-            document.createElement("div");
-
-        overlay.className = "pay-qr-overlay";
-        overlay.dataset.payQr = "";
-        overlay.setAttribute("role", "dialog");
-        overlay.setAttribute("aria-modal", "true");
-        overlay.setAttribute("aria-label", "QR 결제");
-
-        const panel =
-            document.createElement("div");
-
-        panel.className = "pay-qr-panel";
-
-        const title =
-            document.createElement("h2");
-
-        title.textContent =
-            "휴대폰으로 QR을 찍어 주세요";
-
-        const summary =
-            document.createElement("p");
-
-        summary.className = "pay-qr-summary";
-        summary.textContent =
-            `${ticket.productName || "티켓"} · ${formatAmount(
-                ticket.totalAmount,
-                ticket.currency,
-            )}`;
-
-        const code =
-            document.createElement("div");
-
-        code.className = "pay-qr-code";
-        code.dataset.payQrCode = "";
-
-        /*
-         * QR에는 승인 화면 주소를 담는다. 토큰만 담으면 찍어도 아무 데도 가지 않는다.
-         * 주소를 서버가 아니라 화면에서 만드는 이유는, 서버가 만들면 배포 주소를 설정으로
-         * 들고 있어야 하고 로컬·운영이 어긋나면 엉뚱한 곳으로 보내기 때문이다.
-         */
-        const approveUrl =
-            `${window.location.origin}/pay/qr`
-            + `?token=${encodeURIComponent(issued.token)}`;
-
-        try {
-            code.appendChild(
-                createQrSvg(
-                    approveUrl,
-                    { label: "결제 승인 QR" },
-                ),
-            );
-        } catch (error) {
-            const failed =
-                document.createElement("p");
-
-            failed.textContent =
-                "QR을 그리지 못했어요.";
-
-            code.appendChild(failed);
-        }
-
-        const remain =
-            document.createElement("p");
-
-        remain.className = "pay-qr-remain";
-        remain.dataset.payQrRemain = "";
-
-        const state =
-            document.createElement("p");
-
-        state.className = "pay-qr-state";
-        state.dataset.payQrState = "";
-        state.textContent =
-            "승인을 기다리는 중이에요. 폰에서 금액을 확인하고 승인해 주세요.";
-
-        const close =
-            document.createElement("button");
-
-        close.type = "button";
-        close.className = "text-button";
-        close.textContent = "닫기";
-
-        panel.append(
-            title,
-            summary,
-            code,
-            remain,
-            state,
-            close,
-        );
-
-        overlay.appendChild(panel);
-        document.body.appendChild(overlay);
-
-        let finished = false;
-
-        /* 서버가 준 두 값의 차이로 센다. 손님 기기 시계는 믿을 수 없다. */
-        const total =
-            new Date(issued.expiresAt).getTime()
-            - new Date(issued.serverTime).getTime();
-
-        const startedAt = Date.now();
-
-        /*
-         * tick()을 바로 한 번 부르는데, 이미 만료된 QR이면 그 자리에서 stop()이 불린다.
-         * 그때 두 타이머가 아직 만들어지기 전이라 미리 자리를 잡아 둔다.
-         */
-        let countdown = null;
-        let polling = null;
-
-        const tick = () => {
-            const left = Math.max(
-                0,
-                total - (Date.now() - startedAt),
-            );
-
-            if (left === 0) {
-                stop();
-                code.hidden = true;
-                remain.textContent = "";
-                state.textContent =
-                    "QR이 만료됐어요. 창을 닫고 다시 결제해 주세요.";
-
-                return;
-            }
-
-            const seconds =
-                Math.ceil(left / 1000);
-
-            remain.textContent =
-                `${Math.floor(seconds / 60)}분 `
-                + `${String(seconds % 60).padStart(2, "0")}초 뒤 만료돼요.`;
-        };
-
-        /* 먼저 한 번 그린다. 안 그러면 창이 열리고 1초 동안 남은 시간 자리가 비어 있다. */
-        tick();
-
-        countdown =
-            window.setInterval(tick, 1000);
-
-        /*
-         * 승인됐는지 물어본다. 티켓 목록은 결제 전에는 비어 있고 결제하는 순간 채워진다.
-         * 폴링 간격은 2.5초다 — 더 짧게 하면 승인 한 번을 위해 요청만 늘고, 더 길면
-         * 폰에서 승인하고 PC 화면이 바뀌기까지 어색하게 기다린다.
-         */
-        polling =
-            window.setInterval(async () => {
-                let tickets;
-
-                try {
-                    tickets = await request(
-                        `/api/v1/ticket-reservations/${ticket.reservationId}/tickets`,
-                    );
-                } catch (error) {
-                    /* 한 번 실패는 넘긴다. 다음 차례에 다시 묻는다. */
-                    return;
-                }
-
-                if (!Array.isArray(tickets) || !tickets.length) {
-                    return;
-                }
-
-                finished = true;
-                stop();
-                overlay.remove();
-
-                showToast(
-                    "결제가 완료됐어요. 입장 QR을 확인해 주세요.",
+            ),
+            /*
+             * 발권이 곧 결제 완료다. 발급된 티켓이 하나라도 생기면 폰에서 승인이 끝난 것이다.
+             */
+            pollPaid: async () => {
+                const tickets = await request(
+                    `/api/v1/ticket-reservations/${ticket.reservationId}/tickets`,
                 );
 
-                await load();
-            }, 2500);
-
-        function stop() {
-            window.clearInterval(countdown);
-            window.clearInterval(polling);
-        }
-
-        close.addEventListener("click", () => {
-            stop();
-            overlay.remove();
-
-            /*
-             * 닫아도 결제를 되돌리지는 않는다. 폰에서 이미 승인했을 수 있어서다.
-             * 목록을 다시 받아 지금 상태를 보여준다.
-             */
-            if (!finished) {
-                button.disabled = false;
-                load();
-            }
+                return Array.isArray(tickets) && tickets.length > 0;
+            },
         });
     }
+
+    /** 결제창을 통과한 뒤 실제로 결제한다. */
+    async function requestPayment(
+        ticket,
+        picked,
+        checkout,
+    ) {
+        /*
+         * 멱등키는 화면에서 만든다. 응답이 유실되어 다시 눌러도 같은 키로 들어가면
+         * 서버가 앞의 결과를 돌려주고 두 번 결제되지 않는다. 예약 화면도 같은 방식이다.
+         */
+        const idempotencyKey =
+            window.crypto?.randomUUID
+                ? window.crypto.randomUUID()
+                : `pay-${ticket.reservationId}-${Date.now()}`;
+
+        /*
+         * 카드 정보는 보내지 않는다. 우리 결제 API는 카드번호를 받지 않고, 받을 이유도 없다.
+         * 모의라도 실제 번호가 흐를 길을 만들어 두지 않는다.
+         */
+        await request(
+            `/api/v1/ticket-reservations/${ticket.reservationId}/payment`,
+            {
+                method: "POST",
+                body: JSON.stringify({
+                    method: checkout.method || picked.method,
+                    idempotencyKey,
+                    easyPayProvider:
+                        checkout.easyPayProvider
+                        || picked.easyPayProvider,
+                }),
+            },
+        );
+    }
+
+    /* 결제 QR 창은 core/payment-checkout.js가 맡는다. 예약 화면과 같은 창을 쓴다. */
 
     async function cancelTicket(
         ticket,
@@ -985,11 +854,22 @@ function createTicketScreen(mode) {
          * 결제한 예약을 취소하면 발급된 티켓이 무효가 된다. 결제 전 취소와 같은 문구를
          * 쓰면 티켓이 사라지는 줄 모르고 누른다. 예약 화면도 둘을 갈라 묻는다. (#276)
          */
-        if (!window.confirm(
-            ticket.status === "CONFIRMED"
-                ? "결제한 예약을 취소할까요? 환불되고, 발급된 티켓은 사용할 수 없게 됩니다."
-                : "이 예약을 취소할까요? 잡아둔 자리가 다시 열립니다.",
-        )) {
+        const paid = ticket.status === "CONFIRMED";
+        const confirmed =
+            await window.AllMyTripsDialog.confirm({
+                title: paid
+                    ? "결제를 취소할까요?"
+                    : "예약을 취소할까요?",
+                message: paid
+                    ? "환불 처리되고, 발급된 티켓은 사용할 수 없게 됩니다."
+                    : "잡아둔 자리가 다시 열립니다.",
+                confirmLabel: paid
+                    ? "결제 취소"
+                    : "예약 취소",
+                tone: "danger",
+            });
+
+        if (!confirmed) {
             return;
         }
 

@@ -1,10 +1,576 @@
-/* 티켓 상세·예약 전용 스타일 */
+/* 티켓 상세·모의 예매 전용 스타일 */
 body.page-ticket #page-content {
   min-height: calc(100vh - 78px);
+  background:
+    radial-gradient(circle at 12% 0%, rgba(92, 104, 255, 0.08), transparent 31%),
+    linear-gradient(180deg, #f8f9fd 0, #f4f7fb 520px);
+}
+
+.page-ticket .tk {
+  --tk-ink: #0b1533;
+  --tk-muted: #69748a;
+  --tk-line: #e2e7f0;
+  display: grid;
+  gap: 24px;
+}
+.page-ticket .tk [hidden] { display: none !important; }
+
+/* 로딩·오류 */
+.page-ticket .tk-status {
+  margin: 40px auto;
+  width: min(100%, 620px);
+  padding: 22px 26px;
+  border: 1px solid #dde3f5;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.88);
+  color: #526078;
+  box-shadow: 0 18px 48px rgba(34, 53, 104, 0.08);
+  font-size: 14px;
+  text-align: center;
+}
+.page-ticket .tk-status.error { border-color: #f2cece; background: #fff7f7; color: #b23b3b; }
+
+/* 상단 제목 */
+.page-ticket .tk-head { display: grid; gap: 26px; }
+.page-ticket .tk-head-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+.page-ticket .tk-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  color: #5f6b82;
+  font-size: 13px;
+  font-weight: 800;
+  text-decoration: none;
+}
+.page-ticket .tk-back span {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  border: 1px solid var(--tk-line);
+  border-radius: 50%;
+  background: #fff;
+  transition: border-color 0.16s ease, transform 0.16s ease;
+}
+.page-ticket .tk-back:hover { color: var(--primary); }
+.page-ticket .tk-back:hover span { border-color: #bdc5ff; transform: translateX(-2px); }
+.page-ticket .tk-demo-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: #78839a;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+.page-ticket .tk-demo-label i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #20aa78;
+  box-shadow: 0 0 0 4px rgba(32, 170, 120, 0.12);
+}
+.page-ticket .tk-title { max-width: 900px; }
+.page-ticket .tk-kicker {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 10px;
+  color: #6674ee;
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0.03em;
+}
+.page-ticket .tk-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 26px;
+  margin-left: 3px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: #e9f8f2;
+  color: #13885f;
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 900;
+  letter-spacing: 0;
+}
+.page-ticket .tk-badge[data-state="SCHEDULED"] { background: #fff4d8; color: #9a6700; }
+.page-ticket .tk-badge[data-state="ENDED"] { background: #eceef3; color: #687083; }
+.page-ticket .tk-title h1 {
+  margin: 0;
+  color: var(--tk-ink);
+  font-size: clamp(31px, 3.4vw, 46px);
+  line-height: 1.18;
+  letter-spacing: -0.055em;
+}
+.page-ticket .tk-place {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 12px 0 0;
+  color: #6d788e;
+  font-size: 14px;
+}
+.page-ticket .tk-place > span:first-child { color: var(--primary); font-size: 18px; }
+
+/* 상품 본문 + 예매 패널 */
+.page-ticket .tk-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 370px;
+  gap: 24px;
+  align-items: start;
+}
+.page-ticket .tk-main { display: grid; gap: 20px; min-width: 0; }
+.page-ticket .tk-product {
+  display: grid;
+  grid-template-columns: minmax(250px, 320px) minmax(0, 1fr);
+  gap: 20px;
+  align-items: stretch;
+}
+
+/* 상품 이미지. 장소 이미지가 없으면 브랜드 포스터를 보여준다. */
+.page-ticket .tk-poster {
+  position: relative;
+  min-height: 445px;
+  margin: 0;
+  overflow: hidden;
+  border-radius: 22px;
+  background: linear-gradient(145deg, #18295a 0%, #5369e8 52%, #8a62ef 100%);
+  box-shadow: 0 24px 54px rgba(38, 52, 111, 0.19);
+  isolation: isolate;
+}
+.page-ticket .tk-poster::before {
+  content: "";
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(5, 13, 36, 0.04) 38%, rgba(5, 13, 36, 0.9) 100%);
+  pointer-events: none;
+}
+.page-ticket .tk-poster::after {
+  content: "";
+  position: absolute;
+  z-index: 0;
+  top: -110px;
+  right: -95px;
+  width: 270px;
+  height: 270px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 50%;
+  box-shadow: 0 0 0 44px rgba(255, 255, 255, 0.04), 0 0 0 88px rgba(255, 255, 255, 0.025);
+}
+.page-ticket .tk-poster img {
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.page-ticket .tk-poster-fallback {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  color: rgba(255, 255, 255, 0.9);
+  text-align: center;
+}
+.page-ticket .tk-poster-fallback > span { font-size: 70px; line-height: 1; }
+.page-ticket .tk-poster-fallback strong { margin-top: 16px; font-size: 18px; letter-spacing: 0.12em; }
+.page-ticket .tk-poster-fallback small { margin-top: 7px; font-size: 10px; font-weight: 800; letter-spacing: 0.22em; opacity: 0.68; }
+.page-ticket .tk-poster figcaption {
+  position: absolute;
+  z-index: 2;
+  right: 24px;
+  bottom: 24px;
+  left: 24px;
+  color: #fff;
+}
+.page-ticket .tk-poster figcaption span {
+  display: block;
+  margin-bottom: 7px;
+  color: #cdd5ff;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.14em;
+}
+.page-ticket .tk-poster figcaption strong {
+  display: block;
+  font-size: 22px;
+  line-height: 1.35;
+  letter-spacing: -0.035em;
+}
+
+/* 이용 정보 */
+.page-ticket .tk-info,
+.page-ticket .tk-about,
+.page-ticket .tk-venue,
+.page-ticket .tk-process { padding: 30px; }
+.page-ticket .tk-section-head > span {
+  display: block;
+  margin-bottom: 6px;
+  color: #6f7df2;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+}
+.page-ticket .tk-section-head h2 {
+  margin: 0;
+  color: var(--tk-ink);
+  font-size: 21px;
+  letter-spacing: -0.035em;
+}
+.page-ticket .tk-info dl { display: grid; gap: 0; margin: 20px 0 0; }
+.page-ticket .tk-info dl > div {
+  display: grid;
+  grid-template-columns: 105px minmax(0, 1fr);
+  gap: 16px;
+  min-height: 47px;
+  padding: 12px 0;
+  align-items: start;
+  border-bottom: 1px solid #edf0f5;
+}
+.page-ticket .tk-info dt { color: #8791a5; font-size: 12px; font-weight: 700; }
+.page-ticket .tk-info dd { margin: 0; color: #27324b; font-size: 13.5px; font-weight: 750; line-height: 1.55; }
+.page-ticket .tk-price-summary {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: end;
+  gap: 3px 16px;
+  margin-top: 20px;
+  padding: 17px 18px;
+  border-radius: 15px;
+  background: linear-gradient(135deg, #f2f4ff, #f6f2ff);
+}
+.page-ticket .tk-price-summary span { color: #747f95; font-size: 12px; font-weight: 800; }
+.page-ticket .tk-price-summary strong { grid-row: span 2; color: #4e5fe7; font-size: 24px; letter-spacing: -0.04em; }
+.page-ticket .tk-price-summary small { color: #9aa3b5; font-size: 10.5px; }
+
+/* 상세 설명 */
+.page-ticket .tk-about p { margin: 20px 0 0; color: #4c5870; font-size: 14px; line-height: 1.9; white-space: pre-line; }
+.page-ticket .tk-venue-box {
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr);
+  gap: 15px;
+  align-items: center;
+  margin-top: 20px;
+  padding: 18px;
+  border: 1px solid #e6eaf2;
+  border-radius: 16px;
+  background: #f9fafc;
+}
+.page-ticket .tk-venue-pin {
+  display: grid;
+  width: 46px;
+  height: 46px;
+  place-items: center;
+  border-radius: 14px;
+  background: #eef1ff;
+  color: var(--primary);
+  font-size: 23px;
+}
+.page-ticket .tk-venue p { margin: 0; }
+.page-ticket .tk-venue-name { color: #202c46; font-size: 14px; font-weight: 850; }
+.page-ticket .tk-venue-address { margin-top: 5px !important; color: #7f899d; font-size: 12px; line-height: 1.55; }
+
+.page-ticket .tk-process ol {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin: 20px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.page-ticket .tk-process li {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  gap: 11px;
+  padding: 16px;
+  border: 1px solid #e8ebf2;
+  border-radius: 15px;
+  background: #fbfcfe;
+}
+.page-ticket .tk-process li > b {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  border-radius: 10px;
+  background: #eef1ff;
+  color: #5262e6;
+  font-size: 12px;
+}
+.page-ticket .tk-process li strong,
+.page-ticket .tk-process li span { display: block; }
+.page-ticket .tk-process li strong { color: #27324b; font-size: 13px; }
+.page-ticket .tk-process li span { margin-top: 5px; color: #8992a4; font-size: 10.5px; line-height: 1.5; }
+
+/* 오른쪽 모의 예매 */
+.page-ticket .tk-book { position: sticky; top: 98px; }
+.page-ticket .tk-book-card {
+  overflow: hidden;
+  padding: 0;
+  border-color: #dce2ee;
+  border-radius: 22px;
+  box-shadow: 0 22px 58px rgba(34, 53, 104, 0.13);
+}
+.page-ticket .tk-book-head { padding: 25px 26px 0; }
+.page-ticket .tk-book-badge {
+  display: inline-flex;
+  min-height: 23px;
+  align-items: center;
+  padding: 0 9px;
+  border-radius: 999px;
+  background: #eef1ff;
+  color: #5363e6;
+  font-size: 9px;
+  font-weight: 950;
+  letter-spacing: 0.11em;
+}
+.page-ticket .tk-book-card h2 { margin: 10px 0 0; color: var(--tk-ink); font-size: 23px; letter-spacing: -0.04em; }
+.page-ticket .tk-book-lead { margin: 8px 26px 0; color: #748096; font-size: 12.5px; line-height: 1.55; }
+.page-ticket .tk-steps {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  margin: 22px 0 0;
+  padding: 16px 22px;
+  border-block: 1px solid #edf0f5;
+  background: #fafbfe;
+  list-style: none;
+}
+.page-ticket .tk-steps li {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  color: #a2a9b8;
+  font-size: 10.5px;
+  font-weight: 800;
+}
+.page-ticket .tk-steps li + li::before {
+  content: "";
+  position: absolute;
+  left: -10px;
+  width: 20px;
+  height: 1px;
+  background: #dfe3ec;
+}
+.page-ticket .tk-steps b {
+  display: grid;
+  width: 20px;
+  height: 20px;
+  place-items: center;
+  border-radius: 50%;
+  background: #e9ecf2;
+  color: #8992a4;
+  font-size: 9px;
+}
+.page-ticket .tk-steps li.on,
+.page-ticket .tk-steps li.done { color: #5363e6; }
+.page-ticket .tk-steps li.on b { background: #5868ee; color: #fff; }
+.page-ticket .tk-steps li.done b { background: #e9edff; color: #5363e6; }
+
+.page-ticket .tk-field { display: grid; gap: 10px; margin: 20px 26px 0; }
+.page-ticket .tk-field > span {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: #445069;
+  font-size: 12px;
+  font-weight: 850;
+}
+.page-ticket .tk-field > span b {
+  display: grid;
+  width: 19px;
+  height: 19px;
+  place-items: center;
+  border-radius: 6px;
+  background: #eef1ff;
+  color: #5968e7;
+  font-size: 9px;
+}
+.page-ticket .tk-chips { display: grid; gap: 8px; }
+.page-ticket .tk-chip {
+  width: 100%;
+  border: 1px solid #e0e5ed;
+  border-radius: 13px;
+  background: #fff;
+  color: #3d4961;
+  cursor: pointer;
+  transition: border-color 0.14s ease, background 0.14s ease, box-shadow 0.14s ease;
+}
+.page-ticket .tk-chip:hover { border-color: #bfc7fb; }
+.page-ticket .tk-chip.on { border-color: #6876ef; background: #f6f7ff; box-shadow: 0 0 0 2px rgba(92, 104, 255, 0.08); }
+.page-ticket .tk-chip:disabled { cursor: not-allowed; opacity: 0.55; background: #f5f6f8; }
+.page-ticket .tk-date-option {
+  display: grid;
+  grid-template-columns: 42px 1fr auto;
+  align-items: center;
+  gap: 10px;
+  min-height: 59px;
+  padding: 10px 13px;
+  text-align: left;
+}
+.page-ticket .tk-date-option .tk-date-day {
+  display: grid;
+  width: 40px;
+  height: 40px;
+  place-items: center;
+  border-radius: 11px;
+  background: #f0f2f7;
+  color: #202c46;
+  font-size: 16px;
+  font-weight: 900;
+}
+.page-ticket .tk-date-option.on .tk-date-day { background: #5c68ff; color: #fff; }
+.page-ticket .tk-date-copy strong,
+.page-ticket .tk-date-copy small { display: block; }
+.page-ticket .tk-date-copy strong { color: #2c3850; font-size: 12px; }
+.page-ticket .tk-date-copy small { margin-top: 3px; color: #8e97a9; font-size: 10.5px; }
+.page-ticket .tk-date-option > em { color: #9aa3b4; font-size: 10px; font-style: normal; }
+
+.page-ticket .tk-slot-option {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 5px 12px;
+  align-items: center;
+  padding: 13px 14px;
+  text-align: left;
+}
+.page-ticket .tk-slot-option strong { color: #2b3750; font-size: 13px; }
+.page-ticket .tk-slot-option > span { color: #4251c9; font-size: 13px; font-weight: 900; }
+.page-ticket .tk-slot-option small { color: #8b95a8; font-size: 10.5px; }
+.page-ticket .tk-slot-option em { color: #e36a58; font-size: 10px; font-style: normal; font-weight: 800; text-align: right; }
+
+.page-ticket .tk-qty-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 54px;
+  padding: 8px 10px;
+  border: 1px solid #e2e6ee;
+  border-radius: 13px;
+  background: #fafbfc;
+}
+.page-ticket .tk-qty { display: flex; align-items: center; gap: 5px; }
+.page-ticket .tk-qty button {
+  width: 34px;
+  height: 34px;
+  border: 1px solid #dfe4ec;
+  border-radius: 10px;
+  background: #fff;
+  color: #39455c;
+  font-size: 17px;
+  font-weight: 800;
+}
+.page-ticket .tk-qty input {
+  width: 42px;
+  height: 34px;
+  border: 0;
+  background: transparent;
+  color: #1f2b44;
+  text-align: center;
+  font-size: 15px;
+  font-weight: 900;
+  appearance: textfield;
+}
+.page-ticket .tk-qty input::-webkit-inner-spin-button { appearance: none; }
+.page-ticket .tk-qty-row > small { color: #8e97a9; font-size: 9.5px; line-height: 1.45; text-align: right; }
+
+.page-ticket .tk-total {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 22px 26px 0;
+  padding: 18px 0 0;
+  border-top: 1px solid #e8ebf1;
+}
+.page-ticket .tk-total span,
+.page-ticket .tk-total small { display: block; }
+.page-ticket .tk-total span { color: #4b566d; font-size: 12px; font-weight: 850; }
+.page-ticket .tk-total small { margin-top: 5px; color: #9aa2b2; font-size: 9.5px; }
+.page-ticket .tk-total strong { color: #4d5ee5; font-size: 25px; letter-spacing: -0.045em; }
+.page-ticket .tk-book-error { margin: 13px 26px 0; color: #d64545; font-size: 12px; font-weight: 750; }
+.page-ticket .tk-book-card > .primary-button {
+  width: calc(100% - 52px);
+  min-height: 52px;
+  margin: 22px 26px 0;
+  border-radius: 14px;
+  box-shadow: 0 12px 24px rgba(85, 96, 230, 0.22);
+}
+.page-ticket .tk-book-card > .primary-button:disabled { cursor: not-allowed; background: #e8ebf1; color: #98a0af; box-shadow: none; }
+.page-ticket .tk-book-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  margin: 18px 0 0;
+  padding: 15px 26px 18px;
+  border-top: 1px solid #edf0f4;
+  background: #fafbfc;
+  color: #8b6470;
+  font-size: 10.5px;
+  line-height: 1.55;
+}
+.page-ticket .tk-book-note span { color: #8a70e5; font-size: 13px; }
+
+@media (max-width: 1180px) {
+  .page-ticket .tk-layout { grid-template-columns: minmax(0, 1fr) 340px; }
+  .page-ticket .tk-product { grid-template-columns: 270px minmax(0, 1fr); }
+  .page-ticket .tk-poster { min-height: 410px; }
+  .page-ticket .tk-info { padding: 25px; }
+}
+
+@media (max-width: 980px) {
+  .page-ticket .tk-layout { grid-template-columns: 1fr; }
+  /* 작은 화면은 상품 정보 다음에 바로 예매가 오고, 긴 설명은 그 뒤에서 읽는다. */
+  .page-ticket .tk-main { display: contents; }
+  .page-ticket .tk-product { order: 1; }
+  .page-ticket .tk-book { order: 2; }
+  .page-ticket .tk-about { order: 3; }
+  .page-ticket .tk-venue { order: 4; }
+  .page-ticket .tk-process { order: 5; }
+  .page-ticket .tk-book { position: static; }
+  .page-ticket .tk-book-card { max-width: none; }
+  .page-ticket .tk-chips { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 @media (max-width: 760px) {
-  body.page-ticket #page-content {
-    min-height: calc(100vh - 64px);
-  }
+  body.page-ticket #page-content { min-height: calc(100vh - 64px); }
+  .page-ticket .tk { gap: 20px; }
+  .page-ticket .tk-head { gap: 20px; }
+  .page-ticket .tk-demo-label { display: none; }
+  .page-ticket .tk-title h1 { font-size: 31px; }
+  .page-ticket .tk-product { grid-template-columns: 1fr; }
+  .page-ticket .tk-poster { min-height: 400px; }
+  .page-ticket .tk-info,
+  .page-ticket .tk-about,
+  .page-ticket .tk-venue,
+  .page-ticket .tk-process { padding: 23px 20px; }
+  .page-ticket .tk-process ol { grid-template-columns: 1fr; }
+  .page-ticket .tk-chips { grid-template-columns: 1fr; }
+  .page-ticket .tk-book-head { padding-inline: 20px; }
+  .page-ticket .tk-book-lead,
+  .page-ticket .tk-field,
+  .page-ticket .tk-total,
+  .page-ticket .tk-book-error { margin-inline: 20px; }
+  .page-ticket .tk-book-card > .primary-button { width: calc(100% - 40px); margin-inline: 20px; }
+  .page-ticket .tk-book-note { padding-inline: 20px; }
+}
+
+@media (max-width: 420px) {
+  .page-ticket .tk-info dl > div { grid-template-columns: 88px minmax(0, 1fr); gap: 10px; }
+  .page-ticket .tk-poster { min-height: 360px; }
+  .page-ticket .tk-qty-row { align-items: flex-start; flex-direction: column; }
+  .page-ticket .tk-qty-row > small { text-align: left; }
 }

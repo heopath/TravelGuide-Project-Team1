@@ -106,8 +106,11 @@ async function run() {
 
     T("잘못된 형식은 서버로 보내지 않는다",
       !calls.some((call) => call.options.method === "PUT"));
+    /* 예시로 든 버전을 박아 두면 서비스 버전이 오를 때마다 이 테스트가 깨진다.
+     * 보려는 것은 "세 자리 형식을 예시로 보여준다"는 사실이다. */
     T("허용 형식을 화면에서 안내한다",
-      d.querySelector("[data-version-message]").textContent.includes("v0.9.1"));
+      /v?\d+\.\d+\.\d+/.test(d.querySelector("[data-version-message]").textContent),
+      d.querySelector("[data-version-message]").textContent);
   }
 
   console.log(`\n${passed} passed, ${failed} failed`);
