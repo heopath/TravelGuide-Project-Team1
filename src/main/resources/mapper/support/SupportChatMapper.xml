@@ -25,10 +25,11 @@
         WHERE r.user_id = #{userId} AND r.status &lt;&gt; 'CLOSED'
     </select>
 
+    <!-- 봇이 먼저 응대하도록 BOT 상태로 시작한다. 봇이 답을 못 찾으면 WAITING으로 넘어간다. -->
     <insert id="insertRoom" useGeneratedKeys="true"
             keyProperty="supportChatRoomId" keyColumn="support_chat_room_id">
         INSERT INTO support_chat_rooms (user_id, status)
-        VALUES (#{userId}, 'WAITING')
+        VALUES (#{userId}, 'BOT')
     </insert>
 
     <select id="findRoom"
@@ -91,6 +92,16 @@
     </update>
 
     <!--
+      봇이 사람에게 넘긴다. BOT일 때만 바뀐다 — 0건이면 그 사이 관리자가 이미 takeover로
+      가져간 것이므로, 봇 응답을 저장하기 직전 이 조건으로 경쟁 조건을 막는다(설계 문서 §5).
+    -->
+    <update id="markWaiting">
+        UPDATE support_chat_rooms
+        SET status = 'WAITING'
+        WHERE support_chat_room_id = #{roomId} AND status = 'BOT'
+    </update>
+
+    <!--
       종료하면 담당자를 비운다. ck_support_chat_rooms_assignee가 "ASSIGNED일 때만 담당자가
       있다"를 강제하므로, 비우지 않으면 제약에 걸린다.
     -->
@@ -109,21 +120,39 @@
         )
     </insert>
 
+    <select id="findMessage"
+            resultType="org.example.all_my_trip_project.domain.support.dto.SupportChatMessageDTO">
+        SELECT m.support_chat_message_id, m.support_chat_room_id, m.sender_type,
+               m.sender_user_id, s.nickname AS sender_nickname, m.content, m.created_at
+        FROM support_chat_messages m
+        LEFT JOIN users s ON s.user_id = m.sender_user_id
+        WHERE m.support_chat_message_id = #{messageId}
+    </select>
+
     <update id="touchRoom">
         UPDATE support_chat_rooms
         SET last_message_at = CURRENT_TIMESTAMP
         WHERE support_chat_room_id = #{roomId}
     </update>
 
+    <!--
+      한도를 넘는 대화에서는 "가장 오래된 N개"가 아니라 "가장 최근 N개"를 남긴다. 오름차순으로
+      자르면 방금 들어온 사용자 메시지가 잘려 나가, 화면에도 봇에게 넘기는 대화 내역에도
+      빠진다. 안쪽에서 내림차순으로 최근 것을 고르고, 바깥에서 다시 시간순으로 세운다.
+    -->
     <select id="findMessages"
             resultType="org.example.all_my_trip_project.domain.support.dto.SupportChatMessageDTO">
         SELECT m.support_chat_message_id, m.support_chat_room_id, m.sender_type,
                m.sender_user_id, s.nickname AS sender_nickname, m.content, m.created_at
-        FROM support_chat_messages m
+        FROM (
+            SELECT *
+            FROM support_chat_messages
+            WHERE support_chat_room_id = #{roomId}
+            ORDER BY support_chat_message_id DESC
+            LIMIT #{limit}
+        ) m
         LEFT JOIN users s ON s.user_id = m.sender_user_id
-        WHERE m.support_chat_room_id = #{roomId}
         ORDER BY m.support_chat_message_id
-        LIMIT #{limit}
     </select>
 
 </mapper>

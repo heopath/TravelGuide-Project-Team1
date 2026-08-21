@@ -220,6 +220,19 @@ async function run() {
     d.querySelector('[data-hotel-offer="tour:2"]').textContent.includes("무료 취소 가능")
       && d.querySelector('[data-hotel-offer="tour:2"]').textContent.includes("조식 포함"));
 
+  /*
+   * 나가는 순간이 제일 위험하다. 목록에는 실습 요금이라고 적혀 있어도, 마지막으로 보는
+   * 이동 안내에서 빠지면 그 사실을 모르고 예약 사이트로 넘어간다. 거기 가격은 다르다.
+   */
+  /* 이동 안내는 딥링크가 있어야 열린다. 픽스처에는 없어 여기서 채운다. */
+  w.__accommodationBooking.state.offers
+    .find((o) => o.offerId === "tour:2").deeplinkUrl = "https://example.test/book";
+  w.__accommodationBooking.openBooking("tour:2");
+  T("실습 요금은 이동 직전 안내에도 그렇다고 적는다",
+    $("h1pn").hidden === false
+      && $("h1pn").textContent.includes("실제 결제 금액 아님"),
+    $("h1pn").textContent + " hidden=" + $("h1pn").hidden);
+
   d.querySelector('[data-hotel-sort="price"]').click();
   T("최저가순은 가격이 있는 숙소를 가격 없는 숙소보다 먼저 표시한다",
     d.querySelector(".hotel-card").dataset.hotelOffer === "tour:2");
@@ -363,6 +376,14 @@ async function runBookingFlow() {
       $("hv1").classList.contains("show") && $("h1nm").textContent === "가나다 리조트");
     T("모달에 결제가 외부에서 일어난다는 고지가 있다",
       $("hv1").textContent.includes("숙소를 판매하지 않아요"));
+
+    /*
+     * 나가는 순간이 제일 위험하다. 목록에는 실습 요금이라고 적혀 있어도, 마지막으로 보는
+     * 이 화면에서 빠지면 그 사실을 모르고 예약 사이트로 넘어간다. 거기 가격은 다르다.
+     */
+    T("요금이 없으면 실습 요금 문구를 띄우지 않는다",
+      $("h1pn").hidden === true,
+      $("h1pn").textContent + " hidden=" + $("h1pn").hidden);
 
     await api.goOut();
     T("이동 시 이탈 이력을 남긴다",

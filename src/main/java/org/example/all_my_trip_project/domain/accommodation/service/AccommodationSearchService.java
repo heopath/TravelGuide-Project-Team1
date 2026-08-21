@@ -49,12 +49,15 @@ public class AccommodationSearchService {
      * 사용자가 가짜 요금을 보고 예약 사이트로 나가면 그 손해는 되돌릴 수 없다.
      *
      * <p>TourAPI의 실제 숙소 정보는 프로덕션에서도 허용한다. 여기서 거부하는 것은
-     * Mock 가격과 LiteAPI Sandbox 실습 가격뿐이다.
+     * <b>Mock 가격뿐</b>이다.
      *
-     * <p><b>이 검사는 이제 마지막 안전망이다.</b> Mock provider는 {@code @Profile("!prod")}로,
-     * Sandbox provider는 프로덕션에서 호출되지 않도록 각각 막혀 있어 정상 경로에서는
-     * 여기까지 오지 않는다. 예전에는 이 검사가 유일한 방어라, 키 미설정이나 TourAPI 장애로
-     * Mock 폴백이 걸리면 "검색 결과 없음"이 500으로 둔갑했다.
+     * <p>LiteAPI Sandbox 실습 요금은 이제 프로덕션에서도 내보낸다. 요금을 아예 안 보여주는
+     * 것보다 낫다고 판단했고, 대신 요금 자리와 예약 사이트로 나가기 직전 안내에 실습
+     * 요금임을 적는다. Mock은 여전히 막는다 — 그쪽은 우리가 지어낸 숫자라 출처 자체가 없다.
+     *
+     * <p><b>이 검사는 이제 마지막 안전망이다.</b> Mock provider는 {@code @Profile("!prod")}로
+     * 막혀 있어 정상 경로에서는 여기까지 오지 않는다. 예전에는 이 검사가 유일한 방어라,
+     * 키 미설정이나 TourAPI 장애로 Mock 폴백이 걸리면 "검색 결과 없음"이 500으로 둔갑했다.
      *
      * <p>그래도 지우지 않는 이유는, 앞으로 실습용 provider가 하나 더 붙었을 때
      * 프로필 설정을 빠뜨리면 여기서 걸리기 때문이다.
@@ -65,8 +68,7 @@ public class AccommodationSearchService {
         }
         boolean hasUnsafePracticePrice = result.offers().stream()
                 .map(AccommodationOffer::priceSource)
-                .anyMatch(source -> source == AccommodationPriceSource.MOCK
-                        || source == AccommodationPriceSource.SANDBOX);
+                .anyMatch(source -> source == AccommodationPriceSource.MOCK);
         if (hasUnsafePracticePrice) {
             throw new IllegalStateException(
                     "프로덕션 응답에 실습용 숙소 요금이 포함되었습니다. 숙소 provider 설정을 확인하세요.");

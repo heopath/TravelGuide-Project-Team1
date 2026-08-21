@@ -328,9 +328,15 @@
                   시간대 재고. 상품 단위 합계로는 어느 시간대가 모자란지 알 수 없어 펼쳐서 다룬다.
                   예약 수량(reserved)은 예약 흐름이 관리하므로 여기서 고치지 않는다.
                 -->
-                <div class="white-panel admin-panel admin-slot-panel" data-slot-panel hidden>
+                <!--
+                  모달로 띄운다. 목록 아래에 펼치면 상품 스무 줄만큼 내려간 자리에 열려,
+                  누른 사람 눈에는 아무 일도 안 일어난 것처럼 보인다. 실제로 그 증상이 있었다.
+                -->
+                <div class="modal-backdrop admin-slot-backdrop" data-slot-panel hidden>
+                  <div class="modal-card admin-slot-card" role="dialog" aria-modal="true"
+                       aria-labelledby="slotTitle" data-slot-card>
                   <div class="admin-section-head">
-                    <h3 data-slot-title>시간대 재고</h3>
+                    <h3 id="slotTitle" data-slot-title>시간대 재고</h3>
                     <button type="button" class="text-button" data-slot-close>닫기</button>
                   </div>
                   <!--
@@ -401,11 +407,26 @@
                   </form>
 
                   <h4 class="admin-subhead">등록된 시간대</h4>
+                  <!--
+                    기간을 좁혀 본다. 한 상품에 시간대가 백 개를 넘는 일이 흔해서, 다 그리면
+                    찾으려는 날짜까지 한참 내려야 한다. 기본은 오늘부터 두 주다.
+                  -->
+                  <div class="admin-slot-filter">
+                    <label><span>보기 시작</span>
+                      <input type="date" data-slot-view="from" />
+                    </label>
+                    <label><span>보기 종료</span>
+                      <input type="date" data-slot-view="to" />
+                    </label>
+                    <button type="button" class="admin-chip" data-slot-view-all>전체 보기</button>
+                    <span class="admin-hint" data-slot-count role="status"></span>
+                  </div>
                   <div class="admin-table-head admin-slot-row">
                     <span>옵션 · 이용일</span><span>예약</span><span>전체 수량</span><span></span>
                   </div>
                   <div data-slot-list class="admin-table-body"></div>
                   <p class="admin-empty" data-slot-empty role="status"></p>
+                  </div>
                 </div>
               </section>
 
@@ -695,6 +716,9 @@
     <script th:src="@{/js/pages/admin/admin-performance.js}" src="../../static/js/pages/admin/admin-performance.js"></script>
     <script th:src="@{/js/pages/admin/admin-metrics.js}" src="../../static/js/pages/admin/admin-metrics.js"></script>
     <script th:src="@{/js/pages/admin/admin-reservations.js}" src="../../static/js/pages/admin/admin-reservations.js"></script>
+    <!-- 상담 채팅 실시간 수신용. 백엔드로 서빙될 때만 뜬다 — 정적 미리보기에서는 없어도 폴백으로 동작한다. -->
+    <script th:src="@{/webjars/sockjs-client/1.5.1/sockjs.min.js}"></script>
+    <script th:src="@{/webjars/stomp-websocket/2.3.4/stomp.min.js}"></script>
     <script th:src="@{/js/pages/admin/admin-chat.js}" src="../../static/js/pages/admin/admin-chat.js"></script>
     <script th:src="@{/js/pages/admin/admin-validation.js}" src="../../static/js/pages/admin/admin-validation.js"></script>
     <script th:src="@{/js/pages/admin/admin-version.js}" src="../../static/js/pages/admin/admin-version.js"></script>

@@ -33,9 +33,13 @@ public class SupportChatDAO {
 
     public int assignRoom(Long roomId, Long adminId) { return mapper.assignRoom(roomId, adminId); }
 
+    public int markWaiting(Long roomId) { return mapper.markWaiting(roomId); }
+
     public int closeRoom(Long roomId) { return mapper.closeRoom(roomId); }
 
     public int insertMessage(SupportChatMessageDTO message) { return mapper.insertMessage(message); }
+
+    public Optional<SupportChatMessageDTO> findMessage(Long messageId) { return mapper.findMessage(messageId); }
 
     public int touchRoom(Long roomId) { return mapper.touchRoom(roomId); }
 

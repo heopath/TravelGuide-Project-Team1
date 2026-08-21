@@ -82,16 +82,16 @@ async function boot(responder) {
 /** 목록 + 장소 + 시간대를 한 번에 받아주는 기본 응답기. */
 function responder(extra) {
   return (url, options) => {
+    if (extra) {
+      const handled = extra(url, options);
+      if (handled) return handled;
+    }
     if (url.includes("/admin/places")) {
       return ok(page([{ placeId: 3, name: "해운대 블루라인파크", city: "해운대구" }]));
     }
     /* 옵션은 시간대보다 먼저 조회된다. 시간대가 옵션에 달리기 때문이다. (#254) */
     if (url.includes("/options")) return ok([option(101), option(102, { name: "청소년", sortOrder: 2 })]);
     if (url.includes("/slots")) return ok([slot(9), slot(10, { status: "CLOSED" })]);
-    if (extra) {
-      const handled = extra(url, options);
-      if (handled) return handled;
-    }
     return ok(page([product(1)]));
   };
 }
@@ -303,6 +303,105 @@ async function run() {
       d.querySelector("[data-option-empty]").textContent.includes("등록된 옵션이 없어요"));
     T("목록에서도 옵션 없음을 표시한다",
       rows(d)[0].querySelector("[data-product-note]").textContent === "옵션 없음");
+  }
+
+  /* ── 시간대 모달 ── */
+  {
+    const { d } = await boot(responder());
+    await until(() => rows(d).length === 1);
+
+    const backdrop = d.querySelector("[data-slot-panel]");
+    d.querySelector('[data-product-slots="1"]').click();
+    await until(() => slotRows(d).length === 2);
+
+    /*
+     * 예전에는 목록 아래에 펼쳤다. 상품 스무 줄만큼 내려간 자리에 열려, 누른 사람 눈에는
+     * 아무 일도 안 일어난 것처럼 보였다.
+     */
+    T("시간대는 모달로 뜬다",
+      backdrop.classList.contains("modal-backdrop")
+        && Boolean(d.querySelector("[data-slot-card]")));
+    T("모달인 것을 보조기기에도 알린다",
+      d.querySelector("[data-slot-card]").getAttribute("aria-modal") === "true");
+    /* 뒤 목록이 같이 밀리면 모달 안에서 길을 잃는다. */
+    T("열려 있는 동안 뒤 화면 스크롤을 잠근다",
+      d.body.dataset.slotModalOpen === "1");
+    T("열면 닫기 버튼으로 초점이 들어간다",
+      d.activeElement === d.querySelector("[data-slot-close]"));
+
+    /* 카드 안을 누르다 닫히면 쓰던 값이 날아간다. */
+    d.querySelector("[data-slot-card]").click();
+    T("카드 안을 눌러도 닫히지 않는다", backdrop.hidden === false);
+
+    backdrop.dispatchEvent(new d.defaultView.MouseEvent("click", { bubbles: true }));
+    T("배경을 누르면 닫힌다", backdrop.hidden === true);
+    T("닫으면 스크롤 잠금도 푼다", d.body.dataset.slotModalOpen === undefined);
+    T("닫으면 누른 상품 버튼으로 초점이 돌아간다",
+      d.activeElement === d.querySelector('[data-product-slots="1"]'));
+  }
+  {
+    const { d } = await boot(responder());
+    await until(() => rows(d).length === 1);
+    const backdrop = d.querySelector("[data-slot-panel]");
+    d.querySelector('[data-product-slots="1"]').click();
+    await until(() => slotRows(d).length === 2);
+
+    d.dispatchEvent(new d.defaultView.KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    T("Esc로도 닫힌다", backdrop.hidden === true);
+  }
+
+  /* ── 시간대 등록 뒤 목록 갱신 ── */
+  {
+    const createdSlots = [slot(9), slot(10), slot(11, { usageDate: "2026-09-16" })];
+    let posted = false;
+    const { d } = await boot(responder((url, options) => {
+      if (options.method === "POST" && url.endsWith("/slots")) {
+        posted = true;
+        return ok({ created: 1, skipped: 0, slots: createdSlots });
+      }
+      return null;
+    }));
+    await until(() => rows(d).length === 1);
+    d.querySelector('[data-product-slots="1"]').click();
+    await until(() => slotRows(d).length === 2);
+
+    const slotForm = d.querySelector("[data-slot-form]");
+    slotForm.dispatchEvent(new d.defaultView.Event("submit", { cancelable: true, bubbles: true }));
+    await until(() => posted && slotRows(d).length === 3);
+
+    T("시간대를 등록하면 응답의 최신 목록이 바로 보인다", slotRows(d).length === 3);
+    T("등록 결과 개수도 최신 목록 기준으로 바뀐다",
+      d.querySelector("[data-slot-count]").textContent.includes("전체 3개 중 3개"));
+  }
+
+  /* ── 보기 기간 ── */
+  {
+    const { d } = await boot(responder());
+    await until(() => rows(d).length === 1);
+    d.querySelector('[data-product-slots="1"]').click();
+    await until(() => slotRows(d).length === 2);
+
+    /*
+     * 픽스처의 이용일은 기본 기간(오늘부터 두 주) 밖이다. 그런데도 보여야 한다 —
+     * 시즌이 몇 달 뒤인 상품은 열자마자 늘 0개가 떠서, 시간대가 없는 줄로 읽게 된다.
+     */
+    T("기본 기간에 하나도 없으면 전체를 보여준다", slotRows(d).length === 2);
+    T("전체 중 몇 개를 보고 있는지 밝힌다",
+      /전체 2개 중 2개/.test(d.querySelector("[data-slot-count]").textContent),
+      d.querySelector("[data-slot-count]").textContent);
+
+    /* 사람이 직접 좁힌 경우에는 넓히지 않는다. 고른 조건을 무시하면 더 헷갈린다. */
+    const from = d.querySelector('[data-slot-view="from"]');
+    const to = d.querySelector('[data-slot-view="to"]');
+    from.value = "2030-01-01";
+    to.value = "2030-01-31";
+    from.dispatchEvent(new d.defaultView.Event("change", { bubbles: true }));
+    T("직접 좁혀서 0개가 되면 그대로 둔다", slotRows(d).length === 0);
+    T("기간을 넓히라고 알려준다",
+      d.querySelector("[data-slot-empty]").textContent.includes("기간을 넓히"));
+
+    d.querySelector("[data-slot-view-all]").click();
+    T("전체 보기로 되돌릴 수 있다", slotRows(d).length === 2);
   }
 
   console.log(`\n${passed} passed, ${failed} failed`);
