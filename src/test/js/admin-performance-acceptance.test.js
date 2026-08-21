@@ -101,6 +101,16 @@ async function run() {
     T("표본 수와 가동 시간을 함께 밝힌다",
       note(d).includes("4,321건") && note(d).includes("1시간 30분"));
     T("누적값임을 밝힌다", note(d).includes("누적"));
+    T("주의 기준에 해당하면 상태를 문구로 알린다",
+      d.querySelector("[data-performance-health]").dataset.level === "warning"
+        && d.querySelector("[data-performance-health]").textContent.includes("주의"));
+  }
+
+  {
+    const { d } = await boot(() => ok(metrics({ averageResponseMs: 1200, errorRate: 0.06 })));
+    await until(() => value(d, "tps") !== "—");
+    T("위험 기준에 해당하면 즉시 확인이 필요하다고 알린다",
+      d.querySelector("[data-performance-health]").dataset.level === "danger");
   }
 
   /* ── 표본이 없으면 0을 쓰지 않는다 ── */
@@ -113,6 +123,8 @@ async function run() {
     T("표본이 없으면 값 자리를 비워 둔다",
       value(d, "tps") === "—" && value(d, "latency") === "—" && value(d, "failureRate") === "—");
     T("0%를 오류 없음으로 오해하게 두지 않는다", !note(d).includes("0.00%"));
+    T("표본이 없으면 상태를 판단할 수 없다고 알린다",
+      d.querySelector("[data-performance-health]").dataset.level === "unknown");
   }
 
   /* ── 새로고침 ── */

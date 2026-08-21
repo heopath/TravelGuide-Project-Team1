@@ -74,6 +74,11 @@ async function main() {
       && d.getElementById("placeList").textContent.includes("추천중")
       && d.getElementById("placeList").textContent.includes("추천 아님"));
   T("대표 이미지가 있으면 목록에 표시한다", d.querySelectorAll(".admin-place-thumb img").length === 1);
+  T("장소 검색 조건을 한 번에 초기화할 수 있다",
+    d.getElementById("placeFilterReset") && fs.readFileSync(SCRIPT, "utf8").includes('$("placeFilterReset").addEventListener'));
+  T("일괄 추천 변경 전에 대상 수를 확인한다",
+    fs.readFileSync(SCRIPT, "utf8").includes("window.confirm")
+      && fs.readFileSync(SCRIPT, "utf8").includes("placeIds.length"));
 
   d.querySelector('[data-place-edit="1"]').click();
   T("수정 버튼을 누르면 기존 장소 정보를 입력 폼에 채운다",

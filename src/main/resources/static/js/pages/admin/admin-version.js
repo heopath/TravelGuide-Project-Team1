@@ -13,6 +13,8 @@
   const current = panel.querySelector("[data-version-current]");
   const message = panel.querySelector("[data-version-message]");
   const submit = panel.querySelector("[data-version-submit]");
+  const reset = panel.querySelector("[data-version-reset]");
+  let savedVersion = "";
   if (!form || !input || !current || !message || !submit) return;
 
   async function request(options) {
@@ -35,6 +37,8 @@
     const display = String(version || "");
     current.textContent = display || "—";
     input.value = display;
+    savedVersion = display;
+    if (reset) reset.disabled = true;
     document.querySelectorAll(".footer-version").forEach(function (element) {
       element.textContent = display;
     });
@@ -71,6 +75,17 @@
     } finally {
       submit.disabled = false;
     }
+  });
+
+  input.addEventListener("input", function () {
+    if (reset) reset.disabled = input.value.trim() === savedVersion;
+    message.textContent = "";
+  });
+  reset?.addEventListener("click", function () {
+    input.value = savedVersion;
+    reset.disabled = true;
+    message.textContent = "저장 전 입력값을 취소했습니다.";
+    input.focus();
   });
 
   if (document.readyState === "loading") {

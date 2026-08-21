@@ -29,6 +29,7 @@
   const state = {
     reportStatus: "",
     reports: [],
+    selectedReport: null,
     loading: false,
     /* 관리자 진입 시 오늘 처리할 일을 먼저 보여준다. */
     panel: "overview"
@@ -55,12 +56,13 @@
     const label = REPORT_STATUS_LABEL[status] || status || "-";
     const reason = REPORT_REASON_LABEL[report.reason] || report.reason || "-";
 
-    return `<div class="admin-report-row">
-      <span>#${esc(report.travelRecordId)}</span>
+    return `<div class="admin-report-row" data-report-row="${esc(report.travelRecordReportId)}">
+      <span><strong>#${esc(report.travelRecordReportId)}</strong><small>기록 #${esc(report.travelRecordId)}</small></span>
       <span>${esc(reason)}</span>
       <span class="admin-clamp" title="${esc(report.detail || "")}">${esc(report.detail || "상세 없음")}</span>
       <span class="admin-status ${esc(status.toLowerCase())}">${esc(label)}</span>
       <span>${esc(date(report.createdAt))}</span>
+      <span><button type="button" class="admin-chip" data-report-open="${esc(report.travelRecordReportId)}">${status === "RESOLVED" || status === "REJECTED" ? "결과 보기" : "검토하기"}</button></span>
     </div>`;
   }
 
@@ -72,10 +74,14 @@
       list.innerHTML = "";
       empty.hidden = false;
       empty.textContent = "신고 목록을 불러오는 중이에요.";
+      const count = document.querySelector("[data-report-count]");
+      if (count) count.textContent = "조회 중…";
       return;
     }
 
     list.innerHTML = state.reports.map(reportRow).join("");
+    const count = document.querySelector("[data-report-count]");
+    if (count) count.textContent = `조회 결과 ${state.reports.length.toLocaleString("ko-KR")}건`;
     empty.hidden = state.reports.length > 0;
     if (!state.reports.length) {
       empty.textContent = state.reportStatus
@@ -142,6 +148,105 @@
     renderReports();
   }
 
+  function reportFeedback(message, error) {
+    const element = document.querySelector("[data-report-feedback]");
+    if (!element) return;
+    element.textContent = message || "";
+    element.classList.toggle("error", Boolean(error));
+    element.hidden = !message;
+  }
+
+  function addReportMeta(label, value) {
+    const meta = document.querySelector("[data-report-meta]");
+    if (!meta) return;
+    const term = document.createElement("dt");
+    term.textContent = label;
+    const description = document.createElement("dd");
+    description.textContent = value || "—";
+    meta.append(term, description);
+  }
+
+  function openReport(reportId, trigger) {
+    const report = state.reports.find((item) => String(item.travelRecordReportId) === String(reportId));
+    const modal = document.querySelector("[data-report-modal]");
+    if (!report || !modal) return;
+    state.selectedReport = report;
+    modal.dataset.returnFocus = trigger?.dataset.reportOpen || "";
+    document.querySelector("[data-report-target]").textContent =
+      `신고 #${report.travelRecordReportId} · 여행 기록 #${report.travelRecordId}`;
+    const meta = document.querySelector("[data-report-meta]");
+    meta.replaceChildren();
+    addReportMeta("신고 사유", REPORT_REASON_LABEL[report.reason] || report.reason);
+    addReportMeta("신고자", report.reporterUserId ? `회원 #${report.reporterUserId}` : "알 수 없음");
+    addReportMeta("접수일", date(report.createdAt));
+    addReportMeta("현재 상태", REPORT_STATUS_LABEL[report.status] || report.status);
+    if (report.processedBy) addReportMeta("처리 관리자", `회원 #${report.processedBy}`);
+    if (report.processedAt) addReportMeta("처리일", date(report.processedAt));
+    document.querySelector("[data-report-detail]").textContent = report.detail || "작성된 상세 내용이 없습니다.";
+
+    const finished = report.status === "RESOLVED" || report.status === "REJECTED";
+    const resolution = document.querySelector("[data-report-resolution]");
+    resolution.hidden = !finished;
+    document.querySelector("[data-report-resolution-note]").textContent =
+      report.resolutionNote || "처리 사유가 기록되지 않았습니다.";
+    const form = document.querySelector("[data-report-action-form]");
+    form.hidden = finished;
+    if (!finished) {
+      document.querySelector("[data-report-action-status]").value = report.status === "REVIEWING" ? "RESOLVED" : "REVIEWING";
+      document.querySelector("[data-report-action-note]").value = "";
+      document.querySelector("[data-report-action-error]").textContent = "";
+    }
+    modal.hidden = false;
+    document.body.dataset.reportModalOpen = "";
+    document.querySelector("[data-report-modal-card]").focus();
+  }
+
+  function closeReport() {
+    const modal = document.querySelector("[data-report-modal]");
+    if (!modal || modal.hidden) return;
+    const returnId = modal.dataset.returnFocus;
+    modal.hidden = true;
+    delete document.body.dataset.reportModalOpen;
+    state.selectedReport = null;
+    if (returnId) document.querySelector(`[data-report-open="${returnId}"]`)?.focus();
+  }
+
+  async function processReport(event) {
+    event.preventDefault();
+    const report = state.selectedReport;
+    if (!report) return;
+    const status = document.querySelector("[data-report-action-status]").value;
+    const note = document.querySelector("[data-report-action-note]").value.trim();
+    const error = document.querySelector("[data-report-action-error]");
+    const submit = document.querySelector("[data-report-action-submit]");
+    if (!note) {
+      error.textContent = "처리 사유를 입력해 주세요.";
+      document.querySelector("[data-report-action-note]").focus();
+      return;
+    }
+    submit.disabled = true;
+    error.textContent = "";
+    try {
+      const response = await fetch(`/api/v1/travel-record-reports/${report.travelRecordReportId}`, {
+        method: "PATCH",
+        headers: { Accept: "application/json", "Content-Type": "application/json" },
+        body: JSON.stringify({ status: status, resolutionNote: note }),
+        allMyTripsLoading: false,
+      });
+      const payload = await response.json().catch(() => null);
+      if (!response.ok || payload?.success === false) {
+        throw new Error(payload?.message || "신고 처리 결과를 저장하지 못했어요.");
+      }
+      closeReport();
+      reportFeedback(`신고 #${report.travelRecordReportId} 처리 결과를 저장했습니다.`, false);
+      await loadReports();
+    } catch (reason) {
+      error.textContent = reason.message || "신고 처리 결과를 저장하지 못했어요.";
+    } finally {
+      submit.disabled = false;
+    }
+  }
+
   /** 사이드바나 운영 홈에서 고른 업무 화면 하나만 보여준다. */
   function openPanel(name) {
     const sections = document.querySelectorAll("[data-admin-section]");
@@ -206,11 +311,29 @@
 
     document.querySelectorAll("[data-report-status]").forEach((button) => {
       button.addEventListener("click", () => {
-        document.querySelectorAll("[data-report-status]").forEach((item) => item.classList.remove("on"));
-        button.classList.add("on");
+        document.querySelectorAll("[data-report-status]").forEach((item) => {
+          const selected = item === button;
+          item.classList.toggle("on", selected);
+          item.setAttribute("aria-pressed", selected ? "true" : "false");
+        });
         state.reportStatus = button.dataset.reportStatus;
         loadReports();
       });
+    });
+
+    $("reportList").addEventListener("click", (event) => {
+      const button = event.target.closest("[data-report-open]");
+      if (button) openReport(button.dataset.reportOpen, button);
+    });
+    document.querySelector("[data-report-refresh]")?.addEventListener("click", loadReports);
+    document.querySelector("[data-report-action-form]")?.addEventListener("submit", processReport);
+    document.querySelector("[data-report-modal-close]")?.addEventListener("click", closeReport);
+    document.querySelector("[data-report-action-cancel]")?.addEventListener("click", closeReport);
+    document.querySelector("[data-report-modal]")?.addEventListener("click", (event) => {
+      if (event.target.matches("[data-report-modal]")) closeReport();
+    });
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") closeReport();
     });
 
     /* 상담 채팅은 admin-chat.js가 맡는다. 여기서는 아무것도 걸지 않는다. */
