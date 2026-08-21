@@ -127,17 +127,22 @@ class LiteApiSandboxPriceProviderTest {
     }
 
     @Test
-    @DisplayName("prod 프로필에서는 Sandbox Key가 있어도 가격 provider가 비활성화된다")
-    void disablesSandboxInProduction() {
+    @DisplayName("prod 프로필에서도 Sandbox Key가 있으면 요금을 보강한다")
+    void enablesSandboxInProduction() {
         Fixture fixture = fixture();
         fixture.environment().setActiveProfiles("prod");
 
-        assertThat(fixture.provider().supports(query(), List.of(tourOffer()))).isFalse();
+        /*
+         * 예전에는 막았다. 가짜 요금을 보고 예약 사이트로 나가면 손해를 되돌릴 수 없다는
+         * 이유였다. 지금은 요금 자리와 이동 직전 안내에 실습 요금임을 함께 적어 그 위험을
+         * 줄이고, 요금을 아예 안 보여주는 쪽보다 낫다고 판단해 열었다.
+         */
+        assertThat(fixture.provider().supports(query(), List.of(tourOffer()))).isTrue();
     }
 
     @Test
-    @DisplayName("방어 로직이 prod 응답에 섞인 Sandbox 가격도 거부한다")
-    void rejectsSandboxPriceFromProductionResponse() {
+    @DisplayName("prod 응답에 Sandbox 실습 요금이 있어도 통과시킨다")
+    void allowsSandboxPriceInProductionResponse() {
         AccommodationOffer sandboxOffer = tourOffer().withRate(
                 new BigDecimal("575.24"), "USD", AccommodationPriceSource.SANDBOX,
                 3, 1, true, false);
@@ -147,6 +152,33 @@ class LiteApiSandboxPriceProviderTest {
             @Override public boolean supports(AccommodationSearchQuery query) { return true; }
             @Override public List<AccommodationOffer> search(AccommodationSearchQuery query) {
                 return List.of(sandboxOffer);
+            }
+        };
+        CompositeAccommodationSearchProvider composite = new CompositeAccommodationSearchProvider(
+                List.of(listing), new AccommodationRecommendationScorer());
+        MockEnvironment production = new MockEnvironment();
+        production.setActiveProfiles("prod");
+        AccommodationSearchService service = new AccommodationSearchService(composite, production);
+
+        /*
+         * Mock은 여전히 막는다. 그쪽은 우리가 지어낸 숫자라 출처 자체가 없다.
+         * Sandbox는 LiteAPI가 준 값이고 화면이 실습 요금이라고 밝힌다.
+         */
+        assertThat(service.search(query()).offers()).hasSize(1);
+    }
+
+    @Test
+    @DisplayName("방어 로직이 prod 응답에 섞인 Mock 가격은 여전히 거부한다")
+    void rejectsMockPriceFromProductionResponse() {
+        AccommodationOffer mockOffer = tourOffer().withRate(
+                new BigDecimal("84000"), "KRW", AccommodationPriceSource.MOCK,
+                2, 1, false, false);
+        AccommodationSearchProvider listing = new AccommodationSearchProvider() {
+            @Override public String name() { return "unexpected-mock-listing"; }
+            @Override public AccommodationProviderRole role() { return AccommodationProviderRole.LISTING; }
+            @Override public boolean supports(AccommodationSearchQuery query) { return true; }
+            @Override public List<AccommodationOffer> search(AccommodationSearchQuery query) {
+                return List.of(mockOffer);
             }
         };
         CompositeAccommodationSearchProvider composite = new CompositeAccommodationSearchProvider(
