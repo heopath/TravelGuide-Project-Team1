@@ -147,7 +147,7 @@
       actionButton("수정", { productEdit: String(product.ticketProductId) },
         function () { openForm(product); }),
       actionButton("시간대", { productSlots: String(product.ticketProductId) },
-        function () { openSlots(product); })
+        function (event) { openSlots(product, event.currentTarget); })
     );
 
     item.append(nameCell, stockCell, statusCell, actionCell);
@@ -562,7 +562,12 @@
       slotFormMessage.textContent = result.skipped
         ? `${result.created}개를 등록했어요. ${result.skipped}개는 이미 있어 건너뛰었어요.`
         : `${result.created}개를 등록했어요.`;
-      renderSlots(result.slots);
+      /*
+       * renderSlots는 인자를 받지 않고 allSlots를 그린다. 응답 목록을 옮기지 않으면
+       * 저장은 됐는데 새 시간대가 보이지 않아 실패한 것처럼 보인다.
+       */
+      allSlots = Array.isArray(result.slots) ? result.slots : [];
+      renderSlots();
       await refreshOptions();
     } catch (error) {
       slotFormMessage.textContent = error.message || "시간대를 등록하지 못했어요.";
@@ -599,6 +604,9 @@
    * 직접 좁혀서 0개가 나온 것을 마음대로 넓히면 고른 조건이 무시된다.
    */
   let viewTouched = false;
+
+  /* 모달을 닫으면 사용자가 눌렀던 상품의 버튼으로 돌아간다. */
+  let slotReturnFocus = null;
 
   function isoDate(date) {
     const offset = date.getTimezoneOffset() * 60000;
@@ -713,15 +721,18 @@
     renderSlots();
   }
 
-  async function openSlots(product) {
+  async function openSlots(product, trigger) {
     if (!slotPanel) return;
     closeForm();
+    slotReturnFocus = trigger || document.activeElement;
     currentProduct = product;
     editingOptionId = null;
     slotPanel.hidden = false;
     /* 뒤 목록이 같이 스크롤되면 모달 안에서 길을 잃는다. */
     document.body.dataset.slotModalOpen = "1";
     resetSlotView();
+    /* 열린 사실을 키보드 사용자도 바로 알 수 있게 모달 안으로 초점을 옮긴다. */
+    if (slotClose) slotClose.focus();
     slotTitle.textContent = `${product.name} · 옵션과 시간대`;
     slotList.replaceChildren();
     slotEmpty.hidden = false;
@@ -807,6 +818,11 @@
     slotPanel.hidden = true;
     delete document.body.dataset.slotModalOpen;
     currentProduct = null;
+    const returnFocus = slotReturnFocus;
+    slotReturnFocus = null;
+    if (returnFocus && returnFocus.isConnected && typeof returnFocus.focus === "function") {
+      returnFocus.focus();
+    }
   }
 
   if (slotClose) slotClose.addEventListener("click", closeSlots);
@@ -817,7 +833,27 @@
   });
 
   document.addEventListener("keydown", function (event) {
-    if (event.key === "Escape") closeSlots();
+    if (!slotPanel || slotPanel.hidden) return;
+    if (event.key === "Escape") {
+      closeSlots();
+      return;
+    }
+    if (event.key !== "Tab" || !slotCard) return;
+
+    /* Tab으로 뒤 화면까지 빠져나가지 않게 모달 안에서 순환시킨다. */
+    const focusable = Array.from(slotCard.querySelectorAll(
+      'button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), a[href]'))
+      .filter(function (element) { return !element.hidden; });
+    if (!focusable.length) return;
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
   });
 
   /* 보기 기간 */

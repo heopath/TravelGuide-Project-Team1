@@ -82,16 +82,16 @@ async function boot(responder) {
 /** 목록 + 장소 + 시간대를 한 번에 받아주는 기본 응답기. */
 function responder(extra) {
   return (url, options) => {
+    if (extra) {
+      const handled = extra(url, options);
+      if (handled) return handled;
+    }
     if (url.includes("/admin/places")) {
       return ok(page([{ placeId: 3, name: "해운대 블루라인파크", city: "해운대구" }]));
     }
     /* 옵션은 시간대보다 먼저 조회된다. 시간대가 옵션에 달리기 때문이다. (#254) */
     if (url.includes("/options")) return ok([option(101), option(102, { name: "청소년", sortOrder: 2 })]);
     if (url.includes("/slots")) return ok([slot(9), slot(10, { status: "CLOSED" })]);
-    if (extra) {
-      const handled = extra(url, options);
-      if (handled) return handled;
-    }
     return ok(page([product(1)]));
   };
 }
@@ -326,6 +326,8 @@ async function run() {
     /* 뒤 목록이 같이 밀리면 모달 안에서 길을 잃는다. */
     T("열려 있는 동안 뒤 화면 스크롤을 잠근다",
       d.body.dataset.slotModalOpen === "1");
+    T("열면 닫기 버튼으로 초점이 들어간다",
+      d.activeElement === d.querySelector("[data-slot-close]"));
 
     /* 카드 안을 누르다 닫히면 쓰던 값이 날아간다. */
     d.querySelector("[data-slot-card]").click();
@@ -334,6 +336,8 @@ async function run() {
     backdrop.dispatchEvent(new d.defaultView.MouseEvent("click", { bubbles: true }));
     T("배경을 누르면 닫힌다", backdrop.hidden === true);
     T("닫으면 스크롤 잠금도 푼다", d.body.dataset.slotModalOpen === undefined);
+    T("닫으면 누른 상품 버튼으로 초점이 돌아간다",
+      d.activeElement === d.querySelector('[data-product-slots="1"]'));
   }
   {
     const { d } = await boot(responder());
@@ -344,6 +348,30 @@ async function run() {
 
     d.dispatchEvent(new d.defaultView.KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
     T("Esc로도 닫힌다", backdrop.hidden === true);
+  }
+
+  /* ── 시간대 등록 뒤 목록 갱신 ── */
+  {
+    const createdSlots = [slot(9), slot(10), slot(11, { usageDate: "2026-09-16" })];
+    let posted = false;
+    const { d } = await boot(responder((url, options) => {
+      if (options.method === "POST" && url.endsWith("/slots")) {
+        posted = true;
+        return ok({ created: 1, skipped: 0, slots: createdSlots });
+      }
+      return null;
+    }));
+    await until(() => rows(d).length === 1);
+    d.querySelector('[data-product-slots="1"]').click();
+    await until(() => slotRows(d).length === 2);
+
+    const slotForm = d.querySelector("[data-slot-form]");
+    slotForm.dispatchEvent(new d.defaultView.Event("submit", { cancelable: true, bubbles: true }));
+    await until(() => posted && slotRows(d).length === 3);
+
+    T("시간대를 등록하면 응답의 최신 목록이 바로 보인다", slotRows(d).length === 3);
+    T("등록 결과 개수도 최신 목록 기준으로 바뀐다",
+      d.querySelector("[data-slot-count]").textContent.includes("전체 3개 중 3개"));
   }
 
   /* ── 보기 기간 ── */
