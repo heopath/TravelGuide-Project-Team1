@@ -14,6 +14,8 @@ import org.example.all_my_trip_project.domain.rag.service.PlaceRagService;
 import org.example.all_my_trip_project.domain.place.service.KakaoPlaceDiscoveryService;
 
 import java.util.List;
+import java.time.LocalTime;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.Locale;
@@ -40,15 +42,67 @@ public class AiGuideService {
         List<AiConversationTurn> history = conversationHistoryService.load(userId, request.tripId());
         var context = contextService.load(userId, request);
         String placeSearchQuestion = resolvePlaceSearchQuestion(request.question(), history);
-        List<RagSearchResult> ragResults = loadRagResults(placeSearchQuestion, context);
+        List<RagSearchResult> ragResults = loadRagResults(placeSearchQuestion, context, request.selectedDayNumber());
+        RagSearchResult referencePlace = loadReferencePlace(request.referencePlaceId());
+        ragResults = includeReferencePlace(ragResults, referencePlace);
         ragResults = excludeScheduledPlaces(ragResults, context);
         ragResults = excludePreviouslySuggestedPlaces(ragResults, history, request.question());
         AiGuideResponse response = aiModelClient.generate(
                 request, history, context, ragResults);
+        response = alignDaysWithRequestedDay(response, request);
+        response = attachReferencePlaceToTimeAdjustment(response, request.question(), referencePlace);
         response = excludeFinalResponsePlaces(response, context, history, request.question());
-        response = enrichVerifiedPlaces(response, ragResults, request.question());
+        response = removeUnverifiedGenericItems(enrichVerifiedPlaces(response, ragResults, request.question()));
         conversationHistoryService.append(userId, request.tripId(), request.question(), toConversationAnswer(response));
         return response;
+    }
+
+    private RagSearchResult loadReferencePlace(Long referencePlaceId) {
+        if (referencePlaceId == null) {
+            return null;
+        }
+        PlaceRagService service = placeRagServiceProvider.getIfAvailable();
+        return service == null ? null : service.findByPlaceId(referencePlaceId).orElse(null);
+    }
+
+    private List<RagSearchResult> includeReferencePlace(List<RagSearchResult> ragResults,
+                                                          RagSearchResult referencePlace) {
+        if (referencePlace == null || referencePlace.placeId() == null) {
+            return ragResults;
+        }
+        return Stream.concat(Stream.of(referencePlace), ragResults == null ? Stream.empty() : ragResults.stream())
+                .collect(java.util.stream.Collectors.toMap(
+                        RagSearchResult::source,
+                        result -> result,
+                        (first, ignored) -> first,
+                        LinkedHashMap::new
+                ))
+                .values().stream()
+                .toList();
+    }
+
+    /**
+     * "다른 시간 추천"은 새 장소를 제안하는 요청이 아니다. 화면에서 보낸 placeId의
+     * 실제 장소 정보를 그대로 유지해야 지도 보기와 일정 추가를 다시 제공할 수 있다.
+     */
+    private AiGuideResponse attachReferencePlaceToTimeAdjustment(AiGuideResponse response,
+                                                                   String question,
+                                                                   RagSearchResult referencePlace) {
+        if (!isTimeAdjustmentRequest(question) || referencePlace == null || referencePlace.placeId() == null
+                || response == null || response.days() == null) {
+            return response;
+        }
+        List<AiGuideDayResponse> days = response.days().stream()
+                .filter(day -> day != null && day.items() != null)
+                .map(day -> new AiGuideDayResponse(day.day(), day.title(), day.items().stream()
+                        .filter(java.util.Objects::nonNull)
+                        .map(item -> new AiGuideItemResponse(
+                                item.time(), referencePlace.placeName(), item.reason(), referencePlace.placeId(),
+                                referencePlace.category(), referencePlace.address(), referencePlace.placeUrl()))
+                        .toList()))
+                .filter(day -> !day.items().isEmpty())
+                .toList();
+        return new AiGuideResponse(response.answer(), days, response.externalLinks(), response.sources());
     }
 
     public void resetConversation(Long userId, Long tripId) {
@@ -56,7 +110,7 @@ public class AiGuideService {
     }
 
     private String resolvePlaceSearchQuestion(String question, List<AiConversationTurn> history) {
-        if (!isAlternativeRequest(question) || history == null || history.isEmpty()) {
+        if (!isAlternativeRequest(question) || isTimeAdjustmentRequest(question) || history == null || history.isEmpty()) {
             return question;
         }
         for (int index = history.size() - 1; index >= 0; index--) {
@@ -91,7 +145,8 @@ public class AiGuideService {
     private List<RagSearchResult> excludePreviouslySuggestedPlaces(List<RagSearchResult> places,
                                                                      List<AiConversationTurn> history,
                                                                      String question) {
-        if (!isAlternativeRequest(question) || places == null || places.isEmpty() || history == null) {
+        if (!isAlternativeRequest(question) || isTimeAdjustmentRequest(question)
+                || places == null || places.isEmpty() || history == null) {
             return places;
         }
         Set<String> previousSuggestedPlaceNames = extractPreviouslySuggestedPlaceNames(history);
@@ -150,6 +205,17 @@ public class AiGuideService {
     }
 
     /**
+     * "다른 시간 추천"은 새 장소를 찾는 요청이 아니라 방금 추천한 장소의
+     * 시간만 바꾸는 요청이다. 이 경우에는 이전 추천 장소 제외 규칙을 적용하지 않는다.
+     */
+    private boolean isTimeAdjustmentRequest(String question) {
+        String normalized = normalizePlaceName(question);
+        return normalized.contains("다른시간") || normalized.contains("시간조정")
+                || normalized.contains("시간변경") || normalized.contains("시간대로")
+                || normalized.contains("시간대추천") || normalized.contains("시간을바꿔");
+    }
+
+    /**
      * 모델이 여행 문맥이나 이전 답변에서 본 장소를 다시 반환하더라도, 화면으로 보내기 전에
      * 마지막으로 제외한다. 후보 목록과 프롬프트는 보조 수단이며, 이 검사가 최종 안전장치다.
      */
@@ -177,7 +243,8 @@ public class AiGuideService {
                     });
         }
 
-        Set<String> previousSuggestedPlaceNames = isAlternativeRequest(question) && history != null
+        Set<String> previousSuggestedPlaceNames = isAlternativeRequest(question)
+                && !isTimeAdjustmentRequest(question) && history != null
                 ? extractPreviouslySuggestedPlaceNames(history)
                 : Set.of();
 
@@ -302,6 +369,26 @@ public class AiGuideService {
         return new AiGuideResponse(response.answer(), days, response.externalLinks(), response.sources());
     }
 
+    /**
+     * 일정에 바로 추가할 수 없는 "지역 식당", "카페 휴식" 같은 일반 문구는
+     * 실제 장소 추천 카드로 보여주지 않는다. 검증된 placeId가 있는 장소·관광지만
+     * 일정 카드에 남겨 사용자가 다른 지점을 실수로 저장하지 않게 한다.
+     */
+    private AiGuideResponse removeUnverifiedGenericItems(AiGuideResponse response) {
+        if (response == null || response.days() == null) {
+            return response;
+        }
+        List<AiGuideDayResponse> days = response.days().stream()
+                .filter(day -> day != null && day.items() != null)
+                .map(day -> new AiGuideDayResponse(day.day(), day.title(), day.items().stream()
+                        .filter(item -> item != null)
+                        .filter(item -> item.placeId() != null || !isFallbackEligibleItem(item))
+                        .toList()))
+                .filter(day -> !day.items().isEmpty())
+                .toList();
+        return new AiGuideResponse(response.answer(), days, response.externalLinks(), response.sources());
+    }
+
     private RagSearchResult findVerifiedFallback(AiGuideItemResponse item, String question,
                                                   List<RagSearchResult> places, HashSet<Long> usedPlaceIds) {
         if (!isFallbackEligibleItem(item)) {
@@ -318,12 +405,33 @@ public class AiGuideService {
     private boolean isFallbackEligibleItem(AiGuideItemResponse item) {
         String name = normalizePlaceName(item.name());
         return isGenericPlaceItem(item)
+                || name.contains("미확인")
+                || isLocationPrefixedGenericName(name)
                 || name.contains("\uCE74\uD398\uD0D0\uBC29") || name.contains("\uB9DB\uC9D1\uD0D0\uBC29")
                 || name.contains("\uC810\uC2EC\uC2DD\uC0AC") || name.contains("\uC800\uB141\uC2DD\uC0AC")
+                || name.contains("\uC74C\uC2DD\uD0D0\uBC29") || name.contains("\uAE38\uAC70\uB9AC\uC74C\uC2DD")
                 || name.contains("\uC1FC\uD551") || name.contains("\uD328\uC158\uAC70\uB9AC")
-                || name.contains("\uAD00\uAD11") || name.contains("\uC0B0\uCC45")
+                || name.contains("\uAD00\uAD11") || name.contains("\uBB38\uD654\uACF5\uAC04")
+                || name.contains("\uBA85\uC18C") || name.contains("\uD734\uC2DD") || name.contains("\uC0B0\uCC45")
                 || name.contains("\uB3C4\uBCF4\uD0D0\uBC29") || name.contains("\uAD6C\uACBD")
+                || name.contains("\uACF5\uC6D0") || name.contains("\uBC15\uBB3C\uAD00")
+                || name.contains("\uBBF8\uC220\uAD00") || name.contains("\uC804\uC2DC")
+                || name.contains("\uAC24\uB7EC\uB9AC") || name.contains("\uC804\uB9DD\uB300")
+                || name.contains("\uD574\uC218\uC695\uC7A5") || name.contains("\uC2DC\uC7A5")
+                || name.contains("숲길") || name.contains("거리") || name.contains("탐방")
+                || name.contains("코스") || name.contains("부근")
                 || name.equals("\uCE74\uD398") || name.equals("\uB9DB\uC9D1") || name.equals("\uC2DD\uB2F9");
+    }
+
+    /**
+     * 모델이 "성수동 카페", "광복로 관광지"처럼 실제 상호가 아닌
+     * 지역 + 업종/활동명만 반환한 경우를 판별한다. 이 항목은 검증된 장소로
+     * 교체하지 못하면 일정에 추가할 수 있는 카드로 노출하지 않는다.
+     */
+    private boolean isLocationPrefixedGenericName(String normalizedName) {
+        return normalizedName.matches(
+                ".*(?:동|리|구|시|군|읍|면|역|로|길|거리|일대|주변)(?:카페|맛집|식당|음식점|관광지|명소|문화공간|휴식|산책|쇼핑)$"
+        );
     }
 
     private String expectedCategoryForFallback(AiGuideItemResponse item, String question) {
@@ -348,8 +456,14 @@ public class AiGuideService {
             return "CAFE";
         }
         if (value.contains("\uC1FC\uD551") || value.contains("\uD328\uC158") || value.contains("\uD3B8\uC9D1\uC0F5")
-                || value.contains("\uAD00\uAD11") || value.contains("\uC0B0\uCC45") || value.contains("\uB3C4\uBCF4")
-                || value.contains("\uAD6C\uACBD")) {
+                || value.contains("\uAD00\uAD11") || value.contains("\uBB38\uD654") || value.contains("\uBA85\uC18C")
+                || value.contains("\uD734\uC2DD") || value.contains("\uC0B0\uCC45") || value.contains("\uB3C4\uBCF4")
+                || value.contains("\uAD6C\uACBD") || value.contains("\uACF5\uC6D0")
+                || value.contains("\uBC15\uBB3C\uAD00") || value.contains("\uBBF8\uC220\uAD00")
+                || value.contains("\uC804\uC2DC") || value.contains("\uAC24\uB7EC\uB9AC")
+                || value.contains("\uC804\uB9DD\uB300") || value.contains("\uD574\uC218\uC695\uC7A5")
+                || value.contains("\uC2DC\uC7A5") || value.contains("숲길")
+                || value.contains("거리") || value.contains("탐방") || value.contains("코스")) {
             return "ATTRACTION";
         }
         return null;
@@ -358,7 +472,9 @@ public class AiGuideService {
     private boolean isGenericPlaceItem(AiGuideItemResponse item) {
         String name = normalizePlaceName(item.name());
         return name.contains("카페탐방") || name.contains("맛집탐방") || name.contains("점심식사")
-                || name.contains("저녁식사") || name.equals("카페") || name.equals("맛집") || name.equals("식당");
+                || name.contains("저녁식사") || name.contains("음식탐방") || name.contains("길거리음식")
+                || name.contains("문화공간") || name.contains("문화시설") || name.contains("명소") || name.contains("휴식")
+                || name.equals("카페") || name.equals("맛집") || name.equals("식당");
     }
 
     private String expectedCategory(AiGuideItemResponse item, String question) {
@@ -378,18 +494,17 @@ public class AiGuideService {
         return value == null ? "" : value.replaceAll("\\s+", "").trim().toLowerCase(Locale.ROOT);
     }
 
-    private List<RagSearchResult> loadRagResults(String question, org.example.all_my_trip_project.domain.ai.dto.AiGuideContext context) {
+    private List<RagSearchResult> loadRagResults(String question,
+                                                   org.example.all_my_trip_project.domain.ai.dto.AiGuideContext context,
+                                                   Integer selectedDayNumber) {
         PlaceRagService service = placeRagServiceProvider.getIfAvailable();
-        if (service == null) {
-            return List.of();
-        }
-        List<RagSearchResult> indexedResults = service.search(question);
+        List<RagSearchResult> indexedResults = service == null ? List.of() : service.search(question);
         KakaoPlaceDiscoveryService discoveryService = kakaoPlaceDiscoveryServiceProvider.getIfAvailable();
         if (discoveryService == null) {
             return indexedResults;
         }
         String destination = context == null || context.trip() == null ? null : context.trip().destinationName();
-        Long scheduledAnchorPlaceId = findScheduledAnchorPlaceId(question, context);
+        Long scheduledAnchorPlaceId = findScheduledAnchorPlaceId(question, context, selectedDayNumber);
         List<RagSearchResult> discoveredResults = scheduledAnchorPlaceId == null
                 ? discoveryService.discoverAndIndex(question, destination)
                 : discoveryService.discoverAndIndex(question, destination, scheduledAnchorPlaceId);
@@ -399,8 +514,7 @@ public class AiGuideService {
         // An existing itinerary place is an equally reliable local-search anchor even when
         // the user says "after visiting X" instead of explicitly saying "near X".
         // In that case, never merge stale RAG candidates from unrelated regions.
-        if ((scheduledAnchorPlaceId != null || !KakaoPlaceDiscoveryService.extractNearbyAnchor(question).isBlank())
-                && !discoveredResults.isEmpty()) {
+        if (scheduledAnchorPlaceId != null || !KakaoPlaceDiscoveryService.extractNearbyAnchor(question).isBlank()) {
             return discoveredResults;
         }
 
@@ -417,18 +531,104 @@ public class AiGuideService {
                 .toList();
     }
 
-    private Long findScheduledAnchorPlaceId(String question, org.example.all_my_trip_project.domain.ai.dto.AiGuideContext context) {
+    /**
+     * 질문이 특정 DAY 하나를 가리킬 때 모델이 다른 DAY 번호를 반환하더라도,
+     * 추천 카드가 사용자가 요청한 DAY에 추가되도록 응답 범위를 고정한다.
+     */
+    private AiGuideResponse alignDaysWithRequestedDay(AiGuideResponse response, AiGuideRequest request) {
+        if (response == null || response.days() == null || response.days().isEmpty()) {
+            return response;
+        }
+        int requestedDay = resolveRequestedDayNumber(request);
+        if (requestedDay <= 0) {
+            return response;
+        }
+
+        List<AiGuideDayResponse> matchingDays = response.days().stream()
+                .filter(day -> day != null && day.day() == requestedDay)
+                .toList();
+        if (!matchingDays.isEmpty()) {
+            return new AiGuideResponse(response.answer(), matchingDays, response.externalLinks(), response.sources());
+        }
+
+        AiGuideDayResponse firstDay = response.days().stream()
+                .filter(java.util.Objects::nonNull)
+                .findFirst()
+                .orElse(null);
+        if (firstDay == null) {
+            return response;
+        }
+        String title = firstDay.title() == null ? "" : firstDay.title()
+                .replaceFirst("(?i)day\\s*\\d+", "DAY " + requestedDay);
+        if (title.isBlank()) {
+            title = "DAY " + requestedDay + " 추천 일정";
+        }
+        AiGuideDayResponse correctedDay = new AiGuideDayResponse(requestedDay, title, firstDay.items());
+        return new AiGuideResponse(response.answer(), List.of(correctedDay), response.externalLinks(), response.sources());
+    }
+
+    private Long findScheduledAnchorPlaceId(String question,
+                                            org.example.all_my_trip_project.domain.ai.dto.AiGuideContext context,
+                                            Integer selectedDayNumber) {
         if (question == null || context == null || context.trip() == null) {
             return null;
         }
         String normalizedQuestion = normalizePlaceName(question);
-        return context.trip().days().stream()
+        Long directlyMentionedPlaceId = context.trip().days().stream()
                 .flatMap(day -> day.items().stream())
                 .filter(item -> item.placeId() != null && item.title() != null && !item.title().isBlank())
+                // "식당", "카페"처럼 상호가 아닌 일반 단어는 특정 장소를 가리키지 않는다.
+                // 이 경우에는 아래의 DAY별 최근 일정 기준점을 사용해야 다른 일차를 잘못 참조하지 않는다.
+                .filter(item -> !isGenericAnchorTitle(normalizePlaceName(item.title())))
                 .filter(item -> matchesQuestionPlace(normalizedQuestion, normalizePlaceName(item.title())))
                 .map(org.example.all_my_trip_project.domain.ai.dto.AiGuideContext.Item::placeId)
                 .findFirst()
                 .orElse(null);
+        if (directlyMentionedPlaceId != null) {
+            return directlyMentionedPlaceId;
+        }
+
+        // "DAY 2 점심 후 뭐 할지"처럼 상호를 다시 적지 않은 후속 질문도
+        // 선택한 일차의 마지막 일정 주변에서 실제 장소를 찾아야 한다.
+        int requestedDayNumber = resolveRequestedDayNumber(question, selectedDayNumber);
+        if (requestedDayNumber <= 0) {
+            return null;
+        }
+        return context.trip().days().stream()
+                .filter(day -> day.dayNumber() != null && day.dayNumber() == requestedDayNumber)
+                .flatMap(day -> day.items().stream())
+                .filter(item -> item.placeId() != null)
+                .max(Comparator.comparing(
+                        item -> item.startTime() == null ? LocalTime.MIN : item.startTime()
+                ))
+                .map(org.example.all_my_trip_project.domain.ai.dto.AiGuideContext.Item::placeId)
+                .orElse(null);
+    }
+
+    private int extractRequestedDayNumber(String question) {
+        if (question == null || question.isBlank()) {
+            return -1;
+        }
+        var matcher = java.util.regex.Pattern.compile("(?i)(?:day\\s*([1-9][0-9]?)|([1-9][0-9]?)\\s*일차)")
+                .matcher(question);
+        while (matcher.find()) {
+            String dayNumber = matcher.group(1) != null ? matcher.group(1) : matcher.group(2);
+            return Integer.parseInt(dayNumber);
+        }
+        return -1;
+    }
+
+    private int resolveRequestedDayNumber(AiGuideRequest request) {
+        if (request == null) {
+            return -1;
+        }
+        return resolveRequestedDayNumber(request.question(), request.selectedDayNumber());
+    }
+
+    private int resolveRequestedDayNumber(String question, Integer selectedDayNumber) {
+        return selectedDayNumber != null && selectedDayNumber > 0
+                ? selectedDayNumber
+                : extractRequestedDayNumber(question);
     }
 
     private boolean matchesQuestionPlace(String normalizedQuestion, String normalizedTitle) {
@@ -438,5 +638,10 @@ public class AiGuideService {
         String withoutBranchSuffix = normalizedTitle.replaceAll("(본점|점)$", "");
         return normalizedQuestion.contains(normalizedTitle)
                 || (!withoutBranchSuffix.isBlank() && normalizedQuestion.contains(withoutBranchSuffix));
+    }
+
+    private boolean isGenericAnchorTitle(String normalizedTitle) {
+        return Set.of("식당", "맛집", "음식점", "카페", "커피", "관광지", "명소", "장소", "휴식")
+                .contains(normalizedTitle);
     }
 }
