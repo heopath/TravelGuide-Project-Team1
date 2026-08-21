@@ -23,15 +23,34 @@
   const empty = panel.querySelector("[data-member-empty]");
   const statusFilter = panel.querySelector("[data-member-filter]");
   const roleFilter = panel.querySelector("[data-member-role-filter]");
+  const searchForm = panel.querySelector("[data-member-search-form]");
   const search = panel.querySelector("[data-member-search]");
+  const searchClear = panel.querySelector("[data-member-search-clear]");
+  const refresh = panel.querySelector("[data-member-refresh]");
+  const count = panel.querySelector("[data-member-count]");
   const pagination = panel.querySelector("[data-member-pagination]");
   const notice = panel.querySelector("[data-member-notice]");
+  const feedback = panel.querySelector("[data-member-feedback]");
+  const actionModal = panel.querySelector("[data-member-modal]");
+  const actionModalCard = panel.querySelector("[data-member-modal-card]");
+  const actionClose = panel.querySelector("[data-member-modal-close]");
+  const actionCancel = panel.querySelector("[data-member-action-cancel]");
+  const actionForm = panel.querySelector("[data-member-action-form]");
+  const actionTitle = panel.querySelector("[data-member-action-title]");
+  const actionTarget = panel.querySelector("[data-member-action-target]");
+  const actionImpact = panel.querySelector("[data-member-action-impact]");
+  const actionReason = panel.querySelector("[data-member-action-reason]");
+  const actionError = panel.querySelector("[data-member-action-error]");
+  const actionConfirm = panel.querySelector("[data-member-action-confirm]");
   if (!list || !empty) return;
 
   let status = "";
   let role = "";
   let keyword = "";
   let currentPage = 0;
+  let loadSequence = 0;
+  let pendingAction = null;
+  let loadedMembers = new Map();
   /* 서버가 목록과 함께 내려준다. 버튼을 잠글지 여기서 판단한다. */
   let activeAdminCount = 0;
   let currentAdminUserId = null;
@@ -112,6 +131,13 @@
     const who = document.createElement("span");
     const nickname = document.createElement("strong");
     nickname.textContent = member.nickname || `#${member.userId}`;
+    if (currentAdminUserId != null && member.userId === currentAdminUserId) {
+      const self = document.createElement("em");
+      self.className = "admin-member-self";
+      self.dataset.memberSelf = "";
+      self.textContent = "내 계정";
+      nickname.appendChild(self);
+    }
     const email = document.createElement("small");
     email.textContent = member.email || "";
     who.append(nickname, email);
@@ -140,6 +166,15 @@
     } else {
       actions.appendChild(actionButton(member, "promote", "관리자 승격"));
     }
+    const reasons = Array.from(actions.querySelectorAll("button[disabled]"))
+      .map(function (button) { return button.title; })
+      .filter(function (value, index, values) { return value && values.indexOf(value) === index; });
+    if (reasons.length) {
+      const reason = document.createElement("small");
+      reason.dataset.memberLockReason = "";
+      reason.textContent = reasons.join(" ");
+      actions.appendChild(reason);
+    }
 
     item.append(who, roleCell, statusCell, loginCell, actions);
     return item;
@@ -154,6 +189,7 @@
       button.type = "button";
       button.textContent = String(index + 1);
       button.className = index === page ? "is-current" : "";
+      if (index === page) button.setAttribute("aria-current", "page");
       button.addEventListener("click", function () { load(index); });
       pagination.appendChild(button);
     }
@@ -173,10 +209,13 @@
   }
 
   async function load(page) {
+    const sequence = ++loadSequence;
     currentPage = page || 0;
     list.replaceChildren();
+    loadedMembers = new Map();
     empty.hidden = false;
     empty.textContent = "회원 목록을 불러오는 중이에요.";
+    if (count) count.textContent = "조회 중…";
 
     const query = new URLSearchParams({ page: String(currentPage), size: String(PAGE_SIZE) });
     if (status) query.set("status", status);
@@ -185,11 +224,14 @@
 
     try {
       const data = await request(`/api/v1/admin/members?${query}`);
+      if (sequence !== loadSequence) return;
       activeAdminCount = Number(data?.activeAdminCount ?? 0);
       currentAdminUserId = data?.currentAdminUserId ?? null;
       renderNotice();
 
       const items = data?.items || [];
+      loadedMembers = new Map(items.map(function (member) { return [String(member.userId), member]; }));
+      if (count) count.textContent = `조회 결과 ${Number(data?.total || 0).toLocaleString("ko-KR")}명`;
       if (!items.length) {
         empty.textContent = status || role || keyword
           ? "조건에 맞는 회원이 없어요."
@@ -201,25 +243,91 @@
       items.forEach(function (member) { list.appendChild(row(member)); });
       renderPages(data.page, data.totalPages);
     } catch (error) {
+      if (sequence !== loadSequence) return;
       activeAdminCount = 0;
       renderNotice();
+      if (count) count.textContent = "";
       empty.textContent = error.message || "회원 목록을 불러오지 못했어요.";
       renderPages(0, 0);
     }
   }
 
-  const confirmText = {
-    suspend: "이 회원을 정지할까요? 정지된 회원은 로그인할 수 없어요.",
-    activate: "이 회원의 정지를 해제할까요?",
-    promote: "이 회원을 관리자로 올릴까요? 관리자는 회원 정지와 권한 변경을 할 수 있어요.",
-    demote: "이 회원의 관리자 권한을 해제할까요?",
+  const actionDetails = {
+    suspend: {
+      title: "회원 정지",
+      impact: "정지하면 이 회원은 로그인할 수 없습니다. 필요한 경우 같은 화면에서 정지를 해제할 수 있습니다.",
+      confirm: "회원 정지",
+      success: "정지했습니다.",
+    },
+    activate: {
+      title: "회원 정지 해제",
+      impact: "정지를 해제하면 이 회원이 다시 로그인하고 서비스를 이용할 수 있습니다.",
+      confirm: "정지 해제",
+      success: "정지를 해제했습니다.",
+    },
+    promote: {
+      title: "관리자 권한 부여",
+      impact: "관리자는 회원 정지, 권한 변경 등 운영 기능을 사용할 수 있습니다. 신뢰할 수 있는 계정인지 확인하세요.",
+      confirm: "관리자로 변경",
+      success: "관리자 권한을 부여했습니다.",
+    },
+    demote: {
+      title: "관리자 권한 해제",
+      impact: "권한을 해제하면 이 회원은 관리자 화면과 운영 기능을 사용할 수 없습니다.",
+      confirm: "일반 회원으로 변경",
+      success: "관리자 권한을 해제했습니다.",
+    },
   };
 
-  async function act(button) {
+  function openActionModal(button) {
     const action = button.dataset.memberAction;
     const userId = button.dataset.memberId;
-    if (!action || !userId) return;
-    if (!window.confirm(confirmText[action])) return;
+    const member = loadedMembers.get(String(userId));
+    const detail = actionDetails[action];
+    if (!actionModal || !member || !detail) return;
+    pendingAction = { action: action, userId: userId, member: member, trigger: button };
+    actionTitle.textContent = detail.title;
+    actionTarget.textContent = `${member.nickname || `회원 #${member.userId}`} · ${member.email || "이메일 없음"}`;
+    actionImpact.textContent = detail.impact;
+    actionConfirm.textContent = detail.confirm;
+    actionConfirm.disabled = false;
+    actionReason.value = "";
+    actionError.textContent = "";
+    showFeedback("");
+    actionModal.hidden = false;
+    document.body.dataset.memberModalOpen = "1";
+    actionReason.focus();
+  }
+
+  function closeActionModal(restoreFocus) {
+    if (!actionModal || actionModal.hidden || actionConfirm.disabled) return;
+    const trigger = pendingAction?.trigger;
+    actionModal.hidden = true;
+    delete document.body.dataset.memberModalOpen;
+    pendingAction = null;
+    actionReason.value = "";
+    actionError.textContent = "";
+    if (restoreFocus !== false && trigger) trigger.focus();
+  }
+
+  function showFeedback(message) {
+    if (!feedback) return;
+    feedback.hidden = !message;
+    feedback.textContent = message || "";
+  }
+
+  async function applyAction() {
+    if (!pendingAction || actionConfirm.disabled) return;
+    const reason = actionReason.value.trim();
+    if (!reason) {
+      actionError.textContent = "변경 사유를 입력해 주세요.";
+      actionReason.focus();
+      return;
+    }
+    const task = pendingAction;
+    const action = task.action;
+    const userId = task.userId;
+    const detail = actionDetails[action];
 
     const url = action === "promote" || action === "demote"
       ? `/api/v1/admin/members/${userId}/role`
@@ -228,26 +336,66 @@
       : action === "demote" ? { role: "USER" }
       : action === "suspend" ? { status: "SUSPENDED" }
       : { status: "ACTIVE" };
+    body.reason = reason;
 
-    button.disabled = true;
+    actionConfirm.disabled = true;
+    const confirmLabel = actionConfirm.textContent;
+    actionConfirm.textContent = "변경 중…";
+    actionError.textContent = "";
     try {
       await request(url, { method: "PATCH", body: JSON.stringify(body) });
+      /* 성공한 뒤에는 이전 버튼이 곧 교체되므로 초점을 목록으로 옮긴다. */
+      actionConfirm.disabled = false;
+      actionConfirm.textContent = confirmLabel;
+      closeActionModal(false);
+      showFeedback(`${task.member.nickname || "회원"}님을 ${detail.success}`);
       /*
        * 바뀐 줄만 고치지 않고 목록을 다시 받는다. 관리자 수가 달라지면 다른 줄의 버튼도
        * 같이 잠기거나 풀려야 하는데, 한 줄만 고치면 나머지가 옛 상태로 남는다.
        */
       await load(currentPage);
+      list.focus?.();
     } catch (error) {
-      button.disabled = false;
-      empty.hidden = false;
-      empty.textContent = error.message || "회원 정보를 바꾸지 못했어요.";
+      actionConfirm.disabled = false;
+      actionConfirm.textContent = confirmLabel;
+      actionError.textContent = error.message || "회원 정보를 바꾸지 못했어요.";
     }
   }
 
   list.addEventListener("click", function (event) {
     const button = event.target.closest("[data-member-action]");
     if (!button || button.disabled) return;
-    act(button);
+    openActionModal(button);
+  });
+
+  if (actionForm) actionForm.addEventListener("submit", function (event) {
+    event.preventDefault();
+    applyAction();
+  });
+  if (actionCancel) actionCancel.addEventListener("click", function () { closeActionModal(true); });
+  if (actionClose) actionClose.addEventListener("click", function () { closeActionModal(true); });
+  if (actionModal) actionModal.addEventListener("click", function (event) {
+    if (event.target === actionModal) closeActionModal(true);
+  });
+  document.addEventListener("keydown", function (event) {
+    if (!actionModal || actionModal.hidden) return;
+    if (event.key === "Escape") {
+      closeActionModal(true);
+      return;
+    }
+    if (event.key !== "Tab" || !actionModalCard) return;
+    const focusable = Array.from(actionModalCard.querySelectorAll(
+      'button:not([disabled]), textarea:not([disabled]), input:not([disabled]), a[href]'));
+    if (!focusable.length) return;
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
   });
 
   if (statusFilter) {
@@ -256,9 +404,14 @@
       if (!button) return;
       status = button.dataset.memberStatus || "";
       statusFilter.querySelectorAll("[data-member-status]").forEach(function (chip) {
-        chip.classList.toggle("on", chip === button);
+        const selected = chip === button;
+        chip.classList.toggle("on", selected);
+        chip.setAttribute("aria-pressed", selected ? "true" : "false");
       });
       load(0);
+    });
+    statusFilter.querySelectorAll("[data-member-status]").forEach(function (chip) {
+      chip.setAttribute("aria-pressed", chip.dataset.memberStatus === "" ? "true" : "false");
     });
   }
 
@@ -268,20 +421,37 @@
       if (!button) return;
       role = button.dataset.memberRole || "";
       roleFilter.querySelectorAll("[data-member-role]").forEach(function (chip) {
-        chip.classList.toggle("on", chip === button);
+        const selected = chip === button;
+        chip.classList.toggle("on", selected);
+        chip.setAttribute("aria-pressed", selected ? "true" : "false");
       });
       load(0);
     });
-  }
-
-  if (search) {
-    search.addEventListener("keydown", function (event) {
-      if (event.key !== "Enter") return;
-      event.preventDefault();
-      keyword = search.value.trim();
-      load(0);
+    roleFilter.querySelectorAll("[data-member-role]").forEach(function (chip) {
+      chip.setAttribute("aria-pressed", chip.dataset.memberRole === "" ? "true" : "false");
     });
   }
+
+  if (searchForm && search) {
+    searchForm.addEventListener("submit", function (event) {
+      event.preventDefault();
+      keyword = search.value.trim();
+      if (searchClear) searchClear.hidden = !keyword;
+      load(0);
+    });
+    search.addEventListener("input", function () {
+      if (searchClear) searchClear.hidden = !search.value.trim() && !keyword;
+    });
+  }
+
+  if (searchClear && search) searchClear.addEventListener("click", function () {
+    search.value = "";
+    keyword = "";
+    searchClear.hidden = true;
+    search.focus();
+    load(0);
+  });
+  if (refresh) refresh.addEventListener("click", function () { load(currentPage); });
 
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", function () { load(0); });
