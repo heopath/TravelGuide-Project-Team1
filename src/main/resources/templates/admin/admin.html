@@ -583,6 +583,11 @@
                     <p class="admin-section-description">회원 상태와 관리자 권한을 조회하고 변경합니다.</p>
                   </div>
                   <span class="admin-tag live" data-admin-state="members">실연동</span>
+                </div>
+                <p class="admin-notice" data-member-notice role="status" hidden></p>
+                <p class="admin-notice" data-member-feedback role="status" hidden></p>
+                <div class="white-panel admin-panel">
+                  <div class="admin-member-controls">
                   <div class="admin-filter" role="group" aria-label="회원 상태 필터" data-member-filter>
                     <button type="button" class="admin-chip on" data-member-status="">전체</button>
                     <button type="button" class="admin-chip" data-member-status="ACTIVE">활동</button>
@@ -594,14 +599,18 @@
                     <button type="button" class="admin-chip" data-member-role="ADMIN">관리자</button>
                     <button type="button" class="admin-chip" data-member-role="USER">일반</button>
                   </div>
-                </div>
-                <p class="admin-notice" data-member-notice role="status" hidden></p>
-                <div class="white-panel admin-panel">
-                  <label class="admin-search">
+                  <form class="admin-member-search" data-member-search-form>
+                    <label class="admin-search">
                     <span class="sr-only">회원 검색</span>
                     <input type="search" data-member-search autocomplete="off"
-                           placeholder="닉네임 또는 이메일로 검색 후 Enter" />
-                  </label>
+                           placeholder="닉네임 또는 이메일" />
+                    </label>
+                    <button type="submit" class="admin-chip on">검색</button>
+                    <button type="button" class="admin-chip" data-member-search-clear hidden>검색 초기화</button>
+                    <button type="button" class="admin-chip" data-member-refresh>새로고침</button>
+                  </form>
+                  <p class="admin-hint admin-member-count" data-member-count role="status"></p>
+                  </div>
                   <div class="admin-table-head admin-member-row">
                     <span>회원</span><span>권한</span><span>상태</span><span>마지막 로그인</span><span>관리</span>
                   </div>
@@ -610,6 +619,29 @@
                     회원 목록을 불러오는 중이에요.
                   </p>
                   <div class="admin-pagination" data-member-pagination></div>
+                </div>
+
+                <div class="modal-backdrop admin-member-modal" data-member-modal hidden>
+                  <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="memberActionTitle"
+                       data-member-modal-card>
+                    <button type="button" class="modal-close" data-member-modal-close aria-label="회원 변경 닫기">×</button>
+                    <h3 id="memberActionTitle" data-member-action-title>회원 정보 변경</h3>
+                    <p class="admin-member-target" data-member-action-target></p>
+                    <p class="admin-member-impact" data-member-action-impact></p>
+                    <form data-member-action-form>
+                      <label class="admin-member-reason">
+                        <span>변경 사유 <em>필수</em></span>
+                        <textarea data-member-action-reason maxlength="200" rows="3" required
+                                  placeholder="변경이 필요한 이유를 입력하세요"></textarea>
+                      </label>
+                      <p class="admin-hint">입력한 사유는 회원에게 전송되지 않고 관리자 조작 이력에 남습니다.</p>
+                      <p class="admin-hint error" data-member-action-error role="alert"></p>
+                      <div class="admin-form-buttons">
+                        <button type="button" class="text-button" data-member-action-cancel>취소</button>
+                        <button type="submit" class="primary-button" data-member-action-confirm>변경하기</button>
+                      </div>
+                    </form>
+                  </div>
                 </div>
               </section>
 
