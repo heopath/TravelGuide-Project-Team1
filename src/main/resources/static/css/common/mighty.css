@@ -1,0 +1,177 @@
+/* =================================================
+   마이티 — 화면 구석의 상담 도우미 (#191)
+   ================================================= */
+
+.mighty-root {
+  position: fixed;
+  right: 22px;
+  bottom: 22px;
+  z-index: 90;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 12px;
+}
+
+/* ── 캐릭터 버튼 ── */
+
+.mighty-button {
+  position: relative;
+  width: 62px;
+  height: 62px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: linear-gradient(160deg, #eef1ff, #dfe4ff);
+  box-shadow: 0 12px 30px rgba(11, 21, 51, 0.18);
+  cursor: pointer;
+  /* 누르면 살짝 눌리는 느낌만 준다. 크게 튀면 장난스러워 보인다. */
+  transition: transform 0.16s ease, box-shadow 0.16s ease;
+}
+.mighty-button:hover { transform: translateY(-2px); box-shadow: 0 16px 34px rgba(11, 21, 51, 0.22); }
+.mighty-button:active { transform: translateY(0); }
+.mighty-button:focus-visible { outline: 3px solid var(--primary, #5c68ff); outline-offset: 3px; }
+
+.mighty-figure { display: block; width: 100%; height: 100%; }
+.mighty-figure svg { width: 100%; height: 100%; }
+
+.mighty-body { fill: var(--primary, #5c68ff); }
+.mighty-eye { fill: #fff; }
+.mighty-mouth { fill: none; stroke: #fff; stroke-width: 2.2; stroke-linecap: round; }
+.mighty-blush { fill: #ff9db1; opacity: 0.85; }
+.mighty-plane { fill: #ffc53d; }
+
+/*
+ * 숨 쉬듯 아주 조금 움직인다. 살아 있다는 느낌은 주되, 글을 읽는 데 방해가 되면 안 되므로
+ * 폭을 작게 두고 느리게 돈다.
+ */
+@keyframes mighty-breathe {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-2.5px); }
+}
+.mighty-figure svg { animation: mighty-breathe 3.4s ease-in-out infinite; }
+
+/* 움직임을 원치 않는다고 설정한 사람에게는 멈춘 채로 보인다. */
+@media (prefers-reduced-motion: reduce) {
+  .mighty-figure svg { animation: none; }
+  .mighty-button { transition: none; }
+}
+
+/* 안 읽은 답이 있을 때만. 0이면 아무 표시도 없어야 눌러볼 이유가 생긴다. */
+.mighty-dot {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  width: 13px;
+  height: 13px;
+  border: 2.5px solid #fff;
+  border-radius: 50%;
+  background: #f4483b;
+}
+.mighty-dot[hidden] { display: none; }
+
+/* ── 대화창 ── */
+
+.mighty-panel {
+  width: min(340px, calc(100vw - 32px));
+  max-height: min(520px, calc(100vh - 140px));
+  display: flex;
+  flex-direction: column;
+  border: 1px solid #e4e8f4;
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 24px 60px rgba(11, 21, 51, 0.22);
+  overflow: hidden;
+}
+.mighty-panel[hidden] { display: none; }
+
+.mighty-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 14px 14px 12px 16px;
+  border-bottom: 1px solid #eceef4;
+}
+.mighty-head strong { display: block; font-size: 14.5px; }
+.mighty-head small { display: block; margin-top: 2px; color: #7b8194; font-size: 11.5px; }
+
+.mighty-close {
+  width: 30px;
+  height: 30px;
+  border: 0;
+  border-radius: 50%;
+  background: #f4f5f9;
+  color: #4b5162;
+  font-size: 17px;
+  cursor: pointer;
+}
+
+.mighty-log {
+  flex: 1;
+  margin: 0;
+  padding: 14px 14px 4px;
+  display: grid;
+  gap: 10px;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.mighty-line { display: grid; gap: 3px; justify-items: start; }
+.mighty-line.me { justify-items: end; }
+.mighty-line small { color: #9aa0b2; font-size: 10.5px; }
+
+.mighty-line p {
+  max-width: 84%;
+  margin: 0;
+  padding: 9px 12px;
+  border-radius: 13px;
+  font-size: 13px;
+  line-height: 1.55;
+  /* 답변에 줄바꿈이 들어온다. 그대로 살려야 문단이 뭉치지 않는다. */
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.mighty-line.them p { background: #f4f5f9; color: #1c1f26; }
+.mighty-line.me p { background: var(--primary, #5c68ff); color: #fff; }
+
+.mighty-empty { margin: 0; padding: 10px 16px 14px; color: #9aa0b2; font-size: 12.5px; }
+.mighty-empty[hidden] { display: none; }
+
+.mighty-form {
+  display: flex;
+  gap: 8px;
+  padding: 12px 14px;
+  border-top: 1px solid #eceef4;
+}
+.mighty-form[hidden] { display: none; }
+
+.mighty-form input {
+  flex: 1;
+  min-width: 0;
+  min-height: 38px;
+  padding: 0 12px;
+  border: 1px solid #dfe2ec;
+  border-radius: 10px;
+  font-size: 13px;
+}
+.mighty-form input:focus { outline: 2px solid #c9d0f2; outline-offset: 1px; }
+
+.mighty-send {
+  min-height: 38px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 10px;
+  background: var(--primary, #5c68ff);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.mighty-send:disabled { opacity: 0.6; cursor: default; }
+
+/* 좁은 화면에서는 화면 폭을 거의 다 쓴다. 작게 두면 글자가 두 줄씩 끊긴다. */
+@media (max-width: 480px) {
+  .mighty-root { right: 14px; bottom: 14px; }
+  .mighty-button { width: 54px; height: 54px; }
+}

@@ -10,6 +10,7 @@
     <link rel="stylesheet" th:href="@{/css/common/layout.css}" href="../../static/css/common/layout.css" />
     <link rel="stylesheet" th:href="@{/css/common/components.css}" href="../../static/css/common/components.css" />
     <link rel="stylesheet" th:href="@{/css/pages/trips/record.css}" href="../../static/css/pages/trips/record.css" />
+    <link rel="stylesheet" th:href="@{/css/common/mighty.css}" href="../../static/css/common/mighty.css" />
   </head>
   <!-- data-route는 전체 화면 목록에서 "현재 화면"을 표시하는 데만 쓴다. 목록의 경로와 맞춘다. -->
   <body class="page-record" data-route="/trips/1/record" th:attr="data-trip-id=${tripId}" data-trip-id="">
@@ -115,5 +116,7 @@
     </div>
     <div th:replace="~{fragments/scripts :: appScripts}"></div>
     <script th:src="@{/js/pages/trips/record.js}" src="../../static/js/pages/trips/record.js"></script>
+  <div th:replace="~{fragments/mighty :: mighty}"></div>
+  <script th:src="@{/js/core/mighty.js}" src="../../static/js/core/mighty.js"></script>
   </body>
 </html>

@@ -10,6 +10,7 @@
     <link rel="stylesheet" th:href="@{/css/common/layout.css}" href="../../static/css/common/layout.css" />
     <link rel="stylesheet" th:href="@{/css/common/components.css}" href="../../static/css/common/components.css" />
     <link rel="stylesheet" th:href="@{/css/pages/guide/place-detail.css}" href="../../static/css/pages/guide/place-detail.css" />
+    <link rel="stylesheet" th:href="@{/css/common/mighty.css}" href="../../static/css/common/mighty.css" />
   </head>
   <body class="page-place-detail" data-route="/guide/place-detail">
     <div class="app">
@@ -166,5 +167,7 @@
     ></script>
     <script th:src="@{/js/pages/guide/place-detail.js}" src="../../static/js/pages/guide/place-detail.js"></script>
     <script th:src="@{/js/pages/guide/place-reviews.js}" src="../../static/js/pages/guide/place-reviews.js"></script>
+  <div th:replace="~{fragments/mighty :: mighty}"></div>
+  <script th:src="@{/js/core/mighty.js}" src="../../static/js/core/mighty.js"></script>
   </body>
 </html>
