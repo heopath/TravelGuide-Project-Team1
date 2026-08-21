@@ -484,6 +484,11 @@ public enum ErrorCode {
     INVALID_SUPPORT_CHAT_REQUEST(
             HttpStatus.BAD_REQUEST,
             "상담 요청이 올바르지 않습니다."
+    ),
+
+    SUPPORT_CHAT_SUBSCRIBE_FORBIDDEN(
+            HttpStatus.FORBIDDEN,
+            "이 상담 채팅을 구독할 권한이 없습니다."
     );
 
     private final HttpStatus status;

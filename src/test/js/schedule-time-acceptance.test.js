@@ -64,4 +64,8 @@ assert.match(guideSource, /recommendationKey\(item\)/);
 assert.match(guideSource, /filter\(isOutsideDay\)/);
 assert.match(guideSource, /entry\.adjustButton\.hidden = added \|\| \(!timeConflict && !unavailableTime\)/);
 
+// 일정 화면의 AI 요청에는 현재 선택 DAY가 함께 전송되어 다른 DAY 추천이 섞이지 않는다.
+assert.match(scheduleSource, /getActiveDayNumber: function \(\)/);
+assert.match(guideSource, /selectedDayNumber: window\.AllMyTripsSchedule\?\.getActiveDayNumber\?\.\(\) \|\| null/);
+
 console.log("schedule time acceptance checks passed");

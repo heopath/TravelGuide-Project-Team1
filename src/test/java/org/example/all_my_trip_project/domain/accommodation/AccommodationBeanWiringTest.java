@@ -107,7 +107,8 @@ class AccommodationBeanWiringTest {
      * 빠진 것이 아니다. 누군가 이 어노테이션을 지워도 위 테스트는 그대로 통과한다.
      *
      * <p>이 가드가 없으면 TourAPI 장애·키 미설정·검색 결과 없음이 전부 Mock 폴백으로
-     * 이어지고, 프로덕션 실습 요금 차단에 걸려 <b>"결과 없음"이 500이 된다.</b>
+     * 이어지고, 출처 없는 Mock 요금이 운영 화면에 노출될 수 있다. Sandbox 실습 요금은
+     * 별도 provider가 공급하며 화면에서 실습 요금임을 밝힌다.
      */
     @Test
     @DisplayName("Mock provider에 운영 제외 프로필이 걸려 있다")

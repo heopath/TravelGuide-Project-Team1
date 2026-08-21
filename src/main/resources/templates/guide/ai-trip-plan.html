@@ -10,6 +10,7 @@
     <link rel="stylesheet" th:href="@{/css/common/layout.css}" href="../../static/css/common/layout.css" />
     <link rel="stylesheet" th:href="@{/css/common/components.css}" href="../../static/css/common/components.css" />
     <link rel="stylesheet" th:href="@{/css/pages/guide/ai-trip-plan.css}" href="../../static/css/pages/guide/ai-trip-plan.css" />
+    <link rel="stylesheet" th:href="@{/css/common/mighty.css}" href="../../static/css/common/mighty.css" />
   </head>
   <body class="page-ai-trip-plan" data-route="/ai-trip-plan">
     <div class="app">
@@ -73,5 +74,7 @@
     <script th:if="${kakaoJavascriptKey != null and !kakaoJavascriptKey.isBlank()}"
             th:src="|https://dapi.kakao.com/v2/maps/sdk.js?appkey=${kakaoJavascriptKey}&amp;libraries=services&amp;autoload=false|"></script>
     <script th:src="@{/js/pages/guide/ai-trip-plan.js}" src="../../static/js/pages/guide/ai-trip-plan.js" defer></script>
+  <div th:replace="~{fragments/mighty :: mighty}"></div>
+  <script th:src="@{/js/core/mighty.js}" src="../../static/js/core/mighty.js"></script>
   </body>
 </html>

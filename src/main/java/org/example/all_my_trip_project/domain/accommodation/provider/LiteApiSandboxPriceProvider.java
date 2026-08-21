@@ -15,6 +15,7 @@ import org.springframework.core.env.Profiles;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestClientResponseException;
 
 import java.math.BigDecimal;
@@ -32,7 +33,8 @@ import java.util.Set;
  *
  * <p>두 서비스의 숙소 ID는 서로 다르다. 한 번의 위치 기반 조회 후 이름과 좌표가
  * 충분히 가까운 경우에만 연결한다. 애매한 결과는 잘못된 금액보다 미제공 상태가 안전하다.
- * Sandbox 키와 응답의 {@code sandbox=true}를 모두 확인하며 prod 프로필에서는 호출하지 않는다.
+ * Sandbox 키와 응답의 {@code sandbox=true}를 모두 확인한다. 운영에서도 실습 요금을
+ * 사용하므로 화면의 실습 표시는 제거하면 안 된다.
  */
 @Slf4j
 @Component
@@ -78,17 +80,16 @@ public class LiteApiSandboxPriceProvider implements AccommodationPriceProvider {
      */
     @PostConstruct
     void reportKeyState() {
-        if (environment.acceptsProfiles(Profiles.of("prod"))) {
-            return;
-        }
+        String profileLabel = environment.acceptsProfiles(Profiles.of("prod")) ? "운영 프로필에서 " : "";
         if (properties.hasSandboxKey()) {
-            log.info("LiteAPI Sandbox 키를 확인했습니다. 좌표가 있는 숙소에 요금 보강을 시도합니다.");
+            log.info("{}LiteAPI Sandbox 키를 확인했습니다. 좌표가 있는 숙소에 요금 보강을 시도합니다.",
+                    profileLabel);
         } else if (properties.getApiKey() == null || properties.getApiKey().isBlank()) {
-            log.info("LiteAPI Sandbox 키가 없어 숙소 요금 보강을 건너뜁니다. "
-                    + "LITEAPI_SANDBOX_API_KEY 환경변수를 확인하세요.");
+            log.info("{}LiteAPI Sandbox 키가 없어 숙소 요금 보강을 건너뜁니다. "
+                    + "LITEAPI_SANDBOX_API_KEY 환경변수를 확인하세요.", profileLabel);
         } else {
-            log.warn("LiteAPI Sandbox 키 형식이 맞지 않아 요금 보강을 건너뜁니다. "
-                    + "sand_ 또는 sandbox_ 로 시작하는 Sandbox 키가 필요합니다.");
+            log.warn("{}LiteAPI Sandbox 키 형식이 맞지 않아 요금 보강을 건너뜁니다. "
+                    + "sand_ 또는 sandbox_ 로 시작하는 Sandbox 키가 필요합니다.", profileLabel);
         }
     }
 
@@ -97,10 +98,18 @@ public class LiteApiSandboxPriceProvider implements AccommodationPriceProvider {
         return NAME;
     }
 
+    /**
+     * 프로덕션에서도 부른다.
+     *
+     * <p>예전에는 막아 두었다. 가짜 요금을 보고 예약 사이트로 나가면 그 손해를 되돌릴 수
+     * 없다는 이유였다. 지금은 <b>요금 자리와 이동 직전 안내에 실습 요금임을 함께 적어</b>
+     * 그 위험을 줄이고, 요금을 아예 안 보여주는 쪽보다 낫다고 판단해 열었다.
+     *
+     * <p>그래도 이것은 <b>실제 판매가가 아니다.</b> 화면에서 그 표시를 떼면 안 된다.
+     */
     @Override
     public boolean supports(AccommodationSearchQuery query, List<AccommodationOffer> offers) {
-        return !environment.acceptsProfiles(Profiles.of("prod"))
-                && properties.hasSandboxKey()
+        return properties.hasSandboxKey()
                 && offers.stream().anyMatch(this::hasCoordinates);
     }
 
@@ -142,16 +151,45 @@ public class LiteApiSandboxPriceProvider implements AccommodationPriceProvider {
             log.warn("LiteAPI Sandbox 요금 조회 HTTP 오류 status={}",
                     exception.getStatusCode().value());
             return AccommodationPriceResult.unchanged(offers);
+        } catch (RestClientException exception) {
+            /*
+             * 타입만 남기면 못 고친다. 운영에서 실제로 type=RestClientException 한 줄만
+             * 보고는 연결 실패인지, 변환기가 없는지, 응답 해석 실패인지 가릴 수 없었다.
+             * 가장 안쪽 원인까지 따라가 이름과 메시지를 남긴다.
+             */
+            Throwable cause = rootCause(exception);
+            log.warn("LiteAPI Sandbox 요금 조회 실패 type={} cause={} message={}",
+                    exception.getClass().getSimpleName(),
+                    cause.getClass().getName(), mask(cause.getMessage()));
+            return AccommodationPriceResult.unchanged(offers);
         } catch (RuntimeException exception) {
-            // 예외 메시지나 요청 URL에는 키가 포함될 가능성이 있어 타입만 기록한다.
-            log.warn("LiteAPI Sandbox 요금 조회 실패 type={}",
-                    exception.getClass().getSimpleName());
+            log.warn("LiteAPI Sandbox 요금 조회 실패 type={} message={}",
+                    exception.getClass().getSimpleName(), mask(exception.getMessage()));
             return AccommodationPriceResult.unchanged(offers);
         } catch (Exception exception) {
-            log.warn("LiteAPI Sandbox 요금 응답 해석 실패 type={}",
-                    exception.getClass().getSimpleName());
+            log.warn("LiteAPI Sandbox 요금 응답 해석 실패 type={} message={}",
+                    exception.getClass().getSimpleName(), mask(exception.getMessage()));
             return AccommodationPriceResult.unchanged(offers);
         }
+    }
+
+    /** 감싸인 예외는 겉껍데기만 봐서는 원인을 알 수 없다. 가장 안쪽까지 따라간다. */
+    private Throwable rootCause(Throwable throwable) {
+        Throwable current = throwable;
+        while (current.getCause() != null && current.getCause() != current) {
+            current = current.getCause();
+        }
+        return current;
+    }
+
+    /**
+     * 예외 메시지에 키가 섞여 나올 수 있다. 헤더로 보내므로 보통은 안 섞이지만,
+     * 한 번이라도 로그에 남으면 되돌릴 수 없어 값이 있으면 무조건 지운다.
+     */
+    private String mask(String message) {
+        if (message == null) return "(없음)";
+        String key = properties.getApiKey();
+        return key == null || key.isBlank() ? message : message.replace(key.trim(), "***");
     }
 
     private String requestRates(AccommodationSearchQuery query, Point center, int radius) {

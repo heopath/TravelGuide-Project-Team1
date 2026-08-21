@@ -32,6 +32,11 @@
           th:href="@{/css/pages/trips/schedule.css(v=20260821-place-modal-fix)}"
           href="../../static/css/pages/trips/schedule.css?v=20260821-place-modal-fix"
   />
+<link
+        rel="stylesheet"
+        th:href="@{/css/common/mighty.css}"
+        href="../../static/css/common/mighty.css"
+/>
 </head>
 
 <body
@@ -400,5 +405,7 @@
         th:src="@{/js/pages/trips/schedule-ai-guide.js}"
         src="../../static/js/pages/trips/schedule-ai-guide.js"
 ></script>
+<div th:replace="~{fragments/mighty :: mighty}"></div>
+<script th:src="@{/js/core/mighty.js}" src="../../static/js/core/mighty.js"></script>
 </body>
 </html>

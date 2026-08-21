@@ -2,6 +2,7 @@ package org.example.all_my_trip_project.domain.place.controller;
 
 import org.example.all_my_trip_project.domain.place.dto.PlaceDTO;
 import org.example.all_my_trip_project.domain.place.service.PlaceService;
+import org.example.all_my_trip_project.domain.place.service.PlaceViewHistoryService;
 import org.example.all_my_trip_project.global.config.ApiSecurityConfig;
 import org.example.all_my_trip_project.global.security.AuthenticatedUser;
 import org.junit.jupiter.api.Test;
@@ -41,6 +42,9 @@ class PlaceSecurityTest {
 
     @MockitoBean
     private PlaceService placeService;
+
+    @MockitoBean
+    private PlaceViewHistoryService placeViewHistoryService;
 
     @Test
     void rejectsUnauthenticatedPlaceCreationEvenWithCsrfToken() throws Exception {

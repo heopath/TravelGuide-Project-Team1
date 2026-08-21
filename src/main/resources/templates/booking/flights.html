@@ -17,6 +17,7 @@
     <link rel="stylesheet" th:href="@{/css/common/layout.css}" href="../../static/css/common/layout.css" />
     <link rel="stylesheet" th:href="@{/css/common/components.css}" href="../../static/css/common/components.css" />
     <link rel="stylesheet" th:href="@{/css/pages/booking/flights.css}" href="../../static/css/pages/booking/flights.css" />
+    <link rel="stylesheet" th:href="@{/css/common/mighty.css}" href="../../static/css/common/mighty.css" />
   </head>
   <body class="page-flights" data-route="/booking/flights">
     <div class="app">
@@ -214,7 +215,7 @@
                   <div>
                     <span class="hotel-kicker" id="hotelListingSource">숙소 정보 출처 확인 중</span>
                     <h2>여행지 숙소 찾기</h2>
-                    <p>숙소 정보부터 비교하고 선택해 두세요. 실시간 요금은 다음 단계에서 연결합니다.</p>
+                    <p>숙소 정보와 실습 요금을 비교해 선택하세요. 최종 요금은 예약 사이트에서 확인합니다.</p>
                   </div>
                   <span class="hotel-price-ready" id="hotelPriceMode">가격 정보 확인 중</span>
                 </div>
@@ -436,7 +437,7 @@
                 <div class="n1" id="h1nm">-</div>
                 <div class="n2" id="h1dt">-</div>
               </div>
-              <div class="pz"><b id="h1pr">-</b><div id="h1px">총액</div></div>
+              <div class="pz"><b id="h1pr">-</b><div id="h1px">총액</div><div class="mock-note" id="h1pn" hidden>실습 요금 · 실제 결제 금액 아님</div></div>
             </div>
           </div>
           <div class="ma">
@@ -465,7 +466,7 @@
                 <div class="n1" id="h2nm">-</div>
                 <div class="n2" id="h2dt">-</div>
               </div>
-              <div class="pz"><b id="h2pr">-</b><div id="h2px">총액</div></div>
+              <div class="pz"><b id="h2pr">-</b><div id="h2px">총액</div><div class="mock-note" id="h2pn" hidden>실습 요금 · 실제 결제 금액 아님</div></div>
             </div>
           </div>
           <div class="ma">
@@ -492,7 +493,7 @@
                 <div class="n1" id="h3nm">-</div>
                 <div class="n2" id="h3st">예약함 · 직접 표시</div>
               </div>
-              <div class="pz"><b id="h3pr">-</b><div id="h3px">총액</div></div>
+              <div class="pz"><b id="h3pr">-</b><div id="h3px">총액</div><div class="mock-note" id="h3pn" hidden>실습 요금 · 실제 결제 금액 아님</div></div>
             </div>
           </div>
           <div class="refbox">
@@ -533,5 +534,7 @@
     <script th:src="@{/js/pages/booking/flights.js}" src="../../static/js/pages/booking/flights.js"></script>
     <script th:src="@{/js/pages/booking/accommodations.js}" src="../../static/js/pages/booking/accommodations.js"></script>
     <script th:src="@{/js/pages/booking/tickets.js}" src="../../static/js/pages/booking/tickets.js"></script>
+  <div th:replace="~{fragments/mighty :: mighty}"></div>
+  <script th:src="@{/js/core/mighty.js}" src="../../static/js/core/mighty.js"></script>
   </body>
 </html>
