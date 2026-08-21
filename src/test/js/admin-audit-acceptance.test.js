@@ -202,7 +202,7 @@ async function run() {
     await until(() => d.querySelector("[data-audit-empty]").textContent.includes("없어요"));
 
     T("이력이 없으면 그대로 알린다",
-      d.querySelector("[data-audit-empty]").textContent === "아직 기록된 조작 이력이 없어요.");
+      d.querySelector("[data-audit-empty]").textContent === "아직 기록된 변경 이력이 없어요.");
   }
   {
     const { d } = await boot(() => fail(403, "FORBIDDEN", "권한이 없습니다."));

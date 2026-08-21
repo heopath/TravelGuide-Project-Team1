@@ -395,10 +395,12 @@ const ALL_MY_TRIPS_SCREENS = [
     "여행 기록",
     "trips"
   ],
-  /*
-   * 관리자도 주소 하나에 사이드바로 고르는 패널 일곱이다. 예약과 같은 이유로 각각 센다.
-   * admin.js가 ?panel= 을 읽는다. 없으면 신고 관리가 열린다.
-   */
+  /* 관리자 진입 주소는 오늘 처리할 업무를 모은 운영 홈을 연다. */
+  [
+    "/admin",
+    "관리자 · 운영 홈",
+    "admin"
+  ],
   [
     "/admin?panel=reports",
     "관리자 · 신고 관리",
@@ -415,28 +417,23 @@ const ALL_MY_TRIPS_SCREENS = [
     "admin"
   ],
   [
-    "/admin?panel=metrics",
-    "관리자 · 운영 지표",
-    "admin"
-  ],
-  [
     "/admin?panel=products",
-    "관리자 · 예약 상품·재고",
+    "관리자 · 상품·재고 관리",
     "admin"
   ],
   [
     "/admin?panel=reservations",
-    "관리자 · 예약 모니터링",
+    "관리자 · 예약 현황",
     "admin"
   ],
   [
     "/admin?panel=performance",
-    "관리자 · 성능 모니터링",
+    "관리자 · 서비스 성능",
     "admin"
   ],
   [
     "/admin?panel=chat",
-    "관리자 · 상담 채팅",
+    "관리자 · 실시간 상담",
     "admin"
   ],
   [
@@ -446,7 +443,7 @@ const ALL_MY_TRIPS_SCREENS = [
   ],
   [
     "/admin?panel=audit",
-    "관리자 · 조작 이력",
+    "관리자 · 변경 이력",
     "admin"
   ],
   /*
@@ -468,7 +465,7 @@ const ALL_MY_TRIPS_SCREENS = [
   ],
   [
     "/admin?panel=validation",
-    "관리자 · 티켓 검표",
+    "관리자 · 검표 관리",
     "admin"
   ],
 ];

@@ -50,6 +50,14 @@ body.page-admin #page-content {
 .page-admin .admin-content { min-width: 0; }
 
 .page-admin .admin-nav { display: flex; flex-direction: column; gap: 4px; }
+.page-admin .admin-nav-group {
+  margin: 14px 10px 4px;
+  color: #98a2b3;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .08em;
+}
+.page-admin .admin-nav-group:first-child { margin-top: 4px; }
 .page-admin .admin-nav button {
   width: 100%;
   min-height: 44px;
@@ -83,7 +91,9 @@ body.page-admin #page-content {
   font-weight: 700;
   white-space: nowrap;
 }
-.page-admin .admin-nav button em.live { color: var(--primary); }
+/* 모든 기능이 연동된 뒤에는 같은 배지가 반복될 이유가 없다. */
+.page-admin .admin-nav button em.live,
+.page-admin .admin-tag.live { display: none; }
 .page-admin .admin-nav button.is-current { background: #f0f1ff; color: var(--primary); }
 .page-admin .admin-nav button.is-current > span:first-child { color: var(--primary); }
 .page-admin .admin-nav button:not(.is-current):hover { background: #f5f6ff; color: var(--primary); }
@@ -104,6 +114,11 @@ body.page-admin #page-content {
   color: var(--navy);
   font-size: 18px;
   letter-spacing: -0.02em;
+}
+.page-admin .admin-section-title {
+  min-width: 220px;
+  display: grid;
+  gap: 4px;
 }
 .page-admin .admin-section-description { margin: 0; color: var(--muted); font-size: 13px; }
 
@@ -149,6 +164,56 @@ body.page-admin #page-content {
   background: #fff;
   box-shadow: var(--shadow);
 }
+.page-admin .admin-overview-intro { margin-bottom: 14px; }
+.page-admin [data-admin-section="overview"] [data-metrics-refresh] { margin-left: auto; }
+.page-admin .admin-overview-intro strong { color: var(--navy); font-size: 15px; }
+.page-admin .admin-overview-intro p { margin: 4px 0 0; color: var(--muted); font-size: 12px; }
+.page-admin .admin-overview-card {
+  width: 100%;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color .18s ease, box-shadow .18s ease, transform .18s ease;
+}
+.page-admin .admin-overview-card:hover,
+.page-admin .admin-overview-card:focus-visible {
+  border-color: #a9b4ff;
+  box-shadow: 0 12px 30px rgba(70, 79, 220, .12);
+  transform: translateY(-2px);
+  outline: none;
+}
+.page-admin .admin-overview-card small { display: block; line-height: 1.45; }
+.page-admin .admin-overview-actions { margin-top: 22px; padding: 20px 22px; }
+.page-admin .admin-overview-actions h3 { margin: 0; color: var(--navy); font-size: 16px; }
+.page-admin .admin-overview-actions > div > p { margin: 5px 0 0; color: var(--muted); font-size: 12px; }
+.page-admin .admin-overview-action-grid {
+  margin-top: 16px;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+.page-admin .admin-overview-action-grid button {
+  min-height: 78px;
+  padding: 14px;
+  display: grid;
+  align-content: center;
+  gap: 5px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: #fbfcff;
+  color: var(--navy);
+  text-align: left;
+  cursor: pointer;
+}
+.page-admin .admin-overview-action-grid button:hover,
+.page-admin .admin-overview-action-grid button:focus-visible {
+  border-color: var(--primary);
+  background: var(--primary-soft, #eef0ff);
+  outline: none;
+}
+.page-admin .admin-overview-action-grid span { font-size: 13px; font-weight: 800; }
+.page-admin .admin-overview-action-grid small { color: var(--muted); font-size: 11.5px; line-height: 1.4; }
 .page-admin .admin-metric span { display: block; color: var(--muted); font-size: 12px; font-weight: 700; }
 .page-admin .admin-metric strong {
   display: block;
@@ -702,6 +767,7 @@ body.page-admin #page-content {
   .page-admin .admin-chat-room-list { max-height: 220px; }
 
   .page-admin .admin-metric-row { grid-template-columns: repeat(2, 1fr); }
+  .page-admin .admin-overview-action-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 /*
@@ -717,6 +783,7 @@ body.page-admin #page-content {
     overflow-x: auto;
     scrollbar-width: thin;
   }
+  .page-admin .admin-nav-group { display: none; }
   .page-admin .admin-nav button {
     width: auto;
     flex: 0 0 auto;
@@ -732,6 +799,7 @@ body.page-admin #page-content {
   .page-admin .admin-version-form { grid-template-columns: 1fr; }
   .page-admin .admin-version-form .primary-button { width: 100%; }
   .page-admin .admin-metric-row { grid-template-columns: 1fr; }
+  .page-admin .admin-overview-action-grid { grid-template-columns: 1fr; }
 
   /*
     상세·접수일을 숨기면 기록·사유·상태 셋이 남는다. 칸을 둘로 잡아두면 상태가 다음 줄로 밀려
