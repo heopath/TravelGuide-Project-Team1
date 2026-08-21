@@ -3141,6 +3141,10 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   window.AllMyTripsSchedule = {
+    getActiveDayNumber: function () {
+      const dayNumber = Number(activeDay?.dayNumber);
+      return Number.isInteger(dayNumber) && dayNumber > 0 ? dayNumber : null;
+    },
     getAiRecommendationStates,
     getAiRecommendationTimeConflicts,
     isAiRecommendationOutsideDay,

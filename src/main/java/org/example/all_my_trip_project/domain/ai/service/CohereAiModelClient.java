@@ -92,12 +92,12 @@ public class CohereAiModelClient implements AiModelClient {
         try {
             CohereGuideContent content;
             try {
-                content = generateContent(prompt, context);
+                content = generateContent(prompt, context, request.selectedDayNumber());
             } catch (AiModelException exception) {
                 if (!isRetryableFormatFailure(exception)) {
                     throw exception;
                 }
-                content = generateContent(prompt + STRICT_JSON_RETRY_INSTRUCTION, context);
+                content = generateContent(prompt + STRICT_JSON_RETRY_INSTRUCTION, context, request.selectedDayNumber());
             }
 
             List<String> sources = new ArrayList<>(List.of("Cohere AI", "질문: " + request.question()));
@@ -109,17 +109,52 @@ public class CohereAiModelClient implements AiModelClient {
         }
     }
 
-    private CohereGuideContent generateContent(String prompt, AiGuideContext context) {
+    private CohereGuideContent generateContent(String prompt, AiGuideContext context, Integer selectedDayNumber) {
         try {
             CohereGuideContent content = objectMapper.readValue(
                     extractJson(requestModel(prompt)), CohereGuideContent.class);
             content = normalize(content);
+            content = focusOnSelectedDay(content, selectedDayNumber);
             content = moveItemsToAvailableTimes(content, context);
             validate(content);
             return content;
         } catch (JsonProcessingException exception) {
             throw new AiModelException("Cohere response is not valid JSON", exception);
         }
+    }
+
+    private CohereGuideContent focusOnSelectedDay(CohereGuideContent content, Integer selectedDayNumber) {
+        if (selectedDayNumber == null || content == null || content.days() == null) {
+            return content;
+        }
+
+        AiGuideDayResponse selectedDay = content.days().stream()
+                .filter(day -> day != null && day.day() == selectedDayNumber && day.items() != null && !day.items().isEmpty())
+                .findFirst()
+                .orElseGet(() -> content.days().stream()
+                        .filter(day -> day != null && day.items() != null && !day.items().isEmpty())
+                        .findFirst()
+                        .map(day -> new AiGuideDayResponse(selectedDayNumber,
+                                "DAY " + selectedDayNumber + " 추천 일정", day.items()))
+                        .orElse(null));
+
+        if (selectedDay == null) {
+            return content;
+        }
+
+        String title = hasSelectedDayTitle(selectedDay.title(), selectedDayNumber)
+                ? selectedDay.title()
+                : "DAY " + selectedDayNumber + " 추천 일정";
+        return new CohereGuideContent(content.answer(), List.of(new AiGuideDayResponse(
+                selectedDayNumber, title, selectedDay.items())));
+    }
+
+    private boolean hasSelectedDayTitle(String title, Integer selectedDayNumber) {
+        if (title == null || selectedDayNumber == null) {
+            return false;
+        }
+
+        return title.matches("^\\s*DAY\\s+" + selectedDayNumber + "(?!\\d)(?:\\s|$).*");
     }
 
     private boolean isRetryableFormatFailure(AiModelException exception) {
@@ -253,8 +288,11 @@ public class CohereAiModelClient implements AiModelClient {
                   on the same DAY in 30-minute increments instead of returning the requested time.
                 - Reserve two hours for every returned item when checking overlaps.
 
+                %s
+
                 User question: %s
-                """.formatted(formatHistory(history), formatContext(context), formatRagResults(ragResults), request.question());
+                """.formatted(formatHistory(history), formatContext(context, request.selectedDayNumber()),
+                formatRagResults(ragResults), formatSelectedDayInstruction(request.selectedDayNumber()), request.question());
     }
 
     private String formatHistory(List<AiConversationTurn> history) {
@@ -263,11 +301,23 @@ public class CohereAiModelClient implements AiModelClient {
                 .collect(java.util.stream.Collectors.joining("\n\n"));
     }
 
-    private String formatContext(AiGuideContext context) {
+    private String formatContext(AiGuideContext context, Integer selectedDayNumber) {
         if (context == null || context.trip() == null) return "No travel context is available.";
         AiGuideContext.Trip trip = context.trip();
+        List<AiGuideContext.Day> days = trip.days();
+        if (selectedDayNumber != null && days != null) {
+            days = days.stream().filter(day -> Integer.valueOf(selectedDayNumber).equals(day.dayNumber())).toList();
+        }
         return "destination=" + trip.destinationName() + ", dates=" + trip.startDate() + " to " + trip.endDate()
-                + ", purpose=" + trip.purpose() + ", existing schedule=" + formatSchedule(trip.days());
+                + ", purpose=" + trip.purpose() + ", existing schedule=" + formatSchedule(days);
+    }
+
+    private String formatSelectedDayInstruction(Integer selectedDayNumber) {
+        if (selectedDayNumber == null) {
+            return "No schedule DAY was selected. Return only the DAYs needed to answer the user question.";
+        }
+        return "Focused schedule DAY: DAY " + selectedDayNumber + ". Return exactly one day object with day="
+                + selectedDayNumber + ". Use only this DAY's existing schedule when checking unavailable times.";
     }
 
     private String formatSchedule(List<AiGuideContext.Day> days) {

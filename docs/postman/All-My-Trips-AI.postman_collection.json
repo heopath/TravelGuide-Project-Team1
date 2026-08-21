@@ -43,7 +43,7 @@
           { "key": "Accept", "value": "application/json" },
           { "key": "{{csrfHeaderName}}", "value": "{{csrfToken}}" }
         ],
-        "body": { "mode": "raw", "raw": "{\n  \"tripId\": {{tripId}},\n  \"question\": \"Recommend dinner that fits my current itinerary\"\n}" },
+        "body": { "mode": "raw", "raw": "{\n  \"tripId\": {{tripId}},\n  \"selectedDayNumber\": 1,\n  \"question\": \"Recommend dinner that fits my current itinerary\"\n}" },
         "url": { "raw": "{{baseUrl}}/api/v1/ai-guides/generate", "host": ["{{baseUrl}}"], "path": ["api", "v1", "ai-guides", "generate"] }
       }
     },
