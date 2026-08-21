@@ -366,17 +366,28 @@
                             aria-label="판매 설정 닫기">×</button>
                   </div>
                   <p class="admin-slot-guide">
-                    <strong>등록 순서</strong>
-                    ① 성인권·아동권 같은 티켓 종류 만들기 → ② 날짜·시간별 판매 회차 등록 → ③ 예약 수량과 재고 확인
+                    <strong>판매 설정 순서</strong>
+                    먼저 티켓 종류별 가격과 구매 한도를 정한 뒤, 판매 회차·재고에서 예약받을 날짜와 수량을 등록하세요.
                   </p>
+                  <div class="admin-slot-tabs" role="tablist" aria-label="판매 설정 단계">
+                    <button type="button" class="is-current" role="tab" id="slotOptionTab"
+                            aria-selected="true" aria-controls="slotOptionPanel" data-slot-tab="options">
+                      <strong>1. 티켓 종류</strong><span>가격·구매 한도 설정</span>
+                    </button>
+                    <button type="button" role="tab" id="slotScheduleTab" tabindex="-1"
+                            aria-selected="false" aria-controls="slotSchedulePanel" data-slot-tab="slots">
+                      <strong>2. 판매 회차·재고</strong><span>날짜·시간·판매 수량 설정</span>
+                    </button>
+                  </div>
                   <!--
                     옵션이 먼저다. 시간대는 옵션에 달리므로(ticket_time_slots는 상품이 아니라
                     옵션을 참조한다) 옵션이 하나도 없으면 시간대를 만들 수 없다.
                   -->
-                  <section class="admin-slot-section" aria-labelledby="ticketTypeTitle">
-                  <h4 class="admin-subhead" id="ticketTypeTitle">1. 티켓 종류</h4>
+                  <section class="admin-slot-section admin-slot-tabpanel" id="slotOptionPanel" role="tabpanel"
+                           aria-labelledby="slotOptionTab" data-slot-tabpanel="options">
+                  <h4 class="admin-subhead" id="ticketTypeTitle">티켓 종류 등록·수정</h4>
                   <p class="admin-slot-description">
-                    성인권·아동권처럼 가격과 1인 구매 한도가 다른 티켓을 구분합니다.
+                    성인권·아동권처럼 가격과 1인 구매 한도가 다른 티켓을 구분하고 수정합니다.
                   </p>
                   <div data-option-list class="admin-table-body"></div>
                   <p class="admin-empty" data-option-empty role="status"></p>
@@ -402,12 +413,14 @@
                   </form>
                   </section>
 
+                  <div class="admin-slot-tabpanel" id="slotSchedulePanel" role="tabpanel"
+                       aria-labelledby="slotScheduleTab" data-slot-tabpanel="slots" hidden>
                   <!--
                     시간대는 기간으로 받는다. 하루씩 만들게 하면 한 달 판매를 여는 데 30번을
                     눌러야 하고, 중간에 빠뜨린 날이 생겨도 아무도 알아채지 못한다.
                   -->
                   <section class="admin-slot-section" aria-labelledby="saleSlotTitle">
-                  <h4 class="admin-subhead" id="saleSlotTitle">2. 판매 회차 등록</h4>
+                  <h4 class="admin-subhead" id="saleSlotTitle">판매 회차 등록</h4>
                   <p class="admin-slot-description">
                     티켓 종류를 고른 뒤 예약받을 날짜·시간과 회차별 판매 수량을 등록합니다.
                   </p>
@@ -447,7 +460,7 @@
                   </section>
 
                   <section class="admin-slot-section" aria-labelledby="saleStockTitle">
-                  <h4 class="admin-subhead" id="saleStockTitle">3. 등록된 회차·재고</h4>
+                  <h4 class="admin-subhead" id="saleStockTitle">등록된 회차·재고 현황</h4>
                   <p class="admin-slot-description">
                     예약된 수량을 확인하고 전체 판매 수량이나 판매 상태를 조정합니다.
                   </p>
@@ -471,6 +484,7 @@
                   <div data-slot-list class="admin-table-body"></div>
                   <p class="admin-empty" data-slot-empty role="status"></p>
                   </section>
+                  </div>
                   </div>
                 </div>
               </section>

@@ -881,6 +881,38 @@ body.page-admin #page-content {
 }
 .admin-slot-guide strong { display: block; color: var(--primary); }
 
+.admin-slot-tabs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  padding: 5px;
+  border-radius: 14px;
+  background: #f3f5fa;
+}
+.admin-slot-tabs button {
+  min-height: 64px;
+  padding: 10px 14px;
+  display: grid;
+  align-content: center;
+  gap: 4px;
+  border: 1px solid transparent;
+  border-radius: 11px;
+  background: transparent;
+  color: #697386;
+  text-align: left;
+  cursor: pointer;
+}
+.admin-slot-tabs button strong { color: inherit; font-size: 13px; }
+.admin-slot-tabs button span { font-size: 11.5px; }
+.admin-slot-tabs button.is-current {
+  border-color: #d9deff;
+  background: #fff;
+  color: var(--primary);
+  box-shadow: 0 6px 18px rgba(70, 79, 220, .1);
+}
+.admin-slot-tabs button:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+.admin-slot-tabpanel[hidden] { display: none; }
+
 .admin-slot-section {
   margin-top: 14px;
   padding: 18px;
@@ -931,6 +963,8 @@ body[data-slot-modal-open] { overflow: hidden; }
     padding: 16px 64px 12px 16px;
   }
   .admin-slot-card .admin-slot-close { top: 12px; right: 14px; }
+  .admin-slot-tabs { grid-template-columns: 1fr; }
+  .admin-slot-tabs button { min-height: 56px; }
   .admin-slot-section { padding: 14px; }
   .admin-slot-filter [data-slot-count] { margin-left: 0; width: 100%; }
 }
