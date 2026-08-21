@@ -2648,3 +2648,72 @@ body.page-mypage main#page-content > .page-shell {
     border-top: 2px dashed #dfe4f2;
   }
 }
+
+/* =================================================
+   알림 (#191)
+   ================================================= */
+
+/*
+ * 안 읽은 개수. 사이드바의 `준비 중` 자리를 그대로 쓰지만, 그쪽은 회색 글자였고
+ * 이쪽은 눈에 띄어야 하므로 색을 채운 알약으로 둔다.
+ */
+.page-mypage .mypage-nav button em[data-notification-badge] {
+  min-width: 18px;
+  padding: 0 6px;
+  border-radius: 9px;
+  background: #5b6bff;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 18px;
+  text-align: center;
+}
+.page-mypage .mypage-nav button em[data-notification-badge][hidden] { display: none; }
+
+.page-mypage .notification-list {
+  display: grid;
+  gap: 10px;
+  margin: 16px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.page-mypage .notification-item {
+  display: flex;
+  gap: 12px;
+  padding: 14px 16px;
+  border: 1px solid #e8ecf3;
+  border-radius: 12px;
+  background: #fff;
+}
+
+/* 안 읽은 것만 왼쪽에 색 띠를 둔다. 읽은 것과 한눈에 갈려야 훑어보기 쉽다. */
+.page-mypage .notification-item[data-unread] {
+  border-left: 3px solid #5b6bff;
+  background: #f7f8ff;
+}
+
+.page-mypage .notification-icon {
+  flex: none;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: #eef1fb;
+  color: #5b6bff;
+  font-size: 14px;
+  line-height: 28px;
+  text-align: center;
+}
+
+.page-mypage .notification-text { display: grid; gap: 4px; }
+.page-mypage .notification-text strong { font-size: 14.5px; }
+.page-mypage .notification-text p { margin: 0; color: #6b7280; font-size: 13px; line-height: 1.5; }
+.page-mypage .notification-text small { color: #98a2b3; font-size: 11.5px; }
+
+.page-mypage .notification-go {
+  justify-self: start;
+  margin-top: 2px;
+  color: #5b6bff;
+  font-size: 12.5px;
+  font-weight: 700;
+}
