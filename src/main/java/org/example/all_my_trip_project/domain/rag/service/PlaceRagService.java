@@ -14,6 +14,7 @@ import org.springframework.stereotype.Service;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 @Slf4j
@@ -89,6 +90,17 @@ public class PlaceRagService {
                 nullToEmpty(place.getAddress()),
                 nullToEmpty(place.getWebsiteUrl())
         );
+    }
+
+    /**
+     * 이미 화면에 표시한 실제 장소를 다시 추천할 때는 벡터 유사도 결과에 맡기지 않고
+     * placeId로 동일한 장소 메타데이터를 복원한다.
+     */
+    public Optional<RagSearchResult> findByPlaceId(Long placeId) {
+        if (placeId == null) {
+            return Optional.empty();
+        }
+        return placeDAO.findById(placeId).map(this::toSearchResult);
     }
 
     private Document toDocument(PlaceDTO place) {

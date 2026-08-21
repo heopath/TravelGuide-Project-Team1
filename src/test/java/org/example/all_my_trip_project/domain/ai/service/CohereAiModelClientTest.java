@@ -150,7 +150,7 @@ class CohereAiModelClientTest {
                 .contains("기존 점심 (10:00-12:00)")
                 .contains("Treat every listed window as unavailable")
                 .contains("reserve two hours after its start time")
-                .contains("nearest later available HH:mm time")
+                .contains("nearest available HH:mm time")
                 .contains("Never return an existing itinerary venue as a new recommendation item")
                 .contains("never return a real venue already named");
     }
@@ -216,7 +216,7 @@ class CohereAiModelClientTest {
     }
 
     @Test
-    void generateKeepsLateRecommendationWhenNoLaterTwoHourSlotExistsInTripContext() throws Exception {
+    void generateMovesLateRecommendationToEarlierAvailableTwoHourSlotInTripContext() throws Exception {
         stubResponse(200, """
                 {"message":{"content":[{"type":"text","text":"{\\"answer\\":\\"추천 일정\\",\\"days\\":[{\\"day\\":1,\\"title\\":\\"DAY 1\\",\\"items\\":[{\\"time\\":\\"23:00\\",\\"name\\":\\"늦은 카페\\",\\"reason\\":\\"야간 이용\\"}]}]}"}]}}
                 """);
@@ -232,7 +232,25 @@ class CohereAiModelClientTest {
         AiGuideResponse response = client.generate(new AiGuideRequest("23시 카페 추천", 1L),
                 List.of(), new AiGuideContext(trip, List.of()));
 
-        assertThat(response.days().getFirst().items().getFirst().time()).isEqualTo("23:00");
+        assertThat(response.days().getFirst().items().getFirst().time()).isEqualTo("19:00");
+    }
+
+    @Test
+    void generateRoundsAFreeRecommendationToTheNearestThirtyMinuteSlot() throws Exception {
+        stubResponse(200, """
+                {"message":{"content":[{"type":"text","text":"{\\"answer\\":\\"추천 일정\\",\\"days\\":[{\\"day\\":1,\\"title\\":\\"DAY 1\\",\\"items\\":[{\\"time\\":\\"21:40\\",\\"name\\":\\"늦은 카페\\",\\"reason\\":\\"야간 이용\\"}]}]}"}]}}
+                """);
+
+        AiGuideContext.Day day = new AiGuideContext.Day(
+                1, LocalDate.of(2026, 8, 14), "DAY 1", null, List.of());
+        AiGuideContext.Trip trip = new AiGuideContext.Trip(
+                1L, "부산 여행", "부산", LocalDate.of(2026, 8, 14), LocalDate.of(2026, 8, 14),
+                null, null, null, null, null, null, null, null, null, List.of(day));
+
+        AiGuideResponse response = client.generate(new AiGuideRequest("늦은 카페 추천", 1L),
+                List.of(), new AiGuideContext(trip, List.of()));
+
+        assertThat(response.days().getFirst().items().getFirst().time()).isEqualTo("21:30");
     }
 
     @Test

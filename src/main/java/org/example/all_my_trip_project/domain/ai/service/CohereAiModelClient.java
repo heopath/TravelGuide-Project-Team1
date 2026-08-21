@@ -38,6 +38,7 @@ public class CohereAiModelClient implements AiModelClient {
     private static final int MAX_ITEMS_PER_DAY = 10;
     private static final int RECOMMENDATION_DURATION_MINUTES = 120;
     private static final int TIME_SLOT_MINUTES = 30;
+    private static final int EARLIEST_RECOMMENDATION_START_MINUTES = 9 * 60;
     // 일정 화면은 종료 시각이 24:00과 같아지는 경우도 자정 초과로 취급한다.
     // AI 추천도 같은 기준을 사용하므로 2시간 체류 기준 마지막 시작 시각은 21:30이다.
     private static final int LATEST_RECOMMENDATION_START_MINUTES = 21 * 60 + 30;
@@ -278,14 +279,17 @@ public class CohereAiModelClient implements AiModelClient {
 
                 Scheduling rules:
                 - Existing itinerary entries in Travel context belong to their stated DAY only.
+                - If the user question explicitly names one DAY, return recommendations for that DAY only.
                 - Never return an existing itinerary venue as a new recommendation item.
                 - For a request asking for another or different place, never return a real venue already named
                   in Recent conversation as a new recommendation item.
+                - If the user asks for another time, a time adjustment, or a different time slot for a venue,
+                  keep that venue and return it at a non-overlapping available time instead of finding a new venue.
                 - The existing schedule explicitly lists unavailable time windows. Treat every listed window as unavailable.
                 - Never return an item time that overlaps an existing entry or another returned item on the same DAY.
                 - When an existing entry has no end time, reserve two hours after its start time.
-                - If the user requests a time inside an unavailable window, choose the nearest later available HH:mm time
-                  on the same DAY in 30-minute increments instead of returning the requested time.
+                - If the user requests a time inside an unavailable window, choose the nearest available HH:mm time
+                  on the same DAY in 30-minute increments. Prefer a later time, then an earlier valid slot.
                 - Reserve two hours for every returned item when checking overlaps.
 
                 %s
@@ -397,10 +401,14 @@ public class CohereAiModelClient implements AiModelClient {
             List<AiGuideItemResponse> adjustedItems = new ArrayList<>();
             for (AiGuideItemResponse item : day.items()) {
                 AiGuideItemResponse adjustedItem = moveItemToAvailableTime(item, occupied);
-                adjustedItems.add(adjustedItem);
-                addRecommendationWindow(adjustedItem, occupied);
+                if (adjustedItem != null) {
+                    adjustedItems.add(adjustedItem);
+                    addRecommendationWindow(adjustedItem, occupied);
+                }
             }
-            adjustedDays.add(new AiGuideDayResponse(day.day(), day.title(), adjustedItems));
+            if (!adjustedItems.isEmpty()) {
+                adjustedDays.add(new AiGuideDayResponse(day.day(), day.title(), adjustedItems));
+            }
         }
         return new CohereGuideContent(content.answer(), adjustedDays);
     }
@@ -440,7 +448,7 @@ public class CohereAiModelClient implements AiModelClient {
 
         Integer availableStart = findAvailableStart(requestedStart, occupied);
         if (availableStart == null) {
-            return item;
+            return null;
         }
         return new AiGuideItemResponse(
                 formatMinutes(availableStart), item.name(), item.reason(), item.placeId(),
@@ -463,12 +471,25 @@ public class CohereAiModelClient implements AiModelClient {
                 return candidate;
             }
         }
+
+        int lastEarlierCandidate = Math.min(roundUpToTimeSlot(requestedStart) - TIME_SLOT_MINUTES,
+                LATEST_RECOMMENDATION_START_MINUTES);
+        for (int candidate = lastEarlierCandidate;
+             candidate >= EARLIEST_RECOMMENDATION_START_MINUTES;
+             candidate -= TIME_SLOT_MINUTES) {
+            if (isAvailable(candidate, occupied)) {
+                return candidate;
+            }
+        }
         return null;
     }
 
     private boolean isAvailable(int start, List<TimeWindow> occupied) {
         int end = start + RECOMMENDATION_DURATION_MINUTES;
-        return end < 24 * 60 && occupied.stream().noneMatch(window -> start < window.end() && window.start() < end);
+        return start <= LATEST_RECOMMENDATION_START_MINUTES
+                && start % TIME_SLOT_MINUTES == 0
+                && end < 24 * 60
+                && occupied.stream().noneMatch(window -> start < window.end() && window.start() < end);
     }
 
     private int roundUpToTimeSlot(int minutes) {

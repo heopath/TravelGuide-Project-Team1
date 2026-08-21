@@ -172,7 +172,7 @@ document.addEventListener("DOMContentLoaded", function () {
       + "을(를) 현재 일정과 겹치지 않는 다른 시간대로 추천해줘. "
       + "일정은 2시간 기준으로, 시작 시간은 21:30 이하로 추천해줘.";
     input.value = "";
-    submit(question);
+    submit(question, Number(item?.placeId));
   }
 
   function renderResponse(payload) {
@@ -308,7 +308,7 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   }
 
-  async function requestGuide(question) {
+  async function requestGuide(question, referencePlaceId) {
     const tripId = currentTripId();
     if (!tripId) throw new Error("현재 여행을 불러온 뒤 AI 가이드를 이용해주세요.");
     if (!csrfToken) {
@@ -333,7 +333,10 @@ document.addEventListener("DOMContentLoaded", function () {
       body: JSON.stringify({
         tripId,
         question,
-        selectedDayNumber: window.AllMyTripsSchedule?.getActiveDayNumber?.() || null
+        selectedDayNumber: window.AllMyTripsSchedule?.getActiveDayNumber?.() || null,
+        referencePlaceId: Number.isSafeInteger(referencePlaceId) && referencePlaceId > 0
+          ? referencePlaceId
+          : null
       })
     });
     const payload = await response.json().catch(function () { return null; });
@@ -379,7 +382,7 @@ document.addEventListener("DOMContentLoaded", function () {
     errorBox.hidden = false;
   }
 
-  async function submit(question) {
+  async function submit(question, referencePlaceId) {
     if (!question || submitting) return;
     lastQuestion = question;
     submitting = true;
@@ -388,7 +391,7 @@ document.addEventListener("DOMContentLoaded", function () {
     appendUserMessage(question);
     const loading = appendLoading();
     try {
-      renderResponse(await requestGuide(question));
+      renderResponse(await requestGuide(question, referencePlaceId));
     } catch (error) {
       showError(error.message || "잠시 후 다시 시도해주세요.");
     } finally {
