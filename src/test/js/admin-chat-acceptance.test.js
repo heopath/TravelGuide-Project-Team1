@@ -61,12 +61,21 @@ const message = (id, senderType, content) => ({
   content, createdAt: "2026-08-17T02:00:00Z",
 });
 
+/*
+ * admin-chat.js는 WebSocket이 연결돼 있지 않은 동안 REST 폴백 폴링을 돈다(설계 문서
+ * "봇 응답 대기 중 UX" 절 참고, PR #282 리뷰 반영). jsdom의 setInterval은 실제 Node
+ * 타이머로 뒷받침되면서도 unref 가능한 핸들을 내주지 않으므로, 열어 둔 창을 그대로 두면
+ * 프로세스가 안 끝난다 — 각 테스트가 쓴 창을 전부 모아 뒀다가 마지막에 닫는다.
+ */
+const openedWindows = [];
+
 async function boot(responder) {
   const calls = [];
   const dom = new JSDOM(fs.readFileSync(HTML, "utf8"), {
     url: "http://localhost/admin", runScripts: "outside-only"
   });
   const w = dom.window;
+  openedWindows.push(w);
   const d = w.document;
   w.confirm = () => true;
   w.fetch = async (url, options) => {
@@ -77,6 +86,13 @@ async function boot(responder) {
   if (d.readyState !== "loading") d.dispatchEvent(new w.Event("DOMContentLoaded"));
   await until(() => calls.length > 0);
   return { w, d, calls };
+}
+
+function closeAllWindows() {
+  openedWindows.forEach(function (w) {
+    try { w.close(); } catch (error) { /* 이미 닫혔거나 정리할 것이 없다. */ }
+  });
+  openedWindows.length = 0;
 }
 
 const rows = (d) => [...d.querySelectorAll("#chatRoomList .admin-chat-room")];
@@ -276,8 +292,9 @@ async function run() {
       d.getElementById("chatRoomEmpty").textContent.includes("관리자만 접근할 수 있습니다."));
   }
 
+  closeAllWindows();
   console.log(`\n${passed} passed, ${failed} failed`);
   if (failed > 0) process.exit(1);
 }
 
-run().catch((error) => { console.error(error); process.exit(1); });
+run().catch((error) => { closeAllWindows(); console.error(error); process.exit(1); });
