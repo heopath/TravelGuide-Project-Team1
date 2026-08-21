@@ -233,6 +233,30 @@ async function run() {
     T("Enter로 키워드를 검색한다", decodeURIComponent(calls[1].url).includes("keyword=해운대"));
   }
 
+
+  /* ── 시간대 모달이 정말 닫혀 있는가 ── */
+  {
+    /*
+     * hidden 속성만 보고 "닫혀 있다"고 판정하면 안 된다. 운영에서 마크업에는 hidden이
+     * 붙어 있는데도 상품을 고르기 전부터 모달이 떠 있었다. 공통 CSS의
+     * .modal-backdrop{display:grid}가 브라우저 기본 [hidden]{display:none}보다
+     * 선택자가 세서 이겼기 때문이다. jsdom은 외부 CSS를 적용하지 않아 이 차이를 못 잡으므로
+     * CSS 원문에 [hidden] 규칙이 있는지를 직접 본다.
+     */
+    const markup = readMarkup(HTML);
+    const panel = markup.match(/<div[^>]*data-slot-panel[^>]*>/);
+    T("시간대 모달은 hidden 속성으로 여닫는다", !!panel && /\shidden[\s>]/.test(panel[0]));
+
+    const classes = panel ? ((panel[0].match(/class="([^"]*)"/) || [])[1] || "") : "";
+    const overlay = classes.split(/\s+/).find((c) => /backdrop$/.test(c));
+    T("모달은 공통 backdrop 클래스를 쓴다", overlay === "modal-backdrop");
+
+    const css = fs.readFileSync(
+      path.join(ROOT, "src/main/resources/static/css/common/components.css"), "utf8");
+    const guard = css.match(/[^{}]*\.modal-backdrop\[hidden\][^{]*\{([^}]*)\}/);
+    T("hidden이면 실제로 감추는 CSS 규칙이 있다", !!guard && /display:\s*none/.test(guard[1]));
+  }
+
   console.log(`\n${passed} passed, ${failed} failed`);
   if (failed > 0) process.exit(1);
 }

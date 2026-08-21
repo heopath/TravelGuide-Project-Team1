@@ -17,6 +17,7 @@
     <link rel="stylesheet" th:href="@{/css/common/layout.css}" href="../../static/css/common/layout.css" />
     <link rel="stylesheet" th:href="@{/css/common/components.css}" href="../../static/css/common/components.css" />
     <link rel="stylesheet" th:href="@{/css/pages/booking/flights.css}" href="../../static/css/pages/booking/flights.css" />
+    <link rel="stylesheet" th:href="@{/css/common/mighty.css}" href="../../static/css/common/mighty.css" />
   </head>
   <body class="page-flights" data-route="/booking/flights">
     <div class="app">
@@ -533,5 +534,7 @@
     <script th:src="@{/js/pages/booking/flights.js}" src="../../static/js/pages/booking/flights.js"></script>
     <script th:src="@{/js/pages/booking/accommodations.js}" src="../../static/js/pages/booking/accommodations.js"></script>
     <script th:src="@{/js/pages/booking/tickets.js}" src="../../static/js/pages/booking/tickets.js"></script>
+  <div th:replace="~{fragments/mighty :: mighty}"></div>
+  <script th:src="@{/js/core/mighty.js}" src="../../static/js/core/mighty.js"></script>
   </body>
 </html>

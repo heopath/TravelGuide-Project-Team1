@@ -43,6 +43,11 @@
           th:href="@{/css/pages/mypage/mypage.css}"
           href="../../static/css/pages/mypage/mypage.css"
   />
+<link
+        rel="stylesheet"
+        th:href="@{/css/common/mighty.css}"
+        href="../../static/css/common/mighty.css"
+/>
 </head>
 
 <body class="page-mypage">
@@ -1256,5 +1261,7 @@
         src="../../static/js/pages/mypage/mypage.js"
 ></script>
 
+<div th:replace="~{fragments/mighty :: mighty}"></div>
+<script th:src="@{/js/core/mighty.js}" src="../../static/js/core/mighty.js"></script>
 </body>
 </html>
