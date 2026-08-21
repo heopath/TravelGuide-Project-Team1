@@ -94,11 +94,11 @@ async function run() {
     const { w, d } = await boot(() => ok([]));
     const headings = [...d.querySelectorAll(".admin-section-head h2")].map((el) => el.textContent);
 
-    T("운영 지표 블록이 있다", headings.includes("운영 지표"));
-    T("예약 상품·재고 블록이 있다", headings.includes("예약 상품·재고 관리"));
+    T("운영 홈 블록이 있다", headings.includes("운영 홈"));
+    T("상품·재고 블록이 있다", headings.includes("상품·재고 관리"));
     T("구현 범위에서 뺀 테마 등록 블록은 없다", !headings.includes("테마 여행 등록"));
-    T("예약 모니터링 블록이 있다", headings.includes("예약 모니터링"));
-    T("성능 모니터링 블록이 있다", headings.includes("성능 모니터링"));
+    T("예약 현황 블록이 있다", headings.includes("예약 현황"));
+    T("서비스 성능 블록이 있다", headings.includes("서비스 성능"));
     T("신고 관리 블록이 있다", headings.includes("신고 관리"));
 
     /* 연동 여부와 무관하게 지켜야 한다. 값을 마크업에 박으면 연동이 빠져도 아무도 모른다. */
@@ -141,7 +141,7 @@ async function run() {
      * 동작은 admin-chat.js가 맡고 admin-chat-acceptance.test.js가 확인한다.
      * 여기서는 이 화면에 자리가 갖춰져 있는지만 본다.
      */
-    T("상담 채팅 블록이 있다", headings.includes("상담 채팅"));
+    T("실시간 상담 블록이 있다", headings.includes("실시간 상담"));
     T("방 목록과 대화창이 함께 있다",
       Boolean(d.getElementById("chatRoomList")) && Boolean(d.getElementById("chatMessages")));
     T("봇→관리자 전환 버튼 자리가 있다", Boolean(d.getElementById("chatTakeover")));
@@ -170,18 +170,22 @@ async function run() {
      * 다른 하나가 늘어나면 통과한다. 추천 장소 관리는 별도 주소라 data-route를 쓰므로 빠진다.
      */
     T("사이드바에 패널이 빠짐없이 있다",
-      ["reports", "metrics", "version", "products", "reservations", "performance", "chat", "support", "audit",
+      ["overview", "reports", "version", "products", "reservations", "performance", "chat", "support", "audit",
         "members", "validation"]
         .every((key) => d.querySelector(`[data-admin-panel="${key}"]`) !== null));
     T("1:1 문의 관리 패널이 있다",
       d.querySelector('[data-admin-panel="support"]') !== null
         && d.querySelector('[data-admin-section="support"]') !== null);
 
-    /* 실연동이 신고 관리뿐이라, 들어오자마자 쓸 수 있는 것이 먼저 보여야 한다. */
-    T("기본으로 신고 관리가 열린다",
-      shown().length === 1 && shown()[0] === "reports");
+    T("기본으로 운영 홈이 열린다",
+      shown().length === 1 && shown()[0] === "overview");
     T("기본 화면 메뉴에 현재 표시가 붙는다",
-      d.querySelector('[data-admin-panel="reports"]').getAttribute("aria-current") === "page");
+      d.querySelector('[data-admin-panel="overview"]').getAttribute("aria-current") === "page");
+
+    T("사이드바 메뉴가 업무 그룹으로 구분된다",
+      ["운영", "고객 관리", "예약·콘텐츠", "시스템"]
+        .every((name) => [...d.querySelectorAll(".admin-nav-group")]
+          .some((group) => group.textContent.trim() === name)));
 
     /*
      * 연동 전 항목을 막지 않는다. 막으면 앞으로 무엇이 붙는지 볼 수 없고,
@@ -198,14 +202,20 @@ async function run() {
 
     /* 화면을 옮겨도 신고 목록을 다시 부르지 않는다. 사이드바는 표시만 바꾼다. */
     const before = calls.length;
-    d.querySelector('[data-admin-panel="metrics"]').click();
+    d.querySelector('[data-admin-panel="overview"]').click();
     T("화면 전환만으로 API를 다시 부르지 않는다", calls.length === before);
-    T("api 상태에 고른 화면이 남는다", w.__adminDashboard.state.panel === "metrics");
+    T("api 상태에 고른 화면이 남는다", w.__adminDashboard.state.panel === "overview");
+
+    d.querySelector('[data-admin-target="products"]').click();
+    T("운영 홈 바로가기로 해당 업무를 연다",
+      shown().length === 1 && shown()[0] === "products");
+    T("바로가기로 연 업무를 주소에 남긴다",
+      new w.URLSearchParams(w.location.search).get("panel") === "products");
 
     /* 없는 이름이 들어와도 빈 화면이 되면 안 된다. */
     w.__adminDashboard.openPanel("없는화면");
-    T("모르는 화면 이름은 신고 관리로 되돌린다",
-      shown().length === 1 && shown()[0] === "reports");
+    T("모르는 화면 이름은 운영 홈으로 되돌린다",
+      shown().length === 1 && shown()[0] === "overview");
   }
 
   /* ── 주소로 화면을 바로 연다 (#165 · 스토리보드가 관리자를 여덟 장으로 센다) ── */
@@ -228,10 +238,22 @@ async function run() {
       .filter((section) => !section.hidden)
       .map((section) => section.dataset.adminSection);
 
-    T("주소에 모르는 값이 와도 신고 관리를 연다",
-      shown().length === 1 && shown()[0] === "reports");
+    T("주소에 모르는 값이 와도 운영 홈을 연다",
+      shown().length === 1 && shown()[0] === "overview");
     /* 주소에 그대로 두면 새로고침할 때마다 같은 일이 반복된다. */
     T("열지 못한 값은 주소에서 지운다",
+      new w.URLSearchParams(w.location.search).get("panel") === null);
+  }
+
+  {
+    const { w, d } = await boot(() => ok([]), "http://localhost/admin?panel=metrics");
+    const shown = [...d.querySelectorAll("[data-admin-section]")]
+      .filter((section) => !section.hidden)
+      .map((section) => section.dataset.adminSection);
+
+    T("기존 운영 지표 주소는 운영 홈으로 연결한다",
+      shown.length === 1 && shown[0] === "overview");
+    T("기존 운영 지표 주소를 기본 주소로 정리한다",
       new w.URLSearchParams(w.location.search).get("panel") === null);
   }
 
