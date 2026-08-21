@@ -10,6 +10,7 @@
     <link rel="stylesheet" th:href="@{/css/common/layout.css}" href="../../static/css/common/layout.css" />
     <link rel="stylesheet" th:href="@{/css/common/components.css}" href="../../static/css/common/components.css" />
     <link rel="stylesheet" th:href="@{/css/pages/booking/ticket.css}" href="../../static/css/pages/booking/ticket.css" />
+    <link rel="stylesheet" th:href="@{/css/common/mighty.css}" href="../../static/css/common/mighty.css" />
   </head>
   <body class="page-ticket" data-route="/booking/tickets/1">
     <div class="app">
@@ -184,5 +185,7 @@
     </div>
     <div th:replace="~{fragments/scripts :: appScripts}"></div>
     <script th:src="@{/js/pages/booking/ticket-detail.js}" src="../../static/js/pages/booking/ticket-detail.js"></script>
+  <div th:replace="~{fragments/mighty :: mighty}"></div>
+  <script th:src="@{/js/core/mighty.js}" src="../../static/js/core/mighty.js"></script>
   </body>
 </html>

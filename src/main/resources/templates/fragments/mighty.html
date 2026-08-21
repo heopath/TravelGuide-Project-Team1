@@ -1,0 +1,67 @@
+<!--
+  마이티 — 화면 구석에 서 있는 상담 도우미. (#191)
+
+  이름은 원래부터 있었다. 푸터("여행의 모든 것, 마이티와 함께"), 홈, 로딩 화면,
+  일정 최적화의 `마이티 추천`에 이미 쓰이고 있었는데 몸이 없었다. 여기서 몸을 준다.
+
+  누르면 기존 상담 채팅(/api/v1/support/chat)이 열린다. 별도 대화방을 만들지 않으므로
+  마이페이지 고객센터에서 하던 대화가 여기서 그대로 이어진다.
+
+  관리자·로그인·결제 결과 화면에는 두지 않는다. 일하는 화면과 결제 중에 마스코트가
+  떠 있으면 방해가 된다.
+-->
+<div th:fragment="mighty" class="mighty-root" data-mighty-root>
+
+  <!--
+    버튼은 항상 있다. 로그인하지 않았어도 눌러볼 수 있어야 무엇인지 알 수 있고,
+    그때는 패널이 로그인하러 갈 길을 알려준다.
+  -->
+  <button type="button" class="mighty-button" data-mighty-open
+          aria-label="마이티에게 물어보기" aria-expanded="false">
+    <span class="mighty-figure" aria-hidden="true">
+      <!--
+        직접 그린다. 마스코트 그림 파일이 없어서인데, SVG라 색과 크기를 화면 쪽에서
+        고칠 수 있고 파일을 하나 더 받지 않아도 된다.
+      -->
+      <svg viewBox="0 0 64 64" role="img" focusable="false">
+        <!-- 몸통. 여행 가방을 안은 둥근 형태다. -->
+        <circle class="mighty-body" cx="32" cy="34" r="21" />
+        <!-- 눈 -->
+        <circle class="mighty-eye" cx="25" cy="31" r="3.1" />
+        <circle class="mighty-eye" cx="39" cy="31" r="3.1" />
+        <!-- 웃는 입 -->
+        <path class="mighty-mouth" d="M26 40c2.4 2.6 9.2 2.6 11.6 0" />
+        <!-- 볼 -->
+        <circle class="mighty-blush" cx="19.5" cy="37.5" r="2.6" />
+        <circle class="mighty-blush" cx="44.5" cy="37.5" r="2.6" />
+        <!-- 머리 위를 도는 종이비행기. 여행을 안내한다는 뜻이다. -->
+        <path class="mighty-plane" d="M44 12l10 4-10 4-1.6-3.4z" />
+      </svg>
+    </span>
+    <span class="mighty-dot" data-mighty-dot hidden aria-hidden="true"></span>
+  </button>
+
+  <!-- 대화창. 처음에는 닫혀 있다. -->
+  <section class="mighty-panel" data-mighty-panel hidden
+           role="dialog" aria-modal="false" aria-labelledby="mightyTitle">
+
+    <header class="mighty-head">
+      <div>
+        <strong id="mightyTitle">마이티</strong>
+        <small data-mighty-state>여행에 대해 무엇이든 물어보세요</small>
+      </div>
+      <button type="button" class="mighty-close" data-mighty-close aria-label="닫기">×</button>
+    </header>
+
+    <ul class="mighty-log" data-mighty-log></ul>
+
+    <p class="mighty-empty" data-mighty-empty hidden></p>
+
+    <form class="mighty-form" data-mighty-form>
+      <label class="sr-only" for="mightyInput">보낼 말</label>
+      <input id="mightyInput" data-mighty-input autocomplete="off"
+             maxlength="500" placeholder="무엇을 도와드릴까요?" />
+      <button type="submit" class="mighty-send" data-mighty-send>보내기</button>
+    </form>
+  </section>
+</div>
