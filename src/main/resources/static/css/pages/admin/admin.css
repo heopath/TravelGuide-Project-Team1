@@ -249,8 +249,8 @@ body.page-admin #page-content {
 .page-admin .admin-report-row { grid-template-columns: 90px 100px 1fr 90px 110px; }
 /* 판매 상태가 select라 96px으로는 라벨이 잘린다. 재고는 "남은 / 전체" 두 값을 한 칸에 쓴다. */
 .page-admin .admin-product-row { grid-template-columns: 1fr 104px 112px 128px; }
-/* 상태 칸에 `만료 시각 지남`이 배지 아래로 붙어서 90px으로는 줄바꿈이 지저분해진다. */
-.page-admin .admin-monitor-row { grid-template-columns: 1fr 116px 120px; }
+/* 예약번호·결제 정보·처리 상태를 한 줄에서 판단할 수 있게 네 묶음으로 나눈다. */
+.page-admin .admin-monitor-row { grid-template-columns: minmax(210px, 1.45fr) minmax(120px, .75fr) minmax(150px, .9fr) 120px; }
 
 /* 예약번호 아래에 상품·회원을 붙여 한 칸에 담는다. 상품 이름은 길어서 별도 칸으로 빼기 어렵다. */
 .page-admin .admin-monitor-row strong { display: block; }
@@ -263,6 +263,42 @@ body.page-admin #page-content {
 .page-admin .admin-monitor-row .admin-status { display: inline-block; }
 /* 방치된 건은 상태 배지만으로 구분되지 않는다. 색으로 한 번 더 드러낸다. */
 .page-admin .admin-monitor-row [data-expired-pending] { color: #b4451f; font-weight: 700; }
+.page-admin .admin-monitor-row.needs-attention {
+  border-left: 3px solid #f59e0b;
+  background: #fffaf0;
+}
+
+.page-admin .admin-reservation-alert {
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+.page-admin .admin-reservation-alert .text-button {
+  flex: 0 0 auto;
+  color: #7a4c07;
+  font-weight: 800;
+}
+.page-admin .admin-reservation-controls {
+  margin-bottom: 14px;
+  padding-bottom: 14px;
+  display: grid;
+  gap: 12px;
+  border-bottom: 1px solid var(--border);
+}
+.page-admin .admin-reservation-controls .admin-filter { margin: 0; }
+.page-admin .admin-reservation-search {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.page-admin .admin-reservation-search .admin-search {
+  flex: 1;
+  flex-basis: 100%;
+  min-width: 0;
+  margin: 0;
+}
+.page-admin .admin-reservation-search .admin-chip { flex: 0 0 auto; }
+.page-admin .admin-reservation-count { margin: 0; }
 
 /* 상품명 아래에 장소를 붙여 한 칸에 담는다. 장소를 별도 칸으로 빼면 좁은 화면에서 먼저 잘린다. */
 .page-admin .admin-product-row strong { display: block; }
@@ -817,7 +853,10 @@ body.page-admin #page-content {
   */
   .page-admin .admin-panel { overflow-x: auto; }
   .page-admin .admin-product-row { min-width: 440px; }
-  .page-admin .admin-monitor-row { min-width: 400px; }
+  .page-admin .admin-monitor-row { min-width: 690px; }
+  .page-admin .admin-reservation-search { flex-wrap: wrap; }
+  .page-admin .admin-reservation-search .admin-search { flex-basis: 100%; }
+  .page-admin .admin-reservation-alert { align-items: flex-start; flex-direction: column; }
 
   /*
     회원 관리는 마지막 칸에 버튼 두 개가 들어가 눌러 담을 수 없다. 마지막 로그인을 숨겨
