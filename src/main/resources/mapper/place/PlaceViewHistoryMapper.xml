@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.example.all_my_trip_project.domain.place.mapper.PlaceViewHistoryMapper">
+
+    <!--
+      같은 장소를 다시 보면 행을 늘리지 않고 시각만 올린다. 그래서 목록이 같은 장소로
+      도배되지 않고, 사용자당 행 수도 그 사람이 본 장소 수를 넘지 않는다.
+    -->
+    <insert id="record">
+        INSERT INTO place_view_history (user_id, place_id)
+        VALUES (#{userId}, #{placeId})
+        ON CONFLICT (user_id, place_id)
+        DO UPDATE SET viewed_at = CURRENT_TIMESTAMP
+    </insert>
+
+    <select id="findRecent"
+            resultType="org.example.all_my_trip_project.domain.place.dto.RecentPlaceResult">
+        SELECT h.place_id,
+               p.name AS place_name,
+               p.category,
+               p.region,
+               (
+                   SELECT pi.image_url
+                   FROM place_images pi
+                   WHERE pi.place_id = h.place_id
+                   ORDER BY pi.is_primary DESC, pi.sort_order, pi.place_image_id
+                   LIMIT 1
+               ) AS primary_image_url,
+               h.viewed_at
+        FROM place_view_history h
+        JOIN places p ON p.place_id = h.place_id
+        <!-- 관리자가 내려둔 장소는 상세로 못 들어가므로 목록에서도 뺀다. -->
+        WHERE h.user_id = #{userId}
+          AND p.is_active = TRUE
+        ORDER BY h.viewed_at DESC, h.place_view_history_id DESC
+        LIMIT #{size}
+    </select>
+
+    <!--
+      한 사람의 이력이 무한정 쌓이지 않게 오래된 것부터 지운다. 기록할 때마다 부른다.
+      NOT IN이 아니라 place_view_history_id로 지우는 이유는 viewed_at이 같은 행이
+      있어도 정확히 상한만큼만 남기기 위해서다.
+    -->
+    <delete id="deleteBeyondLimit">
+        DELETE FROM place_view_history
+         WHERE user_id = #{userId}
+           AND place_view_history_id NOT IN (
+               SELECT place_view_history_id
+                 FROM place_view_history
+                WHERE user_id = #{userId}
+                ORDER BY viewed_at DESC, place_view_history_id DESC
+                LIMIT #{limit}
+           )
+    </delete>
+
+    <delete id="deleteByUserId">
+        DELETE FROM place_view_history WHERE user_id = #{userId}
+    </delete>
+</mapper>
