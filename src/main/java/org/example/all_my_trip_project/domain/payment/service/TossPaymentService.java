@@ -119,6 +119,15 @@ public class TossPaymentService {
             throw new BusinessException(ErrorCode.INVALID_PAYMENT_REQUEST);
         }
 
+        /*
+         * 이미 기록된 결제면 토스에 묻지 않고 그대로 돌려준다. 토스는 승인된 결제를 다시
+         * 승인해 주지 않는데, 그 거절을 손님에게 그대로 보이면 결제가 끝났는데도 "결제
+         * 실패"라고 말하게 된다. 돌아오는 주소를 새로고침하면 바로 이 경우다.
+         */
+        PaymentResultResponse recorded =
+                paymentService.findRecorded(userId, request.paymentKey(), reservationId);
+        if (recorded != null) return recorded;
+
         Map<String, Object> approved = callConfirm(request);
         String method = METHODS.getOrDefault(String.valueOf(approved.get("method")), "EASY_PAY");
 

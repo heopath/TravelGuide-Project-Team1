@@ -2,6 +2,7 @@ package org.example.all_my_trip_project.domain.payment.service;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.example.all_my_trip_project.domain.notification.service.NotificationService;
 import org.example.all_my_trip_project.domain.payment.dao.PaymentDAO;
 import org.example.all_my_trip_project.domain.payment.dto.IssuedTicketDTO;
 import org.example.all_my_trip_project.domain.payment.dto.TicketQrResponse;
@@ -76,6 +77,7 @@ public class PaymentService {
     private static final LocalTime DEFAULT_VALID_FROM = LocalTime.MIDNIGHT;
 
     private final PaymentDAO paymentDAO;
+    private final NotificationService notificationService;
     /*
      * systemUTC가 아니라 기본 시간대를 쓴다. usage_date는 현장의 달력 날짜라, UTC로 읽으면
      * 한국 기준 9시간이 밀려 유효기간이 하루 어긋난다. 운영·로컬 모두 Asia/Seoul이다.
@@ -88,7 +90,12 @@ public class PaymentService {
      *
      * <p>같은 멱등키로 다시 들어오면 결제를 새로 만들지 않고 앞의 결과를 그대로 돌려준다.
      * 결제 버튼을 두 번 누르거나 응답이 유실되어 재시도하는 경우다.
+     *
+     * <p>여기에도 {@code @Transactional}이 필요하다. 아래 5-인자 메서드에 붙어 있어도
+     * 같은 클래스 안에서 부르면 프록시를 거치지 않아 걸리지 않는다. 이 애노테이션이
+     * 없으면 모의 결제가 통째로 트랜잭션 없이 돌아, 발권이 실패해도 결제 기록만 남는다.
      */
+    @Transactional
     public PaymentResultResponse pay(Long userId, Long reservationId, PaymentRequest request) {
         return pay(userId, reservationId, request, null, null);
     }
@@ -154,6 +161,16 @@ public class PaymentService {
         }
 
         List<IssuedTicketDTO> tickets = issue(reservation);
+
+        /*
+         * 결제가 끝났다고 알린다. 실패해도 결제를 되돌리지 않는다 — 알림이 없어도 티켓은
+         * 마이페이지에 있고, 알림 하나 때문에 결제를 무르면 손님이 잃는 것이 훨씬 크다.
+         */
+        notificationService.notify(userId, "PAYMENT_COMPLETED",
+                "결제가 완료됐어요",
+                "티켓 " + tickets.size() + "장이 발급됐습니다. 입장 QR을 확인해 주세요.",
+                "/mypage?view=tickets");
+
         /*
          * 넣은 객체가 아니라 DB에서 다시 읽어 돌려준다. status·승인 시각·발급 시각은 DB가
          * 채우므로, INSERT에 쓴 객체를 그대로 내보내면 그 칸들이 null인 채 응답에 실린다.
@@ -182,6 +199,18 @@ public class PaymentService {
      * <p>다른 예약에 쓰인 키로 들어오면 거부한다. 그대로 통과시키면 A를 결제한 응답을 받고
      * B가 결제됐다고 믿게 된다.
      */
+    /**
+     * 같은 멱등키로 이미 기록된 결제가 있으면 그 결과를 돌려준다. 없으면 {@code null}이다.
+     *
+     * <p>실제 결제사를 거치는 흐름이 <b>결제사에 승인을 묻기 전에</b> 부른다. 이미 승인된
+     * 결제를 다시 물으면 결제사가 거절하는데, 그 거절을 그대로 손님에게 보이면 "결제
+     * 실패"라고 말하게 된다 — 결제는 이미 됐고 티켓도 나온 상태인데도. 돌아오는 주소를
+     * 새로고침하면 바로 그 일이 벌어진다.
+     */
+    PaymentResultResponse findRecorded(Long userId, String idempotencyKey, Long reservationId) {
+        return replay(userId, idempotencyKey, reservationId);
+    }
+
     private PaymentResultResponse replay(Long userId, String idempotencyKey, Long reservationId) {
         PaymentDTO previous = paymentDAO.findByIdempotencyKey(userId, idempotencyKey).orElse(null);
         if (previous == null) return null;

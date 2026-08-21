@@ -20,7 +20,7 @@ const notice = document.querySelector("[data-toss-notice]");
 const backLink = document.querySelector("[data-toss-back]");
 
 /* 결제를 시작한 화면. 없으면 마이페이지로 보낸다 — 티켓은 거기서도 확인할 수 있다. */
-const RETURN_KEY = "allmytrips.tossReturnTo";
+const RETURN_KEY = "allmytrips.payReturnTo";
 
 function setState(message) {
     state.textContent = message;

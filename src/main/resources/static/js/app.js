@@ -120,6 +120,8 @@ const ALL_MY_TRIPS_TEMPLATE_ROUTES = {
   "/booking/flights": "booking/flights",
   "/booking/queue": "booking/queue",
   "/pay/qr": "payment/qr-approve",
+  "/pay/toss": "payment/toss-return",
+  "/pay/kakao": "payment/kakao-return",
   "/mypage": "mypage/mypage",
   "/trips/1/record": "trips/record",
   "/admin": "admin/admin",
@@ -323,6 +325,21 @@ const ALL_MY_TRIPS_SCREENS = [
     "booking"
   ],
   /*
+   * 결제사에서 돌아오는 화면 둘. 보통은 토스·카카오페이가 결제 결과를 주소에 실어
+   * 보내지만, 목록에서 그냥 열면 "결제가 취소되었거나 완료되지 않았어요" 안내가 뜬다.
+   * QR 승인 화면과 같은 이유로 결과 없는 주소로 둔다. (#281)
+   */
+  [
+    "/pay/toss",
+    "토스 결제 결과",
+    "booking"
+  ],
+  [
+    "/pay/kakao",
+    "카카오페이 결제 결과",
+    "booking"
+  ],
+  /*
    * 마이페이지도 주소 하나에 사이드바로 고르는 패널이다. 예약·관리자와 같은 이유로 각각 센다.
    * mypage.js가 ?view= 를 읽는다(trips/favorites/reviews/support/settings, 없으면 대시보드).
    *
@@ -356,6 +373,11 @@ const ALL_MY_TRIPS_SCREENS = [
   [
     "/mypage?view=support",
     "마이페이지 · 고객센터 문의",
+    "mypage"
+  ],
+  [
+    "/mypage?view=notifications",
+    "마이페이지 · 알림",
     "mypage"
   ],
   [
@@ -426,7 +448,29 @@ const ALL_MY_TRIPS_SCREENS = [
     "/admin?panel=audit",
     "관리자 · 조작 이력",
     "admin"
-  ]
+  ],
+  /*
+   * 사이드바에는 있는데 이 목록에서 빠져 있던 패널 셋이다. 화면 목록으로만 세면
+   * 관리자가 10장인데 실제로는 13장이다. (#191)
+   *
+   * 티켓 검표(validation)와 현장 검표(/admin/scan)는 다른 화면이다. 앞은 관리자
+   * 책상에서 번호로 확인하는 화면이고, 뒤는 현장에서 폰으로 QR을 찍는 화면이다.
+   */
+  [
+    "/admin?panel=version",
+    "관리자 · 서비스 버전",
+    "admin"
+  ],
+  [
+    "/admin?panel=members",
+    "관리자 · 회원 관리",
+    "admin"
+  ],
+  [
+    "/admin?panel=validation",
+    "관리자 · 티켓 검표",
+    "admin"
+  ],
 ];
 
 const MODALS = {

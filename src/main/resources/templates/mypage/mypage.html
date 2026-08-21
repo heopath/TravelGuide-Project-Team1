@@ -10,6 +10,7 @@
     승인은 서버만 하고, 브라우저에 있으면 누구나 우리 이름으로 승인을 부를 수 있다.
   -->
   <meta name="toss-client-key" th:content="${tossClientKey}" content="" />
+  <meta name="kakao-pay-enabled" th:content="${kakaoPayEnabled}" content="false" />
 
   <title>마이 페이지 — All My Trips</title>
 
@@ -140,11 +141,15 @@
 
             <button
                     type="button"
-                    disabled
+                    data-open-notifications
             >
               <span aria-hidden="true">◇</span>
               <span>알림</span>
-              <em>준비 중</em>
+              <!--
+                안 읽은 개수. 0이면 감춘다 — 0이 붙어 있으면 읽을 것이 있는 줄 알고
+                눌러 보게 된다.
+              -->
+              <em data-notification-badge hidden></em>
             </button>
 
             <button
@@ -785,6 +790,51 @@
                 <div data-support-detail-content></div>
               </section>
             </div>
+          </section>
+
+          <!-- =================================================
+               알림
+               ================================================= -->
+          <section
+                  class="white-panel mypage-notifications-view"
+                  data-notifications-view
+                  hidden
+          >
+
+            <div class="mypage-view-head">
+              <div class="mypage-view-title">
+
+                <button
+                        type="button"
+                        class="mypage-back-button"
+                        data-close-notifications
+                >
+                  ← 이전 화면
+                </button>
+
+                <div>
+                  <h2>알림</h2>
+
+                  <p>
+                    결제와 문의 답변을 알려드립니다.
+                  </p>
+                </div>
+
+              </div>
+
+              <button
+                      type="button"
+                      class="text-button"
+                      data-notifications-read-all
+                      hidden
+              >
+                모두 읽음으로
+              </button>
+            </div>
+
+            <p data-notifications-state>알림을 불러오는 중입니다…</p>
+
+            <ul class="notification-list" data-notifications-list hidden></ul>
           </section>
 
           <!-- =================================================

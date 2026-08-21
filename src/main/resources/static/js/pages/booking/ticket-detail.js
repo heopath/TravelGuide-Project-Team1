@@ -21,9 +21,12 @@
   };
 
   const SALE_BADGES = {
+    ON_SALE: "예매 가능",
     SCHEDULED: "오픈 예정",
     ENDED: "판매 종료",
   };
+
+  const DAY_LABELS = ["일", "월", "화", "수", "목", "금", "토"];
 
   const state = {
     product: null,
@@ -82,9 +85,39 @@
 
   /* ── 그리기 ── */
 
+  function make(tagName, className, text) {
+    const node = document.createElement(tagName);
+    if (className) node.className = className;
+    if (text !== undefined && text !== null) node.textContent = String(text);
+    return node;
+  }
+
+  /* 서버 문자열은 innerHTML로 넣지 않는다. 상품명·옵션명·장소명은 관리자 입력값이다. */
   function fact(label, value) {
-    if (!value) return "";
-    return `<div><dt>${label}</dt><dd>${value}</dd></div>`;
+    if (!value) return null;
+    const row = make("div");
+    row.append(make("dt", "", label), make("dd", "", value));
+    return row;
+  }
+
+  function safeImageUrl(value) {
+    if (!value) return null;
+    try {
+      const parsed = new URL(String(value), window.location.origin);
+      return ["http:", "https:"].includes(parsed.protocol) ? parsed.href : null;
+    } catch (_error) {
+      return null;
+    }
+  }
+
+  function dateParts(value) {
+    const date = new Date(`${value}T00:00:00`);
+    if (Number.isNaN(date.getTime())) return { day: value, month: "", weekday: "" };
+    return {
+      day: String(date.getDate()),
+      month: `${date.getMonth() + 1}월`,
+      weekday: `${DAY_LABELS[date.getDay()]}요일`,
+    };
   }
 
   function periodLabel(product) {
@@ -115,16 +148,34 @@
 
   function renderHead() {
     const product = state.product;
-    $("[data-ticket-category]").textContent =
-      CATEGORY_LABELS[product.category] || "티켓·액티비티";
+    const category = CATEGORY_LABELS[product.category] || "티켓·액티비티";
+    $("[data-ticket-category]").textContent = category;
     $("[data-ticket-region]").textContent = product.region || product.city || "";
     $("[data-ticket-name]").textContent = product.productName;
     $("[data-ticket-place]").textContent = product.placeName || "";
+    $("[data-ticket-poster-category]").textContent = category.toUpperCase();
+    $("[data-ticket-poster-name]").textContent = product.productName;
+
+    const image = $("[data-ticket-image]");
+    const fallback = $("[data-ticket-image-fallback]");
+    const imageUrl = safeImageUrl(product.imageUrl);
+    image.hidden = !imageUrl;
+    fallback.hidden = Boolean(imageUrl);
+    if (imageUrl) {
+      image.src = imageUrl;
+      image.alt = `${product.productName} 대표 이미지`;
+      image.addEventListener("error", () => {
+        image.hidden = true;
+        fallback.hidden = false;
+      }, { once: true });
+    } else {
+      image.removeAttribute("src");
+      image.alt = "";
+    }
 
     const badge = $("[data-ticket-sale-badge]");
-    const label = SALE_BADGES[product.saleState];
-    badge.hidden = !label;
-    badge.textContent = label || "";
+    const label = SALE_BADGES[product.saleState] || "판매 상태 확인";
+    badge.textContent = label;
     badge.dataset.state = product.saleState || "";
 
     $("[data-ticket-head]").hidden = false;
@@ -133,15 +184,18 @@
 
   function renderInfo() {
     const product = state.product;
-    $("[data-ticket-facts]").innerHTML = [
+    const rows = [
       fact("이용 기간", periodLabel(product)),
       fact("이용 시간", [...new Set(state.slots.map(timeLabel))].join(" · ")),
       fact("장소", product.placeName),
       fact("가격", priceLabel()),
-      fact("남은 수량", product.remainingQuantity ? `${product.remainingQuantity}개` : ""),
+      fact("남은 수량", Number.isFinite(Number(product.remainingQuantity))
+        ? `${product.remainingQuantity}개` : ""),
       fact("1인 최대", state.slots[0]?.maxQuantityPerUser
         ? `${state.slots[0].maxQuantityPerUser}매` : ""),
-    ].join("");
+    ].filter(Boolean);
+    $("[data-ticket-facts]").replaceChildren(...rows);
+    $("[data-ticket-min-price]").textContent = won(product.minUnitPrice);
 
     const about = $("[data-ticket-about]");
     about.hidden = !product.description;
@@ -180,13 +234,26 @@
     renderQuantity();
     renderTotal();
     renderReserveButton();
+    renderSteps();
   }
 
   function renderDates() {
     const dates = [...new Set(state.slots.map((slot) => slot.usageDate))].sort();
-    $("[data-ticket-dates]").innerHTML = dates.map((date) => `
-      <button type="button" class="tk-chip${date === state.date ? " on" : ""}"
-              data-ticket-date="${date}">${date.replaceAll("-", ".")}</button>`).join("");
+    const nodes = dates.map((date) => {
+      const parts = dateParts(date);
+      const button = make("button", `tk-chip tk-date-option${date === state.date ? " on" : ""}`);
+      button.type = "button";
+      button.dataset.ticketDate = date;
+      button.setAttribute("aria-pressed", String(date === state.date));
+
+      const day = make("span", "tk-date-day", parts.day);
+      const copy = make("span", "tk-date-copy");
+      copy.append(make("strong", "", `${parts.month} ${parts.weekday}`), make("small", "", date.replaceAll("-", ".")));
+      const count = state.slots.filter((slot) => slot.usageDate === date).length;
+      button.append(day, copy, make("em", "", `${count}개 회차`));
+      return button;
+    });
+    $("[data-ticket-dates]").replaceChildren(...nodes);
   }
 
   function slotsOfDate() {
@@ -198,12 +265,23 @@
     field.hidden = !state.date;
     if (!state.date) return;
 
-    $("[data-ticket-slots]").innerHTML = slotsOfDate().map((slot) => `
-      <button type="button" class="tk-chip${String(slot.slotId) === String(state.slotId) ? " on" : ""}"
-              data-ticket-slot="${slot.slotId}">
-        ${timeLabel(slot)} · ${slot.optionName}
-        <small>${won(slot.unitPrice)} · 남은 ${slot.remainingQuantity}개</small>
-      </button>`).join("");
+    const nodes = slotsOfDate().map((slot) => {
+      const selected = String(slot.slotId) === String(state.slotId);
+      const soldOut = Number(slot.remainingQuantity) <= 0;
+      const button = make("button", `tk-chip tk-slot-option${selected ? " on" : ""}`);
+      button.type = "button";
+      button.dataset.ticketSlot = String(slot.slotId);
+      button.disabled = soldOut;
+      button.setAttribute("aria-pressed", String(selected));
+      button.append(
+        make("strong", "", `${timeLabel(slot)} · ${slot.optionName || "기본권"}`),
+        make("span", "", won(slot.unitPrice)),
+        make("small", "", soldOut ? "선택할 수 없는 회차" : `1인 최대 ${slot.maxQuantityPerUser || 1}매`),
+        make("em", "", soldOut ? "매진" : `남은 ${slot.remainingQuantity}개`),
+      );
+      return button;
+    });
+    $("[data-ticket-slots]").replaceChildren(...nodes);
   }
 
   function selectedSlot() {
@@ -216,7 +294,14 @@
     field.hidden = !slot;
     if (!slot) return;
 
-    const max = Math.min(slot.maxQuantityPerUser || 1, slot.remainingQuantity || 1);
+    const max = Math.max(0, Math.min(
+      Number(slot.maxQuantityPerUser) || 1,
+      Number(slot.remainingQuantity) || 0,
+    ));
+    if (max === 0) {
+      field.hidden = true;
+      return;
+    }
     const input = $("[data-ticket-quantity]");
     input.max = String(max);
     if (state.quantity > max) state.quantity = max;
@@ -229,7 +314,10 @@
     const slot = selectedSlot();
     const row = $("[data-ticket-total-row]");
     row.hidden = !slot;
-    if (slot) $("[data-ticket-total]").textContent = won(slot.unitPrice * state.quantity);
+    if (slot) {
+      $("[data-ticket-total]").textContent = won(slot.unitPrice * state.quantity);
+      $("[data-ticket-total-detail]").textContent = `${slot.optionName || "티켓"} ${state.quantity}매`;
+    }
   }
 
   function renderReserveButton() {
@@ -238,10 +326,29 @@
     const upcoming = state.product.saleState === "SCHEDULED";
     const ended = state.product.saleState === "ENDED";
 
-    button.disabled = Boolean(upcoming || ended || !slot);
+    const soldOut = slot && Number(slot.remainingQuantity) <= 0;
+    button.disabled = Boolean(upcoming || ended || soldOut || !slot);
     button.textContent = upcoming ? "오픈 전이에요"
       : ended ? "판매가 끝났어요"
-        : slot ? "모의 예약 담기" : "회차를 골라 주세요";
+        : soldOut ? "매진된 회차예요"
+          : slot ? "선택한 티켓 예매하기" : "회차를 골라 주세요";
+  }
+
+  function renderSteps() {
+    const slot = selectedSlot();
+    const steps = {
+      date: Boolean(state.date),
+      slot: Boolean(slot),
+      quantity: Boolean(slot),
+    };
+    document.querySelectorAll("[data-ticket-step]").forEach((item) => {
+      const name = item.dataset.ticketStep;
+      item.classList.toggle("done", steps[name] && name !== "quantity");
+      item.classList.toggle("on",
+        (name === "date" && !state.date)
+        || (name === "slot" && state.date && !slot)
+        || (name === "quantity" && Boolean(slot)));
+    });
   }
 
   /* ── 오픈 예정 카운트다운 (#256) ── */
@@ -375,6 +482,7 @@
         renderQuantity();
         renderTotal();
         renderReserveButton();
+        renderSteps();
         return;
       }
 
@@ -386,6 +494,7 @@
         renderQuantity();
         renderTotal();
         renderReserveButton();
+        renderSteps();
         return;
       }
 

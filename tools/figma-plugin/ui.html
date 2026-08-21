@@ -1,0 +1,147 @@
+<style>
+  :root { color-scheme: light dark; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 16px;
+    font: 13px/1.55 "Pretendard", "Malgun Gothic", -apple-system, sans-serif;
+    color: #1c1f26;
+    background: #fff;
+  }
+  @media (prefers-color-scheme: dark) {
+    body { color: #e7e9ef; background: #1c1f26; }
+    .row { border-color: #333844 !important; }
+    .box { background: #232733 !important; }
+    button.ghost { background: #232733 !important; color: #e7e9ef !important; border-color: #3a4050 !important; }
+  }
+  h1 { margin: 0 0 4px; font-size: 15px; }
+  p.lead { margin: 0 0 14px; color: #7b8194; font-size: 12px; }
+  .actions { display: flex; gap: 8px; margin-bottom: 14px; }
+  button {
+    flex: 1; min-height: 34px; padding: 0 12px;
+    border: 1px solid transparent; border-radius: 7px;
+    font: inherit; font-weight: 700; cursor: pointer;
+  }
+  button.primary { background: #5b6bff; color: #fff; }
+  button.ghost { background: #f4f5f9; color: #1c1f26; border-color: #dfe2ec; }
+  button:disabled { opacity: .5; cursor: default; }
+  .tally { display: flex; gap: 8px; margin-bottom: 12px; }
+  .box { flex: 1; padding: 10px 12px; border-radius: 8px; background: #f4f5f9; }
+  .box b { display: block; font-size: 20px; }
+  .box span { font-size: 11px; color: #7b8194; }
+  h2 { margin: 16px 0 6px; font-size: 12px; letter-spacing: .04em; color: #7b8194; }
+  .row { padding: 7px 0; border-top: 1px solid #eceef4; font-size: 12px; }
+  .row:first-of-type { border-top: 0; }
+  .row code { font-size: 11px; color: #7b8194; }
+  .how { float: right; font-size: 10px; color: #9aa0b2; }
+  .empty { color: #9aa0b2; font-size: 12px; padding: 6px 0; }
+  .err { color: #d64545; font-weight: 700; }
+  #out { max-height: 330px; overflow: auto; }
+  textarea { width: 100%; height: 90px; margin-top: 8px; font: 11px/1.5 monospace;
+    border: 1px solid #dfe2ec; border-radius: 6px; padding: 8px; background: transparent; color: inherit; }
+</style>
+
+<h1>화면 점검</h1>
+<p class="lead">코드의 화면 목록과 이 파일의 프레임을 대조합니다. 기존 프레임은 건드리지 않습니다.</p>
+
+<div class="actions">
+  <button class="primary" id="inspect">점검하기</button>
+  <button class="ghost" id="create" disabled>빠진 화면 만들기</button>
+</div>
+
+<div class="actions">
+  <button class="ghost" id="story">스토리보드 만들기</button>
+  <button class="ghost" id="modal">모달 페이지 만들기</button>
+</div>
+<p class="lead" style="margin:-6px 0 12px">
+  누르면 캡처 파일을 고르는 창이 뜹니다. <code>shots</code> 폴더의 PNG를 전부 선택하세요.
+  고르지 않으면 캡처 없이 카드만 만듭니다.
+</p>
+<input type="file" id="shots" accept="image/png" multiple hidden />
+
+<div id="out"><p class="empty">점검하기를 눌러 주세요.</p></div>
+
+<script>
+  const out = document.getElementById("out");
+  const createButton = document.getElementById("create");
+
+  document.getElementById("inspect").onclick = () => parent.postMessage({ pluginMessage: { type: "inspect" } }, "*");
+  createButton.onclick = () => parent.postMessage({ pluginMessage: { type: "create-missing" } }, "*");
+
+  const esc = (s) => String(s).replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
+
+  function render(report) {
+    createButton.disabled = report.missing.length === 0;
+
+    let html = '<div class="tally">'
+      + '<div class="box"><b>' + report.found.length + '</b><span>시안에 있음</span></div>'
+      + '<div class="box"><b>' + report.missing.length + '</b><span>시안에 없음</span></div>'
+      + '<div class="box"><b>' + report.extra.length + '</b><span>짝 없는 프레임</span></div>'
+      + '</div>';
+
+    html += "<h2>시안에 없는 화면</h2>";
+    html += report.missing.length
+      ? report.missing.map((m) => '<div class="row">' + esc(m.name)
+          + '<br><code>' + esc(m.path) + '</code></div>').join("")
+      : '<p class="empty">없습니다. 코드의 화면이 모두 시안에 있습니다.</p>';
+
+    html += "<h2>짝을 찾지 못한 프레임</h2>";
+    html += '<p class="empty" style="margin:0 0 4px">지워야 할 것일 수도, 이름만 다르거나 화면이 아닌 것일 수도 있습니다. 플러그인은 손대지 않습니다.</p>';
+    html += report.extra.length
+      ? report.extra.map((e) => '<div class="row">' + esc(e.frame)
+          + '<span class="how">' + esc(e.page) + '</span></div>').join("")
+      : '<p class="empty">없습니다.</p>';
+
+    html += "<h2>맞춰진 화면</h2>";
+    html += report.found.length
+      ? report.found.map((f) => '<div class="row">' + esc(f.name)
+          + '<span class="how">' + esc(f.how) + ' · ' + esc(f.page) + '</span>'
+          + '<br><code>' + esc(f.frame) + '</code></div>').join("")
+      : '<p class="empty">없습니다.</p>';
+
+    /* 결과를 그대로 복사해 공유할 수 있게 둔다. 스크린샷보다 옮기기 쉽다. */
+    const lines = ["화면 " + report.total + "개 중 " + report.found.length + "개 있음, "
+      + report.missing.length + "개 없음, 짝 없는 프레임 " + report.extra.length + "개", "",
+      "[시안에 없는 화면]", ...report.missing.map((m) => "- " + m.name + "  " + m.path), "",
+      "[짝을 찾지 못한 프레임]", ...report.extra.map((e) => "- " + e.frame + "  (" + e.page + ")")];
+    html += "<h2>복사해서 공유하기</h2><textarea readonly>" + esc(lines.join("\n")) + "</textarea>";
+
+    out.innerHTML = html;
+  }
+
+  /*
+   * 캡처는 화면 쪽에서 읽어 넘긴다. 플러그인 본체는 파일 시스템에 손댈 수 없다.
+   * 파일 이름(sb-01.png)이 어느 카드인지 정한다 — 고른 순서는 믿지 않는다.
+   */
+  const shots = document.getElementById("shots");
+  /* 어느 버튼으로 들어왔는지 기억해 둔다. 파일 고르는 창은 하나를 같이 쓴다. */
+  let picking = "storyboard";
+  document.getElementById("story").onclick = () => { picking = "storyboard"; shots.click(); };
+  document.getElementById("modal").onclick = () => { picking = "modals"; shots.click(); };
+
+  shots.onchange = async () => {
+    const files = [...shots.files];
+    const images = [];
+    for (const file of files) {
+      const wanted = picking === "modals" ? /^m\d+\.png$/i : /^sb-\d+\.png$/i;
+      if (!wanted.test(file.name)) continue;
+      images.push({ file: file.name.toLowerCase(), bytes: [...new Uint8Array(await file.arrayBuffer())] });
+    }
+    out.innerHTML = '<p class="empty">캡처 ' + images.length + "장으로 스토리보드를 만드는 중…</p>";
+    parent.postMessage({ pluginMessage: { type: picking === "modals" ? "modals" : "storyboard", images } }, "*");
+  };
+
+  onmessage = (event) => {
+    const message = event.data.pluginMessage;
+    if (!message) return;
+    if (message.type === "report" || message.type === "created") render(message.report);
+    if (message.type === "storyboard-done") {
+      const r = message.result;
+      out.innerHTML = '<div class="tally">'
+        + '<div class="box"><b>' + r.cards + '</b><span>만든 카드</span></div>'
+        + '<div class="box"><b>' + r.withShot + '</b><span>캡처 들어감</span></div>'
+        + '</div><p class="empty">페이지: ' + esc(r.page) + "</p>";
+    }
+    if (message.type === "error") out.innerHTML = '<p class="err">' + esc(message.message) + "</p>";
+  };
+</script>
