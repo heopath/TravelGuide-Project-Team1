@@ -29,7 +29,7 @@ document.addEventListener("DOMContentLoaded", function () {
   let savingTrip = false;
   let scheduleDays = [];
   let lastRouteResult = null;
-  let lastOptimizationCriterion = "TIME";
+  let lastOptimizationCriterion = "DISTANCE";
   let optimizationPreviewKey = "";
   let allScheduleVisible = false;
   let activeScheduleCalculation = new Map();
@@ -68,6 +68,9 @@ document.addEventListener("DOMContentLoaded", function () {
   let floatingAddressPopover = null;
   let floatingAddressButton = null;
   let floatingAddressParent = null;
+  let mapDestinationLookup = "";
+  const fallbackMapCenter = {latitude: 37.5665, longitude: 126.9780};
+  const destinationOverviewLevel = 8;
 
   function loadPlaceCategoryNames() {
     try {
@@ -115,6 +118,7 @@ document.addEventListener("DOMContentLoaded", function () {
   const scheduleMapPanel = document.querySelector(".schedule-workspace-body > .map-panel");
   const period = document.querySelector("[data-schedule-period]");
   const destination = document.querySelector("[data-schedule-destination]");
+  const companion = document.querySelector("[data-schedule-companion]");
   const mapContainer = document.querySelector("[data-schedule-map]");
   const mapExpandButton = document.querySelector(".map-expand-button");
   const mapRouteToggle = document.querySelector("[data-toggle-route-map]");
@@ -139,6 +143,7 @@ document.addEventListener("DOMContentLoaded", function () {
   const routeToggle = document.querySelector("[data-toggle-route]");
   const backButton = document.querySelector("[data-schedule-back]");
   const aiEmptyCta = document.querySelector("[data-schedule-ai-empty-cta]");
+  const placeAddCta = document.querySelector("[data-schedule-place-add-cta]");
   const placeAddTrigger = document.querySelector("[data-place-add-trigger]");
   const placeAddPopover = document.querySelector("[data-place-add-popover]");
   const placeAddClose = document.querySelector("[data-place-add-close]");
@@ -170,6 +175,7 @@ document.addEventListener("DOMContentLoaded", function () {
     if (enabled) {
       scheduleMapPanel?.style.removeProperty("--schedule-map-top-offset");
       hideDurationGuide();
+      togglePlaceAddCta(false);
     }
   }
 
@@ -248,27 +254,9 @@ document.addEventListener("DOMContentLoaded", function () {
   function closePlaceSearchPanel() {
     if (!placeAddPopover) return;
     placeAddPopover.hidden = true;
+    document.body.classList.remove("place-search-open");
     placeAddTrigger?.setAttribute("aria-expanded", "false");
     if (optimizationSummarySlot) optimizationSummarySlot.hidden = false;
-  }
-
-  function positionPlaceSearchPanel() {
-    if (!placeAddPopover || placeAddPopover.hidden || !placeAddTrigger) return;
-    if (window.innerWidth <= 760) {
-      placeAddPopover.style.removeProperty("top");
-      placeAddPopover.style.removeProperty("right");
-      placeAddPopover.style.removeProperty("left");
-      return;
-    }
-    const parent = placeAddPopover.offsetParent || placeAddPopover.parentElement;
-    if (!parent) return;
-    const triggerRect = placeAddTrigger.getBoundingClientRect();
-    const parentRect = parent.getBoundingClientRect();
-    const panelWidth = placeAddPopover.offsetWidth;
-    const panelLeft = Math.max(0, Math.round(triggerRect.right - parentRect.left - panelWidth));
-    placeAddPopover.style.top = Math.round(triggerRect.bottom - parentRect.top + 8) + "px";
-    placeAddPopover.style.left = panelLeft + "px";
-    placeAddPopover.style.right = "auto";
   }
 
   function closeMorePanels() {
@@ -349,6 +337,17 @@ document.addEventListener("DOMContentLoaded", function () {
     if (aiEmptyCta) aiEmptyCta.hidden = !visible;
   }
 
+  function togglePlaceAddCta(visible) {
+    if (!placeAddCta || !timeline) return;
+    timeline.appendChild(placeAddCta);
+    if (visible) {
+      placeAddCta.hidden = false;
+      placeAddCta.removeAttribute("hidden");
+    } else {
+      placeAddCta.hidden = true;
+    }
+  }
+
   function setRouteToggleLabel(label) {
     if (!routeToggle) return;
     const labelElement = routeToggle.querySelector("strong");
@@ -364,6 +363,29 @@ document.addEventListener("DOMContentLoaded", function () {
     placeAddTitle.textContent = day?.dayNumber
       ? "DAY " + day.dayNumber + "에 장소 추가"
       : "일정에 장소 추가";
+  }
+
+  const companionLabels = {
+    ALONE: "혼자",
+    FRIEND: "with 친구",
+    COUPLE: "with 연인",
+    FAMILY: "with 가족",
+    PARENTS: "with 부모님",
+    CHILDREN: "with 아이",
+    SOLO: "혼자",
+    FRIENDS: "with 친구",
+    GROUP: "with 일행",
+    OTHER: "with 동행자",
+  };
+
+  function updateScheduleCompanion(apiCompanionType) {
+    if (!companion) return;
+    const draft = readDraft();
+    const draftTripMatches = !activeTripId || Number(draft.trip?.tripId) === activeTripId;
+    const selectedCompanion = draftTripMatches ? draft.basic?.companion : "";
+    const label = companionLabels[selectedCompanion || apiCompanionType] || "";
+    companion.textContent = label;
+    companion.hidden = !label;
   }
 
   function showEmpty(container, message) {
@@ -486,6 +508,18 @@ document.addEventListener("DOMContentLoaded", function () {
       }
     });
     if (modesChanged) saveSegmentModes();
+  }
+
+  function resetSegmentRoutesForOrder(day = activeDay) {
+    if (!day) return;
+    const currentPrefix = [String(activeTripId || "draft"), segmentDayKey(day), ""].join(":");
+    Array.from(segmentRouteResults.keys()).forEach(function (key) {
+      if (key.startsWith(currentPrefix)) segmentRouteResults.delete(key);
+    });
+    Array.from(segmentModes.keys()).forEach(function (key) {
+      if (key.startsWith(currentPrefix)) segmentModes.delete(key);
+    });
+    saveSegmentModes();
   }
 
   function findSegmentControl(key) {
@@ -670,8 +704,13 @@ document.addEventListener("DOMContentLoaded", function () {
       ? Math.max(0, Number(result.originalDistanceMeters || 0) - Number(result.optimizedDistanceMeters || 0))
       : 0;
     const improvements = [];
+    if (criterion === "DISTANCE" && savedDistance > 0) {
+      improvements.push(formatRouteDistance(savedDistance) + " 단축");
+    }
     if (savedMinutes > 0) improvements.push(savedMinutes + "분 절약");
-    if (savedDistance > 0) improvements.push(formatRouteDistance(savedDistance) + " 단축");
+    if (criterion !== "DISTANCE" && savedDistance > 0) {
+      improvements.push(formatRouteDistance(savedDistance) + " 단축");
+    }
     preview.textContent = improvements.length
       ? "✨ " + improvements.join(" · ")
       : "현재 경로가 이미 최적입니다.";
@@ -686,14 +725,14 @@ document.addEventListener("DOMContentLoaded", function () {
     const summary = document.createElement("div");
     summary.className = "schedule-time-total-summary";
     if (!items.length || !globalTransportMode) {
-      summary.textContent = "❗ 교통수단 선택 후 첫 시작시간과 각 장소의 체류시간을 설정하면 일정이 자동 계산됩니다.";
+      summary.textContent = "❗ 교통수단 선택 후 시작시간과 체류시간을 설정하면 일정이 자동 계산됩니다.";
       insertScheduleSummary(summary);
       return;
     }
     const first = activeScheduleCalculation.get(getScheduleTimeKey(items[0]));
     const last = activeScheduleCalculation.get(getScheduleTimeKey(items[items.length - 1]));
     if (!first?.startTime || !last?.endTime || activeScheduleCalculation.size < items.length) {
-      summary.textContent = "❗ 교통수단 선택 후 첫 시작시간과 각 장소의 체류시간을 설정하면 일정이 자동 계산됩니다.";
+      summary.textContent = "❗ 교통수단 선택 후 시작시간과 체류시간을 설정하면 일정이 자동 계산됩니다.";
       insertScheduleSummary(summary);
       return;
     }
@@ -716,17 +755,27 @@ document.addEventListener("DOMContentLoaded", function () {
       return item.place?.latitude != null && item.place?.longitude != null;
     });
     if (places.length < 2) return;
-    const key = String(day.tripDayId) + ":" + globalTransportMode + ":" + places.map(segmentItemKey).join(",");
+    const requestedOrderIds = (items || []).map(function (item) {
+      return Number(item.itineraryItemId);
+    }).filter(Number.isFinite);
+    const key = String(day.tripDayId) + ":" + globalTransportMode + ":"
+      + (items || []).map(segmentItemKey).join(",");
     if (optimizationPreviewKey === key) return;
     optimizationPreviewKey = key;
     try {
       const result = await api(
-        "/api/v1/trip-days/" + day.tripDayId + "/optimize-route?criterion=TIME&mode="
+        "/api/v1/trip-days/" + day.tripDayId + "/optimize-route?criterion=DISTANCE&mode="
         + encodeURIComponent(globalTransportMode),
-        {method: "POST"}
+        {
+          method: "POST",
+          headers: {"Content-Type": "application/json"},
+          body: JSON.stringify(requestedOrderIds),
+        }
       );
-      if (activeDay?.tripDayId !== day.tripDayId || allScheduleVisible) return;
-      renderRouteSummary(result, "TIME", true);
+      if (activeDay?.tripDayId !== day.tripDayId
+        || allScheduleVisible
+        || optimizationPreviewKey !== key) return;
+      renderRouteSummary(result, "DISTANCE", true);
     } catch (error) {
       // 미리보기 실패는 일정 표시를 막지 않고, 사용자가 직접 최적화를 실행할 수 있게 둔다.
     }
@@ -787,34 +836,6 @@ document.addEventListener("DOMContentLoaded", function () {
     const startTimes = readScheduleDayStartTimes();
     startTimes[getScheduleDayStartKey(day)] = startTime;
     sessionStorage.setItem(scheduleDayStartStorageKey, JSON.stringify(startTimes));
-  }
-
-  // 서버 저장 전 초안도 전체 보기에서는 DAY별로 구분해야 한다.
-  function scheduleDayIdentity(day) {
-    return day?.tripDayId
-      ? "trip-day:" + day.tripDayId
-      : "draft-day:" + draftDayKey(day);
-  }
-
-  function attachScheduleDayIdentity(items, day) {
-    const dayIdentity = scheduleDayIdentity(day);
-    return (items || []).map(function (item) {
-      return {
-        ...item,
-        tripDayId: item.tripDayId || day?.tripDayId,
-        scheduleDayIdentity: item.scheduleDayIdentity || dayIdentity,
-      };
-    });
-  }
-
-  function isSameScheduleDay(item, targetDayIdentity) {
-    return Boolean(item?.scheduleDayIdentity)
-      && String(item.scheduleDayIdentity) === String(targetDayIdentity);
-  }
-
-  function isTimeConflictCandidate(other, item, targetDayIdentity, isAllScheduleVisible) {
-    if (String(other?.itineraryItemId) === String(item?.itineraryItemId)) return false;
-    return !isAllScheduleVisible || isSameScheduleDay(other, targetDayIdentity);
   }
 
   // 서버 저장 전 초안도 전체 보기에서는 DAY별로 구분해야 한다.
@@ -1120,27 +1141,66 @@ document.addEventListener("DOMContentLoaded", function () {
     editor.setAttribute("aria-label", "방문 시간 설정");
     editor.innerHTML = `
       <div class="schedule-time-editor-header">
-        <strong>방문 시간 설정</strong>
+        <div class="schedule-time-editor-title">
+          <strong>방문 시간 설정</strong>
+          ${autoStart ? "" : '<span class="schedule-time-format">24시간</span>'}
+        </div>
         <button type="button" class="schedule-time-close" aria-label="시간 설정 닫기">×</button>
       </div>
-      ${autoStart ? "" : `<div class="schedule-time-picker">
-        <div class="schedule-time-spinner" data-time-spinner="hour">
-          <button type="button" class="schedule-time-adjust" data-time-action="hour-up" aria-label="시간 증가">⌃</button>
-          <input type="text" class="schedule-time-input" data-time-hour inputmode="numeric" maxlength="2" value="${currentHour}" aria-label="시" />
-          <button type="button" class="schedule-time-adjust" data-time-action="hour-down" aria-label="시간 감소">⌄</button>
+      ${autoStart ? "" : `<div class="schedule-time-picker schedule-wheel-picker">
+        <div class="schedule-wheel-column" data-wheel-column="time-hour">
+          <button type="button" class="schedule-wheel-adjust" data-wheel-direction="1" aria-label="시간 올리기">∧</button>
+          <div class="schedule-wheel-list" data-wheel-target="time-hour" role="listbox" aria-label="시 선택">
+            <button type="button" class="schedule-wheel-value" data-wheel-offset="-1" aria-label="이전 시"></button>
+            <button type="button" class="schedule-wheel-value" data-wheel-offset="0" aria-label="현재 시"></button>
+            <button type="button" class="schedule-wheel-value" data-wheel-offset="1" aria-label="다음 시"></button>
+          </div>
+          <button type="button" class="schedule-wheel-adjust" data-wheel-direction="-1" aria-label="시간 내리기">∨</button>
+          <span class="schedule-wheel-unit">시간</span>
+          <input type="hidden" data-time-hour value="${currentHour}" />
         </div>
         <span class="schedule-time-colon" aria-hidden="true">:</span>
-        <div class="schedule-time-spinner" data-time-spinner="minute">
-          <button type="button" class="schedule-time-adjust" data-time-action="minute-up" aria-label="분 증가">⌃</button>
-          <input type="text" class="schedule-time-input" data-time-minute inputmode="numeric" maxlength="2" value="${currentMinute}" aria-label="분" />
-          <button type="button" class="schedule-time-adjust" data-time-action="minute-down" aria-label="분 감소">⌄</button>
+        <div class="schedule-wheel-column" data-wheel-column="time-minute">
+          <button type="button" class="schedule-wheel-adjust" data-wheel-direction="1" aria-label="분 올리기">∧</button>
+          <div class="schedule-wheel-list" data-wheel-target="time-minute" role="listbox" aria-label="분 선택">
+            <button type="button" class="schedule-wheel-value" data-wheel-offset="-1" aria-label="이전 분"></button>
+            <button type="button" class="schedule-wheel-value" data-wheel-offset="0" aria-label="현재 분"></button>
+            <button type="button" class="schedule-wheel-value" data-wheel-offset="1" aria-label="다음 분"></button>
+          </div>
+          <button type="button" class="schedule-wheel-adjust" data-wheel-direction="-1" aria-label="분 내리기">∨</button>
+          <span class="schedule-wheel-unit">분</span>
+          <input type="hidden" data-time-minute value="${currentMinute}" />
         </div>
-        <span class="schedule-time-format">24시간</span>
       </div>`}
       ${autoStart ? '<small class="schedule-time-auto-note">첫 장소의 시작시간과 체류시간을 기준으로 자동 계산됩니다.</small>' : ""}
-      <div class="schedule-time-options">
-        ${autoStart ? "" : '<button type="button" class="schedule-time-quick" data-time-action="plus-thirty">+30분</button>'}
-        <select class="schedule-duration-select" data-duration aria-label="체류 시간">
+      <div class="schedule-time-options${autoStart ? "" : " schedule-duration-options"}">
+        ${autoStart ? "" : `<div class="schedule-duration-label">체류시간</div>
+        <div class="schedule-duration-wheel" data-duration-picker>
+          <div class="schedule-duration-column" data-wheel-column="duration-hour">
+            <button type="button" class="schedule-wheel-adjust" data-wheel-direction="1" aria-label="체류시간 시간 올리기">∧</button>
+            <div class="schedule-wheel-list" data-wheel-target="duration-hour" role="listbox" aria-label="체류시간 시간 선택">
+              <button type="button" class="schedule-wheel-value" data-wheel-offset="-1" aria-label="이전 체류시간 시간"></button>
+              <button type="button" class="schedule-wheel-value" data-wheel-offset="0" aria-label="현재 체류시간 시간"></button>
+              <button type="button" class="schedule-wheel-value" data-wheel-offset="1" aria-label="다음 체류시간 시간"></button>
+            </div>
+            <button type="button" class="schedule-wheel-adjust" data-wheel-direction="-1" aria-label="체류시간 시간 내리기">∨</button>
+            <span class="schedule-duration-unit">시간</span>
+            <input type="hidden" data-duration-hour value="02" />
+          </div>
+          <span class="schedule-time-colon" aria-hidden="true">:</span>
+          <div class="schedule-duration-column" data-wheel-column="duration-minute">
+            <button type="button" class="schedule-wheel-adjust" data-wheel-direction="1" aria-label="체류시간 분 올리기">∧</button>
+            <div class="schedule-wheel-list" data-wheel-target="duration-minute" role="listbox" aria-label="체류시간 분 선택">
+              <button type="button" class="schedule-wheel-value" data-wheel-offset="-1" aria-label="이전 체류시간 분"></button>
+              <button type="button" class="schedule-wheel-value" data-wheel-offset="0" aria-label="현재 체류시간 분"></button>
+              <button type="button" class="schedule-wheel-value" data-wheel-offset="1" aria-label="다음 체류시간 분"></button>
+            </div>
+            <button type="button" class="schedule-wheel-adjust" data-wheel-direction="-1" aria-label="체류시간 분 내리기">∨</button>
+            <span class="schedule-duration-unit">분</span>
+            <input type="hidden" data-duration-minute value="00" />
+          </div>
+        </div>`}
+        ${autoStart ? `<select class="schedule-duration-select" data-duration aria-label="체류 시간">
           <option value="30">체류시간 30분</option>
           <option value="60">체류시간 1시간</option>
           <option value="90">체류시간 1시간 30분</option>
@@ -1151,7 +1211,7 @@ document.addEventListener("DOMContentLoaded", function () {
           <option value="240">체류시간 4시간</option>
           <option value="270">체류시간 4시간 30분</option>
           <option value="300">체류시간 5시간</option>
-        </select>
+        </select>` : ""}
       </div>
       <div class="schedule-time-actions">
         <button type="button" class="schedule-time-cancel">취소</button>
@@ -1161,8 +1221,15 @@ document.addEventListener("DOMContentLoaded", function () {
 
     const hourInput = editor.querySelector("[data-time-hour]");
     const minuteInput = editor.querySelector("[data-time-minute]");
+    const durationHourInput = editor.querySelector("[data-duration-hour]");
+    const durationMinuteInput = editor.querySelector("[data-duration-minute]");
     const durationSelect = editor.querySelector("[data-duration]");
-    durationSelect.value = String(override.durationMinutes || getItemDurationMinutes(item) || 120);
+    const initialDurationMinutes = override.durationMinutes || getItemDurationMinutes(item) || 120;
+    if (durationSelect) durationSelect.value = String(initialDurationMinutes);
+    if (durationHourInput && durationMinuteInput) {
+      durationHourInput.value = padTime(Math.floor(initialDurationMinutes / 60));
+      durationMinuteInput.value = padTime(initialDurationMinutes % 60);
+    }
 
     function padTime(value) { return String(value).padStart(2, "0"); }
     function normalizeHour() {
@@ -1175,7 +1242,9 @@ document.addEventListener("DOMContentLoaded", function () {
       if (!minuteInput) return;
       let value = Number(minuteInput.value);
       if (!Number.isFinite(value)) value = 0;
-      minuteInput.value = padTime(Math.max(0, Math.min(59, value)));
+      value = Math.round(Math.max(0, Math.min(59, value)) / 5) * 5;
+      if (value === 60) value = 55;
+      minuteInput.value = padTime(value);
     }
     function changeHour(amount) {
       if (!hourInput) return;
@@ -1189,26 +1258,110 @@ document.addEventListener("DOMContentLoaded", function () {
       hourInput.value = padTime(Math.floor(total / 60));
       minuteInput.value = padTime(total % 60);
     }
+    function normalizeDurationHour() {
+      if (!durationHourInput) return;
+      let value = Number(durationHourInput.value);
+      if (!Number.isFinite(value)) value = 0;
+      durationHourInput.value = padTime(Math.max(0, Math.min(12, value)));
+    }
+    function normalizeDurationMinute() {
+      if (!durationMinuteInput) return;
+      let value = Number(durationMinuteInput.value);
+      if (!Number.isFinite(value)) value = 0;
+      value = Math.round(Math.max(0, Math.min(59, value)) / 5) * 5;
+      if (value === 60) value = 55;
+      durationMinuteInput.value = padTime(value);
+    }
+    function changeDurationHour(amount) {
+      if (!durationHourInput) return;
+      const value = Number(durationHourInput.value || 0) + amount;
+      durationHourInput.value = padTime(Math.max(0, Math.min(12, value)));
+    }
+    function changeDurationMinute(amount) {
+      if (!durationHourInput || !durationMinuteInput) return;
+      let total = Number(durationHourInput.value || 0) * 60 + Number(durationMinuteInput.value || 0) + amount;
+      total = Math.max(0, Math.min(12 * 60 + 55, total));
+      durationHourInput.value = padTime(Math.floor(total / 60));
+      durationMinuteInput.value = padTime(Math.floor((total % 60) / 5) * 5);
+    }
+    function renderWheel(list, input, step, min, max, wrap) {
+      if (!list || !input) return;
+      const current = Number(input.value || min);
+      const range = max - min + 1;
+
+      list.querySelectorAll("[data-wheel-offset]").forEach(function (button) {
+        const offset = Number(button.dataset.wheelOffset || 0);
+        let value = current + (offset * step);
+
+        if (wrap) {
+          value = ((value - min) % range + range) % range + min;
+        } else {
+          value = Math.max(min, Math.min(max, value));
+        }
+
+        button.textContent = padTime(value);
+        button.classList.toggle("is-selected", offset === 0);
+        button.setAttribute("aria-selected", String(offset === 0));
+      });
+    }
+    function renderAllWheels() {
+      renderWheel(editor.querySelector('[data-wheel-target="time-hour"]'), hourInput, 1, 0, 23, true);
+      renderWheel(editor.querySelector('[data-wheel-target="time-minute"]'), minuteInput, 5, 0, 55, true);
+      renderWheel(editor.querySelector('[data-wheel-target="duration-hour"]'), durationHourInput, 1, 0, 12, false);
+      renderWheel(editor.querySelector('[data-wheel-target="duration-minute"]'), durationMinuteInput, 5, 0, 55, false);
+    }
+    function changeWithWheel(target, change) {
+      target?.addEventListener("wheel", function (event) {
+        event.preventDefault();
+        event.stopPropagation();
+        if (event.deltaY === 0) return;
+        change(event.deltaY < 0 ? 1 : -1);
+        renderAllWheels();
+      }, {passive: false});
+    }
 
     editor.addEventListener("click", function (event) {
       event.stopPropagation();
-      const actionButton = event.target.closest("[data-time-action]");
-      if (!actionButton) return;
-      switch (actionButton.dataset.timeAction) {
-        case "hour-up": changeHour(1); break;
-        case "hour-down": changeHour(-1); break;
-        case "minute-up": changeMinute(5); break;
-        case "minute-down": changeMinute(-5); break;
-        case "plus-thirty": changeMinute(30); break;
-        default: break;
+      const wheelAdjust = event.target.closest("[data-wheel-direction]");
+      if (wheelAdjust) {
+        const target = wheelAdjust.closest("[data-wheel-column]")?.dataset.wheelColumn;
+        const direction = Number(wheelAdjust.dataset.wheelDirection || 0);
+
+        switch (target) {
+          case "time-hour": changeHour(direction); break;
+          case "time-minute": changeMinute(direction * 5); break;
+          case "duration-hour": changeDurationHour(direction); break;
+          case "duration-minute": changeDurationMinute(direction * 5); break;
+          default: break;
+        }
+        renderAllWheels();
+        return;
+      }
+      const wheelButton = event.target.closest("[data-wheel-offset]");
+      if (wheelButton) {
+        const target = wheelButton.closest("[data-wheel-target]")?.dataset.wheelTarget;
+        const offset = Number(wheelButton.dataset.wheelOffset || 0);
+
+        switch (target) {
+          case "time-hour": changeHour(offset); break;
+          case "time-minute": changeMinute(offset * 5); break;
+          case "duration-hour": changeDurationHour(offset); break;
+          case "duration-minute": changeDurationMinute(offset * 5); break;
+          default: break;
+        }
+        renderAllWheels();
+        return;
       }
     });
-    if (hourInput && minuteInput) {
-      hourInput.addEventListener("input", function () { hourInput.value = hourInput.value.replace(/\D/g, "").slice(0, 2); });
-      minuteInput.addEventListener("input", function () { minuteInput.value = minuteInput.value.replace(/\D/g, "").slice(0, 2); });
-      hourInput.addEventListener("blur", normalizeHour);
-      minuteInput.addEventListener("blur", normalizeMinute);
-    }
+    changeWithWheel(editor.querySelector('[data-wheel-target="time-hour"]'), changeHour);
+    changeWithWheel(editor.querySelector('[data-wheel-target="time-minute"]'), function (amount) { changeMinute(amount * 5); });
+    changeWithWheel(editor.querySelector('[data-wheel-target="duration-hour"]'), changeDurationHour);
+    changeWithWheel(editor.querySelector('[data-wheel-target="duration-minute"]'), function (amount) { changeDurationMinute(amount * 5); });
+    normalizeHour();
+    normalizeMinute();
+    normalizeDurationHour();
+    normalizeDurationMinute();
+    renderAllWheels();
     editor.querySelector(".schedule-time-close").addEventListener("click", function () {
       closeTimeEditor();
       window.requestAnimationFrame(updateDurationGuide);
@@ -1223,8 +1376,12 @@ document.addEventListener("DOMContentLoaded", function () {
 
       normalizeHour();
       normalizeMinute();
+      normalizeDurationHour();
+      normalizeDurationMinute();
 
-      const durationMinutes = Number(durationSelect.value);
+      const durationMinutes = durationSelect
+          ? Number(durationSelect.value)
+          : Number(durationHourInput.value || 0) * 60 + Number(durationMinuteInput.value || 0);
 
       // 체류시간 자체가 올바른지 먼저 검사
       if (!Number.isFinite(durationMinutes) || durationMinutes <= 0) {
@@ -1557,6 +1714,40 @@ document.addEventListener("DOMContentLoaded", function () {
     return true;
   }
 
+  function getInitialDestinationName() {
+    const draft = readDraft();
+    return String(
+      activeTrip?.destinationName
+      || draft.basic?.destinationLabel
+      || draft.basic?.destination
+      || draft.trip?.destinationName
+      || "",
+    ).trim();
+  }
+
+  function centerMapOnDestination() {
+    if (!map || !placesService) return;
+    const destinationName = getInitialDestinationName();
+    if (!destinationName || mapDestinationLookup === destinationName) return;
+    mapDestinationLookup = destinationName;
+    placesService.keywordSearch(destinationName, function (data, status) {
+      if (status !== window.kakao.maps.services.Status.OK || !data?.length) {
+        mapDestinationLookup = "";
+        return;
+      }
+      const place = data.find(function (candidate) {
+        return Number.isFinite(Number(candidate.y)) && Number.isFinite(Number(candidate.x));
+      });
+      if (!place) {
+        mapDestinationLookup = "";
+        return;
+      }
+      map.setCenter(new window.kakao.maps.LatLng(Number(place.y), Number(place.x)));
+      map.setLevel(destinationOverviewLevel);
+      refreshMap();
+    });
+  }
+
   function initMap() {
     if (!window.kakao?.maps) {
       if (mapStatus) mapStatus.textContent = "지도 키 필요";
@@ -1565,11 +1756,16 @@ document.addEventListener("DOMContentLoaded", function () {
     window.kakao.maps.load(function () {
       mapContainer.replaceChildren();
       map = new window.kakao.maps.Map(mapContainer, {
-        center: new window.kakao.maps.LatLng(37.5665, 126.9780),
+        center: new window.kakao.maps.LatLng(fallbackMapCenter.latitude, fallbackMapCenter.longitude),
         level: 6,
       });
+      map.addControl(
+        new window.kakao.maps.ZoomControl(),
+        window.kakao.maps.ControlPosition.RIGHT
+      );
       placesService = new window.kakao.maps.services.Places();
       if (mapStatus) mapStatus.textContent = "지도 준비 완료";
+      centerMapOnDestination();
       refreshMap();
     });
   }
@@ -1642,16 +1838,18 @@ document.addEventListener("DOMContentLoaded", function () {
         yAnchor: 1,
       }));
     });
-    const hasDetailedRoutes = successfulSegmentRoutes().length > 0;
-    if (routeVisible && path.length > 1) {
+    const hasSelectedTransport = Boolean(globalTransportMode);
+    if (routeVisible && path.length > 1 && !hasSelectedTransport) {
       routeLine = new window.kakao.maps.Polyline({
         path,
-        strokeWeight: hasDetailedRoutes ? 3 : 4,
-        strokeColor: hasDetailedRoutes ? "#cbd1ed" : "#6372df",
-        strokeOpacity: hasDetailedRoutes ? .72 : .85,
-        strokeStyle: hasDetailedRoutes ? "shortdash" : "solid",
+        strokeWeight: 4,
+        strokeColor: "#6372df",
+        strokeOpacity: .85,
+        strokeStyle: "solid",
       });
       routeLine.setMap(map);
+    }
+    if (routeVisible && hasSelectedTransport) {
       drawSegmentRouteLines(map, segmentRouteLines, bounds);
     }
     map.setBounds(bounds);
@@ -1691,16 +1889,18 @@ document.addEventListener("DOMContentLoaded", function () {
         yAnchor: 1,
       }));
     });
-    const hasDetailedRoutes = successfulSegmentRoutes().length > 0;
-    if (routeVisible && path.length > 1) {
+    const hasSelectedTransport = Boolean(globalTransportMode);
+    if (routeVisible && path.length > 1 && !hasSelectedTransport) {
       expandedRouteLine = new window.kakao.maps.Polyline({
         path,
-        strokeWeight: hasDetailedRoutes ? 3 : 4,
-        strokeColor: hasDetailedRoutes ? "#cbd1ed" : "#6372df",
-        strokeOpacity: hasDetailedRoutes ? .72 : .85,
-        strokeStyle: hasDetailedRoutes ? "shortdash" : "solid",
+        strokeWeight: 4,
+        strokeColor: "#6372df",
+        strokeOpacity: .85,
+        strokeStyle: "solid",
       });
       expandedRouteLine.setMap(expandedMap);
+    }
+    if (routeVisible && hasSelectedTransport) {
       drawSegmentRouteLines(expandedMap, expandedSegmentRouteLines, bounds);
     }
     expandedMap.setBounds(bounds);
@@ -1727,6 +1927,10 @@ document.addEventListener("DOMContentLoaded", function () {
           center: map.getCenter(),
           level: map.getLevel(),
         });
+        expandedMap.addControl(
+          new window.kakao.maps.ZoomControl(),
+          window.kakao.maps.ControlPosition.RIGHT
+        );
       } else {
         expandedMap.relayout();
       }
@@ -1988,6 +2192,7 @@ document.addEventListener("DOMContentLoaded", function () {
           return orderMap.get(String(left.itineraryItemId)) - orderMap.get(String(right.itineraryItemId));
         });
         activeItems.forEach(function (item, index) { item.sortOrder = index; });
+        resetSegmentRoutesForOrder();
         renderItems(activeItems);
       } else {
         const orderMap = new Map(orderIds.map(function (id, index) { return [String(id), index]; }));
@@ -1999,6 +2204,7 @@ document.addEventListener("DOMContentLoaded", function () {
         draft.scheduleItems = draft.scheduleItems || {};
         draft.scheduleItems[draftDayKey(activeDay)] = activeItems;
         sessionStorage.setItem("tripDraft", JSON.stringify(draft));
+        resetSegmentRoutesForOrder();
         renderItems(activeItems);
       }
     } catch (error) {
@@ -2081,7 +2287,8 @@ document.addEventListener("DOMContentLoaded", function () {
     if (!orderedItems.length) {
       hideDurationGuide();
       toggleAiEmptyCta(true);
-      showEmpty(timeline, "아직 추가한 장소가 없습니다. 오른쪽에서 장소를 검색해보세요.");
+      showEmpty(timeline, "아직 추가한 장소가 없습니다. 아래 버튼으로 장소를 추가해보세요.");
+      togglePlaceAddCta(true);
       renderScheduleTimeSummary(orderedItems, activeDay);
       refreshMap();
       refreshActivePlaceSourceResults();
@@ -2099,6 +2306,7 @@ document.addEventListener("DOMContentLoaded", function () {
         timeline.appendChild(createSegmentRouteSummary(item, nextItem));
       }
     });
+    togglePlaceAddCta(true);
     if (orderedItems.length > 1) {
       const reorderHint = document.createElement("p");
       const reorderHintIcon = document.createElement("span");
@@ -2147,7 +2355,7 @@ document.addEventListener("DOMContentLoaded", function () {
     summary.textContent = "장소 " + group.items.length + "개";
     editButton.type = "button";
     editButton.className = "schedule-overview-edit";
-    editButton.textContent = "DAY " + group.day.dayNumber + " 편집  ›";
+    editButton.textContent = "편집  ›";
     editButton.addEventListener("click", function () {
       leaveOverviewForDay(group.day);
     });
@@ -2294,6 +2502,7 @@ document.addEventListener("DOMContentLoaded", function () {
   async function selectDay(day, selectedButton) {
     clearRouteDisplay();
     activeDay = day;
+    togglePlaceAddCta(false);
     globalTransportMode = loadDayTransportMode(day);
     syncTransportSettings(globalTransportMode);
     optimizationPreviewKey = "";
@@ -2421,6 +2630,7 @@ document.addEventListener("DOMContentLoaded", function () {
     title.textContent = tripName;
     if (period) period.textContent = formatCompactPeriod(basic.startDate, basic.endDate);
     if (destination) destination.textContent = (basic.destinationLabel || basic.destination) + " 여행";
+    updateScheduleCompanion(basic.companion);
     renderTripList([{tripId:null,title:tripName,startDate:basic.startDate,endDate:basic.endDate}]);
     const start = basic.startDate ? new Date(basic.startDate + "T00:00:00") : null;
     const end = basic.endDate ? new Date(basic.endDate + "T00:00:00") : null;
@@ -2475,9 +2685,11 @@ document.addEventListener("DOMContentLoaded", function () {
       favoritePlacesRequest = null;
       recommendedPlaces = null;
       recommendedPlacesRequest = null;
+      centerMapOnDestination();
       title.textContent = result[0].title;
       if (period) period.textContent = formatCompactPeriod(result[0].startDate, result[0].endDate);
       if (destination) destination.textContent = (result[0].destinationName || "여행") + " 여행";
+      updateScheduleCompanion(result[0].companionType);
       // 사이드바는 내 여행 전체를 보여준다. 활성 여행 하나만 넘기면 목록에서 나머지가 사라진다.
       renderTripList(trips);
       renderDays(result[1]);
@@ -2846,10 +3058,10 @@ document.addEventListener("DOMContentLoaded", function () {
       }
       const params = new URLSearchParams({
         page: "0",
-        size: "100",
+        size: "30",
         keyword: normalizeRegionName(region),
         // 추천 패널은 관리자가 등록한 장소만 보여준다.
-        // 아래 장소 검색·중복 확인 호출에는 붙이지 않는다. 전체를 봐야 하기 때문이다.
+        // 지역 필터링에서 제외되는 결과를 고려해 화면 표시 수보다 여유 있게 요청한다.
         recommended: "true",
       });
       const places = await api("/api/v1/places?" + params.toString());
@@ -3246,7 +3458,7 @@ document.addEventListener("DOMContentLoaded", function () {
     button.addEventListener("click", closeMapModal);
   });
   if (backButton) backButton.addEventListener("click", function () {
-    window.location.href = "/trips/new/style";
+    window.location.href = "/trips/new/basic";
   });
   document.addEventListener("keydown", function (event) {
     if (event.key === "Escape" && mapModal && !mapModal.hidden) closeMapModal();
@@ -3277,7 +3489,6 @@ document.addEventListener("DOMContentLoaded", function () {
   if (dayTabs) dayTabs.addEventListener("scroll", updateDayNavigation, {passive: true});
   window.addEventListener("resize", updateDayNavigation);
   window.addEventListener("resize", positionTransportSettingsPanel);
-  window.addEventListener("resize", positionPlaceSearchPanel);
   if (dayPrev) dayPrev.addEventListener("click", function () {
     dayTabs?.scrollBy({left: -Math.max(180, dayTabs.clientWidth * .8), behavior: "smooth"});
   });
@@ -3289,10 +3500,10 @@ document.addEventListener("DOMContentLoaded", function () {
       const willOpen = placeAddPopover.hidden;
       if (willOpen) closeMorePanels();
       placeAddPopover.hidden = !willOpen;
+      document.body.classList.toggle("place-search-open", willOpen);
       placeAddTrigger.setAttribute("aria-expanded", String(willOpen));
       if (optimizationSummarySlot) optimizationSummarySlot.hidden = willOpen;
       if (willOpen) window.setTimeout(function () {
-        positionPlaceSearchPanel();
         if (activePlaceSource === "favorites") loadFavoritePlaces().catch(function () {});
         else if (activePlaceSource === "recommendations") loadRecommendedPlaces().catch(function () {});
         else keywordInput?.focus();
@@ -3368,7 +3579,7 @@ document.addEventListener("DOMContentLoaded", function () {
   syncTransportSettings(globalTransportMode);
   if (optimizeRouteTrigger) {
     optimizeRouteTrigger.addEventListener("click", async function () {
-      const criterion = "TIME";
+      const criterion = "DISTANCE";
       if (!activeDay?.tripDayId) {
         toast("저장된 DAY에서만 동선을 최적화할 수 있습니다.");
         return;
@@ -3389,10 +3600,17 @@ document.addEventListener("DOMContentLoaded", function () {
           "/api/v1/trip-days/" + activeDay.tripDayId
           + "/optimize-route?criterion=" + encodeURIComponent(criterion)
           + "&mode=" + encodeURIComponent(globalTransportMode),
-          {method: "POST"}
+          {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify(activeItems.map(function (item) {
+              return Number(item.itineraryItemId);
+            }).filter(Number.isFinite)),
+          }
         );
-        const minutes = Math.round(Number(result.totalDurationSeconds || 0) / 60);
+        const distance = formatRouteDistance(result.totalDistanceMeters);
         applyPendingOrder(result.itineraryItemIds);
+        resetSegmentRoutesForOrder();
         const dayKey = String(activeDay.tripDayId);
         pendingReorders.set(dayKey, result.itineraryItemIds.slice());
         pendingOptimizationResults.set(dayKey, {result, criterion});
@@ -3400,13 +3618,9 @@ document.addEventListener("DOMContentLoaded", function () {
         lastRouteResult = result;
         lastOptimizationCriterion = criterion;
         renderRouteSummary(result, lastOptimizationCriterion);
-        if (result.distancePriorityApplied) {
-          toast("이동시간이 같아 이동 거리를 우선순위로 정렬했습니다.");
-        } else {
-          toast(minutes > 0
-            ? "이동시간 우선으로 동선을 정리했습니다. 예상 이동시간 " + minutes + "분"
-            : "이동시간 우선으로 동선을 정리했습니다.");
-        }
+        toast(Number(result.totalDistanceMeters) > 0
+          ? "이동거리 우선으로 동선을 정리했습니다. 예상 이동거리 " + distance
+          : "이동거리 우선으로 동선을 정리했습니다.");
       } catch (error) {
         toast(error.message || "동선 최적화에 실패했습니다.");
       } finally {

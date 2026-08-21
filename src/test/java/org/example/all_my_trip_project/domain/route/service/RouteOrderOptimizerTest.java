@@ -64,6 +64,29 @@ class RouteOrderOptimizerTest {
     }
 
     @Test
+    void prioritizesRouteDistanceThenTravelDuration() {
+        ItineraryItemDTO a = item(1L, "A");
+        ItineraryItemDTO b = item(2L, "B");
+        ItineraryItemDTO c = item(3L, "C");
+        Map<String, RouteOrderOptimizer.Metrics> routes = routesWithDefault(List.of(a, b, c), 500, 10_000);
+        route(routes, a, b, 90, 100);
+        route(routes, b, c, 90, 100);
+        route(routes, a, c, 150, 50);
+        route(routes, c, b, 10, 150);
+
+        RouteOrderOptimizer.Result result = optimizer.optimize(
+                List.of(a, b, c),
+                (from, to) -> routes.get(key(from, to)),
+                false);
+
+        assertThat(result.orderedItems())
+                .extracting(ItineraryItemDTO::getItineraryItemId)
+                .containsExactly(1L, 3L, 2L);
+        assertThat(result.distanceMeters()).isEqualTo(200);
+        assertThat(result.durationSeconds()).isEqualTo(160);
+    }
+
+    @Test
     void keepsFirstPlaceAndSkipsUnavailableEdges() {
         ItineraryItemDTO a = item(1L, "A");
         ItineraryItemDTO b = item(2L, "B");

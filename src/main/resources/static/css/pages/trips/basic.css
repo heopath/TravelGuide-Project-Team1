@@ -442,16 +442,6 @@ body.page-basic .trip-duration-label {
 }
 
 /* Reduce the vertical gap between the step indicator and the form card. */
-body.page-basic .basic-wizard-heading {
-  margin-bottom: 18px !important;
-}
-
-@media (max-width: 760px) {
-  body.page-basic .basic-wizard-heading {
-    margin-bottom: 14px !important;
-  }
-}
-
 /* Final duration card override: match the approved visual proposal. */
 body.page-basic .trip-duration {
   box-sizing: border-box;
@@ -909,10 +899,6 @@ body.page-basic .budget-per-person::before {
 }
 
 /* Keep the step indicator visually close to the form and easier to scan. */
-body.page-basic .page-heading.basic-wizard-heading {
-  margin-bottom: 6px;
-}
-
 body.page-basic .destination-trigger {
   padding-right: 16px;
   padding-left: 48px;
@@ -930,42 +916,7 @@ body.page-basic .destination-trigger.has-value {
   background-size: 19px !important;
 }
 
-body.page-basic .basic-wizard-heading .wizard li span {
-  width: 50px;
-  height: 50px;
-  font-size: 16px;
-}
-
-body.page-basic .basic-wizard-heading .wizard li b {
-  margin-right: 14px;
-  margin-left: 12px;
-  color: var(--basic-muted);
-  font-size: 20px;
-  font-weight: 800;
-  letter-spacing: -.045em;
-}
-
-body.page-basic .basic-wizard-heading .wizard li.active b,
-body.page-basic .basic-wizard-heading .wizard li.done b {
-  color: var(--basic-primary);
-}
-
-body.page-basic .basic-wizard-heading .wizard li i {
-  width: 60px;
-  margin-right: 14px;
-}
-
 @media (max-width: 760px) {
-  body.page-basic .basic-wizard-heading .wizard li b {
-    font-size: 18px;
-  }
-
-  body.page-basic .basic-wizard-heading .wizard li span {
-    width: 42px;
-    height: 42px;
-    font-size: 13px;
-  }
-
   body.page-basic .traveler-count-row {
     align-items: flex-start;
     flex-direction: column;
@@ -1052,14 +1003,6 @@ body.page-basic #companionOptions button[data-companion="CHILDREN"]::before {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23365df5' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='8' r='3.2'/%3E%3Cpath d='M6.5 20a5.5 5.5 0 0 1 11 0M8.5 5.2c.9-1.8 6.1-1.8 7 0M8.5 8h.01M15.5 8h.01M10.5 10.5a2 2 0 0 0 3 0'/%3E%3C/svg%3E");
 }
 
-body.page-basic .page-heading {
-  margin-bottom: 56px;
-}
-
-body.page-basic .page-heading.basic-wizard-heading {
-  margin-bottom: 0 !important;
-}
-
 @media (min-width: 981px) {
   body.page-basic .form-board > div:first-child > h2:nth-of-type(2) {
     margin-top: 102px;
@@ -1070,10 +1013,6 @@ body.page-basic .page-heading.basic-wizard-heading {
   body.page-basic .form-board > div:first-child > h2:nth-of-type(2) {
     margin-top: 38px;
   }
-}
-
-body.page-basic .basic-wizard-heading {
-  margin-bottom: 56px;
 }
 
 /* --------------------------------------------------------------------------
@@ -1104,39 +1043,15 @@ body.page-basic .page-shell {
   padding: 46px 0 28px;
 }
 
-body.page-basic .page-heading,
 body.page-basic .form-board {
   width: min(1280px, calc(100% - 48px));
   margin-right: auto;
   margin-left: auto;
 }
 
-body.page-basic .page-heading {
-  margin-bottom: 0 !important;
-}
-
-body.page-basic .page-heading h1 {
-  margin: 0;
-  color: var(--basic-navy);
-  font-size: clamp(30px, 2.45vw, 42px);
-  font-weight: 850;
-  letter-spacing: -.055em;
-  line-height: 1.18;
-}
-
-body.page-basic .page-heading h1 span {
-  color: var(--basic-primary);
-}
-
-body.page-basic .page-heading p {
-  margin: 12px 0 0;
-  color: var(--basic-muted);
-  font-size: 14px;
-  font-weight: 600;
-}
-
 body.page-basic .form-board {
   position: relative;
+  margin-top: 24px;
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 34px 54px;
@@ -1211,16 +1126,6 @@ body.page-basic .form-board h2::before {
 }
 
 /* Slightly emphasize only the top step indicator. */
-body.page-basic .basic-wizard-heading .wizard li span {
-  width: 50px !important;
-  height: 50px !important;
-  font-size: 16px !important;
-}
-
-body.page-basic .basic-wizard-heading .wizard li b {
-  font-size: 20px !important;
-}
-
 body.page-basic .form-board > div:nth-child(2) h2:nth-of-type(1)::before {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='%23365df5' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='9' cy='8' r='3'/%3E%3Cpath d='M3.5 20a5.5 5.5 0 0 1 11 0M16 11a3 3 0 1 1 2.5 4.65M16 20a5 5 0 0 1 4.5-4.5'/%3E%3C/svg%3E");
 }
@@ -1808,13 +1713,8 @@ body.page-basic .range-calendar-hint {
 }
 
 @media (max-width: 760px) {
-  body.page-basic .page-heading,
   body.page-basic .form-board {
     width: min(100% - 28px, 640px);
-  }
-
-  body.page-basic .page-heading {
-    margin-bottom: 24px;
   }
 
   body.page-basic .form-board {

@@ -29,8 +29,8 @@
   />
   <link
           rel="stylesheet"
-          th:href="@{/css/pages/trips/schedule.css(v=20260819-place-panel-footer)}"
-          href="../../static/css/pages/trips/schedule.css?v=20260819-place-panel-footer"
+          th:href="@{/css/pages/trips/schedule.css(v=20260821-place-modal-fix)}"
+          href="../../static/css/pages/trips/schedule.css?v=20260821-place-modal-fix"
   />
 </head>
 
@@ -44,28 +44,6 @@
 
   <main id="page-content">
     <section class="page-shell">
-      <section class="page-heading basic-wizard-heading">
-        <ol class="wizard">
-          <li class="done">
-            <span>1</span>
-            <b>계획 방식</b>
-            <i></i>
-          </li>
-
-          <li class="done">
-            <span>2</span>
-            <b>기본 정보</b>
-            <i></i>
-          </li>
-
-          <li class="active">
-            <span>3</span>
-            <b>여행 일정</b>
-          </li>
-        </ol>
-
-      </section>
-
       <div class="schedule-layout schedule-planner-layout">
         <aside class="schedule-sidebar">
           <section class="white-panel trip-sidebar">
@@ -99,6 +77,13 @@
                     aria-label="다음 DAY 보기"
                     hidden
             >›</button>
+            <button
+                    type="button"
+                    class="outline-button schedule-overview-toggle"
+                    data-toggle-route
+            >
+              전체 일정 보기
+            </button>
           </div>
 
           <section class="schedule-workspace">
@@ -107,6 +92,7 @@
                 <strong data-schedule-destination>부산 여행</strong>
                 <span aria-hidden="true">|</span>
                 <span data-schedule-period>8/6–8/8</span>
+                <span class="schedule-companion" data-schedule-companion hidden></span>
               </div>
 
               <button
@@ -119,7 +105,6 @@
               >
                 <span class="schedule-transport-trigger-icon" data-transport-trigger-icon aria-hidden="true">🚌</span>
                 <span data-transport-trigger-label>교통수단 선택</span>
-                <span class="schedule-transport-trigger-chevron" aria-hidden="true">⌄</span>
               </button>
 
               <div class="schedule-workspace-actions">
@@ -128,7 +113,7 @@
                           type="button"
                           class="primary-button route-optimization-trigger"
                           data-optimize-trigger
-                          title="이동시간을 우선하고, 시간이 같으면 이동거리가 짧은 순서로 정렬합니다."
+                          title="첫 장소는 유지하고, 이동거리가 짧은 순서로 정렬합니다."
                   >
                     ✨ 동선 최적화
                   </button>
@@ -138,30 +123,13 @@
                           aria-live="polite"
                   ></div>
                 </div>
-                <button
-                        type="button"
-                        class="outline-button schedule-place-add-trigger"
-                        data-place-add-trigger
-                        aria-expanded="false"
-                        aria-controls="schedulePlaceSearchPanel"
-                >
-                  ＋ 장소 추가
-                </button>
                 <details class="schedule-more-menu" data-schedule-more>
                   <summary class="outline-button">더보기&nbsp;</summary>
                   <div class="schedule-more-menu-panel" role="menu" aria-label="일정 추가 기능">
-                    <button type="button" data-toggle-route role="menuitem">
-                      <span class="schedule-more-menu-icon" aria-hidden="true">▦</span>
-                      <span class="schedule-more-menu-copy">
-                        <strong>전체 일정 보기</strong>
-                        <small>DAY별 일정을 한눈에 보기</small>
-                      </span>
-                    </button>
                     <button type="button" data-more-route-map role="menuitem" aria-pressed="true">
                       <span class="schedule-more-menu-icon" aria-hidden="true">⌘</span>
                       <span class="schedule-more-menu-copy">
                         <strong>경로선 표시</strong>
-                        <small>지도에서 이동 경로 보기</small>
                       </span>
                       <span class="schedule-more-route-state" data-more-route-state aria-hidden="true">ON</span>
                     </button>
@@ -169,7 +137,6 @@
                       <span class="schedule-more-menu-icon" aria-hidden="true">⛶</span>
                       <span class="schedule-more-menu-copy">
                         <strong>지도 크게 보기</strong>
-                        <small>경로를 큰 화면으로 보기</small>
                       </span>
                     </button>
                   </div>
@@ -213,54 +180,61 @@
               </section>
             </header>
 
-            <section
-                    class="white-panel place-search-panel"
+            <div
+                    class="place-search-modal-backdrop"
                     id="schedulePlaceSearchPanel"
                     data-place-add-popover
                     hidden
             >
-              <div class="panel-title-row">
-                <div>
-                    <h2 data-place-add-title>DAY 1에 장소 추가</h2>
-                  <p>장소를 검색해 선택한 DAY에 추가하세요.</p>
-                </div>
-                <button type="button" class="place-search-close" data-place-add-close aria-label="장소 추가 닫기">×</button>
-              </div>
-
-              <form
-                      class="schedule-search"
-                      data-place-search-form
-                      data-no-global-loading
+              <section
+                      class="white-panel place-search-panel"
+                      role="dialog"
+                      aria-modal="true"
+                      aria-labelledby="schedulePlaceSearchTitle"
               >
-                <input
-                        type="search"
-                        data-place-keyword
-                        placeholder="장소명을 입력하세요."
-                        aria-label="일정 장소 검색"
-                />
+                <div class="panel-title-row">
+                  <div>
+                    <h2 id="schedulePlaceSearchTitle" data-place-add-title>DAY 1에 장소 추가</h2>
+                    <p>장소를 검색해 선택한 DAY에 추가하세요.</p>
+                  </div>
+                  <button type="button" class="place-search-close" data-place-add-close aria-label="장소 추가 닫기">×</button>
+                </div>
 
-                <button type="submit" class="primary-button">
-                  검색
-                </button>
-              </form>
+                <form
+                        class="schedule-search"
+                        data-place-search-form
+                        data-no-global-loading
+                >
+                  <input
+                          type="search"
+                          data-place-keyword
+                          placeholder="장소명을 입력하세요."
+                          aria-label="일정 장소 검색"
+                  />
 
-              <div class="place-add-source-tabs" role="tablist" aria-label="장소 추가 목록">
-                <button type="button" role="tab" class="selected" aria-selected="true" data-place-source="search">검색</button>
-                <button type="button" role="tab" aria-selected="false" data-place-source="favorites">찜 목록</button>
-                <button type="button" role="tab" aria-selected="false" data-place-source="recommendations">추천</button>
-              </div>
+                  <button type="submit" class="primary-button">
+                    검색
+                  </button>
+                </form>
 
-              <div class="place-search-results" data-place-results>
-                <p class="schedule-empty">
-                  검색 결과가 여기에 표시됩니다.
+                <div class="place-add-source-tabs" role="tablist" aria-label="장소 추가 목록">
+                  <button type="button" role="tab" class="selected" aria-selected="true" data-place-source="search">검색</button>
+                  <button type="button" role="tab" aria-selected="false" data-place-source="favorites">찜 목록</button>
+                  <button type="button" role="tab" aria-selected="false" data-place-source="recommendations">추천</button>
+                </div>
+
+                <div class="place-search-results" data-place-results>
+                  <p class="schedule-empty">
+                    검색 결과가 여기에 표시됩니다.
+                  </p>
+                </div>
+
+                <p class="place-add-footer-hint">
+                  <span aria-hidden="true">ⓘ</span>
+                  <span>추가 후 순서를 선택할 수 있습니다.</span>
                 </p>
-              </div>
-
-              <p class="place-add-footer-hint">
-                <span aria-hidden="true">ⓘ</span>
-                <span>추가 후 순서를 선택할 수 있습니다.</span>
-              </p>
-            </section>
+              </section>
+            </div>
 
             <div class="schedule-workspace-body">
               <section class="white-panel schedule-main">
@@ -279,6 +253,17 @@
                     <p class="schedule-empty">
                       일정을 불러오는 중입니다.
                     </p>
+                    <div class="schedule-place-add-cta" data-schedule-place-add-cta hidden>
+                      <button
+                              type="button"
+                              class="outline-button schedule-place-add-trigger"
+                              data-place-add-trigger
+                              aria-expanded="false"
+                              aria-controls="schedulePlaceSearchPanel"
+                      >
+                        ＋ 장소 추가
+                      </button>
+                    </div>
                   </div>
                   <button
                           type="button"
@@ -290,7 +275,6 @@
                   </button>
                 </div>
                 <div class="schedule-overview-pager" data-overview-pager hidden aria-live="polite"></div>
-                <p class="schedule-drag-hint">⠿ 왼쪽 핸들을 드래그해 일정 순서를 바꿀 수 있어요.</p>
                 <div class="schedule-ai-empty-cta" data-schedule-ai-empty-cta hidden>
                   <strong>일정이 아직 비어 있어요</strong>
                   <span>AI에게 현재 여행에 맞는 장소와 코스를 추천받아보세요.</span>
@@ -409,8 +393,8 @@
 ></script>
 
 <script
-        th:src="@{/js/pages/trips/schedule.js(v=20260819-empty-guidance)}"
-        src="../../static/js/pages/trips/schedule.js?v=20260819-empty-guidance"
+        th:src="@{/js/pages/trips/schedule.js(v=20260821-place-modal-fix)}"
+        src="../../static/js/pages/trips/schedule.js?v=20260821-place-modal-fix"
 ></script>
 <script
         th:src="@{/js/pages/trips/schedule-ai-guide.js}"
