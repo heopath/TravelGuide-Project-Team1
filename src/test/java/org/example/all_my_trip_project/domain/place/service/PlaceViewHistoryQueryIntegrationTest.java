@@ -34,6 +34,8 @@ class PlaceViewHistoryQueryIntegrationTest {
     @Autowired
     private PlaceViewHistoryDAO placeViewHistoryDAO;
     @Autowired
+    private PlaceViewHistoryService placeViewHistoryService;
+    @Autowired
     private JdbcTemplate jdbcTemplate;
 
     private Long userId;
@@ -44,6 +46,28 @@ class PlaceViewHistoryQueryIntegrationTest {
             jdbcTemplate.update("delete from place_view_history where user_id = ?", userId);
             jdbcTemplate.update("delete from users where user_id = ?", userId);
         }
+    }
+
+    /*
+     * DAO가 아니라 서비스를 거쳐야 하는 테스트다.
+     *
+     * 이 클래스는 @Transactional(readOnly = true)라, record()에 아무것도 안 붙이면
+     * 읽기 전용 트랜잭션을 물려받아 INSERT가 거부된다. 게다가 record()는 예외를 삼키므로
+     * 아무 일도 없었던 것처럼 보인다. DAO를 직접 부르는 테스트로는 절대 안 잡힌다.
+     * 실제로 그렇게 한 번 나갔고, 화면에는 끝까지 아무것도 쌓이지 않았다.
+     */
+    @Test
+    @DisplayName("서비스를 거쳐 기록하면 실제로 저장된다")
+    void recordsThroughServiceNotOnlyDao() {
+        userId = createUser();
+        Long placeId = activePlaceIds(1).getFirst();
+
+        placeViewHistoryService.record(userId, placeId);
+
+        assertThat(placeViewHistoryService.findRecent(userId, 10))
+                .as("읽기 전용 트랜잭션에 걸리면 조용히 비어 있다")
+                .extracting(RecentPlaceResult::getPlaceId)
+                .containsExactly(placeId);
     }
 
     @Test

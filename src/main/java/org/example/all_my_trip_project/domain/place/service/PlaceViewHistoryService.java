@@ -8,6 +8,7 @@ import org.example.all_my_trip_project.global.exception.BusinessException;
 import org.example.all_my_trip_project.global.exception.ErrorCode;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
@@ -42,13 +43,19 @@ public class PlaceViewHistoryService {
      * <p>기록이 실패해도 상세 화면은 그대로 보여야 한다. 이력은 부가 정보이고,
      * 이것 때문에 장소를 못 보는 쪽이 훨씬 나쁘다. 실패는 로그로만 남긴다.
      *
-     * <p>일부러 {@code @Transactional}을 걸지 않는다. 트랜잭션 안에서 SQL이 실패하면
-     * PostgreSQL이 그 트랜잭션을 통째로 무효로 만들기 때문에, 여기서 예외를 삼켜도
-     * 커밋 시점에 다시 터진다. 삼키는 것이 소용없어지는 것이다. 실제로 관리자 추천
-     * 일괄 처리가 감사 로그 INSERT 실패로 통째로 롤백된 적이 있다.
+     * <p>{@code NOT_SUPPORTED}로 트랜잭션 밖에서 돈다. 이유가 둘이다.
      *
-     * <p>두 문장이 원자적일 필요도 없다. 기록만 되고 정리가 안 되면 다음 조회 때 정리된다.
+     * <p>하나. 이 클래스는 {@code @Transactional(readOnly = true)}라, 아무것도 안 붙이면
+     * 읽기 전용 트랜잭션을 물려받아 INSERT가 거부된다. 게다가 아래에서 예외를 삼키므로
+     * 조용히 실패한다. 실제로 그렇게 한 번 나갔고 화면에는 아무것도 쌓이지 않았다.
+     *
+     * <p>둘. 쓰기 트랜잭션으로 바꿔도 안 된다. 트랜잭션 안에서 SQL이 실패하면 PostgreSQL이
+     * 그 트랜잭션을 통째로 무효로 만들어, 예외를 삼켜도 커밋에서 다시 터진다. 관리자 추천
+     * 일괄 처리가 감사 로그 INSERT 실패로 통째로 롤백된 것이 같은 이유였다.
+     *
+     * <p>두 문장이 원자적일 필요는 없다. 기록만 되고 정리가 안 되면 다음번에 정리된다.
      */
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public void record(Long userId, Long placeId) {
         if (userId == null || placeId == null || placeId < 1) {
             throw new BusinessException(ErrorCode.INVALID_PLACE_REQUEST);
