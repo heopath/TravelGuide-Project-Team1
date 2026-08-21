@@ -11,6 +11,11 @@ public record AiGuideRequest(
         String question,
         @NotNull(message = "tripId is required")
         @Positive(message = "tripId must be a positive number")
-        Long tripId
+        Long tripId,
+        @Positive(message = "selectedDayNumber must be a positive number")
+        Integer selectedDayNumber
 ) {
+    public AiGuideRequest(String question, Long tripId) {
+        this(question, tripId, null);
+    }
 }

@@ -330,7 +330,11 @@ document.addEventListener("DOMContentLoaded", function () {
       credentials: "same-origin",
       allMyTripsLoading: false,
       headers,
-      body: JSON.stringify({ tripId, question })
+      body: JSON.stringify({
+        tripId,
+        question,
+        selectedDayNumber: window.AllMyTripsSchedule?.getActiveDayNumber?.() || null
+      })
     });
     const payload = await response.json().catch(function () { return null; });
     if (!response.ok || !payload?.success) {
