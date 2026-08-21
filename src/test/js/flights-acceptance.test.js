@@ -18,6 +18,8 @@ const PAYMENT_METHODS = path.join(ROOT, "src/main/resources/static/js/core/payme
 const DIALOG = path.join(ROOT, "src/main/resources/static/js/core/dialog.js");
 /* 수단별 결제창(카드 입력·간편결제 QR·계좌 안내). */
 const CHECKOUT = path.join(ROOT, "src/main/resources/static/js/core/payment-checkout.js");
+/* 티켓 결제. 판매 페이지와 같은 코드를 쓴다. (#281) */
+const TICKET_PAYMENT = path.join(ROOT, "src/main/resources/static/js/core/ticket-payment.js");
 
 let passed = 0;
 let failed = 0;
@@ -149,6 +151,7 @@ async function boot(options = {}) {
   w.eval(fs.readFileSync(DIALOG, "utf8"));
   w.eval(fs.readFileSync(PAYMENT_METHODS, "utf8"));
   w.eval(fs.readFileSync(CHECKOUT, "utf8"));
+  w.eval(fs.readFileSync(TICKET_PAYMENT, "utf8"));
   w.eval(fs.readFileSync(SCRIPT, "utf8"));
 
   // 파싱이 아직 끝나지 않았으면 jsdom이 DOMContentLoaded를 알아서 쏜다.

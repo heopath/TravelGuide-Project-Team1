@@ -27,6 +27,9 @@ import {
 } from "./mypage-support-chat.js";
 
 import {
+    initBookings,
+} from "./mypage-bookings.js";
+import {
     initTickets,
     initTicketHistory,
 } from "./mypage-tickets.js";
@@ -640,6 +643,8 @@ document.addEventListener(
             initSupport(),
             /* 상담 채팅은 탭을 열 때 서버를 부른다. 여기서는 화면만 걸어 둔다. */
             initSupportChat(),
+            /* 예약 내역의 종류 탭(전체·항공·숙소·티켓). */
+            initBookings(),
             initTickets(),
             /*
              * 배지만 먼저 받는다. 알림 화면을 열지 않아도 사이드바에 표시가 떠야

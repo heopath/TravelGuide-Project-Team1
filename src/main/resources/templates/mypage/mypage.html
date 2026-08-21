@@ -603,6 +603,20 @@
             </div>
 
             <!--
+              종류 탭. 이 화면은 원래 티켓만 보여줬다. 항공과 숙소는 예약 화면 안에만 있어서
+              무엇을 예약해 뒀는지 한자리에서 볼 수 없었다.
+
+              티켓을 고르면 아래 두 칸짜리 티켓 화면이 그대로 뜬다. 티켓은 입장 코드와 이용
+              방법까지 봐야 하는 물건이라 줄 하나로 줄일 수 없다.
+            -->
+            <div
+                    class="mypage-booking-type-tabs"
+                    data-booking-type-tabs
+                    role="tablist"
+                    aria-label="예약 종류"
+            ></div>
+
+            <!--
               상태 탭. 개수는 서버가 아니라 받은 목록에서 센다. 목록과 개수를 따로
               받으면 둘이 어긋난 화면이 나온다.
             -->
@@ -610,6 +624,13 @@
                     class="mypage-ticket-tabs"
                     data-ticket-tabs
                     role="tablist"
+            ></div>
+
+            <!-- 항공·숙소는 무엇을 언제 얼마에 잡았는지가 전부라 줄로 보여준다. -->
+            <div
+                    class="white-panel mypage-booking-list"
+                    data-booking-list
+                    aria-live="polite"
             ></div>
 
             <div class="mypage-ticket-layout">

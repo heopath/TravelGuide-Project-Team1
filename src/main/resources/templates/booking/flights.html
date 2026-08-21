@@ -555,6 +555,8 @@
       import { createQrSvg } from "/js/core/qr-encoder.js";
       window.AllMyTripsQr = { createQrSvg };
     </script>
+    <!-- 티켓 결제. 판매 페이지와 같은 코드를 쓴다. (#281) -->
+    <script th:src="@{/js/core/ticket-payment.js}" src="../../static/js/core/ticket-payment.js"></script>
     <script th:src="@{/js/pages/booking/flights.js}" src="../../static/js/pages/booking/flights.js"></script>
     <script th:src="@{/js/pages/booking/accommodations.js}" src="../../static/js/pages/booking/accommodations.js"></script>
     <script th:src="@{/js/pages/booking/tickets.js}" src="../../static/js/pages/booking/tickets.js"></script>

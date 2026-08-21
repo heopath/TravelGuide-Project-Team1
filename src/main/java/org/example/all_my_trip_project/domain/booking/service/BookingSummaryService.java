@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.example.all_my_trip_project.domain.accommodation.dto.TripAccommodationsResponse;
 import org.example.all_my_trip_project.domain.accommodation.service.AccommodationBookingService;
+import org.example.all_my_trip_project.domain.booking.dto.MyBookingsResponse;
 import org.example.all_my_trip_project.domain.booking.dto.TripBookingSummaryResponse;
 import org.example.all_my_trip_project.domain.booking.dto.TripBookingSummaryResponse.BookingItem;
 import org.example.all_my_trip_project.domain.booking.dto.TripBookingSummaryResponse.SectionError;
@@ -21,7 +22,9 @@ import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 
 @Slf4j
@@ -37,6 +40,94 @@ public class BookingSummaryService {
     private final AccommodationBookingService accommodationBookingService;
     private final TicketService ticketService;
     private final TripDAO tripDAO;
+
+    /**
+     * 여행에 상관없이 내가 예약한 것 전부.
+     *
+     * <p>여행별 요약이 "이 여행이 어떻게 됐나"라면 이쪽은 "내가 뭘 예약했나"다. 같은 자료를
+     * 다르게 묶을 뿐이라 {@link #get}을 여행마다 부른다. 여행 수만큼 조회가 늘지만, 종류별
+     * 전용 질의를 세 벌 더 만들어 두 곳이 서로 어긋나는 편보다 낫다.
+     *
+     * <p>한 여행을 못 읽어도 나머지는 보여준다. 하나 때문에 목록 전체가 비면 안 된다.
+     *
+     * @param type FLIGHT·HOTEL·TICKET 중 하나. 비우면 전부.
+     */
+    public MyBookingsResponse getAll(Long userId, String type) {
+        String wanted = type == null || type.isBlank() ? null : type.trim().toUpperCase();
+
+        Map<Long, String> tripTitles = new LinkedHashMap<>();
+        for (TripDTO trip : tripDAO.findByUserId(userId)) {
+            tripTitles.put(trip.getTripId(), trip.getTitle());
+        }
+
+        List<MyBookingsResponse.Entry> entries = new ArrayList<>();
+
+        /*
+         * 항공과 숙소는 여행에만 붙는다. 여행을 하나씩 훑는다. 한 여행을 못 읽어도 나머지는
+         * 보여준다 — 하나 때문에 목록 전체가 비면 안 된다.
+         */
+        for (Map.Entry<Long, String> trip : tripTitles.entrySet()) {
+            TripBookingSummaryResponse summary;
+            try {
+                summary = get(userId, trip.getKey());
+            } catch (RuntimeException exception) {
+                log.warn("예약 목록에서 여행 하나를 건너뜁니다. tripId={} type={}",
+                        trip.getKey(), exception.getClass().getSimpleName());
+                continue;
+            }
+            for (BookingItem item : summary.items()) {
+                /* 티켓은 아래에서 한 번에 받는다. 여기서 담으면 두 번 들어간다. */
+                if ("TICKET".equals(item.type())) continue;
+                entries.add(entryOf(trip.getKey(), trip.getValue(), item));
+            }
+        }
+
+        /*
+         * 티켓은 여행에 붙지 않은 것도 있다. (#255) 여행만 훑으면 그런 티켓이 통째로
+         * 빠져, 분명히 산 티켓인데 목록에 없는 일이 생긴다.
+         */
+        try {
+            for (TicketReservationDTO ticket : ticketService.reservations(userId, null)) {
+                entries.add(entryOf(ticket.getTripId(), tripTitles.get(ticket.getTripId()),
+                        ticketItem(ticket)));
+            }
+        } catch (RuntimeException exception) {
+            log.warn("예약 목록에서 티켓을 건너뜁니다. type={}", exception.getClass().getSimpleName());
+        }
+
+        /*
+         * 개수는 고른 종류와 무관하게 전부 센다. 탭에 붙는 숫자라, 항공만 보고 있을 때도
+         * 숙소가 몇 건인지 보여야 넘어갈 이유가 생긴다. 그래서 거르기 전에 센다.
+         */
+        MyBookingsResponse.Counts counts = countOf(entries);
+
+        List<MyBookingsResponse.Entry> shown = wanted == null
+                ? entries
+                : entries.stream().filter(entry -> wanted.equals(entry.type())).toList();
+
+        return new MyBookingsResponse(shown, counts);
+    }
+
+    private MyBookingsResponse.Entry entryOf(Long tripId, String tripTitle, BookingItem item) {
+        return new MyBookingsResponse.Entry(
+                tripId, tripTitle,
+                item.type(), item.referenceId(), item.title(), item.detail(),
+                item.status(), item.statusLabel(), item.amount(), item.currency(),
+                item.practice(), item.usageDate(), item.quantity());
+    }
+
+    private MyBookingsResponse.Counts countOf(List<MyBookingsResponse.Entry> entries) {
+        int flight = 0;
+        int hotel = 0;
+        int ticket = 0;
+        for (MyBookingsResponse.Entry entry : entries) {
+            if ("FLIGHT".equals(entry.type())) flight++;
+            /* 숙소의 종류 이름은 ACCOMMODATION이다. HOTEL로 세면 늘 0이 나온다. */
+            else if ("ACCOMMODATION".equals(entry.type())) hotel++;
+            else if ("TICKET".equals(entry.type())) ticket++;
+        }
+        return new MyBookingsResponse.Counts(entries.size(), flight, hotel, ticket);
+    }
 
     /**
      * 소유권은 먼저 한 번 확인한다. 그 뒤 각 종류는 따로 조회해 한 종류의 장애가
