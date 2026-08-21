@@ -30,6 +30,36 @@
     KUV: "군산", WJU: "원주", YNY: "양양", MWX: "무안", KPO: "포항"
   };
 
+  /*
+   * 여행의 목적지 이름을 공항으로 바꾼다.
+   *
+   * 목적지는 "부산", "부산광역시", "강원도 속초시"처럼 자유롭게 들어온다. 공항 이름과
+   * 도시 이름이 다른 곳도 있어(부산의 공항은 김해, 속초는 양양) 코드 이름만으로는 못 찾는다.
+   * 그래서 도시·지역 이름을 따로 적는다.
+   *
+   * 긴 이름부터 본다. "서귀포"가 "서울"보다 먼저 걸려야 제주로 간다.
+   */
+  const DESTINATION_AIRPORTS = [
+    ["서귀포", "CJU"], ["제주", "CJU"],
+    ["부산", "PUS"], ["김해", "PUS"],
+    ["인천", "ICN"], ["김포", "GMP"], ["서울", "GMP"],
+    ["대구", "TAE"], ["경주", "KPO"], ["포항", "KPO"],
+    ["광주", "KWJ"], ["목포", "MWX"], ["무안", "MWX"], ["전남", "MWX"],
+    ["순천", "RSU"], ["여수", "RSU"],
+    ["청주", "CJJ"], ["충북", "CJJ"], ["충청북도", "CJJ"],
+    ["울산", "USN"], ["진주", "HIN"], ["사천", "HIN"],
+    ["군산", "KUV"], ["전북", "KUV"], ["전라북도", "KUV"],
+    ["속초", "YNY"], ["강릉", "YNY"], ["양양", "YNY"],
+    ["원주", "WJU"], ["강원", "YNY"],
+  ].sort((a, b) => b[0].length - a[0].length);
+
+  const airportOf = (destinationName) => {
+    const text = String(destinationName || "");
+    if (!text) return null;
+    const hit = DESTINATION_AIRPORTS.find(([name]) => text.includes(name));
+    return hit ? hit[1] : null;
+  };
+
   const airportName = (code) => AIRPORT_NAMES[String(code || "").toUpperCase()] || "";
   const airportLabel = (code) => {
     const name = airportName(code);
@@ -70,6 +100,8 @@
   let sortKey = "rec";
   let pendingOfferId = null;
   let tripId = null;
+  /* 주소에 destination이 있었는지. 여행 목적지 자동 채움을 막는 데 쓴다. */
+  let destinationFromUrl = false;
   let initialTab = "flight";
   let search = { origin: "GMP", destination: "CJU", departureDate: null, returnDate: null, adults: 2 };
   let hotelSelection = null;
@@ -1193,6 +1225,8 @@
     search.returnDate = params.get("returnDate") || iso(back);
     search.origin = (params.get("origin") || "GMP").toUpperCase();
     search.destination = (params.get("destination") || "CJU").toUpperCase();
+    /* 주소로 직접 지정했으면 여행 목적지로 덮어쓰지 않는다. 고른 쪽이 이긴다. */
+    destinationFromUrl = params.has("destination");
     search.adults = Number(params.get("adults")) || 2;
 
     $("f-origin").value = search.origin;
@@ -1216,6 +1250,19 @@
       if (trip?.startDate) { search.departureDate = trip.startDate; $("f-depart").value = trip.startDate; }
       if (trip?.endDate) { search.returnDate = trip.endDate; $("f-return").value = trip.endDate; }
       if (trip?.companionCount) { search.adults = trip.companionCount; $("f-adults").value = String(trip.companionCount); }
+
+      /*
+       * 부산으로 가는 여행을 짜고 예약으로 넘어왔는데 도착지가 제주로 남아 있으면,
+       * 손님은 매번 코드를 지우고 다시 쳐야 한다. 여행이 정해 놓은 곳을 채워 준다.
+       *
+       * 출발지와 같아지는 경우(서울 여행)에는 두지 않는다. 같은 공항으로 가는
+       * 항공편은 없어서 빈 결과만 보게 된다.
+       */
+      const arrival = destinationFromUrl ? null : airportOf(trip?.destinationName);
+      if (arrival && arrival !== search.origin) {
+        search.destination = arrival;
+        $("f-destination").value = arrival;
+      }
     } catch (e) { /* 여행 정보를 못 읽어도 기본 조건으로 비교는 할 수 있다 */ }
   }
 

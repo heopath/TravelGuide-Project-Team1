@@ -71,6 +71,7 @@ const won = (n) => Math.round(n).toLocaleString("ko-KR") + "원";
 /**
  * @param options.query 주소 뒤에 붙일 쿼리스트링. `?tripId=`를 붙이면 저장 경로가 켜진다.
  * @param options.trip  { days, items } 여행 일정 응답. 없으면 일정 API는 빈 응답을 준다.
+ * @param options.tripInfo 여행 요약 응답. destinationName을 넣으면 도착지 자동 채움을 볼 수 있다.
  */
 async function boot(options = {}) {
   const trip = options.trip || null;
@@ -127,6 +128,10 @@ async function boot(options = {}) {
           : item)
       };
       return json({ success: true, data: { reservationId: Number(id), status: "CANCELLED" } });
+    }
+    /* 여행 요약. 예약 화면이 목적지·날짜·인원을 여기서 가져간다. */
+    if (options.tripInfo && /^\/api\/v1\/trips\/\d+$/.test(url)) {
+      return json({ success: true, data: options.tripInfo });
     }
     if (trip) {
       if (/^\/api\/v1\/trips\/\d+\/days$/.test(url)) {
@@ -693,6 +698,64 @@ async function run() {
      */
     T("코드를 다시 볼 수 있는 곳을 알린다",
       d.querySelector(".mn-ticket")?.textContent.includes("마이페이지"));
+  }
+
+
+  /* ── 여행 목적지가 도착지로 이어지는가 ── */
+  {
+    /*
+     * 부산으로 가는 여행을 짜고 넘어왔는데 도착지가 제주로 남아 있으면, 손님은 매번
+     * 코드를 지우고 다시 쳐야 한다. 공항 이름과 도시 이름이 다른 곳이라 더 어렵다
+     * — 부산의 공항은 김해(PUS)다.
+     */
+    const { d, urls } = await boot({
+      query: "?tripId=11",
+      tripInfo: { tripId: 11, title: "부산 여행", destinationName: "부산광역시" },
+    });
+    T("여행 목적지가 도착지 칸에 채워진다", d.getElementById("f-destination").value === "PUS");
+    T("그 도착지로 실제 조회한다",
+      urls.some((u) => u.startsWith("/api/v1/flights/search") && u.includes("destination=PUS")));
+    T("코드 옆에 공항 이름을 적는다",
+      d.getElementById("f-destination-name").textContent.trim() === "부산");
+  }
+  {
+    /* 주소로 직접 고른 값이 있으면 그쪽이 이긴다. 골라 놓은 것을 덮으면 안 된다. */
+    const { d } = await boot({
+      query: "?tripId=12&destination=TAE",
+      tripInfo: { tripId: 12, title: "부산 여행", destinationName: "부산" },
+    });
+    T("주소로 지정한 도착지를 여행 목적지가 덮지 않는다",
+      d.getElementById("f-destination").value === "TAE");
+  }
+  {
+    /*
+     * 출발지와 같은 곳으로는 갈 수 없다. 서울 여행이면 도착지를 김포로 바꾸는 대신
+     * 그대로 둔다. 바꾸면 결과가 하나도 없는 화면만 보게 된다.
+     */
+    const { d } = await boot({
+      query: "?tripId=13",
+      tripInfo: { tripId: 13, title: "서울 여행", destinationName: "서울특별시" },
+    });
+    T("출발지와 같아지면 도착지를 바꾸지 않는다",
+      d.getElementById("f-destination").value === "CJU");
+  }
+  {
+    /* 목적지 이름을 못 알아들으면 손대지 않는다. 엉뚱한 곳으로 보내는 것보다 낫다. */
+    const { d } = await boot({
+      query: "?tripId=14",
+      tripInfo: { tripId: 14, title: "해외 여행", destinationName: "오사카" },
+    });
+    T("모르는 목적지면 기본값을 그대로 둔다",
+      d.getElementById("f-destination").value === "CJU");
+  }
+  {
+    /* 세 글자 코드를 외워 치게 하지 않는다. 갈 수 있는 공항을 고를 수 있어야 한다. */
+    const { d } = await boot();
+    const list = d.getElementById("airport-codes");
+    T("공항을 고를 수 있는 목록이 있다", !!list && list.children.length === 15);
+    T("두 칸 모두 그 목록을 쓴다",
+      d.getElementById("f-origin").getAttribute("list") === "airport-codes"
+      && d.getElementById("f-destination").getAttribute("list") === "airport-codes");
   }
 
   console.log(`\n${passed} passed, ${failed} failed`);
