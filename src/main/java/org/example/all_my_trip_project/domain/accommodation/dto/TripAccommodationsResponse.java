@@ -13,12 +13,12 @@ import java.util.stream.Collectors;
 /**
  * 여행에 담긴 숙소 목록.
  *
- * @param selectedTotal 요금이 있는 숙소만 더한 합계. 요금 미제공·실습 요금은 빠진다
+ * @param selectedTotal 요금이 있는 숙소만 더한 합계. 실습·샘플 요금도 출처를 밝히고 포함한다
  * @param isEstimate    아직 자가 신고되지 않은 숙소가 있으면 참
  * @param priceSource   출처가 섞이면 {@code MIXED}. 담긴 숙소가 없으면 null
  *
- * <p>합계에서 실습 요금(SANDBOX)과 샘플(MOCK)을 빼는 이유는 화면과 같다. 그 숫자를
- * 예상 총액에 더하면 사용자가 근거 없는 금액을 믿게 된다.
+ * <p>요금이 없는 숙소만 합계에서 뺀다. 실습 요금(SANDBOX)과 샘플(MOCK)은 화면에서
+ * 출처를 밝히고 예상 총액에 포함한다.
  */
 public record TripAccommodationsResponse(
         List<Stay> stays,
@@ -38,9 +38,8 @@ public record TripAccommodationsResponse(
      * 보이는데 예약 현황은 "요금 미정"이 되어 요금을 못 가져온 것인지 화면이 안 세는 것인지
      * 구분할 수 없었다. 항공은 같은 상황에서 샘플 운임을 합계에 넣고 출처만 밝힌다.
      *
-     * 이 값들이 운영에 나갈 일은 없다. Mock provider는 @Profile("!prod"), Sandbox provider는
-     * prod에서 호출되지 않고, 그래도 새어 나오면 AccommodationSearchService가 막는다.
-     * 출처는 priceSource로 그대로 내려가므로 화면이 "샘플"·"실습"을 붙여 밝힌다.
+     * Mock provider는 @Profile("!prod")로 운영에서 빠진다. Sandbox provider는 운영에서도
+     * 쓸 수 있으므로 출처를 priceSource로 그대로 내려 화면이 "실습"이라고 밝힌다.
      */
     private static final Set<String> EXCLUDED_FROM_TOTAL = Set.of("UNAVAILABLE");
 

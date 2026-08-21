@@ -32,7 +32,8 @@ import java.util.Set;
  *
  * <p>두 서비스의 숙소 ID는 서로 다르다. 한 번의 위치 기반 조회 후 이름과 좌표가
  * 충분히 가까운 경우에만 연결한다. 애매한 결과는 잘못된 금액보다 미제공 상태가 안전하다.
- * Sandbox 키와 응답의 {@code sandbox=true}를 모두 확인하며 prod 프로필에서는 호출하지 않는다.
+ * Sandbox 키와 응답의 {@code sandbox=true}를 모두 확인한다. 운영에서도 실습 요금을
+ * 사용하므로 화면의 실습 표시는 제거하면 안 된다.
  */
 @Slf4j
 @Component
@@ -78,17 +79,16 @@ public class LiteApiSandboxPriceProvider implements AccommodationPriceProvider {
      */
     @PostConstruct
     void reportKeyState() {
-        if (environment.acceptsProfiles(Profiles.of("prod"))) {
-            return;
-        }
+        String profileLabel = environment.acceptsProfiles(Profiles.of("prod")) ? "운영 프로필에서 " : "";
         if (properties.hasSandboxKey()) {
-            log.info("LiteAPI Sandbox 키를 확인했습니다. 좌표가 있는 숙소에 요금 보강을 시도합니다.");
+            log.info("{}LiteAPI Sandbox 키를 확인했습니다. 좌표가 있는 숙소에 요금 보강을 시도합니다.",
+                    profileLabel);
         } else if (properties.getApiKey() == null || properties.getApiKey().isBlank()) {
-            log.info("LiteAPI Sandbox 키가 없어 숙소 요금 보강을 건너뜁니다. "
-                    + "LITEAPI_SANDBOX_API_KEY 환경변수를 확인하세요.");
+            log.info("{}LiteAPI Sandbox 키가 없어 숙소 요금 보강을 건너뜁니다. "
+                    + "LITEAPI_SANDBOX_API_KEY 환경변수를 확인하세요.", profileLabel);
         } else {
-            log.warn("LiteAPI Sandbox 키 형식이 맞지 않아 요금 보강을 건너뜁니다. "
-                    + "sand_ 또는 sandbox_ 로 시작하는 Sandbox 키가 필요합니다.");
+            log.warn("{}LiteAPI Sandbox 키 형식이 맞지 않아 요금 보강을 건너뜁니다. "
+                    + "sand_ 또는 sandbox_ 로 시작하는 Sandbox 키가 필요합니다.", profileLabel);
         }
     }
 
