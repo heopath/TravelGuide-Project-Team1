@@ -46,6 +46,8 @@
   const slotFormMessage = document.querySelector("[data-slot-form-message]");
   const slotSubmit = document.querySelector("[data-slot-submit]");
   const slotWeekdays = document.querySelector("[data-slot-weekdays]");
+  const slotTabs = Array.from(document.querySelectorAll("[data-slot-tab]"));
+  const slotTabPanels = Array.from(document.querySelectorAll("[data-slot-tabpanel]"));
   if (!list || !empty) return;
 
   let status = "";
@@ -57,6 +59,24 @@
   let currentProduct = null;
   let loadedOptions = [];
   let editingOptionId = null;
+
+  /** 판매 설정에서 한 번에 한 단계만 보여준다. */
+  function openSlotTab(name, moveFocus) {
+    const target = slotTabPanels.some(function (panel) { return panel.dataset.slotTabpanel === name; })
+      ? name
+      : "options";
+    slotTabs.forEach(function (button) {
+      const selected = button.dataset.slotTab === target;
+      button.classList.toggle("is-current", selected);
+      button.setAttribute("aria-selected", selected ? "true" : "false");
+      button.tabIndex = selected ? 0 : -1;
+      if (selected && moveFocus) button.focus();
+    });
+    slotTabPanels.forEach(function (panel) {
+      panel.hidden = panel.dataset.slotTabpanel !== target;
+    });
+    return target;
+  }
 
   const field = (name) => form?.querySelector(`[data-field="${name}"]`);
 
@@ -731,6 +751,8 @@
     /* 뒤 목록이 같이 스크롤되면 모달 안에서 길을 잃는다. */
     document.body.dataset.slotModalOpen = "1";
     resetSlotView();
+    /* 데이터를 읽는 동안에는 선행 단계인 티켓 종류를 보여준다. */
+    openSlotTab("options");
     /* 열린 사실을 키보드 사용자도 바로 알 수 있게 모달 안으로 초점을 옮긴다. */
     if (slotClose) slotClose.focus();
     slotTitle.textContent = `${product.name} · 판매 설정`;
@@ -747,6 +769,8 @@
     if (slotField("totalQuantity")) slotField("totalQuantity").value = DEFAULT_SLOT_QUANTITY;
     try {
       await reloadSlotPanel();
+      /* 종류가 있으면 버튼의 주 작업인 회차·재고로, 없으면 종류 등록부터 시작한다. */
+      openSlotTab(loadedOptions.length ? "slots" : "options");
     } catch (error) {
       slotEmpty.textContent = error.message || "판매 회차를 불러오지 못했어요.";
     }
@@ -827,6 +851,20 @@
 
   if (slotClose) slotClose.addEventListener("click", closeSlots);
 
+  slotTabs.forEach(function (button, index) {
+    button.addEventListener("click", function () { openSlotTab(button.dataset.slotTab); });
+    button.addEventListener("keydown", function (event) {
+      let next = null;
+      if (event.key === "ArrowRight") next = (index + 1) % slotTabs.length;
+      if (event.key === "ArrowLeft") next = (index - 1 + slotTabs.length) % slotTabs.length;
+      if (event.key === "Home") next = 0;
+      if (event.key === "End") next = slotTabs.length - 1;
+      if (next === null) return;
+      event.preventDefault();
+      openSlotTab(slotTabs[next].dataset.slotTab, true);
+    });
+  });
+
   /* 배경을 눌렀을 때만 닫는다. 카드 안을 누르다 닫히면 쓰던 값이 날아간다. */
   if (slotPanel) slotPanel.addEventListener("click", function (event) {
     if (event.target === slotPanel) closeSlots();
@@ -843,7 +881,7 @@
     /* Tab으로 뒤 화면까지 빠져나가지 않게 모달 안에서 순환시킨다. */
     const focusable = Array.from(slotCard.querySelectorAll(
       'button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), a[href]'))
-      .filter(function (element) { return !element.hidden; });
+      .filter(function (element) { return !element.hidden && !element.closest("[hidden]"); });
     if (!focusable.length) return;
     const first = focusable[0];
     const last = focusable[focusable.length - 1];
