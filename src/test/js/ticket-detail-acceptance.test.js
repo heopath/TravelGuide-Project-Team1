@@ -11,6 +11,11 @@ const { readMarkup } = require("./markup");
 const ROOT = path.resolve(__dirname, "../../..");
 const HTML = path.join(ROOT, "src/main/resources/templates/booking/ticket.html");
 const SCRIPT = path.join(ROOT, "src/main/resources/static/js/pages/booking/ticket-detail.js");
+/* 담고 나면 그 자리에서 결제한다. 결제 창과 공용 결제 코드가 함께 올라와야 한다. */
+const DIALOG = path.join(ROOT, "src/main/resources/static/js/core/dialog.js");
+const PAYMENT_METHODS = path.join(ROOT, "src/main/resources/static/js/core/payment-methods.js");
+const CHECKOUT = path.join(ROOT, "src/main/resources/static/js/core/payment-checkout.js");
+const TICKET_PAYMENT = path.join(ROOT, "src/main/resources/static/js/core/ticket-payment.js");
 
 let passed = 0;
 let failed = 0;
@@ -101,6 +106,10 @@ function boot(options = {}) {
     return json({ success: true, data: null });
   };
 
+  w.eval(fs.readFileSync(DIALOG, "utf8"));
+  w.eval(fs.readFileSync(PAYMENT_METHODS, "utf8"));
+  w.eval(fs.readFileSync(CHECKOUT, "utf8"));
+  w.eval(fs.readFileSync(TICKET_PAYMENT, "utf8"));
   w.eval(fs.readFileSync(SCRIPT, "utf8"));
   if (d.readyState !== "loading") d.dispatchEvent(new w.Event("DOMContentLoaded"));
   return { w, d, calls, bodies };
@@ -205,8 +214,26 @@ async function main() {
       bodies.some((b) => b.slotId === 32 && b.quantity === 4));
     /* 여행을 고른 채로 들어왔으면 그 여행에 붙인다. (#255) */
     T("여행을 이어받으면 tripId를 함께 보낸다", bodies.some((b) => b.tripId === 10));
-    T("담은 뒤 결제할 곳을 알려준다",
-      text(d, "[data-ticket-state]").includes("마이페이지"));
+    /*
+     * 담기만 하고 끝나면 손님은 산 줄 아는데 티켓이 없다. 결제까지 마쳐야 티켓이 나오므로
+     * 담자마자 결제창을 띄운다.
+     */
+    await until(() => d.querySelector(".pay-method-overlay"));
+    T("담자마자 결제창이 뜬다", Boolean(d.querySelector(".pay-method-overlay")));
+
+    d.querySelector(".pay-method-overlay .text-button").click();
+    await until(() => !d.querySelector(".pay-method-overlay"));
+
+    /*
+     * 결제를 접었어도 예약은 남아 있다. 그 사실과 어디서 마저 낼 수 있는지를 알려야
+     * 손님이 다시 담아 두 건을 만들지 않는다.
+     */
+    /* 창이 닫히는 것과 안내가 쓰이는 것은 한 박자 다르다. 글이 나올 때까지 기다린다. */
+    await until(() => text(d, "[data-ticket-error]").includes("결제는 아직"));
+    T("결제를 접으면 아직이라고 알린다",
+      text(d, "[data-ticket-error]").includes("결제는 아직"));
+    T("결제할 곳으로 가는 길을 준다",
+      d.querySelector("[data-ticket-pay]")?.getAttribute("href") === "/mypage?view=tickets");
   }
 
   /* ── 여행 없이 ── */
