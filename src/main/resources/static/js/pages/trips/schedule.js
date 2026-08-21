@@ -543,9 +543,12 @@ document.addEventListener("DOMContentLoaded", function () {
     } else if (state?.status === "loading" && selectedMeta) {
       summaryText.textContent = "이동시간 계산 중...";
     } else if (state?.status === "error" && selectedMeta) {
-      summaryText.textContent = state.notFound
-        ? "이동 경로를 찾을 수 없습니다."
-        : "이동시간을 계산하지 못했습니다.";
+      /*
+       * 서버가 왜 안 되는지 알려주는데(키 미설정인지, 카카오가 거절했는지, 길이 없는지)
+       * 지금까지 화면이 그걸 버리고 "계산하지 못했습니다" 한 줄로 뭉갰다. 그래서
+       * 로컬에서는 되고 서버에서만 안 될 때 무엇을 봐야 할지 알 수가 없었다.
+       */
+      summaryText.textContent = state.message || "이동시간을 계산하지 못했습니다.";
     } else if (selectedMeta) {
       summaryText.textContent = "이동 경로를 계산 중입니다.";
     } else {
@@ -606,10 +609,12 @@ document.addEventListener("DOMContentLoaded", function () {
       segmentRouteResults.set(key, {status: "success", mode, data});
     }).catch(function (error) {
       if (segmentModes.get(key) !== mode) return;
+      /* 원인을 콘솔에도 남긴다. 화면 문구만으로는 상태 코드까지 알 수 없다. */
+      console.warn("[구간 이동시간] 계산 실패", mode,
+        {status: error?.status, code: error?.code, message: error?.message});
       segmentRouteResults.set(key, {
         status: "error",
         mode,
-        notFound: error.status === 404,
         message: error.message || "해당 구간의 경로를 찾지 못했습니다.",
       });
     }).finally(function () {
