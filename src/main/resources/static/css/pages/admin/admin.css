@@ -465,11 +465,37 @@ body.page-admin #page-content {
 
 /* ── 티켓 검표 ── */
 
+.page-admin .admin-validation-panel-head,
+.page-admin .admin-validation-history-head {
+  margin-bottom: 16px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+.page-admin .admin-validation-panel-head h3,
+.page-admin .admin-validation-history-head h3 { margin: 0; font-size: 16px; }
+.page-admin .admin-validation-panel-head p { margin: 5px 0 0; color: var(--muted); font-size: 12px; line-height: 1.55; }
+.page-admin .admin-validation-panel-head .primary-button {
+  flex: 0 0 auto;
+  min-height: 38px;
+  display: inline-flex;
+  align-items: center;
+  text-decoration: none;
+}
+.page-admin .admin-validation-history-head .admin-hint { margin: 4px 0 0; }
+
 .page-admin .admin-scan {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 72px;
+  grid-template-columns: minmax(0, 1fr) 104px;
   gap: 8px;
   margin-bottom: 12px;
+}
+.page-admin .admin-scan label {
+  grid-column: 1 / -1;
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 750;
 }
 .page-admin .admin-scan input {
   padding: 11px 13px;
@@ -480,6 +506,7 @@ body.page-admin #page-content {
   font-size: 13px;
 }
 .page-admin .admin-scan button { border: 0; cursor: pointer; }
+.page-admin .admin-scan button:disabled { cursor: wait; opacity: .65; }
 
 /*
   결과는 색으로만 구분하지 않는다. 문구가 스스로 무엇인지 말하고 색은 거들기만 한다.
@@ -498,13 +525,14 @@ body.page-admin #page-content {
   color: var(--muted);
   font-size: 11.5px;
 }
+.page-admin .admin-scan-result .admin-scan-result-actions { margin-top: 12px; }
 .page-admin .admin-scan-result.ok { border-color: #a6f4c5; background: #f0fdf4; }
 .page-admin .admin-scan-result.ok strong { color: #067647; }
 .page-admin .admin-scan-result.no { border-color: #fecdca; background: #fff5f4; }
 .page-admin .admin-scan-result.no strong { color: #b42318; }
 
 .page-admin .admin-validation-row {
-  grid-template-columns: 132px 72px minmax(0, 1fr) 96px;
+  grid-template-columns: 132px minmax(130px, .9fr) minmax(180px, 1.2fr) 130px;
   align-items: center;
 }
 .page-admin .admin-validation-row > span { padding: 10px 0; min-width: 0; }
@@ -512,6 +540,8 @@ body.page-admin #page-content {
 .page-admin .admin-validation-row small {
   display: block; margin-top: 2px; color: var(--muted); font-size: 11px;
 }
+.page-admin .admin-validation-row [data-validation-failure-reason] { color: #b4451f; }
+.page-admin .admin-validation-history-head + .admin-filter { margin: 0 0 14px; }
 
 /*
   관리 칸은 버튼 두 개(`정지`·`관리자 승격`)가 나란히 서야 해서 고정 폭이다. 1fr로 두면
@@ -869,9 +899,12 @@ body.page-admin #page-content {
   }
   .page-admin .admin-member-row > :nth-child(4) { display: none; }
 
-  /* 검표 기록은 검표자를 숨겨 세 칸으로 줄인다. 현장에서는 결과와 티켓이 먼저다. */
-  .page-admin .admin-validation-row { grid-template-columns: 108px 64px minmax(0, 1fr); }
+  /* 검표 기록은 입력 경로·검표자를 숨겨 세 칸으로 줄인다. 현장에서는 결과와 티켓이 먼저다. */
+  .page-admin .admin-validation-row { min-width: 520px; grid-template-columns: 108px 120px minmax(0, 1fr); }
   .page-admin .admin-validation-row > :nth-child(4) { display: none; }
+
+  .page-admin .admin-validation-panel-head { flex-direction: column; }
+  .page-admin .admin-validation-panel-head .primary-button { width: 100%; justify-content: center; }
 
   .page-admin .admin-filter { margin-left: 0; }
 }

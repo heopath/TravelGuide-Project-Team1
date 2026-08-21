@@ -19,6 +19,10 @@
     CANCELLED: "취소됨",
     EXPIRED: "기간 밖",
   };
+  const channelLabels = {
+    ADMIN_WEB: "수동 입력",
+    MOCK_SCANNER: "QR 스캔",
+  };
 
   const panel = document.querySelector('[data-admin-section="validation"]');
   if (!panel) return;
@@ -28,11 +32,15 @@
   const submit = panel.querySelector("[data-validation-submit]");
   const resultBox = panel.querySelector("[data-validation-result-box]");
   const filter = panel.querySelector("[data-validation-filter]");
+  const refresh = panel.querySelector("[data-validation-refresh]");
+  const count = panel.querySelector("[data-validation-count]");
   const list = panel.querySelector("[data-validation-list]");
   const empty = panel.querySelector("[data-validation-empty]");
   if (!form || !token || !list || !empty) return;
 
   let resultFilter = "";
+  let logLoadSequence = 0;
+  let validating = false;
 
   async function request(url, options) {
     const response = await fetch(url, Object.assign({
@@ -87,6 +95,32 @@
       detail.textContent = parts.join(" · ");
       resultBox.appendChild(detail);
     }
+
+    if (data.validFrom || data.validUntil) {
+      const validity = document.createElement("small");
+      validity.dataset.validationValidity = "";
+      validity.textContent = `입장 가능 시간 ${dateTime(data.validFrom)} ~ ${dateTime(data.validUntil)}`;
+      resultBox.appendChild(validity);
+    }
+
+    const actions = document.createElement("div");
+    actions.className = "admin-scan-result-actions";
+    const next = document.createElement("button");
+    next.type = "button";
+    next.className = "admin-chip";
+    next.dataset.validationNext = "";
+    next.textContent = "다음 손님 검표";
+    next.addEventListener("click", resetResult);
+    actions.appendChild(next);
+    resultBox.appendChild(actions);
+  }
+
+  function resetResult() {
+    resultBox.hidden = true;
+    resultBox.className = "admin-scan-result";
+    resultBox.replaceChildren();
+    token.value = "";
+    token.focus();
   }
 
   function row(entry) {
@@ -99,8 +133,16 @@
 
     const result = document.createElement("span");
     result.dataset.validationResultCell = "";
-    result.className = "admin-status " + (entry.validationResult === "SUCCESS" ? "confirmed" : "cancelled");
-    result.textContent = resultLabels[entry.validationResult] || entry.validationResult;
+    const resultBadge = document.createElement("span");
+    resultBadge.className = "admin-status " + (entry.validationResult === "SUCCESS" ? "confirmed" : "cancelled");
+    resultBadge.textContent = resultLabels[entry.validationResult] || entry.validationResult;
+    result.appendChild(resultBadge);
+    if (entry.failureReason) {
+      const failure = document.createElement("small");
+      failure.dataset.validationFailureReason = "";
+      failure.textContent = entry.failureReason;
+      result.appendChild(failure);
+    }
 
     const ticket = document.createElement("span");
     /* 없는 코드로 시도한 기록은 티켓이 없다. 빈칸으로 두지 않고 그 사실을 적는다. */
@@ -118,21 +160,30 @@
     }
 
     const validator = document.createElement("span");
-    validator.textContent = entry.validatorNickname
-      || (entry.validatorUserId ? `#${entry.validatorUserId}` : "알 수 없음");
+    const channel = document.createElement("strong");
+    channel.dataset.validationChannel = "";
+    channel.textContent = channelLabels[entry.validationChannel] || entry.validationChannel || "입력 경로 미상";
+    const validatorName = document.createElement("small");
+    validatorName.textContent = entry.validatorNickname
+      || (entry.validatorUserId ? `검표자 #${entry.validatorUserId}` : "검표자 알 수 없음");
+    validator.append(channel, validatorName);
 
     item.append(time, result, ticket, validator);
     return item;
   }
 
   async function loadLogs() {
+    const sequence = ++logLoadSequence;
     list.replaceChildren();
     empty.hidden = false;
     empty.textContent = "검표 기록을 불러오는 중이에요.";
+    if (count) count.textContent = "기록을 불러오는 중…";
     const query = new URLSearchParams({ limit: String(LOG_SIZE) });
     if (resultFilter) query.set("result", resultFilter);
     try {
       const entries = await request(`/api/v1/admin/ticket-validations?${query}`);
+      if (sequence !== logLoadSequence) return;
+      if (count) count.textContent = `최근 기록 ${Number(entries?.length || 0).toLocaleString("ko-KR")}건`;
       if (!entries || !entries.length) {
         empty.textContent = resultFilter ? "조건에 맞는 기록이 없어요." : "아직 검표 기록이 없어요.";
         return;
@@ -140,12 +191,18 @@
       empty.hidden = true;
       entries.forEach(function (entry) { list.appendChild(row(entry)); });
     } catch (error) {
+      if (sequence !== logLoadSequence) return;
+      if (count) count.textContent = "";
       empty.textContent = error.message || "검표 기록을 불러오지 못했어요.";
     }
   }
 
   async function validate(value) {
+    if (validating) return;
+    validating = true;
     submit.disabled = true;
+    const submitLabel = submit.textContent;
+    submit.textContent = "확인 중…";
     try {
       const data = await request("/api/v1/admin/ticket-validations", {
         method: "POST",
@@ -169,7 +226,9 @@
       message.textContent = error.message || "요청을 처리하지 못했습니다.";
       resultBox.append(headline, message);
     } finally {
+      validating = false;
       submit.disabled = false;
+      submit.textContent = submitLabel;
       /* 다음 손님을 바로 받을 수 있게 비우고 포커스를 되돌린다. */
       token.value = "";
       token.focus();
@@ -189,11 +248,18 @@
       if (!button) return;
       resultFilter = button.dataset.validationResult || "";
       filter.querySelectorAll("[data-validation-result]").forEach(function (chip) {
-        chip.classList.toggle("on", chip === button);
+        const selected = chip === button;
+        chip.classList.toggle("on", selected);
+        chip.setAttribute("aria-pressed", selected ? "true" : "false");
       });
       loadLogs();
     });
+    filter.querySelectorAll("[data-validation-result]").forEach(function (chip) {
+      chip.setAttribute("aria-pressed", chip.dataset.validationResult === "" ? "true" : "false");
+    });
   }
+
+  if (refresh) refresh.addEventListener("click", loadLogs);
 
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", loadLogs);
