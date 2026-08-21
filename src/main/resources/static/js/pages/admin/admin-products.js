@@ -33,6 +33,9 @@
   const slotList = document.querySelector("[data-slot-list]");
   const slotEmpty = document.querySelector("[data-slot-empty]");
   const slotClose = document.querySelector("[data-slot-close]");
+  const slotCard = document.querySelector("[data-slot-card]");
+  const slotCount = document.querySelector("[data-slot-count]");
+  const slotViewAll = document.querySelector("[data-slot-view-all]");
   const optionList = document.querySelector("[data-option-list]");
   const optionEmpty = document.querySelector("[data-option-empty]");
   const optionForm = document.querySelector("[data-option-form]");
@@ -585,17 +588,94 @@
 
   /* ── 패널 ── */
 
-  function renderSlots(slots) {
+  /* 기본으로 보여줄 기간. 한 상품에 시간대가 백 개를 넘는 일이 흔하다. */
+  const DEFAULT_VIEW_DAYS = 14;
+
+  /* 받아 온 시간대 전부. 화면에는 보기 기간에 든 것만 그린다. */
+  let allSlots = [];
+
+  /*
+   * 기간을 사람이 직접 골랐는지. 기본값 그대로일 때만 아래에서 자동으로 넓힌다.
+   * 직접 좁혀서 0개가 나온 것을 마음대로 넓히면 고른 조건이 무시된다.
+   */
+  let viewTouched = false;
+
+  function isoDate(date) {
+    const offset = date.getTimezoneOffset() * 60000;
+    return new Date(date.getTime() - offset).toISOString().slice(0, 10);
+  }
+
+  function viewField(which) {
+    return document.querySelector(`[data-slot-view="${which}"]`);
+  }
+
+  /** 보기 기간을 오늘부터 두 주로 되돌린다. 패널을 열 때마다 여기서 시작한다. */
+  function resetSlotView() {
+    const today = new Date();
+    const until = new Date(today.getTime() + DEFAULT_VIEW_DAYS * 86400000);
+    if (viewField("from")) viewField("from").value = isoDate(today);
+    if (viewField("to")) viewField("to").value = isoDate(until);
+    viewTouched = false;
+  }
+
+  /** 기간을 비운다. 전체가 보인다. */
+  function clearSlotView() {
+    if (viewField("from")) viewField("from").value = "";
+    if (viewField("to")) viewField("to").value = "";
+  }
+
+  /**
+   * 보기 기간에 든 것만 고른다.
+   *
+   * <p>서버에 다시 묻지 않는다. 이미 받아 둔 목록에서 거르는 것이라 즉시 바뀐다.
+   */
+  function slotsInView() {
+    const from = viewField("from")?.value || "";
+    const to = viewField("to")?.value || "";
+    if (!from && !to) return allSlots;
+    return allSlots.filter(function (slot) {
+      const date = String(slot.usageDate || "");
+      if (from && date < from) return false;
+      if (to && date > to) return false;
+      return true;
+    });
+  }
+
+  function renderSlots() {
+    let shown = slotsInView();
+
+    /*
+     * 기본 기간에 하나도 없으면 전체를 보여준다. 시즌이 몇 달 뒤인 상품은 열자마자
+     * 늘 0개가 떠서, 시간대가 없는 줄로 읽게 된다. 사람이 직접 좁힌 경우에는 건드리지
+     * 않는다 — 고른 조건을 마음대로 넓히면 그게 더 헷갈린다.
+     */
+    if (!viewTouched && shown.length === 0 && allSlots.length > 0) {
+      clearSlotView();
+      shown = allSlots;
+    }
+
     slotList.replaceChildren();
-    if (!slots || !slots.length) {
+
+    if (slotCount) {
+      /* 전체 중 몇 개를 보고 있는지 밝힌다. 안 그러면 걸러진 것을 없는 것으로 읽는다. */
+      slotCount.textContent = allSlots.length
+        ? `전체 ${allSlots.length}개 중 ${shown.length}개`
+        : "";
+    }
+
+    if (!shown.length) {
       slotEmpty.hidden = false;
-      slotEmpty.textContent = loadedOptions.length
-        ? "등록된 시간대가 없어요. 위에서 시간대를 추가하면 예약을 받을 수 있어요."
-        : "옵션을 먼저 등록해 주세요. 시간대는 옵션에 달려요.";
+      if (allSlots.length) {
+        slotEmpty.textContent = "이 기간에는 시간대가 없어요. 기간을 넓히거나 전체 보기를 눌러 주세요.";
+      } else {
+        slotEmpty.textContent = loadedOptions.length
+          ? "등록된 시간대가 없어요. 위에서 시간대를 추가하면 예약을 받을 수 있어요."
+          : "옵션을 먼저 등록해 주세요. 시간대는 옵션에 달려요.";
+      }
       return;
     }
     slotEmpty.hidden = true;
-    slots.forEach(function (slot) { slotList.appendChild(slotRow(slot)); });
+    shown.forEach(function (slot) { slotList.appendChild(slotRow(slot)); });
   }
 
   async function refreshOptions() {
@@ -629,7 +709,8 @@
     }
     const slots = await request(
       `/api/v1/admin/ticket-products/${currentProduct.ticketProductId}/slots`);
-    renderSlots(Array.isArray(slots) ? slots : []);
+    allSlots = Array.isArray(slots) ? slots : [];
+    renderSlots();
   }
 
   async function openSlots(product) {
@@ -638,6 +719,9 @@
     currentProduct = product;
     editingOptionId = null;
     slotPanel.hidden = false;
+    /* 뒤 목록이 같이 스크롤되면 모달 안에서 길을 잃는다. */
+    document.body.dataset.slotModalOpen = "1";
+    resetSlotView();
     slotTitle.textContent = `${product.name} · 옵션과 시간대`;
     slotList.replaceChildren();
     slotEmpty.hidden = false;
@@ -714,9 +798,41 @@
   if (form) form.addEventListener("change", (event) => {
     if (event.target.matches("[data-field=saleType]")) syncSaleTypeHint();
   });
-  if (slotClose) slotClose.addEventListener("click", function () {
+  /*
+   * 닫는 길이 여럿이다(닫기 버튼·배경 클릭·Esc). 한 곳으로 모아야 뒤 화면 스크롤을
+   * 되돌리는 처리를 빠뜨리지 않는다.
+   */
+  function closeSlots() {
+    if (!slotPanel || slotPanel.hidden) return;
     slotPanel.hidden = true;
+    delete document.body.dataset.slotModalOpen;
     currentProduct = null;
+  }
+
+  if (slotClose) slotClose.addEventListener("click", closeSlots);
+
+  /* 배경을 눌렀을 때만 닫는다. 카드 안을 누르다 닫히면 쓰던 값이 날아간다. */
+  if (slotPanel) slotPanel.addEventListener("click", function (event) {
+    if (event.target === slotPanel) closeSlots();
+  });
+
+  document.addEventListener("keydown", function (event) {
+    if (event.key === "Escape") closeSlots();
+  });
+
+  /* 보기 기간 */
+  ["from", "to"].forEach(function (which) {
+    const field = document.querySelector(`[data-slot-view="${which}"]`);
+    if (field) field.addEventListener("change", function () {
+      viewTouched = true;
+      renderSlots();
+    });
+  });
+
+  if (slotViewAll) slotViewAll.addEventListener("click", function () {
+    viewTouched = true;
+    clearSlotView();
+    renderSlots();
   });
   if (optionForm) optionForm.addEventListener("submit", submitOption);
   if (optionReset) optionReset.addEventListener("click", function () { fillOptionForm(null); });
