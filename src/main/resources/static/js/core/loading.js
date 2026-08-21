@@ -67,7 +67,24 @@
   }, true);
 
   document.addEventListener("submit", function (event) {
-    if (!event.target.matches("[data-no-global-loading]")) show();
+    if (event.target.matches("[data-no-global-loading]")) return;
+    show();
+
+    /*
+     * 화면이 실제로 넘어가는 제출에만 로딩을 남긴다.
+     *
+     * JS가 처리하는 폼은 preventDefault를 부르는데, 그 폼이 allMyTripsLoading:false로
+     * 요청하면 아래 fetch 감싸기를 건너뛰므로 로더를 끌 사람이 아무도 없었다. 관리자
+     * 상품·옵션·시간대 등록에서 로딩 화면이 뜬 채로 멈춘 것이 이 때문이다.
+     *
+     * 이 리스너는 capture라 페이지 핸들러보다 먼저 돈다. 그래서 여기서는 아직
+     * preventDefault 여부를 알 수 없다. 이벤트가 다 돈 뒤에 판정한다.
+     *
+     * 추적 중인 요청이 있으면 손대지 않는다. 그쪽은 끝날 때 알아서 끈다.
+     */
+    window.setTimeout(function () {
+      if (event.defaultPrevented && activeRequests <= 0) hideImmediately();
+    }, 0);
   }, true);
 
   const originalFetch = window.fetch;
