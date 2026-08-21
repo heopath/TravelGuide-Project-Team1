@@ -1072,6 +1072,7 @@ body.map-modal-open {
 
 /* 상단 액션 버튼과 DAY 선택 버튼의 페이지 디자인 통일 */
 .schedule-heading-actions .schedule-save-button,
+.schedule-heading-actions .schedule-booking-button,
 .schedule-heading-actions .schedule-back-button {
   min-width: 204px;
   min-height: 58px;
@@ -4819,4 +4820,20 @@ body.place-search-open {
     bottom: 12px;
     left: auto !important;
   }
+}
+
+/*
+ * 예약하러 가기. 저장 전에는 저장이 먼저라 한 발 물러서 있고, 저장이 끝나면
+ * 다음에 할 일이 이쪽이라는 것을 색으로 알린다.
+ */
+.schedule-booking-button {
+  background: #fff;
+  border: 1px solid var(--primary, #5c68ff);
+  color: var(--primary, #5c68ff);
+}
+.schedule-booking-button.is-next {
+  background: var(--primary, #5c68ff);
+  border-color: transparent;
+  color: #fff;
+  box-shadow: 0 12px 24px rgba(76, 72, 235, 0.2);
 }

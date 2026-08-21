@@ -29,6 +29,8 @@
   const DAY_LABELS = ["일", "월", "화", "수", "목", "금", "토"];
 
   const state = {
+    /* 여행에 붙는 티켓이면 그 기간. 기간 밖 회차는 서버가 거절하므로 미리 걸러 준다. */
+    tripPeriod: null,
     product: null,
     slots: [],
     serverTime: null,
@@ -48,6 +50,43 @@
   function currentTripId() {
     const value = new URL(window.location.href).searchParams.get("tripId") || "";
     return /^\d+$/.test(value) ? value : null;
+  }
+
+  /*
+   * 예약 화면으로 돌아가는 주소. tripId를 반드시 달고 간다.
+   *
+   * 예전에는 마크업에 `/booking/flights?tab=ticket`이 박혀 있었다. 티켓을 보러 왔다가
+   * 돌아가면 여행을 잃어, 골라 둔 가는 편·오는 편·숙소가 전부 사라지고 진행 현황이
+   * 3/4에서 1/4로 떨어졌다. 티켓 하나 구경한 값으로는 너무 비싸다.
+   */
+  function bookingUrl(tab) {
+    const trip = currentTripId();
+    return "/booking/flights?tab=" + (tab || "ticket")
+      + (trip ? "&tripId=" + encodeURIComponent(trip) : "");
+  }
+
+  /** 이 날짜로 예매할 수 있나. 여행이 없으면 아무 날이나 된다. */
+  function withinTrip(date) {
+    const period = state.tripPeriod;
+    if (!period || !period.startDate || !period.endDate) return true;
+    return String(date) >= String(period.startDate) && String(date) <= String(period.endDate);
+  }
+
+  /*
+   * 여행 기간을 미리 받아 둔다.
+   *
+   * 예전에는 첫 날짜가 그냥 골라졌다. 9월 여행을 짜고 들어와도 8월 회차가 골라져 있어,
+   * 예매를 누르고 나서야 "여행 기간 밖"이라고 거절당했다. 무엇이 잘못인지도 알기 어려웠다.
+   */
+  async function loadTripPeriod() {
+    const tripId = currentTripId();
+    if (!tripId) return;
+    try {
+      const trip = await jsonRequest(`/api/v1/trips/${encodeURIComponent(tripId)}`);
+      if (trip?.startDate && trip?.endDate) {
+        state.tripPeriod = { startDate: trip.startDate, endDate: trip.endDate, title: trip.title };
+      }
+    } catch (error) { /* 못 읽어도 예매는 된다. 서버가 마지막에 한 번 더 본다. */ }
   }
 
   function setState(message, isError) {
@@ -250,7 +289,17 @@
       const copy = make("span", "tk-date-copy");
       copy.append(make("strong", "", `${parts.month} ${parts.weekday}`), make("small", "", date.replaceAll("-", ".")));
       const count = state.slots.filter((slot) => slot.usageDate === date).length;
-      button.append(day, copy, make("em", "", `${count}개 회차`));
+      /*
+       * 여행 기간 밖은 눌러도 서버가 거절한다. 누르기 전에 알려 주는 편이 낫다.
+       * 지우지는 않는다 — 왜 못 고르는지 보여야 날짜를 바꿀 생각을 한다.
+       */
+      const outside = !withinTrip(date);
+      if (outside) {
+        button.classList.add("out");
+        button.disabled = true;
+        button.title = "여행 기간 밖이에요";
+      }
+      button.append(day, copy, make("em", "", outside ? "여행 기간 밖" : `${count}개 회차`));
       return button;
     });
     $("[data-ticket-dates]").replaceChildren(...nodes);
@@ -402,6 +451,58 @@
     box.hidden = !message;
   }
 
+  /**
+   * 담은 예약을 그 자리에서 결제한다.
+   *
+   * 결제까지 마쳐야 티켓이 나온다. 담기만 하고 창을 닫으면 손님은 산 줄 아는데 티켓이 없다.
+   * 그래서 담자마자 결제창을 띄운다.
+   *
+   * 다만 결제는 여러 이유로 막힌다 — 카드사 점검, 잔액 부족, 창을 닫는 것. 그때 예약이
+   * 사라지지는 않으므로, 마이페이지 예약 내역에서 마저 낼 수 있다고 알려 준다.
+   */
+  async function payNow(reservation) {
+    const summary = `${reservation.productName} · ${won(reservation.totalAmount || reservation.amount || 0)}`;
+    try {
+      const paid = await window.AllMyTripsTicketPayment.pay({
+        reservationId: reservation.reservationId,
+        summary,
+        request: paymentRequest,
+      });
+
+      if (paid.cancelled) {
+        modalState(`예약에 담았어요. 결제는 아직이에요 — ${reservation.productName}`);
+        showPayLink("결제하러 가기 →");
+        return;
+      }
+
+      /* 결제까지 끝났다. 예약이 어떻게 됐는지는 마이페이지에서 이어 본다. */
+      modalState(`결제가 끝났어요. 티켓이 발급됐습니다.`);
+      showPayLink("예약 내역 보기 →");
+      window.setTimeout(() => { window.location.href = MYPAGE_RESERVATIONS; }, 1200);
+    } catch (error) {
+      /*
+       * 결제만 실패했을 뿐 예약은 남아 있다. 그 사실을 먼저 말해야 손님이 다시 담지 않는다.
+       */
+      modalState(`${error.message || "결제하지 못했어요."} 예약은 그대로 있으니 `
+        + "마이페이지 · 예약 내역에서 결제하실 수 있어요.", true);
+      showPayLink("마이페이지에서 결제하기 →");
+    }
+  }
+
+  /* 담은 뒤에만 보인다. 담기 전에 결제로 보내면 빈 예약 목록을 보게 된다. */
+  function showPayLink(label) {
+    const existing = $("[data-ticket-pay]");
+    const anchor = existing || document.createElement("a");
+    anchor.className = "primary-button wide tk-pay";
+    anchor.setAttribute("data-ticket-pay", "");
+    anchor.href = MYPAGE_RESERVATIONS;
+    anchor.textContent = label || "마이페이지에서 결제하기 →";
+    if (existing) return;
+    /* 담기 버튼 자리에 둔다. 다음에 할 일이 바로 눈에 들어와야 한다. */
+    const reserve = $("[data-ticket-reserve]");
+    if (reserve && reserve.parentElement) reserve.parentElement.insertBefore(anchor, reserve.nextSibling);
+  }
+
   async function reserve(button) {
     const slot = selectedSlot();
     if (!slot) return;
@@ -429,9 +530,8 @@
         const reservation = await jsonRequest(
           `/api/v1/booking-queue/entries/${encodeURIComponent(queue.token)}/reservation`,
           { method: "POST" });
-        setState(`${reservation.productName}을(를) 모의 예약에 담았어요. `
-          + "마이페이지 · 예약 내역에서 결제하면 티켓이 발급됩니다.");
         button.textContent = "담았어요";
+        await payNow(reservation);
         return;
       }
       window.location.href = `/booking/queue?token=${encodeURIComponent(queue.token)}`;
@@ -443,7 +543,88 @@
 
   /* ── 시작 ── */
 
+  /*
+   * 결제 모듈은 request(method, url, body)를 부르고 응답 전체에서 data를 꺼낸다.
+   * 이 화면의 jsonRequest는 data만 돌려주므로 모양을 맞춰 준다.
+   */
+  async function paymentRequest(method, url, body) {
+    const data = await jsonRequest(url, {
+      method,
+      body: body === undefined ? undefined : JSON.stringify(body),
+    });
+    return { data };
+  }
+
+  /** 마이페이지 예약 내역. 여기서 못 낸 결제를 마저 할 수 있다. */
+  const MYPAGE_RESERVATIONS = "/mypage?view=tickets";
+
+  /* ── 구매 모달 ──
+     예매 패널이 오른쪽에 붙어 있을 때는, 설명을 읽으려 내려가면 무엇을 고르던 중이었는지가
+     화면 밖으로 나갔다. 살 때는 사는 일에만 집중하는 편이 낫다. */
+
+  function buyOpen() {
+    const box = $("[data-ticket-modal]");
+    if (!box) return;
+    box.hidden = false;
+    /* 뒤 화면이 같이 밀리면 모달 안에서 길을 잃는다. */
+    document.body.style.overflow = "hidden";
+    const first = $("[data-ticket-dates] button") || $("[data-ticket-modal-close]");
+    if (first) first.focus();
+  }
+
+  function buyClose() {
+    const box = $("[data-ticket-modal]");
+    if (!box) return;
+    box.hidden = true;
+    document.body.style.overflow = "";
+    const trigger = $("[data-ticket-buy]");
+    if (trigger && !trigger.hidden) trigger.focus();
+  }
+
+  const buyIsOpen = () => {
+    const box = $("[data-ticket-modal]");
+    return Boolean(box) && !box.hidden;
+  };
+
+  /** 모달 안에서 말한다. 뒤 화면의 상태줄은 모달에 가려 보이지 않는다. */
+  function modalState(message, isError) {
+    const box = $("[data-ticket-error]");
+    if (!box) return;
+    box.textContent = message || "";
+    box.hidden = !message;
+    box.classList.toggle("ok", Boolean(message) && !isError);
+  }
+
+  function bindBuyModal() {
+    const trigger = $("[data-ticket-buy]");
+    if (trigger) trigger.addEventListener("click", buyOpen);
+
+    const close = $("[data-ticket-modal-close]");
+    if (close) close.addEventListener("click", buyClose);
+
+    const box = $("[data-ticket-modal]");
+    /* 바깥을 눌러 닫는다. 카드 안을 누른 것은 닫지 않는다. */
+    if (box) box.addEventListener("click", (event) => {
+      if (event.target === box) buyClose();
+    });
+
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape" && buyIsOpen()) buyClose();
+    });
+  }
+
+  /* 마크업에 박힌 주소는 여행을 모른다. 화면을 열 때 이 여행의 주소로 바꾼다. */
+  function fixBackLink() {
+    const back = $(".tk-back");
+    if (back) back.setAttribute("href", bookingUrl("ticket"));
+  }
+
   async function load() {
+    fixBackLink();
+    bindBuyModal();
+    /* 상품보다 먼저 읽는다. 날짜를 고를 때 기간을 이미 알고 있어야 한다. */
+    await loadTripPeriod();
+
     const id = productId();
     if (!id) {
       setState("상품을 찾을 수 없어요. 티켓 목록에서 다시 골라 주세요.", true);
@@ -455,8 +636,14 @@
       state.product = detail.product;
       state.slots = detail.slots || [];
       state.serverTime = detail.serverTime;
-      /* 날짜는 첫 회차로 미리 골라 둔다. 빈 화면에서 시작하지 않게 한다. */
-      state.date = state.slots[0]?.usageDate || null;
+      /*
+       * 날짜를 미리 골라 둔다. 빈 화면에서 시작하지 않게 한다.
+       *
+       * 여행이 있으면 그 기간 안에서 고른다. 첫 회차를 그냥 고르면 9월 여행에 8월 회차가
+       * 골라져, 예매를 누르고 나서야 거절당한다.
+       */
+      const usable = state.slots.filter((slot) => withinTrip(slot.usageDate));
+      state.date = (usable[0] || state.slots[0])?.usageDate || null;
       state.slotId = null;
       state.quantity = 1;
     } catch (error) {
@@ -466,6 +653,9 @@
 
     $("[data-ticket-state]").hidden = true;
     $("[data-ticket-body]").hidden = false;
+    /* 상품을 못 불러왔는데 구매 버튼만 떠 있으면 눌러도 빈 모달이 열린다. */
+    const buy = $("[data-ticket-buy]");
+    if (buy) buy.hidden = false;
     renderHead();
     renderInfo();
     renderBookingPanel();

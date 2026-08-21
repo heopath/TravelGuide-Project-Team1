@@ -1,10 +1,7 @@
-/* 관리자 대시보드
+/* 관리자 운영 센터
  *
- * 지금 실제로 서버와 이야기하는 것은 신고 목록 하나뿐이다(GET /api/v1/travel-record-reports).
- * 나머지 블록은 화면만 잡아두고 "연동 전"으로 표시한다.
- *
- * 값을 그럴듯한 숫자로 채워두지 않는 이유는, 이전 화면이 그렇게 되어 있어서
- * 연동이 빠졌다는 사실을 아무도 눈치채지 못했기 때문이다. 비어 있는 편이 정직하다.
+ * 운영 홈을 기본으로 열고, 업무별 메뉴와 숫자 카드를 누르면 해당 관리 화면으로 이동한다.
+ * 화면을 새로고침해도 같은 업무를 이어갈 수 있도록 선택한 패널을 주소에 보존한다.
  */
 (function () {
   "use strict";
@@ -33,8 +30,8 @@
     reportStatus: "",
     reports: [],
     loading: false,
-    /* 사이드바에서 고른 화면. 실연동은 신고 관리뿐이라 그것부터 연다. */
-    panel: "reports"
+    /* 관리자 진입 시 오늘 처리할 일을 먼저 보여준다. */
+    panel: "overview"
   };
 
   const date = (value) => {
@@ -145,18 +142,12 @@
     renderReports();
   }
 
-  /**
-   * 사이드바에서 고른 화면만 보여준다.
-   *
-   * <p>연동 전 항목도 막지 않는다. 막아버리면 앞으로 무엇이 붙는지 볼 수 없고,
-   * "연동 안 된 것을 숨기지 않는다"는 이 화면의 원칙과도 어긋난다.
-   * 대신 각 화면이 `연동 전` 배지와 빈 값으로 상태를 스스로 밝힌다.
-   */
+  /** 사이드바나 운영 홈에서 고른 업무 화면 하나만 보여준다. */
   function openPanel(name) {
     const sections = document.querySelectorAll("[data-admin-section]");
     const target = [...sections].some((section) => section.dataset.adminSection === name)
       ? name
-      : "reports";
+      : "overview";
 
     sections.forEach((section) => {
       section.hidden = section.dataset.adminSection !== target;
@@ -174,29 +165,43 @@
     return target;
   }
 
+  /** 화면을 바꾸고 새로고침해도 같은 업무가 열리도록 주소를 함께 갱신한다. */
+  function navigatePanel(name) {
+    const opened = openPanel(name);
+    const url = new URL(window.location.href);
+    if (opened === "overview") url.searchParams.delete("panel");
+    else url.searchParams.set("panel", opened);
+    window.history.replaceState({}, "", url);
+    return opened;
+  }
+
   /**
    * 주소로 특정 화면을 바로 연다. `/admin?panel=chat` 처럼 쓴다.
    *
-   * <p>전체 화면 목록과 스토리보드가 관리자 화면을 일곱 장으로 세기 때문에 필요하다.
-   * 주소가 없으면 목록의 일곱 항목이 전부 `/admin`으로 가서 신고 관리만 열린다.
-   *
-   * <p>모르는 값이 들어오면 openPanel이 신고 관리로 되돌린다. 이때 주소만 남아 있으면
+   * <p>모르는 값이 들어오면 openPanel이 운영 홈으로 되돌린다. 이때 주소만 남아 있으면
    * 새로고침할 때마다 같은 일이 반복되므로, 실제로 열린 화면에 맞춰 주소를 정리한다.
    */
   function openPanelFromUrl() {
-    const requested = new URLSearchParams(window.location.search).get("panel");
+    const rawRequested = new URLSearchParams(window.location.search).get("panel");
+    /* 기존 스토리보드·즐겨찾기의 metrics 주소는 운영 홈으로 자연스럽게 보낸다. */
+    const requested = rawRequested === "metrics" ? "overview" : rawRequested;
     const opened = openPanel(requested || state.panel);
 
-    if (requested && requested !== opened) {
+    if (rawRequested && (requested !== opened || rawRequested !== requested)) {
       const url = new URL(window.location.href);
-      url.searchParams.delete("panel");
+      if (opened === "overview") url.searchParams.delete("panel");
+      else url.searchParams.set("panel", opened);
       window.history.replaceState({}, "", url);
     }
   }
 
   function bind() {
     document.querySelectorAll("[data-admin-panel]").forEach((button) => {
-      button.addEventListener("click", () => openPanel(button.dataset.adminPanel));
+      button.addEventListener("click", () => navigatePanel(button.dataset.adminPanel));
+    });
+
+    document.querySelectorAll("[data-admin-target]").forEach((button) => {
+      button.addEventListener("click", () => navigatePanel(button.dataset.adminTarget));
     });
 
     document.querySelectorAll("[data-report-status]").forEach((button) => {
@@ -220,5 +225,5 @@
 
   document.addEventListener("DOMContentLoaded", init);
 
-  window.__adminDashboard = { state, loadReports, openPanel, openPanelFromUrl };
+  window.__adminDashboard = { state, loadReports, openPanel, navigatePanel, openPanelFromUrl };
 })();

@@ -69,3 +69,12 @@ assert.match(scheduleSource, /getActiveDayNumber: function \(\)/);
 assert.match(guideSource, /selectedDayNumber: window\.AllMyTripsSchedule\?\.getActiveDayNumber\?\.\(\) \|\| null/);
 
 console.log("schedule time acceptance checks passed");
+
+// 일정을 다 짜면 예약으로 넘어갈 수 있어야 한다. tripId를 안 달고 가면 예약 화면이
+// 목적지·날짜·인원을 채우지 못하고, 고른 항공편도 그 여행에 붙지 않는다.
+const scheduleMarkup = fs.readFileSync(
+  path.resolve(__dirname, "../../main/resources/templates/trips/schedule.html"), "utf8"
+);
+assert.match(scheduleMarkup, /data-schedule-booking/);
+assert.match(scheduleSource, /"\/booking\/flights\?tripId=" \+ encodeURIComponent\(activeTripId\)/);
+assert.match(scheduleSource, /먼저 여행을 저장해 주세요\./);

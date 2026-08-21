@@ -139,10 +139,10 @@ public class TicketService {
          */
         requireOnSale(offer);
         if (request.quantity() > offer.getMaxQuantityPerUser()) {
-            throw new BusinessException(ErrorCode.INVALID_TICKET_REQUEST);
+            throw new BusinessException(ErrorCode.TICKET_QUANTITY_EXCEEDED);
         }
         if (trip != null && !withinTrip(offer.getUsageDate(), trip)) {
-            throw new BusinessException(ErrorCode.INVALID_TICKET_REQUEST);
+            throw new BusinessException(ErrorCode.TICKET_DATE_OUTSIDE_TRIP);
         }
         if (request.quantity() > offer.getRemainingQuantity()
                 || ticketDAO.reserveInventory(request.slotId(), request.quantity()) != 1) {

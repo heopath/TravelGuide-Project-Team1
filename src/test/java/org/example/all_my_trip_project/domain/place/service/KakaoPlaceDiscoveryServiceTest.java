@@ -33,13 +33,12 @@ class KakaoPlaceDiscoveryServiceTest {
     void savesAndIndexesDiscoveredKakaoPlaces() {
         PlaceDTO discovered = PlaceDTO.builder().externalProvider("KAKAO").externalPlaceId("123").name("Real Cafe").build();
         PlaceDTO saved = PlaceDTO.builder().placeId(77L).externalProvider("KAKAO").externalPlaceId("123").name("Real Cafe").build();
-        RagSearchResult result = new RagSearchResult("place:77", "Place name: Real Cafe");
+        RagSearchResult result = new RagSearchResult("place:77", "장소명: Real Cafe\n지역: \n카테고리: \n주소: ",
+                77L, "Real Cafe", "", "", "");
         when(kakaoClient.search(eq("Seoul cafe"), any())).thenReturn(List.of(discovered));
         when(placeDAO.upsert(discovered)).thenReturn(77L);
         when(placeDAO.findById(77L)).thenReturn(Optional.of(saved));
         when(placeRagServiceProvider.getIfAvailable()).thenReturn(placeRagService);
-        when(placeRagService.toSearchResult(saved)).thenReturn(result);
-
         assertThat(service.discoverAndIndex("cafe", "Seoul")).containsExactly(result);
 
         verify(placeRagService).indexPlaces(List.of(saved));
@@ -50,14 +49,13 @@ class KakaoPlaceDiscoveryServiceTest {
         PlaceDTO failed = PlaceDTO.builder().externalProvider("KAKAO").externalPlaceId("failed").name("Failed place").build();
         PlaceDTO discovered = PlaceDTO.builder().externalProvider("KAKAO").externalPlaceId("saved").name("Saved place").build();
         PlaceDTO saved = PlaceDTO.builder().placeId(88L).externalProvider("KAKAO").externalPlaceId("saved").name("Saved place").build();
-        RagSearchResult result = new RagSearchResult("place:88", "Place name: Saved place");
+        RagSearchResult result = new RagSearchResult("place:88", "장소명: Saved place\n지역: \n카테고리: \n주소: ",
+                88L, "Saved place", "", "", "");
         when(kakaoClient.search(eq("Seoul cafe"), any())).thenReturn(List.of(failed, discovered));
         when(placeDAO.upsert(failed)).thenThrow(new DataIntegrityViolationException("constraint"));
         when(placeDAO.upsert(discovered)).thenReturn(88L);
         when(placeDAO.findById(88L)).thenReturn(Optional.of(saved));
         when(placeRagServiceProvider.getIfAvailable()).thenReturn(placeRagService);
-        when(placeRagService.toSearchResult(saved)).thenReturn(result);
-
         assertThat(service.discoverAndIndex("cafe", "Seoul")).containsExactly(result);
 
         verify(placeRagService).indexPlaces(List.of(saved));
@@ -78,7 +76,8 @@ class KakaoPlaceDiscoveryServiceTest {
                 .externalProvider("KAKAO").externalPlaceId("cafe-1").name("근처 실제 카페").build();
         PlaceDTO saved = PlaceDTO.builder()
                 .placeId(99L).externalProvider("KAKAO").externalPlaceId("cafe-1").name("근처 실제 카페").build();
-        RagSearchResult result = new RagSearchResult("place:99", "Place name: 근처 실제 카페");
+        RagSearchResult result = new RagSearchResult("place:99", "장소명: 근처 실제 카페\n지역: \n카테고리: \n주소: ",
+                99L, "근처 실제 카페", "", "", "");
         anchor.setAddress("부산 중구 광복중앙로");
         when(kakaoClient.search(eq("부산 이재모피자 본점"), any())).thenReturn(List.of(anchor));
         when(kakaoClient.searchByCategory(eq("CE7"), eq(anchor.getLongitude()), eq(anchor.getLatitude()), any()))
@@ -86,12 +85,30 @@ class KakaoPlaceDiscoveryServiceTest {
         when(placeDAO.upsert(discovered)).thenReturn(99L);
         when(placeDAO.findById(99L)).thenReturn(Optional.of(saved));
         when(placeRagServiceProvider.getIfAvailable()).thenReturn(placeRagService);
-        when(placeRagService.toSearchResult(saved)).thenReturn(result);
-
         assertThat(service.discoverAndIndex("이재모피자 본점 근처 카페 추천해줘", "부산"))
                 .contains(result);
 
         verify(kakaoClient).searchByCategory(eq("CE7"), eq(anchor.getLongitude()), eq(anchor.getLatitude()), any());
+    }
+
+    @Test
+    void returnsFreshKakaoPlacesEvenWhenRagIsNotEnabled() {
+        PlaceDTO discovered = PlaceDTO.builder().externalProvider("KAKAO").externalPlaceId("beach-1")
+                .name("해운대해수욕장").category("ATTRACTION").address("부산 해운대구 우동").build();
+        PlaceDTO saved = PlaceDTO.builder().placeId(101L).externalProvider("KAKAO").externalPlaceId("beach-1")
+                .name("해운대해수욕장").category("ATTRACTION").address("부산 해운대구 우동").build();
+        when(kakaoClient.search(eq("부산 해운대해수욕장"), any())).thenReturn(List.of(discovered));
+        when(placeDAO.upsert(discovered)).thenReturn(101L);
+        when(placeDAO.findById(101L)).thenReturn(Optional.of(saved));
+        when(placeRagServiceProvider.getIfAvailable()).thenReturn(null);
+
+        assertThat(service.discoverAndIndex("해운대해수욕장 추천해줘", "부산"))
+                .singleElement()
+                .satisfies(result -> {
+                    assertThat(result.placeId()).isEqualTo(101L);
+                    assertThat(result.placeName()).isEqualTo("해운대해수욕장");
+                    assertThat(result.category()).isEqualTo("ATTRACTION");
+                });
     }
 
     @Test
@@ -132,6 +149,81 @@ class KakaoPlaceDiscoveryServiceTest {
         verify(kakaoClient).searchByCategory(eq("CE7"), eq(scheduledBusanBranch.getLongitude()),
                 eq(scheduledBusanBranch.getLatitude()), any());
         verify(kakaoClient, org.mockito.Mockito.never()).search(eq("부산 이재모피자 본점"), any());
+    }
+
+    @Test
+    void findsNearbyAttractionsForAScheduleGapRequestWithoutAnExplicitVenueCategory() {
+        PlaceDTO scheduledRestaurant = PlaceDTO.builder().placeId(77L).name("대성집")
+                .longitude(new BigDecimal("126.975")).latitude(new BigDecimal("37.575")).build();
+        PlaceDTO attraction = PlaceDTO.builder().externalProvider("KAKAO").externalPlaceId("attraction-gap")
+                .name("경희궁").category("ATTRACTION").address("서울 종로구").build();
+        PlaceDTO savedAttraction = PlaceDTO.builder().placeId(88L).externalProvider("KAKAO")
+                .externalPlaceId("attraction-gap").name("경희궁").category("ATTRACTION").address("서울 종로구").build();
+        when(placeDAO.findById(77L)).thenReturn(Optional.of(scheduledRestaurant));
+        when(kakaoClient.searchByCategory(eq("AT4"), eq(scheduledRestaurant.getLongitude()),
+                eq(scheduledRestaurant.getLatitude()), any())).thenReturn(List.of(attraction));
+        when(placeDAO.upsert(attraction)).thenReturn(88L);
+        when(placeDAO.findById(88L)).thenReturn(Optional.of(savedAttraction));
+        when(placeRagServiceProvider.getIfAvailable()).thenReturn(placeRagService);
+
+        List<RagSearchResult> results = service.discoverAndIndex(
+                "DAY 2 일정 사이에 가볼 만한 곳 추천해줘", "서울", 77L);
+
+        assertThat(results).singleElement().satisfies(result -> {
+            assertThat(result.placeName()).isEqualTo("경희궁");
+            assertThat(result.placeId()).isEqualTo(88L);
+        });
+        verify(kakaoClient).searchByCategory(eq("AT4"), eq(scheduledRestaurant.getLongitude()),
+                eq(scheduledRestaurant.getLatitude()), any());
+    }
+
+    @Test
+    void findsNearbyAttractionsForAnAfterScheduleRequest() {
+        PlaceDTO scheduledRestaurant = PlaceDTO.builder().placeId(77L).name("대성집")
+                .longitude(new BigDecimal("126.975")).latitude(new BigDecimal("37.575")).build();
+        PlaceDTO attraction = PlaceDTO.builder().externalProvider("KAKAO").externalPlaceId("attraction-after")
+                .name("경희궁").category("ATTRACTION").address("서울 종로구").build();
+        PlaceDTO savedAttraction = PlaceDTO.builder().placeId(88L).externalProvider("KAKAO")
+                .externalPlaceId("attraction-after").name("경희궁").category("ATTRACTION").address("서울 종로구").build();
+        when(placeDAO.findById(77L)).thenReturn(Optional.of(scheduledRestaurant));
+        when(kakaoClient.searchByCategory(eq("AT4"), eq(scheduledRestaurant.getLongitude()),
+                eq(scheduledRestaurant.getLatitude()), any())).thenReturn(List.of(attraction));
+        when(placeDAO.upsert(attraction)).thenReturn(88L);
+        when(placeDAO.findById(88L)).thenReturn(Optional.of(savedAttraction));
+        when(placeRagServiceProvider.getIfAvailable()).thenReturn(placeRagService);
+
+        assertThat(service.discoverAndIndex("DAY 2에서 이후 일정 추천해줄래?", "서울", 77L))
+                .singleElement()
+                .extracting(RagSearchResult::placeId)
+                .isEqualTo(88L);
+    }
+
+    @Test
+    void findsNearbyAttractionsAfterTheSelectedDaysMealInsteadOfSearchingRestaurantsAgain() {
+        PlaceDTO scheduledRestaurant = PlaceDTO.builder().placeId(77L).name("종로구 식당")
+                .longitude(new BigDecimal("126.9730")).latitude(new BigDecimal("37.5750")).build();
+        PlaceDTO attraction = PlaceDTO.builder().externalProvider("KAKAO").externalPlaceId("attraction-1")
+                .name("경희궁").category("ATTRACTION").address("서울 종로구").build();
+        PlaceDTO savedAttraction = PlaceDTO.builder().placeId(88L).externalProvider("KAKAO")
+                .externalPlaceId("attraction-1").name("경희궁").category("ATTRACTION").address("서울 종로구").build();
+        when(placeDAO.findById(77L)).thenReturn(Optional.of(scheduledRestaurant));
+        when(kakaoClient.searchByCategory(eq("AT4"), eq(scheduledRestaurant.getLongitude()),
+                eq(scheduledRestaurant.getLatitude()), any())).thenReturn(List.of(attraction));
+        when(kakaoClient.searchNearby(eq("관광지"), eq(scheduledRestaurant.getLongitude()),
+                eq(scheduledRestaurant.getLatitude()), eq(2_000), any())).thenReturn(List.of());
+        when(placeDAO.upsert(attraction)).thenReturn(88L);
+        when(placeDAO.findById(88L)).thenReturn(Optional.of(savedAttraction));
+        when(placeRagServiceProvider.getIfAvailable()).thenReturn(placeRagService);
+
+        List<RagSearchResult> results = service.discoverAndIndex("DAY 2 점심 먹고 뭐할지 추천해줘", "서울", 77L);
+
+        assertThat(results).singleElement().satisfies(result -> {
+            assertThat(result.placeName()).isEqualTo("경희궁");
+            assertThat(result.placeId()).isEqualTo(88L);
+        });
+        verify(kakaoClient).searchByCategory(eq("AT4"), eq(scheduledRestaurant.getLongitude()),
+                eq(scheduledRestaurant.getLatitude()), any());
+        verify(kakaoClient, org.mockito.Mockito.never()).searchByCategory(eq("FD6"), any(), any(), any());
     }
 
     @Test
@@ -217,6 +309,14 @@ class KakaoPlaceDiscoveryServiceTest {
     }
 
     @Test
+    void extractsNearbyAnchorWhenTheQuestionUsesWentThereThenPhrase() {
+        assertThat(KakaoPlaceDiscoveryService.extractNearbyAnchor("day1에 동빙고로 갔다가 그 근처에 할 수 있는게 뭐가 있을까"))
+                .isEqualTo("동빙고");
+        assertThat(KakaoPlaceDiscoveryService.extractNearbyAnchor("day2에 대성집을 갔다가 그 근처에 할 수 있는게 뭐가 있어"))
+                .isEqualTo("대성집");
+    }
+
+    @Test
     void removesRecommendationWordsBeforeKakaoKeywordSearch() {
         assertThat(KakaoPlaceDiscoveryService.searchKeyword("성수동 카페 추천해줘", "서울특별시"))
                 .isEqualTo("서울특별시 성수동 카페");
@@ -242,6 +342,13 @@ class KakaoPlaceDiscoveryServiceTest {
     }
 
     @Test
+    void prioritizesLocationAndCategoryQueriesBeforeBroadNaturalLanguageQuestion() {
+        assertThat(KakaoPlaceDiscoveryService.searchKeywords(
+                "DAY 1 성수동에서 실제 카페와 관광지를 각각 한 곳씩 추천해줘", "서울특별시"))
+                .startsWith("성수동 카페", "성수동 관광지");
+    }
+
+    @Test
     void extractsAnyDistrictAndNightlifeIntentWithoutHardCodedLocations() {
         assertThat(KakaoPlaceDiscoveryService.searchKeywords(
                 "전주 객사에서 밥집과 유흥거리를 추천해줘", "전주"))
@@ -260,6 +367,13 @@ class KakaoPlaceDiscoveryServiceTest {
         assertThat(KakaoPlaceDiscoveryService.searchKeywords(
                 "부산에서 혼술 LP 바를 추천해줘", "부산"))
                 .contains("부산 LP바", "부산 술집");
+    }
+
+    @Test
+    void extractsCommonVenueAndAttractionTermsForKakaoPlaceSearch() {
+        assertThat(KakaoPlaceDiscoveryService.searchKeywords(
+                "종로구에서 빵집, 국밥, 전시와 박물관을 추천해줘", "서울"))
+                .contains("종로구 빵집", "종로구 국밥", "종로구 전시", "종로구 박물관");
     }
 
     @Test

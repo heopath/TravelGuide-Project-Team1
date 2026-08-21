@@ -181,7 +181,7 @@
   async function load(page) {
     list.replaceChildren();
     empty.hidden = false;
-    empty.textContent = "조작 이력을 불러오는 중이에요.";
+    empty.textContent = "변경 이력을 불러오는 중이에요.";
     const query = new URLSearchParams({ page: String(page || 0), size: String(PAGE_SIZE) });
     if (actionType) query.set("actionType", actionType);
     if (targetId) query.set("targetId", targetId);
@@ -193,7 +193,7 @@
       if (!items.length) {
         empty.textContent = actionType || targetId
           ? "조건에 맞는 이력이 없어요."
-          : "아직 기록된 조작 이력이 없어요.";
+          : "아직 기록된 변경 이력이 없어요.";
         renderPages(0, 0);
         return;
       }
@@ -202,7 +202,7 @@
       renderPages(data.page, data.totalPages);
     } catch (error) {
       renderNotice([]);
-      empty.textContent = error.message || "조작 이력을 불러오지 못했어요.";
+      empty.textContent = error.message || "변경 이력을 불러오지 못했어요.";
       renderPages(0, 0);
     }
   }

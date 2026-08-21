@@ -7,7 +7,7 @@
 (function () {
   "use strict";
 
-  const panel = document.querySelector('[data-admin-section="metrics"]');
+  const panel = document.querySelector('[data-admin-section="overview"]');
   if (!panel) return;
 
   const field = (name) => panel.querySelector(`[data-metric="${name}"]`);
@@ -73,7 +73,7 @@
       render(await request("/api/v1/admin/operation-metrics"));
     } catch (error) {
       blank();
-      if (note) note.textContent = error.message || "운영 지표를 불러오지 못했어요.";
+      if (note) note.textContent = error.message || "운영 현황을 불러오지 못했어요.";
     } finally {
       if (refresh) refresh.disabled = false;
     }
