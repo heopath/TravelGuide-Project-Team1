@@ -116,6 +116,9 @@ async function run() {
     T("사이드바 배지도 실연동이다",
       /data-admin-panel="chat">[\s\S]*?<em class="live">실연동<\/em>/.test(markup));
     T("종료 버튼이 있다", markup.includes('id="chatClose"'));
+    T("상담 검색·해제·새로고침 조작이 있다",
+      markup.includes("data-chat-search-form") && markup.includes("data-chat-search-clear")
+        && markup.includes("data-chat-refresh"));
     T("페이지 스크립트를 실제로 불러온다", markup.includes("/js/pages/admin/admin-chat.js"));
   }
 
@@ -130,6 +133,7 @@ async function run() {
     T("상태를 한국어로 보여준다",
       rows(d)[0].querySelector("[data-chat-room-status]").textContent === "대기");
     T("마지막 한 줄을 미리 보여준다", rows(d)[0].textContent.includes("예약이 안 돼요"));
+    T("조회된 상담 수를 보여준다", d.querySelector("[data-chat-count]").textContent === "조회 결과 2건");
   }
   {
     const { d } = await boot(() => ok([room(5, { lastMessagePreview: null })]));
@@ -281,8 +285,25 @@ async function run() {
     await until(() => calls.length > 1);
 
     T("상태 필터를 요청에 담는다", calls[calls.length - 1].url.includes("status=WAITING"));
+    T("선택한 필터를 보조기기에도 알린다",
+      d.querySelector('[data-chat-filter="WAITING"]').getAttribute("aria-pressed") === "true");
     T("상담이 없으면 그대로 알린다",
       d.getElementById("chatRoomEmpty").textContent.includes("없어요"));
+
+    d.getElementById("chatSearch").value = "민재";
+    d.querySelector("[data-chat-search-form]").dispatchEvent(
+      new w.Event("submit", { bubbles: true, cancelable: true }));
+    await until(() => calls.some((call) => call.url.includes("keyword=%EB%AF%BC%EC%9E%AC")));
+    T("닉네임 검색어를 요청에 담는다",
+      calls.some((call) => call.url.includes("keyword=%EB%AF%BC%EC%9E%AC")));
+    T("검색 중에는 검색 해제 버튼을 보여준다",
+      d.querySelector("[data-chat-search-clear]").hidden === false);
+
+    d.querySelector("[data-chat-search-clear]").click();
+    await until(() => calls[calls.length - 1].url.includes("status=WAITING")
+      && !calls[calls.length - 1].url.includes("keyword="));
+    T("검색 해제 뒤 상태 필터는 유지한다",
+      calls[calls.length - 1].url.includes("status=WAITING"));
   }
   {
     const { d } = await boot(() => fail(403, "FORBIDDEN", "권한이 없습니다."));

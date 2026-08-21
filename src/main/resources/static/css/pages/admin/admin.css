@@ -246,7 +246,75 @@ body.page-admin #page-content {
 }
 .page-admin .admin-table-body > div:last-child { border-bottom: 0; }
 
-.page-admin .admin-report-row { grid-template-columns: 90px 100px 1fr 90px 110px; }
+.page-admin .admin-report-row { grid-template-columns: 92px 82px minmax(150px, 1fr) 88px 86px 82px; }
+.page-admin .admin-report-row strong,
+.page-admin .admin-report-row small { display: block; }
+.page-admin .admin-report-row small { margin-top: 2px; color: var(--muted); font-size: 10.5px; }
+.page-admin .admin-report-controls {
+  margin-bottom: 14px;
+  padding-bottom: 14px;
+  display: grid;
+  gap: 10px;
+  border-bottom: 1px solid var(--border);
+}
+.page-admin .admin-report-controls .admin-filter { margin: 0; }
+.page-admin .admin-report-summary { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.page-admin .admin-report-summary p { margin: 0; }
+.page-admin [data-report-feedback]:not(.error) {
+  border-color: #a6f4c5;
+  background: #f0fdf4;
+  color: #067647;
+}
+body[data-report-modal-open] { overflow: hidden; }
+.page-admin .admin-report-modal .modal-card {
+  width: min(620px, calc(100vw - 32px));
+  max-height: calc(100vh - 48px);
+  overflow-y: auto;
+}
+.page-admin .admin-report-modal h3 { margin: 0 42px 8px 0; }
+.page-admin .admin-report-target { margin: 0 0 14px; color: var(--primary); font-size: 13px; font-weight: 800; }
+.page-admin .admin-report-meta {
+  margin: 0;
+  padding: 14px 16px;
+  display: grid;
+  grid-template-columns: 90px minmax(0, 1fr);
+  gap: 7px 12px;
+  border-radius: 12px;
+  background: #f7f8fc;
+  font-size: 12px;
+}
+.page-admin .admin-report-meta dt { color: var(--muted); font-weight: 750; }
+.page-admin .admin-report-meta dd { margin: 0; }
+.page-admin .admin-report-detail,
+.page-admin .admin-report-resolution { margin-top: 16px; }
+.page-admin .admin-report-detail h4,
+.page-admin .admin-report-resolution h4 { margin: 0 0 7px; font-size: 13px; }
+.page-admin .admin-report-detail p,
+.page-admin .admin-report-resolution p {
+  margin: 0;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font-size: 12px;
+  line-height: 1.65;
+  white-space: pre-wrap;
+}
+.page-admin .admin-report-resolution p { border-color: #a6f4c5; background: #f0fdf4; }
+.page-admin [data-report-action-form] { margin-top: 18px; display: grid; gap: 12px; }
+.page-admin .admin-report-status-select,
+.page-admin .admin-report-note { display: grid; gap: 6px; }
+.page-admin .admin-report-status-select > span,
+.page-admin .admin-report-note > span { font-size: 12px; font-weight: 750; }
+.page-admin .admin-report-note em { color: #b42318; font-size: 10px; font-style: normal; }
+.page-admin .admin-report-status-select select,
+.page-admin .admin-report-note textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font: inherit;
+}
+.page-admin [data-report-action-error] { min-height: 18px; margin: 0; color: #b42318; }
 /* 판매 상태가 select라 96px으로는 라벨이 잘린다. 재고는 "남은 / 전체" 두 값을 한 칸에 쓴다. */
 .page-admin .admin-product-row { grid-template-columns: 1fr 104px 112px 128px; }
 /* 예약번호·결제 정보·처리 상태를 한 줄에서 판단할 수 있게 네 묶음으로 나눈다. */
@@ -382,7 +450,7 @@ body.page-admin #page-content {
 }
 .page-admin .admin-version-form {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) auto auto;
   align-items: end;
   gap: 10px;
 }
@@ -822,7 +890,19 @@ body[data-member-modal-open] { overflow: hidden; }
   border-right: 1px solid var(--border);
   background: #fbfcfe;
 }
-.page-admin .admin-chat-search { padding: 14px; border-bottom: 1px solid var(--border); }
+.page-admin .admin-chat-search {
+  padding: 14px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  border-bottom: 1px solid var(--border);
+}
+.page-admin .admin-performance-health { margin: 0 0 8px; padding: 10px 12px; border-radius: 9px; font-size: 12px; font-weight: 800; }
+.page-admin .admin-performance-health[data-level="normal"] { background: #ecfdf3; color: #067647; }
+.page-admin .admin-performance-health[data-level="warning"] { background: #fff7e8; color: #9a6513; }
+.page-admin .admin-performance-health[data-level="danger"] { background: #fff1f2; color: #b42318; }
+.page-admin .admin-performance-health[data-level="unknown"] { background: #f2f4f7; color: var(--muted); }
+.page-admin .admin-chat-search label { flex: 1 1 100%; }
 .page-admin .admin-chat-search input {
   width: 100%;
   height: 38px;
@@ -833,6 +913,7 @@ body[data-member-modal-open] { overflow: hidden; }
   font-size: 12.5px;
 }
 .page-admin .admin-chat-search input:disabled { background: #f2f4f9; color: #a5aec1; }
+.page-admin .admin-chat-count { margin: 0; padding: 8px 14px; border-bottom: 1px solid var(--border); }
 
 .page-admin .admin-chat-room-list { flex: 1; overflow-y: auto; }
 /* 방이 없을 때는 목록이 자리를 차지하지 않게 두고, 안내 문구를 가운데에 세운다. */
@@ -1018,6 +1099,7 @@ body[data-member-modal-open] { overflow: hidden; }
     숨기는 칸 수와 남는 칸 수를 반드시 같이 고친다.
   */
   .page-admin .admin-report-row { grid-template-columns: 58px minmax(0, 1fr) 74px; }
+  .page-admin .admin-report-row > :nth-child(2),
   .page-admin .admin-report-row > :nth-child(3),
   .page-admin .admin-report-row > :nth-child(5) { display: none; }
 
