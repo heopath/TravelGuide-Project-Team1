@@ -254,6 +254,25 @@ class AiGuideServiceTest {
     }
 
     @Test
+    void hidesUnverifiedCafeCardWhenNoVerifiedPlaceExists() {
+        AiGuideRequest request = new AiGuideRequest("이재모피자 근처 카페 추천", 12L);
+        AiGuideContext context = new AiGuideContext(null, List.of());
+        AiGuideResponse response = new AiGuideResponse("추천", List.of(new AiGuideDayResponse(1, "DAY 1",
+                List.of(new AiGuideItemResponse("14:00", "카페 (미확인)", "주변 카페를 탐방해 보세요.")))),
+                List.of(), List.of());
+        org.example.all_my_trip_project.domain.rag.service.PlaceRagService ragService = mock(
+                org.example.all_my_trip_project.domain.rag.service.PlaceRagService.class);
+
+        when(conversationHistoryService.load(1L, 12L)).thenReturn(List.of());
+        when(contextService.load(1L, request)).thenReturn(context);
+        when(ragServiceProvider.getIfAvailable()).thenReturn(ragService);
+        when(ragService.search(request.question())).thenReturn(List.of());
+        when(aiModelClient.generate(request, List.of(), context, List.of())).thenReturn(response);
+
+        assertThat(service.generate(request, false, 1L).days()).isEmpty();
+    }
+
+    @Test
     void replacesGenericCultureAndStreetFoodItemsWithVerifiedPlaces() {
         AiGuideRequest request = new AiGuideRequest("성수에서 문화 공간과 길거리 음식을 추천해줘", 12L);
         AiGuideContext context = new AiGuideContext(null, List.of());
