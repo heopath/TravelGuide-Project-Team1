@@ -15,6 +15,7 @@ import org.springframework.core.env.Profiles;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestClientResponseException;
 
 import java.math.BigDecimal;
@@ -150,16 +151,45 @@ public class LiteApiSandboxPriceProvider implements AccommodationPriceProvider {
             log.warn("LiteAPI Sandbox 요금 조회 HTTP 오류 status={}",
                     exception.getStatusCode().value());
             return AccommodationPriceResult.unchanged(offers);
+        } catch (RestClientException exception) {
+            /*
+             * 타입만 남기면 못 고친다. 운영에서 실제로 type=RestClientException 한 줄만
+             * 보고는 연결 실패인지, 변환기가 없는지, 응답 해석 실패인지 가릴 수 없었다.
+             * 가장 안쪽 원인까지 따라가 이름과 메시지를 남긴다.
+             */
+            Throwable cause = rootCause(exception);
+            log.warn("LiteAPI Sandbox 요금 조회 실패 type={} cause={} message={}",
+                    exception.getClass().getSimpleName(),
+                    cause.getClass().getName(), mask(cause.getMessage()));
+            return AccommodationPriceResult.unchanged(offers);
         } catch (RuntimeException exception) {
-            // 예외 메시지나 요청 URL에는 키가 포함될 가능성이 있어 타입만 기록한다.
-            log.warn("LiteAPI Sandbox 요금 조회 실패 type={}",
-                    exception.getClass().getSimpleName());
+            log.warn("LiteAPI Sandbox 요금 조회 실패 type={} message={}",
+                    exception.getClass().getSimpleName(), mask(exception.getMessage()));
             return AccommodationPriceResult.unchanged(offers);
         } catch (Exception exception) {
-            log.warn("LiteAPI Sandbox 요금 응답 해석 실패 type={}",
-                    exception.getClass().getSimpleName());
+            log.warn("LiteAPI Sandbox 요금 응답 해석 실패 type={} message={}",
+                    exception.getClass().getSimpleName(), mask(exception.getMessage()));
             return AccommodationPriceResult.unchanged(offers);
         }
+    }
+
+    /** 감싸인 예외는 겉껍데기만 봐서는 원인을 알 수 없다. 가장 안쪽까지 따라간다. */
+    private Throwable rootCause(Throwable throwable) {
+        Throwable current = throwable;
+        while (current.getCause() != null && current.getCause() != current) {
+            current = current.getCause();
+        }
+        return current;
+    }
+
+    /**
+     * 예외 메시지에 키가 섞여 나올 수 있다. 헤더로 보내므로 보통은 안 섞이지만,
+     * 한 번이라도 로그에 남으면 되돌릴 수 없어 값이 있으면 무조건 지운다.
+     */
+    private String mask(String message) {
+        if (message == null) return "(없음)";
+        String key = properties.getApiKey();
+        return key == null || key.isBlank() ? message : message.replace(key.trim(), "***");
     }
 
     private String requestRates(AccommodationSearchQuery query, Point center, int radius) {
