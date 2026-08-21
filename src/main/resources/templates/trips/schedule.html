@@ -294,10 +294,43 @@
                     경로선 ON
                   </button>
                 </div>
-                <div class="schedule-map" data-schedule-map>
-                  <div class="map-placeholder">
-                    카카오 지도 키를 설정하면 지도가 표시됩니다.
+                <div class="schedule-map-stage">
+                  <div class="schedule-map" data-schedule-map>
+                    <div class="map-placeholder">
+                      카카오 지도 키를 설정하면 지도가 표시됩니다.
+                    </div>
                   </div>
+                  <section
+                          class="route-optimization-preview-panel"
+                          data-route-optimization-panel
+                          aria-live="polite"
+                          hidden
+                  >
+                    <header class="route-optimization-preview-header">
+                      <div>
+                        <strong>동선 최적화 미리보기</strong>
+                      </div>
+                      <button type="button" data-route-optimization-close aria-label="동선 최적화 미리보기 닫기">×</button>
+                    </header>
+                    <div class="route-optimization-current" data-route-optimization-current></div>
+                    <div class="route-optimization-options" role="radiogroup" aria-label="동선 최적화 기준">
+                      <button type="button" class="route-optimization-option" data-route-optimization-option="DISTANCE" role="radio" aria-checked="false">
+                        <span class="route-optimization-option-title">이동거리 우선</span>
+                        <span class="route-optimization-option-value" data-route-optimization-distance></span>
+                      </button>
+                      <button type="button" class="route-optimization-option" data-route-optimization-option="TIME" role="radio" aria-checked="true">
+                        <span class="route-optimization-option-title">이동시간 우선</span>
+                        <span class="route-optimization-option-value" data-route-optimization-time></span>
+                      </button>
+                    </div>
+                    <p class="route-optimization-same-note" data-route-optimization-same-note hidden>
+                      이동거리 우선과 이동시간 우선의 결과가 같아 하나의 경로로 표시합니다.
+                    </p>
+                    <div class="route-optimization-preview-actions">
+                      <button type="button" class="route-optimization-cancel" data-route-optimization-cancel>취소</button>
+                      <button type="button" class="route-optimization-apply" data-route-optimization-apply>선택한 경로 적용</button>
+                    </div>
+                  </section>
                 </div>
               </section>
             </div>
@@ -410,8 +443,8 @@
 ></script>
 
 <script
-        th:src="@{/js/pages/trips/schedule.js(v=20260821-place-modal-fix)}"
-        src="../../static/js/pages/trips/schedule.js?v=20260821-place-modal-fix"
+        th:src="@{/js/pages/trips/schedule.js(v=20260821-title-sync)}"
+        src="../../static/js/pages/trips/schedule.js?v=20260821-title-sync"
 ></script>
 <script
         th:src="@{/js/pages/trips/schedule-ai-guide.js}"

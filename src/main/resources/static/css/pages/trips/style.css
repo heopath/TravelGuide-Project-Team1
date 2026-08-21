@@ -892,9 +892,53 @@ body.page-style .pill-grid button.selected::before {
 body.page-style .selected-summary #basicSummary::before { content: "⌖"; }
 body.page-style .selected-summary #purposeSummary::before { content: "♥"; }
 body.page-style .selected-summary #styleSummary::before { content: "◷"; }
+body.page-style .selected-summary #preferenceSummary::before { content: "⌂"; }
 
 body.page-style .selected-summary strong::before {
   font-size: 14px;
+}
+
+/* 긴 숙박 유형은 아이콘 공간을 줄여 한 줄로 표시 */
+body.page-style .pill-grid button[data-style-value="GUESTHOUSE"] {
+  white-space: nowrap;
+  letter-spacing: -.04em;
+}
+
+body.page-style .pill-grid button[data-style-value="GUESTHOUSE"]::before {
+  display: none;
+}
+
+/* 로컬 맛집은 텍스트만 표시 */
+body.page-style .pill-grid button[data-style-group="food"][data-style-value="LOCAL"]::before {
+  content: none !important;
+  display: none !important;
+  background-image: none !important;
+}
+
+/* 음식·숙박 요약 카드에는 숙박을 나타내는 침대 아이콘 표시 */
+body.page-style .selected-summary #preferenceSummary::before {
+  content: "" !important;
+  display: grid !important;
+  background-color: #eef1ff !important;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236775f2' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 18v-7h16v7'/%3E%3Cpath d='M4 14h16M7 11V7h5a3 3 0 0 1 3 3v1'/%3E%3Cpath d='M4 18v2M20 18v2'/%3E%3C/svg%3E") !important;
+  background-position: center !important;
+  background-repeat: no-repeat !important;
+  background-size: 72% !important;
+}
+
+/* 이동·음식·숙박 선택 버튼은 아이콘 공간을 제외하고 텍스트를 정중앙에 배치 */
+body.page-style .pill-grid button[data-style-group="transport"],
+body.page-style .pill-grid button[data-style-group="food"],
+body.page-style .pill-grid button[data-style-group="accommodation"] {
+  justify-content: center !important;
+  padding-inline: 30px !important;
+  text-align: center !important;
+}
+
+body.page-style .pill-grid button[data-style-group="transport"]::before,
+body.page-style .pill-grid button[data-style-group="food"]::before,
+body.page-style .pill-grid button[data-style-group="accommodation"]::before {
+  display: none !important;
 }
 
 /* =========================================================
