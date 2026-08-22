@@ -571,3 +571,27 @@
 .pay-checkout .pay-qr-code svg { width: 190px; height: 190px; }
 .pay-checkout .pay-qr-remain { text-align: center; }
 .pay-checkout .pay-qr-state { text-align: center; }
+
+/* =========================================================
+   좁은 화면의 누를 면적
+   =========================================================
+   손끝이 닿는 넓이는 대략 9mm다. 화면에서 44px 안팎은 되어야 한 번에 눌린다.
+   마우스로 쓰는 넓은 화면은 40px로도 충분하므로 좁은 화면에서만 올린다.
+   ========================================================= */
+
+@media (max-width: 760px) {
+  .menu-button {
+    width: 44px;
+    height: 44px;
+  }
+
+  .site-footer nav button {
+    min-height: 44px;
+    padding-inline: 4px;
+  }
+
+  /* 로고는 가로로 넓어 누르기 쉽지만 세로가 34px이라 아슬아슬하다. */
+  .app-header .brand {
+    min-height: 44px;
+  }
+}
