@@ -113,7 +113,6 @@ const ALL_MY_TRIPS_TEMPLATE_ROUTES = {
   "/ai-trip-plan": "guide/ai-trip-plan",
   "/ai-guide": "guide/ai-guide",
   "/trips/busan/optimize": "trips/optimize",
-  "/guide/themes": "guide/themes",
   "/booking": "booking/flights",
   "/booking/tickets/1": "booking/ticket",
   "/booking/hotels": "booking/hotels",
@@ -267,11 +266,6 @@ const ALL_MY_TRIPS_SCREENS = [
     "/trips/busan/optimize",
     "AI 일정 최적화",
     "trips"
-  ],
-  [
-    "/guide/themes",
-    "테마 여행",
-    "guide"
   ],
   /*
    * 예약은 주소 하나에 탭 넷이다. 사용자가 보는 것이 탭마다 완전히 다르므로 각각 한 화면으로 센다.

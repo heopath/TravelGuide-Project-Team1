@@ -17,11 +17,6 @@ public class PlacePageController {
         return "guide/guide";
     }
 
-    @GetMapping("/guide/themes")
-    public String guideThemes() {
-        return "guide/themes";
-    }
-
     @GetMapping("/guide/places/{placeSlug}")
     public String placeDetail(@PathVariable String placeSlug, Model model) {
         model.addAttribute("kakaoJavascriptKey", kakaoJavascriptKey);
