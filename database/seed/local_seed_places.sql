@@ -27,7 +27,7 @@ WITH source AS (
 INSERT INTO public.places (
     place_id, external_provider, external_place_id, category, name, country_code,
     region, city, address, latitude, longitude, description, phone, website_url,
-    average_rating, is_active
+    average_rating, is_active, is_recommended
 )
 SELECT
     i,
@@ -45,6 +45,9 @@ SELECT
     '02-0000-0000',
     'https://example.invalid/places/' || i,
     3.2 + (i % 18) * 0.1,
+    TRUE,
+    -- V23이 추천 노출을 is_active에서 분리했다. 그 백필은 이미 있던 행만 켜므로
+    -- 빈 DB에 새로 넣는 시드는 여기서 직접 켜야 추천장소 화면이 비지 않는다.
     TRUE
 FROM source
 ON CONFLICT (external_provider, external_place_id) DO UPDATE
@@ -56,7 +59,8 @@ SET category = EXCLUDED.category,
     latitude = EXCLUDED.latitude,
     longitude = EXCLUDED.longitude,
     description = EXCLUDED.description,
-    is_active = TRUE;
+    is_active = TRUE,
+    is_recommended = TRUE;
 
 INSERT INTO public.place_images (place_id, image_url, alt_text, sort_order, is_primary)
 SELECT
