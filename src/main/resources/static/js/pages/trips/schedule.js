@@ -1448,7 +1448,7 @@ document.addEventListener("DOMContentLoaded", function () {
           </div>
           <button type="button" class="schedule-wheel-adjust" data-wheel-direction="-1" aria-label="시간 내리기">∨</button>
           <span class="schedule-wheel-unit">시간</span>
-          <input type="hidden" data-time-hour value="${currentHour}" />
+          <input type="hidden" data-time-hour />
         </div>
         <span class="schedule-time-colon" aria-hidden="true">:</span>
         <div class="schedule-wheel-column" data-wheel-column="time-minute">
@@ -1460,7 +1460,7 @@ document.addEventListener("DOMContentLoaded", function () {
           </div>
           <button type="button" class="schedule-wheel-adjust" data-wheel-direction="-1" aria-label="분 내리기">∨</button>
           <span class="schedule-wheel-unit">분</span>
-          <input type="hidden" data-time-minute value="${currentMinute}" />
+          <input type="hidden" data-time-minute />
         </div>
       </div>`}
       ${autoStart ? '<small class="schedule-time-auto-note">첫 장소의 시작시간과 체류시간을 기준으로 자동 계산됩니다.</small>' : ""}
@@ -1520,6 +1520,11 @@ document.addEventListener("DOMContentLoaded", function () {
     if (durationHourInput && durationMinuteInput) {
       durationHourInput.value = padTime(Math.floor(initialDurationMinutes / 60));
       durationMinuteInput.value = padTime(initialDurationMinutes % 60);
+    }
+    // 시각은 값으로만 넣는다. 저장해 둔 시간이 HTML에 섞여 들어가면 태그로 읽힐 수 있다.
+    if (hourInput && minuteInput) {
+      hourInput.value = currentHour;
+      minuteInput.value = currentMinute;
     }
 
     function padTime(value) { return String(value).padStart(2, "0"); }
