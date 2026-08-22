@@ -43,6 +43,7 @@ document.addEventListener("DOMContentLoaded", function () {
   let images = [];
   let saving = false;
   let drawing = false;
+  let routePoints = [];
 
   function toast(message) {
     if (window.AllMyTripsModal?.showToast) {
@@ -362,8 +363,50 @@ document.addEventListener("DOMContentLoaded", function () {
       title: titleInput?.value.trim() || "",
       content: contentInput?.value.trim() || "",
       rating: currentRating,
-      images: images.slice()
+      images: images.slice(),
+      route: routePoints.slice()
     };
+  }
+
+  /*
+   * 지면에 그릴 동선. 일정 항목에는 좌표가 없고 장소 번호만 있어서 장소를 따로 부른다.
+   *
+   * 한 번 부른 장소는 다시 부르지 않는다. 같은 장소를 여러 날에 담을 수 있기 때문이다.
+   * 좌표가 없는 장소는 건너뛴다. 지도를 못 그려도 지면은 그려져야 하므로 실패는 삼킨다.
+   */
+  async function loadRoute() {
+    try {
+      const days = await request(`/api/v1/trips/${tripId}/days`);
+      const ordered = (days || []).slice().sort((a, b) => (a.dayNumber || 0) - (b.dayNumber || 0));
+
+      const items = [];
+      for (const day of ordered) {
+        const dayItems = await request(`/api/v1/trip-days/${day.tripDayId}/items`);
+        (dayItems || [])
+          .slice()
+          .sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0))
+          .forEach((item) => { if (item.placeId) items.push(item); });
+      }
+
+      const cache = new Map();
+      const points = [];
+      for (const item of items) {
+        if (!cache.has(item.placeId)) {
+          try {
+            const response = await request(`/api/v1/places/${item.placeId}`);
+            cache.set(item.placeId, response?.place || null);
+          } catch (error) {
+            cache.set(item.placeId, null);
+          }
+        }
+        const place = cache.get(item.placeId);
+        if (!place || place.latitude == null || place.longitude == null) continue;
+        points.push({ label: place.name || item.title, lat: Number(place.latitude), lng: Number(place.longitude) });
+      }
+      routePoints = points;
+    } catch (error) {
+      routePoints = [];
+    }
   }
 
   bookDrawButton?.addEventListener("click", async () => {
@@ -449,6 +492,7 @@ document.addEventListener("DOMContentLoaded", function () {
     applyRecord(existing);
     showApp();
     if (bookSection) bookSection.hidden = false;
+    loadRoute();
   }
 
   if (!Number.isInteger(tripId) || tripId <= 0) {
