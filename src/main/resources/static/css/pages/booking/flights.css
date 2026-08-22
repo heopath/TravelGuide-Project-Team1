@@ -1176,3 +1176,31 @@
     gap: 10px;
   }
 }
+
+/* =========================================================
+   누를 면적
+   =========================================================
+   보이는 모양은 그대로 두고 손가락이 닿는 면적만 넓힌다. 크기를 직접 키우면
+   촘촘한 검색 막대의 배치가 흐트러진다.
+
+   닫기(✕)는 16×15, 조건 변경은 54×20이었다. 손끝이 닿는 넓이는 대략 9mm이니
+   화면에서 44px 안팎은 되어야 한 번에 눌린다.
+   ========================================================= */
+
+.page-flights .extbar .x,
+.page-flights .cond-edit {
+  position: relative;
+}
+
+.page-flights .extbar .x::after,
+.page-flights .cond-edit::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  min-width: 44px;
+  min-height: 44px;
+  width: 100%;
+  height: 100%;
+  transform: translate(-50%, -50%);
+}
