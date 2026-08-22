@@ -14,7 +14,7 @@
 ## 자동 테스트
 
 ```powershell
-.\gradlew.bat test --tests "org.example.all_my_trip_project.domain.ai.controller.AiGuideControllerTest" --tests "org.example.all_my_trip_project.domain.ai.service.AiGuideContextServiceTest" --tests "org.example.all_my_trip_project.domain.ai.service.AiGuideServiceTest" --tests "org.example.all_my_trip_project.domain.ai.service.GeminiAiModelClientTest"
+.\gradlew.bat test --tests "org.example.all_my_trip_project.domain.ai.controller.AiGuideControllerTest" --tests "org.example.all_my_trip_project.domain.ai.service.AiGuideContextServiceTest" --tests "org.example.all_my_trip_project.domain.ai.service.AiGuideServiceTest"
 ```
 
 자동 테스트는 `tripId` 양의 정수 검증, 본인 여행·DAY·선호 컨텍스트 구성, 타인 여행 조회 실패 전파, Gemini 프롬프트 반영을 확인한다. 화면 이동 버튼과 실제 Gemini 호출은 일정 화면 연결 후 수동으로 확인한다.

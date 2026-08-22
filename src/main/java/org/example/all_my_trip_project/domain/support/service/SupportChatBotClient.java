@@ -20,14 +20,14 @@ import java.util.stream.Collectors;
 /**
  * 상담 채팅 전용 Gemini 클라이언트.
  *
- * <p><b>{@code domain.ai}의 {@code AiModelClient}/{@code ChatModel}과 별개다.</b> 설계 문서(§1)는
- * 원래 그 둘이 쓰는 {@code ChatModel} 빈을 공유하는 방향을 전제했지만, 실제로는 어떤 프로필
- * 조합에서도 {@code spring.ai.model.chat=none}이라 {@code ChatModel} 빈 자체가 뜨지 않고
- * ({@code GeminiAiModelClient}는 {@code @Profile("gemini-legacy")}로 어디에도 활성화돼 있지
- * 않은 죽은 코드다), 여행 가이드가 실제로 쓰는 구현체는 {@code CohereAiModelClient}다. 그래서
- * 이 클래스는 대신 저장소에서 유일하게 실제로 동작이 확인된 Gemini 경로인
- * {@code AiTripPlanService}의 패턴(REST API 직접 호출, {@code gemini.api-key})을 그대로
- * 따른다. PR 리뷰에서 이 차이를 별도로 알렸다.
+ * <p><b>{@code domain.ai}의 {@code AiModelClient}와 별개다.</b> 설계 문서(§1)는 원래 Spring AI의
+ * {@code ChatModel} 빈을 공유하는 방향을 전제했지만, 어떤 프로필 조합에서도
+ * {@code spring.ai.model.chat=none}이라 그 빈이 뜨지 않는다. 여행 가이드가 실제로 쓰는 구현체는
+ * {@code CohereAiModelClient}이고 그쪽도 REST를 직접 부른다.
+ *
+ * <p>그래서 이 클래스는 저장소에서 실제로 동작이 확인된 Gemini 경로인
+ * {@code AiTripPlanService}의 패턴(REST API 직접 호출, {@code gemini.api-key})을 그대로 따른다.
+ * 갈래를 하나로 모으는 문제는 이슈 #382에서 다룬다.
  */
 @Service
 @Slf4j
