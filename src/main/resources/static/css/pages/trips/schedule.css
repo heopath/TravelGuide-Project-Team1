@@ -4381,6 +4381,16 @@ body.place-search-open {
     min-width: 0;
   }
 
+  /*
+   * 교통수단·시간 설정 팝오버는 schedule-main 안에서 뜨는데, 이 폭에서는 폭이
+   * 모자라 지도 쪽으로 넘어간다. 두 칸이 z-index가 같으면 DOM에서 뒤에 있는
+   * 지도가 위를 덮어 팝오버의 오른쪽(자동차·일정에 적용)이 눌리지 않는다.
+   * 팝오버가 사는 일정 칸을 지도보다 한 단계 위에 둔다.
+   */
+  .page-schedule .schedule-workspace-body > .schedule-main {
+    z-index: 5;
+  }
+
   /* 지도는 첫 번째 일정 카드 높이에 맞추되 티켓 내부를 과하게 차지하지 않는다. */
   .page-schedule .schedule-workspace-body > .map-panel {
     margin-top: var(--schedule-map-top-offset, 92px);
