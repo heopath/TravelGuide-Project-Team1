@@ -693,6 +693,20 @@ function createTripFullCard(
         trip.destinationName ||
         "이름 없는 여행";
 
+    /*
+     * 종료일이 지난 확정 여행은 완료로 보여 준다. COMPLETED로 바꾸는 코드가 없어
+     * 상태만 보면 다녀온 뒤에도 "확정"에 머문다. 판단 규칙은 core/trip-status.js에 있다.
+     */
+    const finished =
+        window.AllMyTripsTripStatus
+            ?.isTripFinished(trip) ===
+        true;
+
+    const shownStatus =
+        finished
+            ? "COMPLETED"
+            : trip.status;
+
     const status =
         document.createElement(
             "em",
@@ -700,12 +714,12 @@ function createTripFullCard(
 
     status.className =
         getTripStatusClass(
-            trip.status,
+            shownStatus,
         );
 
     status.textContent =
         getTripStatusLabel(
-            trip.status,
+            shownStatus,
         );
 
     const actions =
@@ -810,6 +824,48 @@ function createTripFullCard(
         "aria-hidden",
         "true",
     );
+
+    /*
+     * 다녀온 여행에서만 기록으로 갈 수 있다. 카드 전체가 일정으로 가는 링크라
+     * 여기서 막지 않으면 기록을 누르려다 일정으로 넘어간다.
+     */
+    if (finished) {
+        const recordButton =
+            document.createElement(
+                "button",
+            );
+
+        recordButton.type =
+            "button";
+
+        recordButton.className =
+            "trip-full-card-record";
+
+        recordButton.dataset.noGlobalLoading =
+            "";
+
+        recordButton.textContent =
+            "여행 기록";
+
+        recordButton.setAttribute(
+            "aria-label",
+            `${title.textContent} 여행 기록`,
+        );
+
+        recordButton.addEventListener(
+            "click",
+            (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                window.location.href =
+                    `/trips/${trip.tripId}/record`;
+            },
+        );
+
+        bottom.appendChild(
+            recordButton,
+        );
+    }
 
     bottom.appendChild(
         arrow,

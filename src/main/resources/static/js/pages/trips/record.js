@@ -356,7 +356,7 @@ document.addEventListener("DOMContentLoaded", function () {
     if (titleEl) titleEl.textContent = trip.title || "여행 기록";
     if (periodEl) periodEl.textContent = formatPeriod(trip.startDate, trip.endDate);
 
-    if (trip.status !== "COMPLETED") {
+    if (!window.AllMyTripsTripStatus.isTripFinished(trip)) {
       showBlocked();
       return;
     }

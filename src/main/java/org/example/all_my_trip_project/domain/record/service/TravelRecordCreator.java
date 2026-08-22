@@ -12,6 +12,8 @@ import org.example.all_my_trip_project.global.exception.ErrorCode;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
+import java.time.LocalDate;
+
 /**
  * 완료 여행 소유자만 여행당 기록 1건을 작성할 수 있다는 규칙(trip-service-structure.md)을
  * 여기서 강제한다. 소유권 확인은 trip 도메인의 공개 계약({@link TripService#get})을 그대로 재사용하고
@@ -27,7 +29,7 @@ class TravelRecordCreator {
 
     TravelRecordEntity create(Long userId, CreateTravelRecordRequest request) {
         TripDTO trip = tripService.get(userId, request.tripId());
-        if (!TripStatus.COMPLETED.name().equals(trip.getStatus())) {
+        if (!TripStatus.isFinished(trip.getStatus(), trip.getEndDate(), LocalDate.now())) {
             throw new BusinessException(ErrorCode.TRIP_NOT_COMPLETED);
         }
         if (travelRecordRepository.existsByTripIdAndDeletedAtIsNull(request.tripId())) {

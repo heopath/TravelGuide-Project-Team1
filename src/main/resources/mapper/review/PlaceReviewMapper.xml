@@ -102,6 +102,13 @@
         ORDER BY rating DESC
     </select>
 
+    <!--
+      다녀온 장소인지 판단한다.
+
+      COMPLETED로 상태를 바꾸는 코드가 없어 날짜가 지나도 CONFIRMED에 머문다. 상태만
+      보면 리뷰를 영원히 쓸 수 없으므로 종료일로도 판단한다(TripStatus.isFinished와 같은 규칙).
+      초안은 아직 여행이 아니고 취소는 다녀오지 않은 여행이라 확정한 것만 센다.
+    -->
     <select id="hasCompletedVisit" resultType="boolean">
         SELECT EXISTS (
             SELECT 1
@@ -110,7 +117,7 @@
             JOIN trips t ON t.trip_id = td.trip_id
             WHERE ii.place_id = #{placeId}
               AND t.user_id = #{userId}
-              AND t.status = 'COMPLETED'
+              AND (t.status = 'COMPLETED' OR (t.status = 'CONFIRMED' AND t.end_date &lt; CURRENT_DATE))
               AND t.deleted_at IS NULL
         )
     </select>
