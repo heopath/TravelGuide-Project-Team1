@@ -131,3 +131,78 @@ body.page-record .record-delete-actions {
     min-height: calc(100vh - 64px);
   }
 }
+
+/* =========================================================
+   책 지면
+   ========================================================= */
+
+.page-record .record-book {
+  margin-top: 20px;
+  display: grid;
+  gap: 16px;
+}
+
+.page-record .record-book-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.page-record .record-book-head strong {
+  display: block;
+  color: #101828;
+  font-size: 17px;
+  font-weight: 800;
+}
+
+.page-record .record-book-head span {
+  display: block;
+  margin-top: 4px;
+  color: #667085;
+  font-size: 14px;
+}
+
+.page-record .record-book-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* 지면은 종이처럼 보여야 하므로 배경을 깔고 가운데 둔다. */
+.page-record .record-book-stage {
+  display: flex;
+  justify-content: center;
+  padding: 16px;
+  border-radius: 12px;
+  background: #efe9dc;
+}
+
+.page-record .record-book-stage canvas {
+  width: 100%;
+  max-width: 900px;
+  height: auto;
+  border-radius: 4px;
+}
+
+.page-record .record-book-note {
+  margin: 0;
+  color: #667085;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+@media (max-width: 760px) {
+  .page-record .record-book-actions {
+    width: 100%;
+  }
+
+  .page-record .record-book-actions button {
+    flex: 1 1 auto;
+  }
+
+  .page-record .record-book-stage {
+    padding: 10px;
+  }
+}
