@@ -1079,6 +1079,36 @@ body.page-mypage main#page-content > .page-shell {
   padding-top: 12px;
 }
 
+/* 기록 버튼이 왼쪽, 일정으로 가는 화살표가 오른쪽이다. */
+.page-mypage .trip-full-card-bottom {
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.page-mypage .trip-full-card-record {
+  min-height: 34px;
+  padding: 0 14px;
+  border: 1px solid #d6dbf5;
+  border-radius: 999px;
+  color: #3d4b8f;
+  background: #ffffff;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.page-mypage .trip-full-card-record:hover {
+  border-color: #5365ff;
+  color: #5365ff;
+  background: #f5f6ff;
+}
+
+/* 기록 버튼이 없는 카드에서는 화살표가 그대로 오른쪽에 붙는다. */
+.page-mypage .trip-full-card-arrow {
+  margin-left: auto;
+}
+
 .page-mypage .trip-full-card-arrow {
   display: grid;
   width: 30px;
