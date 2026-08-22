@@ -169,33 +169,66 @@
     return { name: "grid9", cells: cells };
   }
 
-  /* 글을 지면 폭에 맞춰 흘린다. 넘치면 말줄임으로 끊는다. */
-  function flow(ctx, text, x, y, maxWidth, lineHeight, maxLines) {
+  /*
+   * 글을 지면 폭에 맞춰 흘린다. 넘치면 말줄임으로 끊는다.
+   *
+   * indent(줄번호)로 줄마다 시작점과 폭을 바꿀 수 있다. 드롭캡 옆을 감싸 흐르게
+   * 하려고 둔 자리다. 주지 않으면 모든 줄이 같은 폭으로 흐른다.
+   */
+  function flow(ctx, text, x, y, maxWidth, lineHeight, maxLines, indent) {
     var paragraphs = String(text || "").split(/\n+/);
     var line = 0;
+
+    function box(n) {
+      var shift = indent ? indent(n) : null;
+      return { x: x + (shift ? shift.dx : 0), width: maxWidth - (shift ? shift.dx : 0) };
+    }
+
     for (var p = 0; p < paragraphs.length && line < maxLines; p++) {
       var words = paragraphs[p].split(/\s+/).filter(Boolean);
       var current = "";
       for (var i = 0; i < words.length; i++) {
         var next = current ? current + " " + words[i] : words[i];
-        if (ctx.measureText(next).width > maxWidth && current) {
-          ctx.fillText(current, x, y + line * lineHeight);
+        if (ctx.measureText(next).width > box(line).width && current) {
+          ctx.fillText(current, box(line).x, y + line * lineHeight);
           line++;
           current = words[i];
           if (line >= maxLines) {
-            ctx.fillText(current.slice(0, 24) + "…", x, y + line * lineHeight);
-            return line + 1;
+            ctx.fillText(current.slice(0, 24) + "…", box(line - 1).x, y + (line - 1) * lineHeight);
+            return line;
           }
         } else {
           current = next;
         }
       }
       if (current && line < maxLines) {
-        ctx.fillText(current, x, y + line * lineHeight);
+        ctx.fillText(current, box(line).x, y + line * lineHeight);
         line++;
       }
     }
     return line;
+  }
+
+  /*
+   * 드롭캡. 첫 글자를 크게 놓고 본문이 그 옆을 감싸 흐르게 한다.
+   *
+   * 글자 크기는 줄 높이의 배수로 잡는다. 그래야 몇 줄을 차지할지 정해지고,
+   * 본문이 그만큼만 들여쓰면 된다. 한글은 글자마다 폭이 달라 실제로 재서 쓴다.
+   */
+  function dropCap(ctx, text, x, y, lineHeight, lines) {
+    var first = String(text || "").trim().charAt(0);
+    if (!first) return null;
+
+    var size = Math.round(lineHeight * lines * 0.86);
+    ctx.save();
+    ctx.font = font(500, size);
+    var width = ctx.measureText(first).width;
+    ctx.fillStyle = INK;
+    /* 큰 글자는 첫 줄 글자와 윗선을 맞춘다. */
+    ctx.fillText(first, x, y + size * 0.78);
+    ctx.restore();
+
+    return { char: first, width: width, lines: lines, gap: 18 };
   }
 
   function stars(ctx, x, y, size, gap, filled) {
@@ -213,6 +246,167 @@
       ctx.closePath();
       ctx.fill();
     }
+  }
+
+  /*
+   * 미니 지도. 일정에 담은 장소를 순서대로 이어 동선을 그린다.
+   *
+   * 지도 이미지를 쓰지 않는다. 좌표만으로 그리므로 지도 API 키가 없어도 되고,
+   * 지면과 같은 종이 톤을 유지할 수 있다.
+   *
+   * 위경도를 그대로 쓰면 우리나라 위도에서 가로가 눌린다. 경도 1도가 위도 1도보다
+   * 짧기 때문이다. 중간 위도의 코사인을 곱해 보정한다.
+   */
+  function drawMiniMap(ctx, x, y, w, h, points) {
+    /* 종이와 같은 톤이면 묻힌다. 한 단계 짙게 깔고 테두리를 준다. */
+    ctx.fillStyle = "#ece3d1";
+    ctx.fillRect(x, y, w, h);
+
+    /* 옅은 모눈. 지도라는 것을 알려주는 최소한의 신호다. */
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(x, y, w, h);
+    ctx.clip();
+    ctx.strokeStyle = "rgba(160,140,105,0.22)";
+    ctx.lineWidth = 1;
+    for (var gx = x + 60; gx < x + w; gx += 60) {
+      ctx.beginPath();
+      ctx.moveTo(gx, y);
+      ctx.lineTo(gx, y + h);
+      ctx.stroke();
+    }
+    for (var gy = y + 60; gy < y + h; gy += 60) {
+      ctx.beginPath();
+      ctx.moveTo(x, gy);
+      ctx.lineTo(x + w, gy);
+      ctx.stroke();
+    }
+    ctx.restore();
+
+    ctx.strokeStyle = "#c4b190";
+    ctx.lineWidth = 2;
+    ctx.strokeRect(x + 1, y + 1, w - 2, h - 2);
+
+    ctx.fillStyle = "#6b5b3e";
+    ctx.font = font(500, 24);
+    ctx.fillText("다녀온 길", x + 20, y + 38);
+
+    var usable = (points || []).filter(function (p) {
+      return p && isFinite(p.lat) && isFinite(p.lng);
+    });
+    if (usable.length === 0) {
+      ctx.fillStyle = MUTED;
+      ctx.font = font(400, 24);
+      ctx.textAlign = "center";
+      ctx.fillText("일정에 담은 장소가 없어요", x + w / 2, y + h / 2 + 8);
+      ctx.textAlign = "left";
+      return 0;
+    }
+
+    var pad = 46;
+    var top = y + 54;
+    var innerW = w - pad * 2;
+    var innerH = h - (top - y) - pad;
+
+    var lats = usable.map(function (p) { return p.lat; });
+    var lngs = usable.map(function (p) { return p.lng; });
+    var minLat = Math.min.apply(null, lats), maxLat = Math.max.apply(null, lats);
+    var minLng = Math.min.apply(null, lngs), maxLng = Math.max.apply(null, lngs);
+    var midLat = (minLat + maxLat) / 2;
+    var squeeze = Math.cos((midLat * Math.PI) / 180) || 1;
+
+    var spanX = Math.max((maxLng - minLng) * squeeze, 0.0001);
+    var spanY = Math.max(maxLat - minLat, 0.0001);
+    /* 가로세로 비율을 지켜야 동선 모양이 찌그러지지 않는다. */
+    var scale = Math.min(innerW / spanX, innerH / spanY);
+    var drawW = spanX * scale;
+    var drawH = spanY * scale;
+    var offsetX = x + pad + (innerW - drawW) / 2;
+    var offsetY = top + (innerH - drawH) / 2;
+
+    var placed = usable.map(function (p) {
+      return {
+        label: p.label,
+        px: offsetX + (p.lng - minLng) * squeeze * scale,
+        /* 위도는 위로 갈수록 커지므로 화면 좌표와 뒤집힌다. */
+        py: offsetY + (maxLat - p.lat) * scale
+      };
+    });
+
+    if (placed.length > 1) {
+      ctx.strokeStyle = "#9a7433";
+      ctx.lineWidth = 4;
+      ctx.setLineDash([12, 9]);
+      ctx.beginPath();
+      placed.forEach(function (p, i) {
+        if (i) ctx.lineTo(p.px, p.py); else ctx.moveTo(p.px, p.py);
+      });
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+
+    /*
+     * 장소 이름. 번호만 있으면 어디를 다녀온 지면인지 알 수 없다.
+     *
+     * 여섯 곳이 좁은 칸에 모이면 이름이 서로 겹친다. 이미 놓은 이름과 부딪히면
+     * 반대쪽에 붙여 보고, 그래도 부딪히면 그 이름은 포기한다. 번호는 남으므로
+     * 순서를 잃지는 않는다.
+     */
+    var taken = [];
+    function collides(box) {
+      return taken.some(function (t) {
+        return !(box.x + box.w < t.x || box.x > t.x + t.w || box.y + box.h < t.y || box.y > t.y + t.h);
+      });
+    }
+
+    ctx.font = font(400, 21);
+    placed.forEach(function (p) {
+      var name = String(p.label || "").trim();
+      if (!name) return;
+      if (name.length > 11) name = name.slice(0, 10) + "…";
+      var textW = ctx.measureText(name).width;
+
+      var options = [
+        { x: p.px + 26, y: p.py - 12, align: "left" },
+        { x: p.px - 26 - textW, y: p.py - 12, align: "left" },
+        { x: p.px + 26, y: p.py + 20, align: "left" },
+        { x: p.px - 26 - textW, y: p.py + 20, align: "left" }
+      ];
+
+      for (var i = 0; i < options.length; i++) {
+        var o = options[i];
+        var box = { x: o.x - 6, y: o.y - 20, w: textW + 12, h: 28 };
+        if (box.x < x + 8 || box.x + box.w > x + w - 8) continue;
+        if (box.y < y + 46 || box.y + box.h > y + h - 8) continue;
+        if (collides(box)) continue;
+
+        /* 이름 뒤에 옅은 판을 깔아야 모눈과 동선 위에서도 읽힌다. */
+        ctx.fillStyle = "rgba(236,227,209,0.88)";
+        ctx.fillRect(box.x, box.y, box.w, box.h);
+        ctx.fillStyle = "#5c4d33";
+        ctx.fillText(name, o.x, o.y);
+        taken.push(box);
+        return;
+      }
+    });
+
+    placed.forEach(function (p, i) {
+      ctx.fillStyle = "#fdfaf3";
+      ctx.beginPath();
+      ctx.arc(p.px, p.py, 19, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = "#9a7433";
+      ctx.lineWidth = 4;
+      ctx.stroke();
+
+      ctx.fillStyle = "#6b4f14";
+      ctx.font = font(500, 22);
+      ctx.textAlign = "center";
+      ctx.fillText(String(i + 1), p.px, p.py + 8);
+      ctx.textAlign = "left";
+    });
+
+    return placed.length;
   }
 
   function formatPeriod(start, end) {
@@ -296,10 +490,30 @@
     stars(ctx, x, cursor, 40, 12, data.rating || 0);
 
     cursor += 80;
+
+    /*
+     * 지도는 지면 아래를 차지한다. 글이 짧으면 오른쪽이 허전한데, 동선이 그
+     * 자리를 채우면서 여행의 모양도 함께 보여 준다.
+     */
+    var mapH = data.route && data.route.length ? 440 : 0;
+    var textBottom = y + h - 90 - (mapH ? mapH + 40 : 0);
+    var lineHeight = 60;
+
+    /* 첫 글자를 크게 놓고 본문이 그 옆을 감싸 흐르게 한다. */
+    ctx.font = font(400, 36);
+    var cap = data.content ? dropCap(ctx, data.content, x, cursor, lineHeight, 2) : null;
+    var rest = cap ? String(data.content).trim().slice(1) : data.content || "";
+
     ctx.fillStyle = BODY;
     ctx.font = font(400, 36);
-    var room = Math.max(1, Math.floor((y + h - cursor - 90) / 60));
-    flow(ctx, data.content || "", x, cursor, w, 60, room);
+    var room = Math.max(1, Math.floor((textBottom - cursor) / lineHeight));
+    flow(ctx, rest, x, cursor + 34, w, lineHeight, room, cap ? function (n) {
+      return n < cap.lines ? { dx: cap.width + cap.gap } : { dx: 0 };
+    } : null);
+
+    if (mapH) {
+      drawMiniMap(ctx, x, y + h - 90 - mapH, w, mapH, data.route);
+    }
 
     ctx.fillStyle = MUTED;
     ctx.font = font(400, 30);
@@ -402,6 +616,7 @@
           startDate: data.startDate,
           endDate: data.endDate,
           destination: data.destination,
+          route: data.route || [],
           totalImages: all.length
         };
         var name = drawSpread(ctx, payload, loaded);
