@@ -30,10 +30,20 @@ document.addEventListener("DOMContentLoaded", function () {
   const deleteCancelButton = document.querySelector("[data-record-delete-cancel]");
   const deleteSubmitButton = document.querySelector("[data-record-delete-submit]");
 
+  const bookSection = document.querySelector("[data-record-book]");
+  const bookStage = document.querySelector("[data-record-book-stage]");
+  const bookCanvas = document.querySelector("[data-record-book-canvas]");
+  const bookDrawButton = document.querySelector("[data-record-book-draw]");
+  const bookSaveButton = document.querySelector("[data-record-book-save]");
+  const bookNote = document.querySelector("[data-record-book-note]");
+
   let currentRecord = null;
+  let currentTrip = null;
   let currentRating = 0;
   let images = [];
   let saving = false;
+  let drawing = false;
+  let routePoints = [];
 
   function toast(message) {
     if (window.AllMyTripsModal?.showToast) {
@@ -338,6 +348,114 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   });
 
+  /*
+   * 책 지면 그리기.
+   *
+   * 저장하지 않은 내용도 그대로 그린다. 지금 화면에 쓰고 있는 글이 어떻게 앉는지
+   * 보려고 누르는 버튼이라, 저장된 것만 그리면 쓸모가 없다.
+   */
+  function collectBookData() {
+    return {
+      tripTitle: currentTrip?.title || "",
+      destination: currentTrip?.destinationName || "",
+      startDate: currentTrip?.startDate || "",
+      endDate: currentTrip?.endDate || "",
+      title: titleInput?.value.trim() || "",
+      content: contentInput?.value.trim() || "",
+      rating: currentRating,
+      images: images.slice(),
+      route: routePoints.slice()
+    };
+  }
+
+  /*
+   * 지면에 그릴 동선. 일정 항목에는 좌표가 없고 장소 번호만 있어서 장소를 따로 부른다.
+   *
+   * 한 번 부른 장소는 다시 부르지 않는다. 같은 장소를 여러 날에 담을 수 있기 때문이다.
+   * 좌표가 없는 장소는 건너뛴다. 지도를 못 그려도 지면은 그려져야 하므로 실패는 삼킨다.
+   */
+  async function loadRoute() {
+    try {
+      const days = await request(`/api/v1/trips/${tripId}/days`);
+      const ordered = (days || []).slice().sort((a, b) => (a.dayNumber || 0) - (b.dayNumber || 0));
+
+      const items = [];
+      for (const day of ordered) {
+        const dayItems = await request(`/api/v1/trip-days/${day.tripDayId}/items`);
+        (dayItems || [])
+          .slice()
+          .sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0))
+          .forEach((item) => { if (item.placeId) items.push(item); });
+      }
+
+      const cache = new Map();
+      const points = [];
+      for (const item of items) {
+        if (!cache.has(item.placeId)) {
+          try {
+            const response = await request(`/api/v1/places/${item.placeId}`);
+            cache.set(item.placeId, response?.place || null);
+          } catch (error) {
+            cache.set(item.placeId, null);
+          }
+        }
+        const place = cache.get(item.placeId);
+        if (!place || place.latitude == null || place.longitude == null) continue;
+        points.push({ label: place.name || item.title, lat: Number(place.latitude), lng: Number(place.longitude) });
+      }
+      routePoints = points;
+    } catch (error) {
+      routePoints = [];
+    }
+  }
+
+  bookDrawButton?.addEventListener("click", async () => {
+    if (drawing || !bookCanvas || !window.AllMyTripsRecordBook) return;
+    drawing = true;
+    bookDrawButton.disabled = true;
+    if (bookNote) bookNote.textContent = "지면을 그리는 중입니다…";
+
+    try {
+      const result = await window.AllMyTripsRecordBook.render(bookCanvas, collectBookData());
+      if (bookStage) bookStage.hidden = false;
+      if (bookSaveButton) bookSaveButton.hidden = false;
+
+      const parts = [];
+      if (result.total === 0) parts.push("사진이 없어 글로만 지면을 짰습니다.");
+      else parts.push(`사진 ${result.shown}장으로 지면을 짰습니다.`);
+      if (result.total > result.shown) parts.push(`${result.total - result.shown}장은 다음 지면으로 넘어갑니다.`);
+      if (result.missing > 0) {
+        parts.push(`${result.missing}장은 저장이 허용되지 않는 곳의 사진이라 빈 자리로 두었습니다.`);
+      }
+      if (bookNote) bookNote.textContent = parts.join(" ");
+    } catch (error) {
+      if (bookNote) bookNote.textContent = error.message || "지면을 그리지 못했습니다.";
+    } finally {
+      drawing = false;
+      bookDrawButton.disabled = false;
+    }
+  });
+
+  bookSaveButton?.addEventListener("click", async () => {
+    if (!bookCanvas || !window.AllMyTripsRecordBook) return;
+    bookSaveButton.disabled = true;
+    try {
+      const blob = await window.AllMyTripsRecordBook.toBlob(bookCanvas);
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `${(currentTrip?.title || "여행기록").replace(/[\\/:*?"<>|]/g, "")}.png`;
+      link.click();
+      URL.revokeObjectURL(url);
+      if (bookNote) bookNote.textContent = "이미지를 저장했습니다.";
+    } catch (error) {
+      /* 저장이 허용되지 않는 사진이 섞이면 브라우저가 내보내기를 막는다. */
+      if (bookNote) bookNote.textContent = "이 지면은 저장할 수 없습니다. 사진 주소를 바꾼 뒤 다시 만들어 주세요.";
+    } finally {
+      bookSaveButton.disabled = false;
+    }
+  });
+
   async function loadTripAndRecord() {
     showLoading();
 
@@ -356,7 +474,7 @@ document.addEventListener("DOMContentLoaded", function () {
     if (titleEl) titleEl.textContent = trip.title || "여행 기록";
     if (periodEl) periodEl.textContent = formatPeriod(trip.startDate, trip.endDate);
 
-    if (trip.status !== "COMPLETED") {
+    if (!window.AllMyTripsTripStatus.isTripFinished(trip)) {
       showBlocked();
       return;
     }
@@ -370,8 +488,11 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     const existing = myRecords.find((record) => record.tripId === tripId) || null;
+    currentTrip = trip;
     applyRecord(existing);
     showApp();
+    if (bookSection) bookSection.hidden = false;
+    loadRoute();
   }
 
   if (!Number.isInteger(tripId) || tripId <= 0) {

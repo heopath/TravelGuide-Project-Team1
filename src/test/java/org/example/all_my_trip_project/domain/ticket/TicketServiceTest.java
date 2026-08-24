@@ -99,8 +99,12 @@ class TicketServiceTest {
 
         assertThatThrownBy(() -> service.reserve(7L,
                 new CreateTicketReservationRequest(10L, 31L, 1, "outside")))
+                /*
+                 * 무엇이 잘못됐는지 말해 주는 코드여야 한다. 예전 문구는 사용일·수량·여행을
+                 * 뭉뚱그려서, 손님이 수량을 줄여 보거나 여행을 다시 고르며 헤맸다.
+                 */
                 .isInstanceOfSatisfying(BusinessException.class, exception ->
-                        assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.INVALID_TICKET_REQUEST));
+                        assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.TICKET_DATE_OUTSIDE_TRIP));
     }
 
     @Test

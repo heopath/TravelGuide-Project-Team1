@@ -121,9 +121,10 @@ body.page-ticket #page-content {
 .page-ticket .tk-place > span:first-child { color: var(--primary); font-size: 18px; }
 
 /* 상품 본문 + 예매 패널 */
+/* 예매 패널이 모달로 빠져 본문은 한 칸이다. */
 .page-ticket .tk-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 370px;
+  grid-template-columns: minmax(0, 1fr);
   gap: 24px;
   align-items: start;
 }
@@ -574,3 +575,76 @@ body.page-ticket #page-content {
   .page-ticket .tk-qty-row { align-items: flex-start; flex-direction: column; }
   .page-ticket .tk-qty-row > small { text-align: left; }
 }
+
+/*
+ * 담은 뒤 결제로 가는 길. 담기 전에는 없다 — 결제로 보내 봐야 빈 예약 목록을 보게 된다.
+ */
+.page-ticket .tk-pay {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 46px;
+  margin-top: 12px;
+  padding: 0 20px;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+/* =================================================
+   구매 모달
+   ================================================= */
+
+.page-ticket .tk-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  padding: 24px;
+  display: grid;
+  place-items: center;
+  background: rgba(15, 23, 41, 0.5);
+  backdrop-filter: blur(3px);
+  overflow-y: auto;
+}
+/*
+ * [hidden]을 같이 적어야 한다. 브라우저 기본 [hidden]{display:none}보다 위의 클래스
+ * 선택자가 더 세서, hidden을 붙여도 display:grid가 이겨 모달이 그대로 보인다.
+ */
+.page-ticket .tk-modal[hidden] { display: none; }
+
+.page-ticket .tk-modal-card {
+  position: relative;
+  width: min(420px, 100%);
+  max-height: calc(100vh - 48px);
+  overflow-y: auto;
+}
+
+.page-ticket .tk-modal-close {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  z-index: 1;
+  width: 34px;
+  height: 34px;
+  border: 0;
+  border-radius: 50%;
+  background: #f1f3f9;
+  color: #4b5162;
+  font-size: 19px;
+  cursor: pointer;
+}
+.page-ticket .tk-modal-close:hover { background: #e6e9f3; }
+
+/* 모달 안에서는 따라다닐 이유가 없다. */
+.page-ticket .tk-modal .tk-book { position: static; top: auto; }
+
+.page-ticket .tk-buy { margin-top: 14px; }
+.page-ticket .tk-buy[hidden] { display: none; }
+
+/* 여행 기간 밖 회차. 지우지 않고 흐리게 둬야 왜 못 고르는지 보인다. */
+.page-ticket .tk-date-option.out {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.page-ticket .tk-date-option.out em { color: var(--danger, #c83c4a); }

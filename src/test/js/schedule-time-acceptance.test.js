@@ -69,3 +69,19 @@ assert.match(scheduleSource, /getActiveDayNumber: function \(\)/);
 assert.match(guideSource, /selectedDayNumber: window\.AllMyTripsSchedule\?\.getActiveDayNumber\?\.\(\) \|\| null/);
 
 console.log("schedule time acceptance checks passed");
+
+// 일정을 다 짜면 예약으로 넘어갈 수 있어야 한다. tripId를 안 달고 가면 예약 화면이
+// 목적지·날짜·인원을 채우지 못하고, 고른 항공편도 그 여행에 붙지 않는다.
+const scheduleMarkup = fs.readFileSync(
+  path.resolve(__dirname, "../../main/resources/templates/trips/schedule.html"), "utf8"
+);
+assert.match(scheduleMarkup, /data-schedule-booking/);
+assert.match(scheduleSource, /"\/booking\/flights\?tripId=" \+ encodeURIComponent\(activeTripId\)/);
+assert.match(scheduleSource, /먼저 여행을 저장해 주세요\./);
+
+// 방문 시각은 HTML 문자열에 끼워 넣지 않는다. 저장해 둔 값에 따옴표가 섞이면
+// 속성을 빠져나와 태그로 읽히기 때문에, 칸을 만든 뒤 값으로만 채운다.
+assert.doesNotMatch(scheduleSource, /value="\$\{currentHour\}"/);
+assert.doesNotMatch(scheduleSource, /value="\$\{currentMinute\}"/);
+assert.match(scheduleSource, /hourInput\.value = currentHour;/);
+assert.match(scheduleSource, /minuteInput\.value = currentMinute;/);

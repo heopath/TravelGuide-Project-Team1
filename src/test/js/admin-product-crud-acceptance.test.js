@@ -301,6 +301,10 @@ async function run() {
       d.querySelector("[data-slot-empty]").textContent.includes("티켓 종류를 먼저 등록"));
     T("티켓 종류가 없다는 것도 따로 알린다",
       d.querySelector("[data-option-empty]").textContent.includes("등록된 티켓 종류가 없어요"));
+    T("티켓 종류가 없으면 첫 단계인 티켓 종류 탭을 연다",
+      d.querySelector('[data-slot-tabpanel="options"]').hidden === false
+        && d.querySelector('[data-slot-tabpanel="slots"]').hidden === true
+        && d.querySelector('[data-slot-tab="options"]').getAttribute("aria-selected") === "true");
     T("목록에서도 티켓 종류 없음을 표시한다",
       rows(d)[0].querySelector("[data-product-note]").textContent === "티켓 종류 없음");
   }
@@ -328,6 +332,19 @@ async function run() {
       d.body.dataset.slotModalOpen === "1");
     T("열면 닫기 버튼으로 초점이 들어간다",
       d.activeElement === d.querySelector("[data-slot-close]"));
+    T("티켓 종류가 있으면 회차·재고 단계부터 연다",
+      d.querySelector('[data-slot-tabpanel="slots"]').hidden === false
+        && d.querySelector('[data-slot-tabpanel="options"]').hidden === true
+        && d.querySelector('[data-slot-tab="slots"]').getAttribute("aria-selected") === "true");
+
+    d.querySelector('[data-slot-tab="options"]').click();
+    T("티켓 종류 탭을 누르면 종류 작업만 보인다",
+      d.querySelector('[data-slot-tabpanel="options"]').hidden === false
+        && d.querySelector('[data-slot-tabpanel="slots"]').hidden === true);
+    d.querySelector('[data-slot-tab="slots"]').click();
+    T("판매 회차·재고 탭으로 다시 이동할 수 있다",
+      d.querySelector('[data-slot-tabpanel="slots"]').hidden === false
+        && d.querySelector('[data-slot-tabpanel="options"]').hidden === true);
 
     /* 카드 안을 누르다 닫히면 쓰던 값이 날아간다. */
     d.querySelector("[data-slot-card]").click();

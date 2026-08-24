@@ -215,6 +215,8 @@
   async function bulkRecommend(recommended, button) {
     const placeIds = [...state.selectedIds].map(Number).filter(Number.isInteger);
     if (!placeIds.length) return;
+    const action = recommended ? "추천 장소로 등록" : "추천 목록에서 내리기";
+    if (!window.confirm(`선택한 ${placeIds.length}곳을 ${action}할까요?`)) return;
     button.disabled = true;
     try {
       await request("PATCH", "/api/v1/admin/places/recommendation", { placeIds, recommended });
@@ -328,6 +330,13 @@
     else geocodeButton.hidden = true;
 
     $("placeSearchForm").addEventListener("submit", (event) => { event.preventDefault(); load(); });
+    $("placeFilterReset").addEventListener("click", () => {
+      $("placeKeyword").value = "";
+      $("placeCategoryFilter").value = "";
+      $("placeRecommendedFilter").value = "";
+      load();
+      $("placeKeyword").focus();
+    });
     $("newPlaceButton").addEventListener("click", () => { resetEditor(); $("placeName").focus(); });
     $("placeResetButton").addEventListener("click", resetEditor);
     $("placeEditorForm").addEventListener("submit", save);

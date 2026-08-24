@@ -58,6 +58,10 @@
   const roomList = $("chatRoomList");
   const roomEmpty = $("chatRoomEmpty");
   const search = $("chatSearch");
+  const searchForm = panel.querySelector("[data-chat-search-form]");
+  const searchClear = panel.querySelector("[data-chat-search-clear]");
+  const refresh = panel.querySelector("[data-chat-refresh]");
+  const roomCount = panel.querySelector("[data-chat-count]");
   const messages = $("chatMessages");
   const messageEmpty = $("chatMessageEmpty");
   const peerName = $("chatPeerName");
@@ -150,6 +154,7 @@
       const rooms = await request(`/api/v1/admin/support-chats?${query}`);
       if (generation !== roomsGeneration) return; /* 그 사이 더 최신 조회가 시작됐다 — 낡은 응답은 버린다. */
       roomList.replaceChildren();
+      if (roomCount) roomCount.textContent = `조회 결과 ${(rooms || []).length.toLocaleString("ko-KR")}건`;
       if (!rooms || !rooms.length) {
         roomEmpty.hidden = false;
         roomEmpty.textContent = statusFilter || keyword
@@ -161,6 +166,7 @@
       rooms.forEach(function (room) { roomList.appendChild(roomRow(room)); });
     } catch (error) {
       if (generation !== roomsGeneration) return;
+      if (roomCount) roomCount.textContent = "조회하지 못함";
       roomEmpty.hidden = false;
       roomEmpty.textContent = error.message || "상담 목록을 불러오지 못했어요.";
     }
@@ -444,21 +450,29 @@
   panel.querySelectorAll("[data-chat-filter]").forEach(function (button) {
     button.addEventListener("click", function () {
       panel.querySelectorAll("[data-chat-filter]").forEach(function (chip) {
-        chip.classList.toggle("on", chip === button);
+        const selected = chip === button;
+        chip.classList.toggle("on", selected);
+        chip.setAttribute("aria-pressed", selected ? "true" : "false");
       });
       statusFilter = button.dataset.chatFilter || "";
       loadRooms();
     });
   });
 
-  if (search) {
-    search.addEventListener("keydown", function (event) {
-      if (event.key !== "Enter") return;
-      event.preventDefault();
-      keyword = search.value.trim();
-      loadRooms();
-    });
-  }
+  searchForm?.addEventListener("submit", function (event) {
+    event.preventDefault();
+    keyword = search?.value.trim() || "";
+    if (searchClear) searchClear.hidden = !keyword;
+    loadRooms();
+  });
+  searchClear?.addEventListener("click", function () {
+    keyword = "";
+    if (search) search.value = "";
+    searchClear.hidden = true;
+    loadRooms();
+    search?.focus();
+  });
+  refresh?.addEventListener("click", loadRooms);
 
   function boot() {
     loadRooms();

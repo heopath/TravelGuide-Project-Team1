@@ -15,6 +15,7 @@
     failureRate: panel.querySelector('[data-metric="failureRate"]'),
   };
   const note = panel.querySelector("[data-performance-note]");
+  const health = panel.querySelector("[data-performance-health]");
   const refresh = panel.querySelector("[data-performance-refresh]");
   if (!fields.tps || !fields.latency || !fields.failureRate) return;
 
@@ -35,6 +36,7 @@
   /* 표본이 없으면 0을 쓰지 않는다. 0.0%는 "오류 없음"으로 읽히는데 실제로는 잰 적이 없다는 뜻이다. */
   function blank() {
     Object.keys(fields).forEach(function (key) { fields[key].textContent = "—"; });
+    if (health) { health.textContent = "상태를 판단할 수 없음"; health.dataset.level = "unknown"; }
   }
 
   function uptimeLabel(seconds) {
@@ -53,6 +55,12 @@
     fields.tps.textContent = data.tps.toFixed(2);
     fields.latency.textContent = `${Math.round(data.averageResponseMs).toLocaleString("ko-KR")}ms`;
     fields.failureRate.textContent = `${(data.errorRate * 100).toFixed(2)}%`;
+    if (health) {
+      const danger = data.averageResponseMs >= 1000 || data.errorRate >= 0.05;
+      const warning = data.averageResponseMs >= 500 || data.errorRate >= 0.01;
+      health.dataset.level = danger ? "danger" : (warning ? "warning" : "normal");
+      health.textContent = danger ? "위험 · 즉시 확인 필요" : (warning ? "주의 · 지표 확인 필요" : "정상 범위");
+    }
     if (note) {
       const uptime = uptimeLabel(data.uptimeSeconds);
       note.textContent = `가동 ${uptime || "직후"} 동안 요청 ${data.sampleCount.toLocaleString("ko-KR")}건 기준`

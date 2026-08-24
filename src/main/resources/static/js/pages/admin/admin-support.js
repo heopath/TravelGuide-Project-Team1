@@ -18,6 +18,8 @@
   const detail = document.querySelector("[data-detail]");
   const statusSelect = document.querySelector("[data-status-select]");
   const replyForm = document.querySelector("[data-reply-form]");
+  const feedback = document.querySelector("[data-support-feedback]");
+  const refresh = document.querySelector("[data-support-refresh]");
   if (!list || !detail || !replyForm) return;
 
   function formatDate(value, withTime) {
@@ -48,6 +50,13 @@
     return p;
   }
 
+  function showFeedback(message, error) {
+    if (!feedback) return;
+    feedback.textContent = message || "";
+    feedback.classList.toggle("error", Boolean(error));
+    feedback.hidden = !message;
+  }
+
   function renderPages(page, totalPages) {
     pagination.replaceChildren();
     for (let index = 0; index < totalPages; index += 1) {
@@ -56,6 +65,7 @@
       button.type = "button";
       button.textContent = String(index + 1);
       button.className = index === page ? "is-current" : "";
+      if (index === page) button.setAttribute("aria-current", "page");
       button.addEventListener("click", function () { loadList(index); });
       pagination.appendChild(button);
     }
@@ -66,6 +76,7 @@
     button.type = "button";
     button.className = `support-admin-item${selectedId === inquiry.supportInquiryId ? " is-current" : ""}`;
     button.dataset.inquiryId = inquiry.supportInquiryId;
+    if (selectedId === inquiry.supportInquiryId) button.setAttribute("aria-current", "true");
     const top = document.createElement("div");
     const category = document.createElement("span");
     category.textContent = categoryLabels[inquiry.category] || "기타";
@@ -164,6 +175,10 @@
       status = button.dataset.status;
       selectedId = null;
       document.querySelectorAll("[data-status]").forEach(function (item) { item.classList.toggle("is-current", item === button); });
+      document.querySelectorAll("[data-status]").forEach(function (item) {
+        if (item === button) item.setAttribute("aria-current", "true");
+        else item.removeAttribute("aria-current");
+      });
       empty.hidden = false;
       empty.querySelector("strong").textContent = "확인할 문의를 선택해 주세요.";
       empty.querySelector("p").textContent = "왼쪽 목록에서 문의를 선택하면 내용과 답변 내역이 표시됩니다.";
@@ -179,9 +194,10 @@
       renderDetail(await request(`/api/v1/admin/support/inquiries/${selectedId}/status`, {
         method: "PATCH", body: JSON.stringify({ status: statusSelect.value }),
       }));
+      showFeedback(`문의 상태를 ${statusLabels[statusSelect.value] || statusSelect.value}(으)로 변경했습니다.`);
       await loadList(currentPage);
     } catch (error) {
-      window.AllMyTripsModal?.showToast(error.message);
+      showFeedback(error.message || "문의 상태를 변경하지 못했습니다.", true);
       await openDetail(selectedId);
     } finally {
       statusSelect.disabled = false;
@@ -201,6 +217,7 @@
         method: "POST", body: JSON.stringify({ content: content.value.trim() }),
       }));
       content.value = "";
+      showFeedback("답변을 등록했습니다.");
       window.AllMyTripsModal?.showToast("답변이 등록되었습니다.");
       await loadList(currentPage);
     } catch (error) {
@@ -208,6 +225,12 @@
     } finally {
       submit.disabled = false;
     }
+  });
+
+  refresh?.addEventListener("click", function () {
+    showFeedback("");
+    loadList(currentPage);
+    if (selectedId) openDetail(selectedId);
   });
 
   loadList(0);

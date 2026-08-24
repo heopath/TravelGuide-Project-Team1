@@ -15,7 +15,11 @@ AiGuideController → AiGuideService → AiModelClient
 ```
 
 - `ui` 또는 기본 프로필: DB와 외부 AI 없이 Mock 응답을 반환합니다.
-- `ai` 프로필: Cohere REST API를 호출하고, 모델 JSON을 `AiGuideResponse(days → items)`로 변환합니다.
+- `ai` 프로필: Cohere Chat API(`api.cohere.com/v2/chat`)를 REST로 직접 호출하고, 모델 JSON을 `AiGuideResponse(days → items)`로 변환합니다.
+
+Spring AI의 `ChatModel` 빈은 사용하지 않습니다. 여행 가이드는 Cohere REST API를 직접 호출하며,
+RAG에서만 Spring AI의 임베딩 인터페이스와 `PgVectorStore`를 사용합니다. 자세한 역할 분리는
+[`ai-model-routing.md`](ai-model-routing.md)를 참고합니다.
 
 `ai`는 단독으로 쓰지 않고 실행 환경 프로필 위에 덧씌웁니다.
 

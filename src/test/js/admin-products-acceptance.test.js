@@ -99,10 +99,13 @@ async function run() {
     T("마크업에 재고 숫자가 박혀 있지 않다", !/\d{1,3},\d{3}/.test(section));
     T("상품 목록과 빈 상태 자리는 그대로 쓴다",
       section.includes('id="productList"') && section.includes('id="productEmpty"'));
-    T("판매 설정은 티켓 종류와 판매 회차 순서로 설명한다",
-      section.includes("1. 티켓 종류")
-        && section.includes("2. 판매 회차 등록")
-        && section.includes("3. 등록된 회차·재고"));
+    T("판매 설정은 티켓 종류와 판매 회차·재고 두 단계로 나뉜다",
+      /role="tablist" aria-label="판매 설정 단계"/.test(section)
+        && /data-slot-tab="options"/.test(section)
+        && /data-slot-tab="slots"/.test(section));
+    T("한 번에 한 단계만 보이도록 탭 패널을 구분한다",
+      /data-slot-tabpanel="options"/.test(section)
+        && /data-slot-tabpanel="slots" hidden/.test(section));
     T("판매 설정 닫기는 오른쪽 위 공통 닫기 버튼을 쓴다",
       /class="modal-close admin-slot-close"[^>]*data-slot-close[^>]*aria-label="판매 설정 닫기"/.test(section));
   }

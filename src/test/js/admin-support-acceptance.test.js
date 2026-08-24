@@ -36,6 +36,10 @@ test("답변 등록 API를 호출한다", () =>
   js.includes("/${selectedId}/replies") && js.includes('method: "POST"'));
 test("상태 변경 API를 호출한다", () =>
   js.includes("/${selectedId}/status") && js.includes('method: "PATCH"'));
+test("문의 목록을 직접 새로고침할 수 있다", () =>
+  html.includes("data-support-refresh") && js.includes('refresh?.addEventListener("click"'));
+test("답변·상태 변경 결과를 화면에 남긴다", () =>
+  html.includes("data-support-feedback") && js.includes("showFeedback"));
 test("전용 화면 스타일이 존재한다", () => css.includes(".support-admin-workspace"));
 test("상세 로딩 영역은 응답 후 확실히 숨겨진다", () =>
   css.includes(".support-admin-empty[hidden]") && css.includes("display: none !important"));

@@ -80,6 +80,12 @@ const button = (row, action) => row.querySelector(`[data-member-action="${action
 const notice = (d) => d.querySelector("[data-member-notice]");
 const empty = (d) => d.querySelector("[data-member-empty]");
 
+async function submitAction(d, w, reason) {
+  d.querySelector("[data-member-action-reason]").value = reason || "";
+  d.querySelector("[data-member-action-form]")
+    .dispatchEvent(new w.Event("submit", { bubbles: true, cancelable: true }));
+}
+
 async function run() {
   /* ── 마크업 ── */
   {
@@ -101,6 +107,10 @@ async function run() {
       section.includes('data-member-role="ADMIN"') && section.includes('data-member-role="USER"'));
     T("닉네임과 이메일로 검색할 수 있다",
       /data-member-search[\s\S]*?닉네임 또는 이메일/.test(section));
+    T("회원 변경 사유를 남기는 전용 확인창이 있다",
+      section.includes("data-member-modal")
+        && section.includes("data-member-action-reason")
+        && section.includes("조작 이력"));
     T("페이지 스크립트를 실제로 불러온다", markup.includes("/js/pages/admin/admin-members.js"));
   }
 
@@ -120,6 +130,8 @@ async function run() {
       rows(d)[1].querySelector("[data-member-role-cell]").textContent === "관리자");
     T("상태를 한국어로 보여준다",
       rows(d)[0].querySelector("[data-member-status-cell]").textContent === "활동");
+    T("전체 조회 회원 수를 보여준다",
+      d.querySelector("[data-member-count]").textContent === "조회 결과 2명");
   }
 
   /* ── 자기 자신 보호 ── */
@@ -134,6 +146,10 @@ async function run() {
     T("자기 자신은 관리자 해제 버튼이 잠긴다", button(mine, "demote").disabled === true);
     T("잠근 이유를 버튼에 붙인다",
       button(mine, "suspend").title.includes("자기 자신"));
+    T("현재 로그인한 계정을 목록에서 구분한다",
+      mine.querySelector("[data-member-self]").textContent === "내 계정");
+    T("잠긴 이유를 마우스를 올리지 않아도 보여준다",
+      mine.querySelector("[data-member-lock-reason]").textContent.includes("자기 자신"));
     T("다른 회원의 버튼은 잠기지 않는다", button(rows(d)[1], "suspend").disabled === false);
   }
 
@@ -203,7 +219,7 @@ async function run() {
   /* ── 정지 실행 ── */
   {
     let listed = 0;
-    const { d, calls } = await boot((url, options) => {
+    const { w, d, calls } = await boot((url, options) => {
       if (options.method === "PATCH") return ok(member(12, { status: "SUSPENDED" }));
       listed += 1;
       return ok(page([member(12, { status: listed > 1 ? "SUSPENDED" : "ACTIVE" })]));
@@ -211,44 +227,62 @@ async function run() {
     await until(() => rows(d).length === 1);
 
     button(rows(d)[0], "suspend").dispatchEvent(new d.defaultView.Event("click", { bubbles: true }));
+    T("정지 전에 대상과 영향을 전용 확인창으로 보여준다",
+      d.querySelector("[data-member-modal]").hidden === false
+        && d.querySelector("[data-member-action-target]").textContent.includes("회원12")
+        && d.querySelector("[data-member-action-impact]").textContent.includes("로그인"));
+    await submitAction(d, w, "반복적인 운영 정책 위반");
     await until(() => calls.some((call) => call.options.method === "PATCH"));
 
     const patch = calls.find((call) => call.options.method === "PATCH");
     T("정지는 status 엔드포인트로 보낸다", patch.url === "/api/v1/admin/members/12/status");
     T("정지 요청 본문에 SUSPENDED를 담는다",
       JSON.parse(patch.options.body).status === "SUSPENDED");
+    T("정지 사유를 조작 이력용으로 함께 보낸다",
+      JSON.parse(patch.options.body).reason === "반복적인 운영 정책 위반");
 
     await until(() => listed > 1);
     T("바꾼 뒤 목록을 다시 받는다", listed > 1);
+    T("성공하면 확인창을 닫고 결과를 알려준다",
+      d.querySelector("[data-member-modal]").hidden === true
+        && d.querySelector("[data-member-feedback]").textContent.includes("정지했습니다"));
   }
 
   /* ── 승격 실행 ── */
   {
-    const { d, calls } = await boot((url, options) => {
+    const { w, d, calls } = await boot((url, options) => {
       if (options.method === "PATCH") return ok(member(12, { role: "ADMIN" }));
       return ok(page([member(12)]));
     });
     await until(() => rows(d).length === 1);
 
     button(rows(d)[0], "promote").dispatchEvent(new d.defaultView.Event("click", { bubbles: true }));
+    await submitAction(d, w, "운영 담당자 지정");
     await until(() => calls.some((call) => call.options.method === "PATCH"));
 
     const patch = calls.find((call) => call.options.method === "PATCH");
     T("승격은 role 엔드포인트로 보낸다", patch.url === "/api/v1/admin/members/12/role");
     T("승격 요청 본문에 ADMIN을 담는다", JSON.parse(patch.options.body).role === "ADMIN");
+    T("권한 변경 사유도 함께 보낸다", JSON.parse(patch.options.body).reason === "운영 담당자 지정");
   }
 
-  /* ── 확인 창을 취소하면 아무것도 보내지 않는다 ── */
+  /* ── 사유를 쓰지 않거나 확인 창을 취소하면 아무것도 보내지 않는다 ── */
   {
     const { w, d, calls } = await boot(() => ok(page([member(12)])));
     await until(() => rows(d).length === 1);
-    w.confirm = () => false;
 
     button(rows(d)[0], "suspend").dispatchEvent(new d.defaultView.Event("click", { bubbles: true }));
+    await submitAction(d, w, "");
+    T("사유가 없으면 변경 요청을 보내지 않는다",
+      !calls.some((call) => call.options.method === "PATCH")
+        && d.querySelector("[data-member-action-error]").textContent.includes("사유"));
+
+    d.querySelector("[data-member-action-cancel]").click();
     await new Promise((resolve) => setTimeout(resolve, 50));
 
     T("확인을 취소하면 요청을 보내지 않는다",
-      !calls.some((call) => call.options.method === "PATCH"));
+      !calls.some((call) => call.options.method === "PATCH")
+        && d.querySelector("[data-member-modal]").hidden === true);
   }
 
   /* ── 필터 ── */
@@ -265,6 +299,28 @@ async function run() {
       .dispatchEvent(new d.defaultView.Event("click", { bubbles: true }));
     await until(() => calls.length > 2);
     T("권한 필터를 요청에 담는다", calls[calls.length - 1].url.includes("role=ADMIN"));
+    T("선택한 필터를 보조기기에도 알린다",
+      d.querySelector('[data-member-role="ADMIN"]').getAttribute("aria-pressed") === "true");
+
+    const search = d.querySelector("[data-member-search]");
+    search.value = "member12";
+    d.querySelector("[data-member-search-form]")
+      .dispatchEvent(new d.defaultView.Event("submit", { bubbles: true, cancelable: true }));
+    await until(() => calls.length > 3);
+    T("검색어를 요청에 담는다", calls[calls.length - 1].url.includes("keyword=member12"));
+
+    d.querySelector("[data-member-search-clear]").click();
+    await until(() => calls.length > 4);
+    T("검색 초기화 후 현재 필터로 다시 조회한다",
+      !calls[calls.length - 1].url.includes("keyword=")
+        && calls[calls.length - 1].url.includes("status=SUSPENDED")
+        && calls[calls.length - 1].url.includes("role=ADMIN"));
+
+    d.querySelector("[data-member-refresh]").click();
+    await until(() => calls.length > 5);
+    T("새로고침도 현재 필터를 유지한다",
+      calls[calls.length - 1].url.includes("status=SUSPENDED")
+        && calls[calls.length - 1].url.includes("role=ADMIN"));
   }
 
   /* ── 실패와 빈 목록 ── */
@@ -283,7 +339,7 @@ async function run() {
     T("403이면 행을 그리지 않는다", rows(d).length === 0);
   }
   {
-    const { d, calls } = await boot((url, options) => {
+    const { w, d, calls } = await boot((url, options) => {
       if (options.method === "PATCH") {
         return fail(400, "LAST_ADMIN_PROTECTED", "마지막 관리자입니다. 다른 관리자를 먼저 지정해 주세요.");
       }
@@ -292,13 +348,14 @@ async function run() {
     await until(() => rows(d).length === 1);
 
     button(rows(d)[0], "demote").dispatchEvent(new d.defaultView.Event("click", { bubbles: true }));
+    await submitAction(d, w, "관리자 담당 해제");
     await until(() => calls.some((call) => call.options.method === "PATCH"));
-    await until(() => empty(d).hidden === false);
+    await until(() => d.querySelector("[data-member-action-error]").textContent.includes("마지막 관리자"));
 
-    T("서버가 거부하면 그 이유를 그대로 보여준다",
-      empty(d).textContent.includes("마지막 관리자입니다."));
-    T("거부되면 버튼을 다시 누를 수 있게 푼다",
-      button(rows(d)[0], "demote").disabled === false);
+    T("서버가 거부하면 확인창에 이유를 그대로 보여준다",
+      d.querySelector("[data-member-action-error]").textContent.includes("마지막 관리자입니다."));
+    T("거부되면 확인 버튼을 다시 누를 수 있게 푼다",
+      d.querySelector("[data-member-action-confirm]").disabled === false);
   }
 
   console.log(`\n${passed} passed, ${failed} failed`);

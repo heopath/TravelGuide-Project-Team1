@@ -483,6 +483,152 @@ function createTripEmpty() {
    내 여행 전체보기 카드
    ========================================================= */
 
+/* =========================================================
+   여행에 딸린 예약
+
+   계획과 예약이 서로 다른 곳에 있어서, 손님은 이 여행에 무엇을 예약해 뒀는지 알려면
+   예약 화면을 따로 열어 여행을 다시 골라야 했다. 여행 카드에서 바로 펼쳐 본다.
+   ========================================================= */
+
+const BOOKING_GROUPS = [
+    { type: "FLIGHT", label: "항공" },
+    /* 서버가 쓰는 이름은 ACCOMMODATION이다. HOTEL로 거르면 숙소가 늘 0건으로 나온다. */
+    { type: "ACCOMMODATION", label: "숙소" },
+    { type: "TICKET", label: "티켓·액티비티" },
+];
+
+function formatBookingAmount(item) {
+    if (item.amount === null || item.amount === undefined) return "요금 미제공";
+    const currency = String(item.currency || "KRW").toUpperCase();
+    const value = Number(item.amount).toLocaleString("ko-KR");
+    return currency === "KRW" ? `${value}원` : `${value} ${currency}`;
+}
+
+/** 한 종류의 예약을 줄로 그린다. 없으면 왜 비었는지 적는다. */
+function createBookingGroup(group, items) {
+    const section = document.createElement("section");
+    section.className = "trip-bookings-group";
+
+    const head = document.createElement("h4");
+    head.textContent = `${group.label} ${items.length}건`;
+    section.appendChild(head);
+
+    if (!items.length) {
+        const empty = document.createElement("p");
+        empty.className = "trip-bookings-empty";
+        empty.textContent = "아직 예약하지 않았어요.";
+        section.appendChild(empty);
+        return section;
+    }
+
+    const list = document.createElement("ul");
+    items.forEach((item) => {
+        const row = document.createElement("li");
+
+        const title = document.createElement("strong");
+        title.textContent = item.title || group.label;
+
+        const detail = document.createElement("span");
+        /* 이용일이 있으면 함께 적는다. 무엇을 언제 쓰는지가 한 줄에 보여야 한다. */
+        detail.textContent = [item.detail, item.usageDate].filter(Boolean).join(" · ");
+
+        const status = document.createElement("em");
+        status.className = "trip-bookings-status";
+        status.textContent = item.statusLabel || item.status || "";
+
+        const amount = document.createElement("b");
+        amount.textContent = formatBookingAmount(item);
+        /* 실습·샘플 금액은 실제 결제액이 아니다. 표시를 떼면 안 된다. */
+        if (item.practice) amount.title = "실습 요금 · 실제 결제 금액 아님";
+
+        row.append(title, detail, status, amount);
+        list.appendChild(row);
+    });
+
+    section.appendChild(list);
+    return section;
+}
+
+/** 펼쳤을 때 한 번만 읽는다. 접었다 펴는 것만으로 매번 부르지 않는다. */
+async function loadTripBookings(tripId, box) {
+    box.textContent = "예약을 불러오는 중이에요.";
+    try {
+        const summary = await request(`/api/v1/trips/${tripId}/booking-summary`);
+        const items = summary?.items || [];
+
+        const wrap = document.createElement("div");
+        wrap.className = "trip-bookings-body";
+
+        const progress = summary?.progress;
+        if (progress) {
+            const line = document.createElement("p");
+            line.className = "trip-bookings-progress";
+            line.textContent = `예약 진행 ${progress.done} / ${progress.total}`;
+            wrap.appendChild(line);
+        }
+
+        BOOKING_GROUPS.forEach((group) => {
+            wrap.appendChild(createBookingGroup(
+                group,
+                items.filter((item) => item.type === group.type),
+            ));
+        });
+
+        const money = summary?.money;
+        if (money && money.estimatedTotal !== null && money.estimatedTotal !== undefined) {
+            const total = document.createElement("p");
+            total.className = "trip-bookings-total";
+            /* 화면 비교용 스냅샷 합계다. 실제 결제액이라고 읽히면 안 된다. */
+            total.textContent = `예상 합계 ${Number(money.estimatedTotal).toLocaleString("ko-KR")}원`
+                + " · 실제 결제 금액과 다를 수 있어요";
+            wrap.appendChild(total);
+        }
+
+        box.replaceChildren(wrap);
+    } catch (error) {
+        box.textContent = "예약을 불러오지 못했어요. 잠시 후 다시 시도해 주세요.";
+    }
+}
+
+/** 여행 카드 안에서 예약을 펼쳐 보는 자리. */
+function createTripBookings(trip) {
+    const wrap = document.createElement("div");
+    wrap.className = "trip-bookings";
+
+    const toggle = document.createElement("button");
+    toggle.type = "button";
+    toggle.className = "trip-bookings-toggle";
+    toggle.textContent = "예약 내역 보기";
+    toggle.setAttribute("aria-expanded", "false");
+
+    const box = document.createElement("div");
+    box.className = "trip-bookings-panel";
+    box.hidden = true;
+
+    let loaded = false;
+
+    toggle.addEventListener("click", (event) => {
+        /*
+         * 카드 전체가 일정으로 가는 링크다. 여기서 막지 않으면 펼치려다 화면이 넘어간다.
+         */
+        event.preventDefault();
+        event.stopPropagation();
+
+        const open = box.hidden;
+        box.hidden = !open;
+        toggle.setAttribute("aria-expanded", String(open));
+        toggle.textContent = open ? "예약 내역 접기" : "예약 내역 보기";
+
+        if (open && !loaded) {
+            loaded = true;
+            void loadTripBookings(trip.tripId, box);
+        }
+    });
+
+    wrap.append(toggle, box);
+    return wrap;
+}
+
 function createTripFullCard(
     trip,
     onDelete,
@@ -547,6 +693,20 @@ function createTripFullCard(
         trip.destinationName ||
         "이름 없는 여행";
 
+    /*
+     * 종료일이 지난 확정 여행은 완료로 보여 준다. COMPLETED로 바꾸는 코드가 없어
+     * 상태만 보면 다녀온 뒤에도 "확정"에 머문다. 판단 규칙은 core/trip-status.js에 있다.
+     */
+    const finished =
+        window.AllMyTripsTripStatus
+            ?.isTripFinished(trip) ===
+        true;
+
+    const shownStatus =
+        finished
+            ? "COMPLETED"
+            : trip.status;
+
     const status =
         document.createElement(
             "em",
@@ -554,12 +714,12 @@ function createTripFullCard(
 
     status.className =
         getTripStatusClass(
-            trip.status,
+            shownStatus,
         );
 
     status.textContent =
         getTripStatusLabel(
-            trip.status,
+            shownStatus,
         );
 
     const actions =
@@ -665,6 +825,48 @@ function createTripFullCard(
         "true",
     );
 
+    /*
+     * 다녀온 여행에서만 기록으로 갈 수 있다. 카드 전체가 일정으로 가는 링크라
+     * 여기서 막지 않으면 기록을 누르려다 일정으로 넘어간다.
+     */
+    if (finished) {
+        const recordButton =
+            document.createElement(
+                "button",
+            );
+
+        recordButton.type =
+            "button";
+
+        recordButton.className =
+            "trip-full-card-record";
+
+        recordButton.dataset.noGlobalLoading =
+            "";
+
+        recordButton.textContent =
+            "여행 기록";
+
+        recordButton.setAttribute(
+            "aria-label",
+            `${title.textContent} 여행 기록`,
+        );
+
+        recordButton.addEventListener(
+            "click",
+            (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                window.location.href =
+                    `/trips/${trip.tripId}/record`;
+            },
+        );
+
+        bottom.appendChild(
+            recordButton,
+        );
+    }
+
     bottom.appendChild(
         arrow,
     );
@@ -674,6 +876,7 @@ function createTripFullCard(
         location,
         period,
         bottom,
+        createTripBookings(trip),
     );
 
     return card;

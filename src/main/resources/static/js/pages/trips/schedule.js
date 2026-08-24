@@ -18,6 +18,11 @@ document.addEventListener("DOMContentLoaded", function () {
   let expandedMapOverlays = [];
   let expandedRouteLine = null;
   let expandedSegmentRouteLines = [];
+  let optimizationPreviewLines = [];
+  let optimizationPreviewState = null;
+  let selectedOptimizationCriterion = "TIME";
+  let optimizationPreviewRouteData = {};
+  let optimizationRequestToken = 0;
   let searchPreviewOverlay = null;
   let lastSearchResults = [];
   let favoritePlaces = null;
@@ -30,7 +35,6 @@ document.addEventListener("DOMContentLoaded", function () {
   let scheduleDays = [];
   let lastRouteResult = null;
   let lastOptimizationCriterion = "DISTANCE";
-  let optimizationPreviewKey = "";
   let allScheduleVisible = false;
   let activeScheduleCalculation = new Map();
   const maxItineraryItemsPerDay = 5;
@@ -142,6 +146,19 @@ document.addEventListener("DOMContentLoaded", function () {
   const mapExpandButton = document.querySelector(".map-expand-button");
   const mapRouteToggle = document.querySelector("[data-toggle-route-map]");
   const optimizeRouteTrigger = document.querySelector("[data-optimize-trigger]");
+  const optimizationPanel = document.querySelector("[data-route-optimization-panel]");
+  const optimizationCurrent = document.querySelector("[data-route-optimization-current]");
+  const optimizationDistance = document.querySelector("[data-route-optimization-distance]");
+  const optimizationTime = document.querySelector("[data-route-optimization-time]");
+  const optimizationSameNote = document.querySelector("[data-route-optimization-same-note]");
+  const optimizationDistanceOption = document.querySelector('[data-route-optimization-option="DISTANCE"]');
+  const optimizationTimeOption = document.querySelector('[data-route-optimization-option="TIME"]');
+  const optimizationDistanceTitle = optimizationDistanceOption?.querySelector(".route-optimization-option-title");
+  const optimizationTimeTitle = optimizationTimeOption?.querySelector(".route-optimization-option-title");
+  const optimizationOptions = Array.from(document.querySelectorAll("[data-route-optimization-option]"));
+  const optimizationClose = document.querySelector("[data-route-optimization-close]");
+  const optimizationCancel = document.querySelector("[data-route-optimization-cancel]");
+  const optimizationApply = document.querySelector("[data-route-optimization-apply]");
   const mapModal = document.querySelector("[data-map-modal]");
   const expandedMapContainer = document.querySelector("[data-schedule-map-expanded]");
   const mapStatus = document.querySelector("[data-map-status]");
@@ -433,8 +450,285 @@ document.addEventListener("DOMContentLoaded", function () {
     return rest ? hours + "시간 " + rest + "분" : hours + "시간";
   }
 
+  function clearOptimizationPreview(hidePanel) {
+    clearOverlays(optimizationPreviewLines);
+    optimizationPreviewState = null;
+    optimizationPreviewRouteData = {};
+    if (optimizationSameNote) optimizationSameNote.hidden = true;
+    if (optimizationDistanceOption) optimizationDistanceOption.hidden = false;
+    if (optimizationTimeOption) optimizationTimeOption.hidden = false;
+    if (optimizationDistanceTitle) optimizationDistanceTitle.textContent = "이동거리 우선";
+    if (optimizationTimeTitle) optimizationTimeTitle.textContent = "이동시간 우선";
+    if (hidePanel !== false && optimizationPanel) optimizationPanel.hidden = true;
+  }
+
+  function optimizationPath(criterion) {
+    return (optimizationPreviewRouteData[criterion] || []).flatMap(function (route) {
+      return (route?.points || []).map(function (point) {
+        return new window.kakao.maps.LatLng(Number(point.latitude), Number(point.longitude));
+      }).filter(function (point) {
+        return Number.isFinite(point.getLat()) && Number.isFinite(point.getLng());
+      });
+    });
+  }
+
+  function optimizationOptionText(result) {
+    if (!result) return {metric: "계산할 수 없음", savings: ""};
+    const distance = formatRouteDistance(result.totalDistanceMeters);
+    const duration = formatRouteDuration(result.totalDurationSeconds);
+    const savedDistance = result.originalRouteAvailable
+      ? Math.max(0, Number(result.originalDistanceMeters || 0) - Number(result.totalDistanceMeters || 0))
+      : 0;
+    const savedDuration = result.originalRouteAvailable
+      ? Math.max(0, Number(result.originalDurationSeconds || 0) - Number(result.totalDurationSeconds || 0))
+      : 0;
+    const savings = [];
+    if (savedDistance > 0) savings.push(formatRouteDistance(savedDistance) + " 단축");
+    if (savedDuration > 0) savings.push(formatRouteDuration(savedDuration) + " 절약");
+    return {
+      metric: distance + " · " + duration,
+      savings: savings.length ? "↓ " + savings.join(", ") : "",
+    };
+  }
+
+  function renderOptimizationOptionValue(container, result) {
+    if (!container) return;
+    const text = optimizationOptionText(result);
+    container.replaceChildren();
+
+    const metric = document.createElement("span");
+    metric.className = "route-optimization-option-metric";
+    metric.textContent = text.metric;
+    container.appendChild(metric);
+
+    if (text.savings) {
+      const savings = document.createElement("span");
+      savings.className = "route-optimization-option-savings";
+      savings.textContent = text.savings;
+      container.appendChild(savings);
+    }
+  }
+
+  function hasSameOptimizationOrder(left, right) {
+    const leftIds = left?.itineraryItemIds || [];
+    const rightIds = right?.itineraryItemIds || [];
+    return leftIds.length > 0
+      && leftIds.length === rightIds.length
+      && leftIds.every(function (id, index) { return String(id) === String(rightIds[index]); });
+  }
+
+  function drawOptimizationPreviewLines() {
+    if (!map) return;
+    clearOverlays(optimizationPreviewLines);
+    if (!routeVisible || !optimizationPreviewState) return;
+    const results = optimizationPreviewState.results;
+    const sameRoute = hasSameOptimizationOrder(results.DISTANCE, results.TIME);
+    const selectedResult = results[selectedOptimizationCriterion];
+    if (sameRoute && hasSameOptimizationOrder(
+      selectedResult,
+      {itineraryItemIds: activeItems.map(function (item) { return item.itineraryItemId; })}
+    )) return;
+    const criteria = [selectedOptimizationCriterion];
+    criteria.forEach(function (criterion) {
+      const result = results[criterion];
+      const path = optimizationPath(criterion);
+      if (path.length < 2) return;
+      const selected = criterion === selectedOptimizationCriterion;
+      const line = new window.kakao.maps.Polyline({
+        path,
+        strokeWeight: selected ? 6 : 3,
+        strokeColor: "#FF6D00",
+        strokeOpacity: selected ? .92 : .5,
+        strokeStyle: "solid",
+      });
+      line.setMap(map);
+      optimizationPreviewLines.push(line);
+    });
+  }
+
+  function setSelectedOptimizationCriterion(criterion) {
+    const results = optimizationPreviewState?.results;
+    const sameRoute = results && hasSameOptimizationOrder(results.DISTANCE, results.TIME);
+    if (!results?.[criterion]) return;
+    selectedOptimizationCriterion = criterion;
+    const selectedOption = sameRoute ? "DISTANCE" : criterion;
+    optimizationOptions.forEach(function (option) {
+      option.setAttribute("aria-checked", String(option.dataset.routeOptimizationOption === selectedOption));
+    });
+    drawOptimizationPreviewLines();
+  }
+
+  function renderOptimizationPreview(state) {
+    if (!optimizationPanel || !state) return;
+    optimizationPreviewState = state;
+    optimizationPreviewRouteData = state.routeData || {};
+    optimizationPanel.hidden = false;
+    const sameRoute = hasSameOptimizationOrder(state.results.DISTANCE, state.results.TIME);
+    if (optimizationDistanceOption) optimizationDistanceOption.hidden = false;
+    if (optimizationTimeOption) optimizationTimeOption.hidden = sameRoute;
+    if (optimizationDistanceTitle) {
+      optimizationDistanceTitle.textContent = sameRoute ? "이동거리·시간 동일" : "이동거리 우선";
+    }
+    if (optimizationTimeTitle) optimizationTimeTitle.textContent = "이동시간 우선";
+    if (optimizationSameNote) optimizationSameNote.hidden = !sameRoute;
+    if (optimizationCurrent) {
+      const current = state.results.TIME?.originalRouteAvailable ? state.results.TIME : state.results.DISTANCE;
+      optimizationCurrent.textContent = current?.originalRouteAvailable
+        ? "현재 일정  " + formatRouteDistance(current.originalDistanceMeters)
+          + " · " + formatRouteDuration(current.originalDurationSeconds)
+        : "현재 일정의 경로 정보를 확인할 수 없습니다.";
+    }
+    renderOptimizationOptionValue(optimizationDistance, state.results.DISTANCE);
+    renderOptimizationOptionValue(optimizationTime, state.results.TIME);
+    if (optimizationApply) optimizationApply.disabled = false;
+    setSelectedOptimizationCriterion(sameRoute ? "DISTANCE" : selectedOptimizationCriterion);
+    refreshMap();
+  }
+
+  function setOptimizationPanelLoading(isLoading) {
+    if (!optimizationPanel) return;
+    if (isLoading) optimizationPanel.hidden = false;
+    if (optimizationCurrent) optimizationCurrent.textContent = isLoading
+      ? "거리와 이동시간을 비교하는 중입니다..."
+      : optimizationCurrent.textContent;
+    optimizationOptions.forEach(function (option) { option.disabled = isLoading; });
+    if (optimizationCancel) optimizationCancel.disabled = isLoading;
+    if (optimizationApply) optimizationApply.disabled = isLoading;
+  }
+
+  function optimizationItemsForResult(result) {
+    const itemById = new Map((activeItems || []).map(function (item) {
+      return [String(item.itineraryItemId), item];
+    }));
+    return (result?.itineraryItemIds || []).map(function (id) {
+      return itemById.get(String(id));
+    }).filter(function (item) {
+      return item?.place?.latitude != null && item.place.longitude != null;
+    });
+  }
+
+  async function requestOptimizationRouteSegment(fromItem, toItem, mode) {
+    const meta = travelModeOptions[mode];
+    if (!meta) return null;
+    return api(meta.endpoint, {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({
+        startX: Number(fromItem.place.longitude),
+        startY: Number(fromItem.place.latitude),
+        endX: Number(toItem.place.longitude),
+        endY: Number(toItem.place.latitude),
+      }),
+    });
+  }
+
+  async function loadOptimizationPreviewRoutes(state, requestToken, dayId) {
+    const results = state.results;
+    const sameRoute = hasSameOptimizationOrder(results.DISTANCE, results.TIME);
+    const criteria = sameRoute ? ["TIME"] : ["DISTANCE", "TIME"];
+    const routeData = {};
+
+    await Promise.all(criteria.map(async function (criterion) {
+      const items = optimizationItemsForResult(results[criterion]);
+      if (items.length < 2) {
+        routeData[criterion] = [];
+        return;
+      }
+      const routes = [];
+      for (let index = 0; index < items.length - 1; index += 1) {
+        try {
+          routes.push(await requestOptimizationRouteSegment(items[index], items[index + 1], globalTransportMode));
+        } catch (error) {
+          console.warn("[동선 최적화 미리보기] 실제 경로 계산 실패", criterion, {
+            status: error?.status,
+            code: error?.code,
+            message: error?.message,
+          });
+          routeData[criterion] = [];
+          return;
+        }
+      }
+      routeData[criterion] = routes;
+    }));
+
+    if (requestToken !== optimizationRequestToken || activeDay?.tripDayId !== dayId || allScheduleVisible) return;
+    if (sameRoute) routeData.DISTANCE = routeData.TIME;
+    state.routeData = routeData;
+    optimizationPreviewRouteData = routeData;
+    refreshMap();
+  }
+
+  async function requestOptimizationPreview() {
+    const dayId = activeDay?.tripDayId;
+    const requestedOrderIds = activeItems.map(function (item) {
+      return Number(item.itineraryItemId);
+    }).filter(Number.isFinite);
+    const mode = encodeURIComponent(globalTransportMode);
+    const body = {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(requestedOrderIds)};
+    const requestToken = ++optimizationRequestToken;
+    setOptimizationPanelLoading(true);
+    try {
+      const results = await Promise.all(["DISTANCE", "TIME"].map(async function (criterion) {
+        return [criterion, await api(
+          "/api/v1/trip-days/" + dayId + "/optimize-route?criterion="
+            + criterion + "&mode=" + mode,
+          body
+        )];
+      }));
+      if (requestToken !== optimizationRequestToken || activeDay?.tripDayId !== dayId || allScheduleVisible) return;
+      const state = {results: Object.fromEntries(results), routeData: {}};
+      renderOptimizationPreview(state);
+      await loadOptimizationPreviewRoutes(state, requestToken, dayId);
+    } catch (error) {
+      if (requestToken === optimizationRequestToken) {
+        clearOptimizationPreview();
+        toast(error.message || "동선 최적화 미리보기를 불러오지 못했습니다.");
+      }
+    } finally {
+      if (requestToken === optimizationRequestToken) {
+        optimizeRouteTrigger.disabled = false;
+        optimizeRouteTrigger.removeAttribute("aria-busy");
+        setOptimizationPanelLoading(false);
+      }
+    }
+  }
+
+  async function applySelectedOptimization() {
+    const result = optimizationPreviewState?.results[selectedOptimizationCriterion];
+    if (!result || !activeDay?.tripDayId) return;
+    const sameRoute = hasSameOptimizationOrder(
+      optimizationPreviewState.results.DISTANCE,
+      optimizationPreviewState.results.TIME
+    );
+    optimizationApply.disabled = true;
+    optimizationCancel.disabled = true;
+    try {
+      applyPendingOrder(result.itineraryItemIds);
+      resetSegmentRoutesForOrder();
+      const dayKey = String(activeDay.tripDayId);
+      pendingReorders.set(dayKey, result.itineraryItemIds.slice());
+      pendingOptimizationResults.set(dayKey, {result, criterion: selectedOptimizationCriterion});
+      renderItems(activeItems);
+      lastRouteResult = result;
+      lastOptimizationCriterion = selectedOptimizationCriterion;
+      renderRouteSummary(result, lastOptimizationCriterion);
+      clearOptimizationPreview();
+      toast(sameRoute
+        ? "이동거리와 이동시간 기준의 경로가 같아 해당 경로를 일정에 적용했습니다."
+        : selectedOptimizationCriterion === "DISTANCE"
+        ? "이동거리 우선 경로를 일정에 적용했습니다."
+        : "이동시간 우선 경로를 일정에 적용했습니다.");
+    } catch (error) {
+      toast(error.message || "선택한 경로를 적용하지 못했습니다.");
+      optimizationApply.disabled = false;
+      optimizationCancel.disabled = false;
+    }
+  }
+
   function clearRouteDisplay() {
     lastRouteResult = null;
+    optimizationRequestToken += 1;
+    clearOptimizationPreview();
     document.querySelectorAll(".route-optimization-summary, .segment-route-total-summary")
       .forEach(function (element) { element.remove(); });
   }
@@ -772,39 +1066,6 @@ document.addEventListener("DOMContentLoaded", function () {
     insertScheduleSummary(summary);
   }
 
-  async function loadOptimizationPreview(day, items) {
-    if (!day?.tripDayId || allScheduleVisible) return;
-    if (!globalTransportMode) return;
-    const places = (items || []).filter(function (item) {
-      return item.place?.latitude != null && item.place?.longitude != null;
-    });
-    if (places.length < 2) return;
-    const requestedOrderIds = (items || []).map(function (item) {
-      return Number(item.itineraryItemId);
-    }).filter(Number.isFinite);
-    const key = String(day.tripDayId) + ":" + globalTransportMode + ":"
-      + (items || []).map(segmentItemKey).join(",");
-    if (optimizationPreviewKey === key) return;
-    optimizationPreviewKey = key;
-    try {
-      const result = await api(
-        "/api/v1/trip-days/" + day.tripDayId + "/optimize-route?criterion=DISTANCE&mode="
-        + encodeURIComponent(globalTransportMode),
-        {
-          method: "POST",
-          headers: {"Content-Type": "application/json"},
-          body: JSON.stringify(requestedOrderIds),
-        }
-      );
-      if (activeDay?.tripDayId !== day.tripDayId
-        || allScheduleVisible
-        || optimizationPreviewKey !== key) return;
-      renderRouteSummary(result, "DISTANCE", true);
-    } catch (error) {
-      // 미리보기 실패는 일정 표시를 막지 않고, 사용자가 직접 최적화를 실행할 수 있게 둔다.
-    }
-  }
-
   function formatDate(value) {
     if (!value) return "날짜 미정";
     return value.slice(5).replace("-", ".");
@@ -818,6 +1079,12 @@ document.addEventListener("DOMContentLoaded", function () {
 
   function formatCompactPeriod(startDate, endDate) {
     return formatCompactDate(startDate) + "–" + formatCompactDate(endDate);
+  }
+
+  function buildAutoTitle(destinationLabel, startDate) {
+    const label = String(destinationLabel || "").trim();
+    const month = startDate ? Number(String(startDate).split("-")[1]) : 0;
+    return label ? (month ? month + "월의 " : "") + label + " 여행" : "나의 여행";
   }
 
   function formatTime(value) { return value ? value.slice(0, 5) : ""; }
@@ -1181,7 +1448,7 @@ document.addEventListener("DOMContentLoaded", function () {
           </div>
           <button type="button" class="schedule-wheel-adjust" data-wheel-direction="-1" aria-label="시간 내리기">∨</button>
           <span class="schedule-wheel-unit">시간</span>
-          <input type="hidden" data-time-hour value="${currentHour}" />
+          <input type="hidden" data-time-hour />
         </div>
         <span class="schedule-time-colon" aria-hidden="true">:</span>
         <div class="schedule-wheel-column" data-wheel-column="time-minute">
@@ -1193,7 +1460,7 @@ document.addEventListener("DOMContentLoaded", function () {
           </div>
           <button type="button" class="schedule-wheel-adjust" data-wheel-direction="-1" aria-label="분 내리기">∨</button>
           <span class="schedule-wheel-unit">분</span>
-          <input type="hidden" data-time-minute value="${currentMinute}" />
+          <input type="hidden" data-time-minute />
         </div>
       </div>`}
       ${autoStart ? '<small class="schedule-time-auto-note">첫 장소의 시작시간과 체류시간을 기준으로 자동 계산됩니다.</small>' : ""}
@@ -1253,6 +1520,11 @@ document.addEventListener("DOMContentLoaded", function () {
     if (durationHourInput && durationMinuteInput) {
       durationHourInput.value = padTime(Math.floor(initialDurationMinutes / 60));
       durationMinuteInput.value = padTime(initialDurationMinutes % 60);
+    }
+    // 시각은 값으로만 넣는다. 저장해 둔 시간이 HTML에 섞여 들어가면 태그로 읽힐 수 있다.
+    if (hourInput && minuteInput) {
+      hourInput.value = currentHour;
+      minuteInput.value = currentMinute;
     }
 
     function padTime(value) { return String(value).padStart(2, "0"); }
@@ -1876,6 +2148,7 @@ document.addEventListener("DOMContentLoaded", function () {
     if (routeVisible && hasSelectedTransport) {
       drawSegmentRouteLines(map, segmentRouteLines, bounds);
     }
+    drawOptimizationPreviewLines();
     map.setBounds(bounds);
     refreshExpandedMap();
   }
@@ -2529,7 +2802,6 @@ document.addEventListener("DOMContentLoaded", function () {
     togglePlaceAddCta(false);
     globalTransportMode = loadDayTransportMode(day);
     syncTransportSettings(globalTransportMode);
-    optimizationPreviewKey = "";
     updatePlaceAddTitle(day);
     dayTabs.querySelectorAll("button").forEach(function (button) { button.classList.toggle("selected", button === selectedButton); });
     revealDayButton(selectedButton);
@@ -2539,13 +2811,11 @@ document.addEventListener("DOMContentLoaded", function () {
       restorePendingDayState(day, items);
       renderItems(items);
       const pendingOptimization = pendingOptimizationResults.get(String(day.tripDayId));
-      if (pendingOptimization) {
-        lastRouteResult = pendingOptimization.result;
-        lastOptimizationCriterion = pendingOptimization.criterion;
-        renderRouteSummary(lastRouteResult, lastOptimizationCriterion);
-      } else {
-        loadOptimizationPreview(day, activeItems.slice());
-      }
+       if (pendingOptimization) {
+         lastRouteResult = pendingOptimization.result;
+         lastOptimizationCriterion = pendingOptimization.criterion;
+         renderRouteSummary(lastRouteResult, lastOptimizationCriterion);
+       }
     } catch (error) {
       showEmpty(timeline, error.message);
     }
@@ -2650,10 +2920,12 @@ document.addEventListener("DOMContentLoaded", function () {
   function renderDraftSchedule() {
     const basic = readDraft().basic || {};
     if (!basic.destination && !basic.destinationLabel) return false;
-    const tripName = basic.title || (basic.destinationLabel || basic.destination) + " 여행";
+    const tripName = basic.titleAutoGenerated === false
+      ? basic.title || buildAutoTitle(basic.destinationLabel || basic.destination, basic.startDate)
+      : buildAutoTitle(basic.destinationLabel || basic.destination, basic.startDate);
     title.textContent = tripName;
     if (period) period.textContent = formatCompactPeriod(basic.startDate, basic.endDate);
-    if (destination) destination.textContent = (basic.destinationLabel || basic.destination) + " 여행";
+    if (destination) destination.textContent = tripName;
     updateScheduleCompanion(basic.companion);
     renderTripList([{tripId:null,title:tripName,startDate:basic.startDate,endDate:basic.endDate}]);
     const start = basic.startDate ? new Date(basic.startDate + "T00:00:00") : null;
@@ -2712,7 +2984,7 @@ document.addEventListener("DOMContentLoaded", function () {
       centerMapOnDestination();
       title.textContent = result[0].title;
       if (period) period.textContent = formatCompactPeriod(result[0].startDate, result[0].endDate);
-      if (destination) destination.textContent = (result[0].destinationName || "여행") + " 여행";
+      if (destination) destination.textContent = result[0].title || (result[0].destinationName || "여행") + " 여행";
       updateScheduleCompanion(result[0].companionType);
       // 사이드바는 내 여행 전체를 보여준다. 활성 여행 하나만 넘기면 목록에서 나머지가 사라진다.
       renderTripList(trips);
@@ -3514,6 +3786,20 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   });
   const saveButton = document.querySelector("[data-schedule-save]");
+
+  /*
+   * 짜 놓은 여행을 들고 예약으로 넘어간다. tripId를 함께 넘겨야 예약 화면이 목적지·날짜·
+   * 인원을 그 여행에서 채우고, 고른 항공편도 그 여행에 붙는다.
+   */
+  const bookingButton = document.querySelector("[data-schedule-booking]");
+  if (bookingButton) bookingButton.addEventListener("click", function () {
+    if (!activeTripId) {
+      toast("먼저 여행을 저장해 주세요.");
+      return;
+    }
+    window.location.href = "/booking/flights?tripId=" + encodeURIComponent(activeTripId);
+  });
+
   if (saveButton) saveButton.addEventListener("click", async function () {
     if (savingTrip) return;
     if (!activeTripId || !activeTrip) {
@@ -3541,7 +3827,9 @@ document.addEventListener("DOMContentLoaded", function () {
       draft.trip = saved;
       sessionStorage.setItem("tripDraft", JSON.stringify(draft));
       saveButton.textContent = "✓ 저장 완료";
-      toast("내 여행에 저장되었습니다.");
+      /* 저장이 끝이 아니라는 것을 알린다. 다음에 할 일이 예약이다. */
+      toast("내 여행에 저장되었습니다. 이제 예약할 수 있어요.");
+      if (bookingButton) bookingButton.classList.add("is-next");
     } catch (error) {
       saveButton.disabled = false;
       saveButton.textContent = "▣ 여행 저장하기";
@@ -3599,7 +3887,15 @@ document.addEventListener("DOMContentLoaded", function () {
   if (placeAddTrigger && placeAddPopover) {
     placeAddTrigger.addEventListener("click", function () {
       const willOpen = placeAddPopover.hidden;
-      if (willOpen) closeMorePanels();
+      if (willOpen) {
+        closeMorePanels();
+        optimizationRequestToken += 1;
+        clearOptimizationPreview();
+        if (optimizeRouteTrigger) {
+          optimizeRouteTrigger.disabled = false;
+          optimizeRouteTrigger.removeAttribute("aria-busy");
+        }
+      }
       placeAddPopover.hidden = !willOpen;
       document.body.classList.toggle("place-search-open", willOpen);
       placeAddTrigger.setAttribute("aria-expanded", String(willOpen));
@@ -3680,7 +3976,6 @@ document.addEventListener("DOMContentLoaded", function () {
   syncTransportSettings(globalTransportMode);
   if (optimizeRouteTrigger) {
     optimizeRouteTrigger.addEventListener("click", async function () {
-      const criterion = "DISTANCE";
       if (!activeDay?.tripDayId) {
         toast("저장된 DAY에서만 동선을 최적화할 수 있습니다.");
         return;
@@ -3693,43 +3988,37 @@ document.addEventListener("DOMContentLoaded", function () {
         toast("좌표가 있는 장소가 2개 이상 필요합니다.");
         return;
       }
-
       optimizeRouteTrigger.disabled = true;
       optimizeRouteTrigger.setAttribute("aria-busy", "true");
-      try {
-        const result = await api(
-          "/api/v1/trip-days/" + activeDay.tripDayId
-          + "/optimize-route?criterion=" + encodeURIComponent(criterion)
-          + "&mode=" + encodeURIComponent(globalTransportMode),
-          {
-            method: "POST",
-            headers: {"Content-Type": "application/json"},
-            body: JSON.stringify(activeItems.map(function (item) {
-              return Number(item.itineraryItemId);
-            }).filter(Number.isFinite)),
-          }
-        );
-        const distance = formatRouteDistance(result.totalDistanceMeters);
-        applyPendingOrder(result.itineraryItemIds);
-        resetSegmentRoutesForOrder();
-        const dayKey = String(activeDay.tripDayId);
-        pendingReorders.set(dayKey, result.itineraryItemIds.slice());
-        pendingOptimizationResults.set(dayKey, {result, criterion});
-        renderItems(activeItems);
-        lastRouteResult = result;
-        lastOptimizationCriterion = criterion;
-        renderRouteSummary(result, lastOptimizationCriterion);
-        toast(Number(result.totalDistanceMeters) > 0
-          ? "이동거리 우선으로 동선을 정리했습니다. 예상 이동거리 " + distance
-          : "이동거리 우선으로 동선을 정리했습니다.");
-      } catch (error) {
-        toast(error.message || "동선 최적화에 실패했습니다.");
-      } finally {
-        optimizeRouteTrigger.disabled = false;
-        optimizeRouteTrigger.removeAttribute("aria-busy");
-      }
+      await requestOptimizationPreview();
     });
   }
+  optimizationOptions.forEach(function (option) {
+    option.addEventListener("click", function () {
+      setSelectedOptimizationCriterion(option.dataset.routeOptimizationOption || "TIME");
+    });
+  });
+  if (optimizationClose) optimizationClose.addEventListener("click", function () {
+    optimizationRequestToken += 1;
+    clearOptimizationPreview();
+    if (optimizeRouteTrigger) {
+      optimizeRouteTrigger.disabled = false;
+      optimizeRouteTrigger.removeAttribute("aria-busy");
+    }
+    refreshMap();
+    optimizeRouteTrigger?.focus();
+  });
+  if (optimizationCancel) optimizationCancel.addEventListener("click", function () {
+    optimizationRequestToken += 1;
+    clearOptimizationPreview();
+    if (optimizeRouteTrigger) {
+      optimizeRouteTrigger.disabled = false;
+      optimizeRouteTrigger.removeAttribute("aria-busy");
+    }
+    refreshMap();
+    optimizeRouteTrigger?.focus();
+  });
+  if (optimizationApply) optimizationApply.addEventListener("click", applySelectedOptimization);
   initMap();
   loadSchedule();
   /*

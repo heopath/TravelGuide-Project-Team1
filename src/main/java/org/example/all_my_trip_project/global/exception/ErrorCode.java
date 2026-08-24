@@ -254,6 +254,20 @@ public enum ErrorCode {
             "티켓 사용일, 수량 또는 여행 정보가 올바르지 않습니다."
     ),
 
+    /*
+     * 위 문구는 셋 중 무엇이 잘못됐는지 말해 주지 않는다. 여행 기간 밖 회차를 골랐을 때
+     * 손님은 날짜를 바꿔야 하는데, 수량을 줄여 보거나 여행을 다시 고르며 헤맸다.
+     */
+    TICKET_DATE_OUTSIDE_TRIP(
+            HttpStatus.BAD_REQUEST,
+            "이 회차의 이용일이 여행 기간 밖이에요. 여행 기간 안의 날짜를 골라 주세요."
+    ),
+
+    TICKET_QUANTITY_EXCEEDED(
+            HttpStatus.BAD_REQUEST,
+            "한 사람이 살 수 있는 매수를 넘었어요. 매수를 줄여 주세요."
+    ),
+
     BOOKING_QUEUE_UNAVAILABLE(
             HttpStatus.SERVICE_UNAVAILABLE,
             "예약 대기열에 연결하지 못했습니다. 잠시 후 다시 시도해 주세요."

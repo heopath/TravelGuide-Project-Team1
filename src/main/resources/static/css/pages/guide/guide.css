@@ -378,121 +378,79 @@ body.page-guide #page-content {
   font-size: 14px;
 }
 
-.show-all-button {
-  min-height: 38px;
-  padding: 0 16px;
-  border: 1px solid #dce2ed;
-  border-radius: 999px;
-  background: #fff;
-  color: #59657d;
-  font-size: 13px;
-  font-weight: 800;
-  cursor: pointer;
-  transition: border-color 150ms ease, color 150ms ease, background 150ms ease;
-}
 
-.show-all-button:hover,
-.show-all-button.selected {
-  border-color: #5f6edb;
-  background: #f2f4ff;
-  color: #4f5ecb;
-}
-
-.category-card-grid {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 20px;
-}
-
-.category-card {
-  position: relative;
+/*
+ * 카테고리 — 글자만.
+ *
+ * 사진 카드는 한 화면을 거의 다 쓰면서 알려주는 것은 이름뿐이었고, 정작 보러 온
+ * 장소 목록을 아래로 밀어냈다. 밑줄 한 줄로 고른 것만 표시한다.
+ */
+.category-tabs {
   display: flex;
-  min-height: 210px;
-  overflow: hidden;
-  flex-direction: column;
-  align-items: flex-start;
-  justify-content: flex-end;
-  padding: 24px;
-  border: 0;
-  border-radius: 21px;
-  background-color: #29324a;
-  background-position: center;
-  background-size: cover;
-  color: #fff;
-  text-align: left;
-  cursor: pointer;
-  isolation: isolate;
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.22), 0 10px 26px rgba(31, 41, 72, 0.12);
-  transition: transform 180ms ease, box-shadow 180ms ease, filter 180ms ease, opacity 180ms ease;
-}
-
-.category-card::before {
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(180deg, rgba(8, 15, 35, 0.06) 18%, rgba(8, 15, 35, 0.76) 100%);
-  content: "";
-}
-
-.category-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 17px 34px rgba(31, 41, 72, 0.2);
-}
-
-.category-card.selected {
-  transform: translateY(-5px);
-  box-shadow:
-    inset 0 0 0 2px rgba(255, 255, 255, 0.92),
-    0 0 0 1px rgba(18, 31, 63, 0.24),
-    0 18px 36px rgba(22, 32, 58, 0.24);
-}
-
-.category-card.selected::before {
-  background: linear-gradient(180deg, rgba(9, 17, 38, 0.02) 12%, rgba(9, 17, 38, 0.8) 100%);
-}
-
-.category-card.selected::after {
-  position: absolute;
-  top: 14px;
-  right: 14px;
-  z-index: 2;
-  min-height: 28px;
-  padding: 0 11px;
-  display: inline-flex;
+  gap: 28px;
   align-items: center;
-  border: 1px solid rgba(255, 255, 255, 0.34);
-  border-radius: 999px;
-  background: rgba(18, 31, 63, 0.88);
-  color: #fff;
-  content: "선택됨";
-  font-size: 11px;
-  font-weight: 850;
-  letter-spacing: -0.01em;
-  box-shadow: 0 6px 14px rgba(18, 26, 65, 0.2);
+  overflow-x: auto;
+  border-bottom: 1px solid #e6eaf2;
+  scrollbar-width: none;
 }
 
-.category-card-attraction { background-image: url("../../../images/guide/categories/attraction.webp"); }
-.category-card-restaurant { background-image: url("../../../images/guide/categories/restaurant.webp"); }
-.category-card-cafe { background-image: url("../../../images/guide/categories/cafe-v2.webp"); }
-.category-card-accommodation { background-image: url("../../../images/guide/categories/accommodation.webp"); }
-.category-card-activity { background-image: url("../../../images/guide/categories/activity.webp"); }
-.category-card-festival { background-image: url("../../../images/guide/categories/festival.webp"); }
-.category-card-transport { background-image: url("../../../images/guide/categories/transport.webp"); }
+.category-tabs::-webkit-scrollbar {
+  display: none;
+}
 
-.category-card strong,
-.category-card small {
+.category-tab {
   position: relative;
-  z-index: 1;
-}
-
-.category-card strong {
-  font-size: 23px;
+  flex: 0 0 auto;
+  padding: 0 2px 14px;
+  border: 0;
+  background: none;
+  color: #8a94a8;
+  font-size: 16px;
+  font-weight: 700;
   letter-spacing: -0.02em;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color 150ms ease;
 }
 
-.category-card small {
-  margin-top: 7px;
-  color: rgba(255, 255, 255, 0.83);
-  font-size: 13px;
+.category-tab::after {
+  position: absolute;
+  right: 0;
+  bottom: -1px;
+  left: 0;
+  height: 2px;
+  border-radius: 2px;
+  background: #4f5ecb;
+  content: "";
+  opacity: 0;
+  transform: scaleX(0.4);
+  transition: opacity 160ms ease, transform 160ms ease;
+}
+
+.category-tab:hover {
+  color: #59657d;
+}
+
+.category-tab.selected {
+  color: #111d3c;
+}
+
+.category-tab.selected::after {
+  opacity: 1;
+  transform: none;
+}
+
+.category-tab:focus-visible {
+  outline: 2px solid #5f6edb;
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .category-tab,
+  .category-tab::after {
+    transition: none;
+  }
 }
 
 .place-results-panel {
@@ -832,10 +790,6 @@ body.page-guide #page-content {
     width: min(390px, 42vw);
   }
 
-  .category-card-grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-
   .place-results-panel .place-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
@@ -930,32 +884,6 @@ body.page-guide #page-content {
 
   .section-heading-row p {
     display: none;
-  }
-
-  .show-all-button {
-    flex: 0 0 auto;
-    padding-inline: 13px;
-  }
-
-  .category-card-grid {
-    display: flex;
-    gap: 12px;
-    overflow-x: auto;
-    padding: 4px 2px 12px;
-    scroll-snap-type: x proximity;
-    scrollbar-width: none;
-  }
-
-  .category-card-grid::-webkit-scrollbar {
-    display: none;
-  }
-
-  .category-card {
-    min-width: 190px;
-    min-height: 160px;
-    flex: 0 0 190px;
-    padding: 17px;
-    scroll-snap-align: start;
   }
 
   .guide-filter-area {
