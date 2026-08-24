@@ -752,13 +752,23 @@ async function run() {
       d.getElementById("f-destination").value === "CJU");
   }
   {
-    /* 세 글자 코드를 외워 치게 하지 않는다. 갈 수 있는 공항을 고를 수 있어야 한다. */
-    const { d } = await boot();
-    const list = d.getElementById("airport-codes");
-    T("공항을 고를 수 있는 목록이 있다", !!list && list.children.length === 15);
-    T("두 칸 모두 그 목록을 쓴다",
-      d.getElementById("f-origin").getAttribute("list") === "airport-codes"
-      && d.getElementById("f-destination").getAttribute("list") === "airport-codes");
+    /* 입력칸+datalist는 펼침 표시가 없어 고정 문구로 보였다. 명시적인 select를 쓴다. */
+    const { d, urls } = await boot();
+    const origin = d.getElementById("f-origin");
+    const destination = d.getElementById("f-destination");
+    T("출발지와 도착지를 드롭다운으로 고른다",
+      origin.tagName === "SELECT" && destination.tagName === "SELECT");
+    T("두 드롭다운에 국내 공항 15곳과 이름이 보인다",
+      origin.options.length === 15 && destination.options.length === 15
+      && [...destination.options].some((option) => option.value === "PUS" && option.textContent.includes("부산")));
+    origin.value = "ICN";
+    origin.dispatchEvent(new d.defaultView.Event("input", { bubbles: true }));
+    d.getElementById("searchForm").dispatchEvent(
+      new d.defaultView.Event("submit", { bubbles: true, cancelable: true }));
+    await until(() => urls.some((url) => url.startsWith("/api/v1/flights/search")
+      && url.includes("origin=ICN")));
+    T("드롭다운에서 고른 출발지로 다시 검색한다",
+      d.getElementById("f-origin-name").textContent.trim() === "인천");
   }
 
   console.log(`\n${passed} passed, ${failed} failed`);

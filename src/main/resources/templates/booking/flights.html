@@ -60,10 +60,28 @@
             <form class="form" id="searchForm">
               <label class="f">
                 <span class="fl">출발지</span>
-                <!-- 코드 옆에 공항 이름을 붙인다. GMP만 보고 김포인 줄 아는 사람은 많지 않다. -->
+                <!--
+                  input+datalist는 브라우저에 따라 펼침 표시가 없어 고정 문구처럼 보였다.
+                  갈 수 있는 공항이 정해진 국내선이므로, 이름과 코드를 함께 보는 select가 맞다.
+                -->
                 <span class="fvline"><b class="fname" id="f-origin-name">김포</b>
-                  <input class="fv" id="f-origin" name="origin" value="GMP" maxlength="3"
-                         autocomplete="off" list="airport-codes" /></span>
+                  <select class="fv route-select" id="f-origin" name="origin" aria-label="출발 공항">
+                    <option value="GMP" selected>GMP · 김포</option>
+                    <option value="ICN">ICN · 인천</option>
+                    <option value="CJU">CJU · 제주</option>
+                    <option value="PUS">PUS · 김해(부산)</option>
+                    <option value="TAE">TAE · 대구</option>
+                    <option value="KWJ">KWJ · 광주</option>
+                    <option value="CJJ">CJJ · 청주</option>
+                    <option value="USN">USN · 울산</option>
+                    <option value="RSU">RSU · 여수</option>
+                    <option value="HIN">HIN · 사천</option>
+                    <option value="KUV">KUV · 군산</option>
+                    <option value="WJU">WJU · 원주</option>
+                    <option value="YNY">YNY · 양양</option>
+                    <option value="MWX">MWX · 무안</option>
+                    <option value="KPO">KPO · 포항</option>
+                  </select></span>
               </label>
               <!-- 왕복은 방향을 자주 뒤집는다. 두 칸을 지웠다 다시 치게 두지 않는다. -->
               <button type="button" class="swap" id="swap" title="출발지와 도착지 바꾸기"
@@ -71,8 +89,23 @@
               <label class="f">
                 <span class="fl">도착지</span>
                 <span class="fvline"><b class="fname" id="f-destination-name">제주</b>
-                  <input class="fv" id="f-destination" name="destination" value="CJU" maxlength="3"
-                         autocomplete="off" list="airport-codes" /></span>
+                  <select class="fv route-select" id="f-destination" name="destination" aria-label="도착 공항">
+                    <option value="GMP">GMP · 김포</option>
+                    <option value="ICN">ICN · 인천</option>
+                    <option value="CJU" selected>CJU · 제주</option>
+                    <option value="PUS">PUS · 김해(부산)</option>
+                    <option value="TAE">TAE · 대구</option>
+                    <option value="KWJ">KWJ · 광주</option>
+                    <option value="CJJ">CJJ · 청주</option>
+                    <option value="USN">USN · 울산</option>
+                    <option value="RSU">RSU · 여수</option>
+                    <option value="HIN">HIN · 사천</option>
+                    <option value="KUV">KUV · 군산</option>
+                    <option value="WJU">WJU · 원주</option>
+                    <option value="YNY">YNY · 양양</option>
+                    <option value="MWX">MWX · 무안</option>
+                    <option value="KPO">KPO · 포항</option>
+                  </select></span>
               </label>
               <label class="f">
                 <span class="fl">가는 날</span>
@@ -99,28 +132,6 @@
               </label>
               <button type="submit" class="go">항공편 검색</button>
             </form>
-
-            <!--
-              세 글자 코드를 외워서 쳐야 했다. GMP·CJU 말고는 뭘 넣을 수 있는지 알 길이
-              없어 사실상 고정된 것과 같았다. 갈 수 있는 공항을 전부 적어 고르게 한다.
-            -->
-            <datalist id="airport-codes">
-              <option value="GMP">김포</option>
-              <option value="ICN">인천</option>
-              <option value="CJU">제주</option>
-              <option value="PUS">김해 (부산)</option>
-              <option value="TAE">대구</option>
-              <option value="KWJ">광주</option>
-              <option value="CJJ">청주</option>
-              <option value="USN">울산</option>
-              <option value="RSU">여수</option>
-              <option value="HIN">사천</option>
-              <option value="KUV">군산</option>
-              <option value="WJU">원주</option>
-              <option value="YNY">양양</option>
-              <option value="MWX">무안</option>
-              <option value="KPO">포항</option>
-            </datalist>
           </div>
 
           <!--

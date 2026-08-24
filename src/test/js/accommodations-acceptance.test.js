@@ -138,7 +138,8 @@ async function run() {
     [...d.querySelectorAll(".hotel-card")].every((card) => card.textContent.includes("요금 미제공") && !card.textContent.includes("0원")));
   T("TourAPI 목록과 가격 미제공 상태를 실제 출처대로 표시한다",
     $("hotelListingSource").textContent.includes("한국관광공사 TourAPI")
-      && $("hotelPriceMode").textContent.includes("TourAPI 정보 · 가격 미제공"));
+      && $("hotelPriceMode").textContent.includes("TourAPI 숙소 정보 · 요금 연동 불가")
+      && d.querySelector(".hotel-price-sub").textContent.includes("예약 사이트에서 확인"));
 
   d.querySelector('[data-hotel-sort="name"]').click();
   T("이름순 정렬이 동작한다", d.querySelector(".hotel-card h3").textContent === "가나다 리조트");
