@@ -20,14 +20,10 @@ import java.util.stream.Collectors;
 /**
  * 상담 채팅 전용 Gemini 클라이언트.
  *
- * <p><b>{@code domain.ai}의 {@code AiModelClient}/{@code ChatModel}과 별개다.</b> 설계 문서(§1)는
- * 원래 그 둘이 쓰는 {@code ChatModel} 빈을 공유하는 방향을 전제했지만, 실제로는 어떤 프로필
- * 조합에서도 {@code spring.ai.model.chat=none}이라 {@code ChatModel} 빈 자체가 뜨지 않고
- * ({@code GeminiAiModelClient}는 {@code @Profile("gemini-legacy")}로 어디에도 활성화돼 있지
- * 않은 죽은 코드다), 여행 가이드가 실제로 쓰는 구현체는 {@code CohereAiModelClient}다. 그래서
- * 이 클래스는 대신 저장소에서 유일하게 실제로 동작이 확인된 Gemini 경로인
- * {@code AiTripPlanService}의 패턴(REST API 직접 호출, {@code gemini.api-key})을 그대로
- * 따른다. PR 리뷰에서 이 차이를 별도로 알렸다.
+ * <p>여행 AI 가이드는 {@code CohereAiModelClient}로 Cohere REST API를 호출하고, 고객센터 챗봇은
+ * 이 클래스에서 Gemini REST API를 직접 호출한다. 두 기능은 프롬프트·응답 형식·장애 처리 정책이
+ * 달라 각각의 전용 클라이언트를 유지한다. Spring AI는 대화 모델 추상화가 아닌 RAG의 임베딩 및
+ * PgVectorStore 보조 용도로만 사용한다.
  */
 @Service
 @Slf4j

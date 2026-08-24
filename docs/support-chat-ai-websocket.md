@@ -122,7 +122,7 @@ support_chat_messages.sender_type -- USER · BOT · ADMIN (BOT 메시지는 send
 
 ### 1. 봇 연동 지점
 
-**확정(heopath 리뷰, [PR #263](https://github.com/heopath/TravelGuide-Project-Team1/pull/263)): Gemini를 사용하되, 기존 AI 여행 가이드 프롬프트는 재사용하지 않습니다.** `domain.ai`의 `AiModelClient`/`GeminiAiModelClient`는 여행 일정 프롬프트 전용으로 짜여 있어 그대로 쓰기 어렵고, 같은 `ChatModel` 빈 설정은 공유하되 **상담 전용 `SupportChatBotClient`와 별도 시스템 프롬프트**로 분리합니다(`domain.support` 아래).
+**확정:** 고객센터 챗봇은 Gemini REST API를 사용하되, 여행 AI 가이드의 Cohere REST 경로와 프롬프트를 재사용하지 않습니다. 두 기능은 목적과 응답 형식이 다르므로 **상담 전용 `SupportChatBotClient`와 별도 시스템 프롬프트**로 분리합니다(`domain.support` 아래). Spring AI `ChatModel`은 사용하지 않습니다.
 
 흐름 제안:
 

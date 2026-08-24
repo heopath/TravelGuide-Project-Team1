@@ -5,7 +5,7 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.List;
 
-/** Gemini prompt only. It never creates or changes trip data. */
+/** AI guide prompt only. It never creates or changes trip data. */
 public record AiGuideContext(Trip trip, List<Preference> preferences) {
     public AiGuideContext {
         preferences = preferences == null ? List.of() : List.copyOf(preferences);
