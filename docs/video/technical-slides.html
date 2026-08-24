@@ -219,12 +219,13 @@ redis.call(<span class="s">'ZREMRANGEBYSCORE'</span>, 대기열, <span class="s"
     <p class="eyebrow">05 · 눈에 안 보이는 것</p>
     <h1>계속 돌아가게 만드는 것들</h1>
     <div class="facts">
-      <div class="fact"><b>27</b><span>Flyway 마이그레이션<br />DB 변경을 코드로 관리</span></div>
-      <div class="fact"><b>676</b><span>서버 테스트<br />테스트 클래스 108개</span></div>
+      <div class="fact"><b>29</b><span>Flyway 마이그레이션<br />DB 변경을 코드로 관리</span></div>
+      <div class="fact"><b>109</b><span>서버 테스트 클래스<br />테스트 718개, 회귀를 자동으로 확인</span></div>
       <div class="fact"><b>37</b><span>화면 수용 테스트 파일</span></div>
       <div class="fact"><b>0</b><span>배포 시 로그아웃<br />세션을 Redis에 저장</span></div>
     </div>
-    <p class="note">밀어 넣을 때마다 GitHub Actions가 <b>빌드·테스트·보안 검사(CodeQL)</b>를 돌립니다. EC2에 자동 배포되고 Cloudflare로 HTTPS를 붙였습니다.</p>
+    <p class="note">밀어 넣을 때마다 GitHub Actions가 <b>빌드·테스트·보안 검사(CodeQL)</b>를 돌리고 EC2에 자동 배포합니다.</p>
+    <p class="note">Cloudflare에서는 정적 파일만 Edge Cache에 두고, 인증·AI API는 <b>Rate Limiting</b>, 로그인·회원가입은 <b>Turnstile 서버 검증</b>으로 보호합니다.</p>
   </section>
 
   <section class="slide" data-title="맺음">

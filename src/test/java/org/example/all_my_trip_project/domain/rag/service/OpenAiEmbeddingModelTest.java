@@ -18,16 +18,16 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-class CohereEmbeddingModelTest {
+class OpenAiEmbeddingModelTest {
 
     private final HttpClient httpClient = mock(HttpClient.class);
-    private final CohereEmbeddingModel model = new CohereEmbeddingModel(
-            httpClient, new ObjectMapper(), "test-key", "embed-v4.0", 3, Duration.ofSeconds(25));
+    private final OpenAiEmbeddingModel model = new OpenAiEmbeddingModel(
+            httpClient, new ObjectMapper(), "test-key", "text-embedding-3-small", 3, Duration.ofSeconds(25));
 
     @Test
-    void mapsCohereFloatEmbeddingsToSpringAiResponse() throws Exception {
+    void mapsOpenAiFloatEmbeddingsToSpringAiResponse() throws Exception {
         stubResponse(200, """
-                {"embeddings":{"float":[[0.1,0.2,0.3],[0.4,0.5,0.6]]}}
+                {"data":[{"index":0,"embedding":[0.1,0.2,0.3]},{"index":1,"embedding":[0.4,0.5,0.6]}]}
                 """);
 
         var response = model.call(new EmbeddingRequest(List.of("busan", "seoul"), EmbeddingOptions.builder().build()));
@@ -40,12 +40,12 @@ class CohereEmbeddingModelTest {
     @Test
     void rejectsUnexpectedEmbeddingDimension() throws Exception {
         stubResponse(200, """
-                {"embeddings":{"float":[[0.1,0.2]]}}
+                {"data":[{"index":0,"embedding":[0.1,0.2]}]}
                 """);
 
         assertThatThrownBy(() -> model.call(new EmbeddingRequest(List.of("busan"), EmbeddingOptions.builder().build())))
                 .isInstanceOf(AiModelException.class)
-                .hasMessage("Cohere embedding response has an invalid vector dimension");
+                .hasMessage("OpenAI embedding response has an invalid vector dimension");
     }
 
     @SuppressWarnings("unchecked")

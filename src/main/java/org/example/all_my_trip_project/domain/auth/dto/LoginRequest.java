@@ -13,6 +13,12 @@ public record LoginRequest(
 
         @NotBlank(message = "비밀번호는 필수입니다.")
         @Size(max = 64, message = "비밀번호는 64자 이하여야 합니다.")
-        String password
+        String password,
+
+        @Size(max = 2048, message = "사람 확인 토큰이 올바르지 않습니다.")
+        String turnstileToken
 ) {
+    public LoginRequest(String email, String password) {
+        this(email, password, null);
+    }
 }

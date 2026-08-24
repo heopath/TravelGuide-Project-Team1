@@ -39,22 +39,41 @@ public class AiGuideService {
         if (mockEnabled && simulateServerError) {
             throw new IllegalStateException("AI mock server error");
         }
+        AiGuideRequest effectiveRequest = applyExplicitDayToRequest(request);
         List<AiConversationTurn> history = conversationHistoryService.load(userId, request.tripId());
         var context = contextService.load(userId, request);
         String placeSearchQuestion = resolvePlaceSearchQuestion(request.question(), history);
-        List<RagSearchResult> ragResults = loadRagResults(placeSearchQuestion, context, request.selectedDayNumber());
+        // "다른 식당/카페"는 일반 검색의 상위 일부 후보가 남아 있더라도 직전
+        // 추천과 같은 결과를 다시 줄 수 있다. 이 경우에는 처음부터 Kakao의
+        // 확장 후보(1·2페이지)를 조회해, 사용자가 지역명을 다시 쓰지 않아도
+        // 같은 지역의 새 실제 상호를 찾는다.
+        List<RagSearchResult> ragResults = requiresFreshAlternativeCandidates(request.question())
+                ? loadAlternativeRagResults(placeSearchQuestion, context, effectiveRequest.selectedDayNumber())
+                : loadRagResults(placeSearchQuestion, context, effectiveRequest.selectedDayNumber());
         RagSearchResult referencePlace = loadReferencePlace(request.referencePlaceId());
         ragResults = includeReferencePlace(ragResults, referencePlace);
         ragResults = excludeScheduledPlaces(ragResults, context);
         ragResults = excludePreviouslySuggestedPlaces(ragResults, history, request.question());
         AiGuideResponse response = aiModelClient.generate(
-                request, history, context, ragResults);
-        response = alignDaysWithRequestedDay(response, request);
+                effectiveRequest, history, context, ragResults);
+        response = alignDaysWithRequestedDay(response, effectiveRequest);
         response = attachReferencePlaceToTimeAdjustment(response, request.question(), referencePlace);
         response = excludeFinalResponsePlaces(response, context, history, request.question());
         response = removeUnverifiedGenericItems(enrichVerifiedPlaces(response, ragResults, request.question()));
         conversationHistoryService.append(userId, request.tripId(), request.question(), toConversationAnswer(response));
         return response;
+    }
+
+    /**
+     * 현재 선택한 탭보다 질문에 적은 일차가 우선이다. 카드 응답뿐 아니라 모델 프롬프트의
+     * 일정 컨텍스트도 같은 DAY를 보도록 요청 값을 맞춘다.
+     */
+    private AiGuideRequest applyExplicitDayToRequest(AiGuideRequest request) {
+        int requestedDayNumber = resolveRequestedDayNumber(request);
+        if (requestedDayNumber <= 0 || Integer.valueOf(requestedDayNumber).equals(request.selectedDayNumber())) {
+            return request;
+        }
+        return new AiGuideRequest(request.question(), request.tripId(), requestedDayNumber, request.referencePlaceId());
     }
 
     private RagSearchResult loadReferencePlace(Long referencePlaceId) {
@@ -121,6 +140,12 @@ public class AiGuideService {
                     return anchor + " 근처 " + question;
                 }
                 return previousQuestion;
+            }
+            String location = KakaoPlaceDiscoveryService.extractLocationHint(previousQuestion);
+            if (!location.isBlank()) {
+                // "다른 식당"처럼 업종만 다시 지정한 요청은 직전 질문의 지역을
+                // 이어받아야 같은 여행지에서 새 실제 상호를 다시 검색할 수 있다.
+                return location + " " + question;
             }
         }
         return question;
@@ -215,6 +240,10 @@ public class AiGuideService {
                 || normalized.contains("시간대추천") || normalized.contains("시간을바꿔");
     }
 
+    private boolean requiresFreshAlternativeCandidates(String question) {
+        return isAlternativeRequest(question) && !isTimeAdjustmentRequest(question);
+    }
+
     /**
      * 모델이 여행 문맥이나 이전 답변에서 본 장소를 다시 반환하더라도, 화면으로 보내기 전에
      * 마지막으로 제외한다. 후보 목록과 프롬프트는 보조 수단이며, 이 검사가 최종 안전장치다.
@@ -287,10 +316,13 @@ public class AiGuideService {
         if (history == null || history.isEmpty()) {
             return Set.of();
         }
-        return history.stream()
-                .map(AiConversationTurn::answer)
-                .filter(answer -> answer != null && !answer.isBlank())
-                .flatMap(answer -> Stream.of(answer.split("\\R")))
+        // "다른 곳"은 바로 직전 추천과만 달라야 한다. 30분 이력 전체를
+        // 제외하면 실제 카카오 후보가 모두 소진되어 후보 없음으로 끝날 수 있다.
+        String latestAnswer = history.get(history.size() - 1).answer();
+        if (latestAnswer == null || latestAnswer.isBlank()) {
+            return Set.of();
+        }
+        return Stream.of(latestAnswer.split("\\R"))
                 .map(String::trim)
                 .filter(line -> line.startsWith("[추천 장소]"))
                 .flatMap(line -> Stream.of(line.substring("[추천 장소]".length()).split(",")))
@@ -420,6 +452,7 @@ public class AiGuideService {
                 || name.contains("\uD574\uC218\uC695\uC7A5") || name.contains("\uC2DC\uC7A5")
                 || name.contains("숲길") || name.contains("거리") || name.contains("탐방")
                 || name.contains("코스") || name.contains("부근")
+                || name.contains("자유시간") || name.contains("점심검색") || name.contains("저녁검색")
                 || name.equals("\uCE74\uD398") || name.equals("\uB9DB\uC9D1") || name.equals("\uC2DD\uB2F9");
     }
 
@@ -498,37 +531,48 @@ public class AiGuideService {
                                                    org.example.all_my_trip_project.domain.ai.dto.AiGuideContext context,
                                                    Integer selectedDayNumber) {
         PlaceRagService service = placeRagServiceProvider.getIfAvailable();
-        List<RagSearchResult> indexedResults = service == null ? List.of() : service.search(question);
         KakaoPlaceDiscoveryService discoveryService = kakaoPlaceDiscoveryServiceProvider.getIfAvailable();
         if (discoveryService == null) {
-            return indexedResults;
+            return service == null ? List.of() : service.search(question);
         }
         String destination = context == null || context.trip() == null ? null : context.trip().destinationName();
         Long scheduledAnchorPlaceId = findScheduledAnchorPlaceId(question, context, selectedDayNumber);
+        int requestedDayNumber = resolveRequestedDayNumber(question, selectedDayNumber);
         List<RagSearchResult> discoveredResults = scheduledAnchorPlaceId == null
                 ? discoveryService.discoverAndIndex(question, destination)
                 : discoveryService.discoverAndIndex(question, destination, scheduledAnchorPlaceId);
+
+        // 실제 장소를 새로 찾았다면 우선 그 결과만 사용한다. 이 순서로 두면 임베딩
+        // 한도(429)가 일시적으로 초과돼도 카카오의 현재 검색 결과를 바로 추천할 수 있다.
+        if (!discoveredResults.isEmpty()) {
+            return discoveredResults;
+        }
+
+        List<RagSearchResult> indexedResults = service == null ? List.of() : service.search(question);
 
         // 기준 장소 "근처" 추천은 방금 카카오에서 찾은 주변 장소만 사용한다.
         // 이전 검색으로 색인된 다른 지역 후보가 섞이면 잘못된 상호명이 추천될 수 있다.
         // An existing itinerary place is an equally reliable local-search anchor even when
         // the user says "after visiting X" instead of explicitly saying "near X".
         // In that case, never merge stale RAG candidates from unrelated regions.
-        if (scheduledAnchorPlaceId != null || !KakaoPlaceDiscoveryService.extractNearbyAnchor(question).isBlank()) {
+        if (scheduledAnchorPlaceId != null || requestedDayNumber > 0
+                || !KakaoPlaceDiscoveryService.extractNearbyAnchor(question).isBlank()) {
             return discoveredResults;
         }
 
-        // A previous cafe search must not prevent a later restaurant/place search.
-        // Prefer the fresh Kakao candidates, then supplement them with indexed candidates.
-        return Stream.concat(discoveredResults.stream(), indexedResults.stream())
-                .collect(java.util.stream.Collectors.toMap(
-                        RagSearchResult::source,
-                        result -> result,
-                        (first, ignored) -> first,
-                        LinkedHashMap::new
-                ))
-                .values().stream()
-                .toList();
+        return indexedResults;
+    }
+
+    private List<RagSearchResult> loadAlternativeRagResults(String question,
+                                                              org.example.all_my_trip_project.domain.ai.dto.AiGuideContext context,
+                                                              Integer selectedDayNumber) {
+        KakaoPlaceDiscoveryService discoveryService = kakaoPlaceDiscoveryServiceProvider.getIfAvailable();
+        if (discoveryService == null) {
+            return List.of();
+        }
+        String destination = context == null || context.trip() == null ? null : context.trip().destinationName();
+        Long scheduledAnchorPlaceId = findScheduledAnchorPlaceId(question, context, selectedDayNumber);
+        return discoveryService.discoverAlternativeAndIndex(question, destination, scheduledAnchorPlaceId);
     }
 
     /**
@@ -609,11 +653,26 @@ public class AiGuideService {
         if (question == null || question.isBlank()) {
             return -1;
         }
-        var matcher = java.util.regex.Pattern.compile("(?i)(?:day\\s*([1-9][0-9]?)|([1-9][0-9]?)\\s*일차)")
+        var matcher = java.util.regex.Pattern.compile("(?i)(?:day\\s*([1-9][0-9]?)|([1-9][0-9]?)\\s*일\\s*차)")
                 .matcher(question);
         while (matcher.find()) {
             String dayNumber = matcher.group(1) != null ? matcher.group(1) : matcher.group(2);
             return Integer.parseInt(dayNumber);
+        }
+        if (question.matches(".*(?:첫\\s*날).*")) {
+            return 1;
+        }
+        if (question.matches(".*(?:둘째(?:\\s*날)?).*")) {
+            return 2;
+        }
+        if (question.matches(".*(?:셋째(?:\\s*날)?).*")) {
+            return 3;
+        }
+        if (question.matches(".*(?:넷째(?:\\s*날)?).*")) {
+            return 4;
+        }
+        if (question.matches(".*(?:다섯째(?:\\s*날)?).*")) {
+            return 5;
         }
         return -1;
     }
@@ -626,9 +685,13 @@ public class AiGuideService {
     }
 
     private int resolveRequestedDayNumber(String question, Integer selectedDayNumber) {
-        return selectedDayNumber != null && selectedDayNumber > 0
-                ? selectedDayNumber
-                : extractRequestedDayNumber(question);
+        // 사용자가 질문에 DAY를 직접 적었다면 현재 선택된 탭보다 그 의도를 우선한다.
+        // 예: DAY 1 탭을 보고 있어도 "DAY 2 전포 맛집"은 DAY 2 추천으로 반환해야 한다.
+        int explicitlyRequestedDay = extractRequestedDayNumber(question);
+        if (explicitlyRequestedDay > 0) {
+            return explicitlyRequestedDay;
+        }
+        return selectedDayNumber != null && selectedDayNumber > 0 ? selectedDayNumber : -1;
     }
 
     private boolean matchesQuestionPlace(String normalizedQuestion, String normalizedTitle) {

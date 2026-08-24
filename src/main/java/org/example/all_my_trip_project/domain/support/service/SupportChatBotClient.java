@@ -23,10 +23,10 @@ import java.util.regex.Pattern;
 /**
  * 상담 채팅 전용 Gemini 클라이언트.
  *
- * <p>여행 AI 가이드는 {@code CohereAiModelClient}로 Cohere REST API를 호출하고, 고객센터 챗봇은
+ * <p>여행 AI 가이드는 {@code OpenAiAiModelClient}로 OpenAI REST API를 호출하고, 고객센터 챗봇은
  * 이 클래스에서 Gemini REST API를 직접 호출한다. 두 기능은 프롬프트·응답 형식·장애 처리 정책이
  * 달라 각각의 전용 클라이언트를 유지한다. Spring AI는 대화 모델 추상화가 아닌 RAG의 임베딩 및
- * PgVectorStore 보조 용도로만 사용한다.
+ * {@code PgVectorStore} 보조 용도로만 사용한다.
  */
 @Service
 @Slf4j

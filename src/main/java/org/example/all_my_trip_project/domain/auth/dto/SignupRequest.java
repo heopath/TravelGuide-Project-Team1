@@ -25,6 +25,12 @@ public record SignupRequest(
                 max = 20,
                 message = "닉네임은 2자 이상 20자 이하여야 합니다."
         )
-        String nickname
+        String nickname,
+
+        @Size(max = 2048, message = "사람 확인 토큰이 올바르지 않습니다.")
+        String turnstileToken
 ) {
+    public SignupRequest(String email, String password, String nickname) {
+        this(email, password, nickname, null);
+    }
 }
