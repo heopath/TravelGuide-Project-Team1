@@ -3,6 +3,7 @@ package org.example.all_my_trip_project.domain.accommodation;
 import org.example.all_my_trip_project.domain.accommodation.dto.AccommodationOffer;
 import org.example.all_my_trip_project.domain.accommodation.dto.AccommodationPriceResult;
 import org.example.all_my_trip_project.domain.accommodation.dto.AccommodationSearchQuery;
+import org.example.all_my_trip_project.domain.accommodation.provider.LiteApiHttpClientConfig;
 import org.example.all_my_trip_project.domain.accommodation.provider.LiteApiSandboxPriceProvider;
 import org.example.all_my_trip_project.domain.accommodation.provider.LiteApiSandboxProperties;
 import org.example.all_my_trip_project.domain.accommodation.provider.TourApiAccommodationSearchProvider;
@@ -196,6 +197,7 @@ class LiteApiSandboxPriceProviderTest {
     @DisplayName("Spring에 Jackson 2 ObjectMapper Bean이 없어도 숙소 provider가 생성된다")
     void startsProvidersWithoutObjectMapperBean() {
         new ApplicationContextRunner()
+                .withUserConfiguration(LiteApiHttpClientConfig.class)
                 .withBean(RestClient.Builder.class, RestClient::builder)
                 .withBean(TourApiProperties.class)
                 .withBean(LiteApiSandboxProperties.class)
