@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.extern.slf4j.Slf4j;
 import org.example.all_my_trip_project.global.exception.BusinessException;
 import org.example.all_my_trip_project.global.exception.ErrorCode;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
@@ -24,6 +25,7 @@ public class TurnstileVerifier {
     private final TurnstileProperties properties;
     private final RestClient restClient;
 
+    @Autowired
     public TurnstileVerifier(TurnstileProperties properties) {
         this(properties, createRestClient(properties));
     }
