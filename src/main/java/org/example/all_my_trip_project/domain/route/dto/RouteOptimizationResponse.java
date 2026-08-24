@@ -14,7 +14,8 @@ public record RouteOptimizationResponse(
         int optimizedDurationSeconds,
         int optimizedDistanceMeters,
         int savedDurationSeconds,
-        boolean originalRouteAvailable
+        boolean originalRouteAvailable,
+        List<UnavailableRoute> unavailableRoutes
 ) {
     public record RouteSegment(
             Long fromItineraryItemId,
@@ -23,5 +24,12 @@ public record RouteOptimizationResponse(
             String toTitle,
             int durationSeconds,
             int distanceMeters
+    ) {}
+
+    public record UnavailableRoute(
+            Long fromItineraryItemId,
+            String fromTitle,
+            Long toItineraryItemId,
+            String toTitle
     ) {}
 }

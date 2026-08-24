@@ -23,6 +23,8 @@ document.addEventListener("DOMContentLoaded", function () {
   let selectedOptimizationCriterion = "TIME";
   let optimizationPreviewRouteData = {};
   let optimizationRequestToken = 0;
+  let alternativeRoutePair = null;
+  let optimizationRouteOverride = null;
   let searchPreviewOverlay = null;
   let lastSearchResults = [];
   let favoritePlaces = null;
@@ -159,6 +161,13 @@ document.addEventListener("DOMContentLoaded", function () {
   const optimizationClose = document.querySelector("[data-route-optimization-close]");
   const optimizationCancel = document.querySelector("[data-route-optimization-cancel]");
   const optimizationApply = document.querySelector("[data-route-optimization-apply]");
+  const alternativePanel = document.querySelector("[data-route-alternative-panel]");
+  const alternativeRoute = document.querySelector("[data-route-alternative-route]");
+  const alternativeMessage = document.querySelector("[data-route-alternative-message]");
+  const alternativeOptions = document.querySelector("[data-route-alternative-options]");
+  const alternativeClose = document.querySelector("[data-route-alternative-close]");
+  const alternativeKeep = document.querySelector("[data-route-alternative-keep]");
+  const alternativeCancel = document.querySelector("[data-route-alternative-cancel]");
   const mapModal = document.querySelector("[data-map-modal]");
   const expandedMapContainer = document.querySelector("[data-schedule-map-expanded]");
   const mapStatus = document.querySelector("[data-map-status]");
@@ -462,6 +471,120 @@ document.addEventListener("DOMContentLoaded", function () {
     if (hidePanel !== false && optimizationPanel) optimizationPanel.hidden = true;
   }
 
+  function clearAlternativeRoutePanel() {
+    if (!alternativePanel) return;
+    alternativePanel.hidden = true;
+    alternativeRoutePair = null;
+    alternativeOptions?.replaceChildren();
+  }
+
+  async function showAlternativeRoutePanel(fromItem, toItem) {
+    if (!alternativePanel) return;
+    alternativeRoutePair = {fromItem, toItem};
+    const fromTitle = fromItem?.place?.name || fromItem?.place?.title || "현재 장소";
+    const toTitle = toItem?.place?.name || toItem?.place?.title || "다음 장소";
+    if (alternativeRoute) alternativeRoute.textContent = fromTitle + " → " + toTitle;
+    if (alternativeMessage) {
+      alternativeMessage.innerHTML = "선택한 " + (travelModeOptions[globalTransportMode]?.label || "교통수단")
+        + " 경로를 찾을 수 없습니다.<br>이동 가능한 대체 경로를 확인해보세요.";
+    }
+    alternativeOptions?.replaceChildren();
+    const alternatives = Object.entries(travelModeOptions)
+      .filter(function ([mode]) { return mode !== globalTransportMode; })
+      .map(function ([mode, option]) {
+        return {mode, icon: option.icon, title: option.label};
+      });
+    const optionElements = [];
+    alternatives.forEach(function (alternative) {
+      const item = document.createElement("div");
+      item.className = "route-alternative-option";
+      const info = document.createElement("span");
+      info.className = "route-alternative-option-info";
+      const title = document.createElement("strong");
+      title.className = "route-alternative-option-title";
+      title.textContent = alternative.icon + " " + alternative.title;
+      const detail = document.createElement("span");
+      detail.className = "route-alternative-option-detail";
+      detail.textContent = "예상시간을 계산 중입니다.";
+      info.append(title, detail);
+      const use = document.createElement("button");
+      use.type = "button";
+      use.className = "route-alternative-option-use";
+      use.textContent = "이 경로 사용";
+      use.disabled = true;
+      use.addEventListener("click", async function () {
+        const pair = alternativeRoutePair;
+        if (!pair || !alternative.mode) return;
+        use.disabled = true;
+        const key = segmentRouteKey(pair.fromItem, pair.toItem, activeDay);
+        segmentModes.set(key, alternative.mode);
+        saveSegmentModes();
+        segmentRouteResults.delete(key);
+        await requestSegmentRoute(pair.fromItem, pair.toItem, alternative.mode);
+        const result = segmentRouteResults.get(key);
+        if (result?.status === "success") {
+          closeAlternativeRoutePanel();
+          toast(alternative.title + " 대체 경로를 적용했습니다. 최적화 순서를 다시 계산합니다.");
+          await requestOptimizationPreview({
+            fromItemId: Number(pair.fromItem.itineraryItemId),
+            toItemId: Number(pair.toItem.itineraryItemId),
+            mode: alternative.mode,
+          });
+        } else {
+          use.disabled = false;
+          toast(result?.message || "대체 경로를 찾지 못했습니다.");
+        }
+      });
+      item.append(info, use);
+      alternativeOptions?.appendChild(item);
+      optionElements.push({alternative, detail, use});
+    });
+    if (optimizationPanel) optimizationPanel.hidden = true;
+    alternativePanel.hidden = false;
+
+    const routeResults = new Map();
+    await Promise.all(alternatives.map(async function (alternative) {
+      try {
+        routeResults.set(alternative.mode,
+          await requestOptimizationRouteSegment(fromItem, toItem, alternative.mode));
+      } catch (error) {
+        routeResults.set(alternative.mode, null);
+      }
+    }));
+    if (alternativeRoutePair?.fromItem !== fromItem || alternativeRoutePair?.toItem !== toItem) return;
+    const availableAlternatives = optionElements.filter(function ({alternative}) {
+      return Boolean(routeResults.get(alternative.mode));
+    }).sort(function (left, right) {
+      const leftResult = routeResults.get(left.alternative.mode);
+      const rightResult = routeResults.get(right.alternative.mode);
+      return Number(leftResult.totalDistanceMeters || 0) - Number(rightResult.totalDistanceMeters || 0)
+        || Number(leftResult.totalDurationSeconds || 0) - Number(rightResult.totalDurationSeconds || 0);
+    });
+    alternativeOptions?.replaceChildren();
+    availableAlternatives.forEach(function ({alternative, detail, use}) {
+      const result = routeResults.get(alternative.mode);
+      detail.textContent = "약 " + formatRouteDuration(result.totalDurationSeconds)
+        + " · " + formatRouteDistance(result.totalDistanceMeters);
+      use.disabled = false;
+      const item = detail.closest(".route-alternative-option");
+      if (item) alternativeOptions?.appendChild(item);
+    });
+    if (!availableAlternatives.length && alternativeOptions) {
+      const empty = document.createElement("p");
+      empty.className = "route-alternative-option-detail";
+      empty.textContent = "이동 가능한 대체 경로를 찾지 못했습니다.";
+      alternativeOptions.appendChild(empty);
+    }
+  }
+
+  function closeAlternativeRoutePanel() {
+    clearAlternativeRoutePanel();
+    if (optimizeRouteTrigger) {
+      optimizeRouteTrigger.disabled = false;
+      optimizeRouteTrigger.removeAttribute("aria-busy");
+    }
+  }
+
   function optimizationPath(criterion) {
     return (optimizationPreviewRouteData[criterion] || []).flatMap(function (route) {
       return (route?.points || []).map(function (point) {
@@ -558,6 +681,17 @@ document.addEventListener("DOMContentLoaded", function () {
     drawOptimizationPreviewLines();
   }
 
+  function findUnavailableOptimizationPair(state) {
+    const unavailable = state?.results?.DISTANCE?.unavailableRoutes
+      || state?.results?.TIME?.unavailableRoutes
+      || [];
+    if (!unavailable.length) return null;
+    const firstId = activeItems[0]?.itineraryItemId;
+    return unavailable.find(function (route) {
+      return String(route.fromItineraryItemId) === String(firstId);
+    }) || unavailable[0];
+  }
+
   function renderOptimizationPreview(state) {
     if (!optimizationPanel || !state) return;
     optimizationPreviewState = state;
@@ -571,8 +705,25 @@ document.addEventListener("DOMContentLoaded", function () {
     }
     if (optimizationTimeTitle) optimizationTimeTitle.textContent = "이동시간 우선";
     if (optimizationSameNote) optimizationSameNote.hidden = !sameRoute;
+    if (!optimizationRouteOverride) {
+      const unavailablePair = findUnavailableOptimizationPair(state);
+      const fromItem = activeItems.find(function (item) {
+        return String(item.itineraryItemId) === String(unavailablePair?.fromItineraryItemId);
+      });
+      const toItem = activeItems.find(function (item) {
+        return String(item.itineraryItemId) === String(unavailablePair?.toItineraryItemId);
+      });
+      if (fromItem && toItem) {
+        showAlternativeRoutePanel(fromItem, toItem);
+        return;
+      }
+    }
     if (optimizationCurrent) {
       const current = state.results.TIME?.originalRouteAvailable ? state.results.TIME : state.results.DISTANCE;
+      if (!current?.originalRouteAvailable) {
+        showAlternativeRoutePanel(activeItems[0], activeItems[1]);
+        return;
+      }
       optimizationCurrent.textContent = current?.originalRouteAvailable
         ? "현재 일정  " + formatRouteDistance(current.originalDistanceMeters)
           + " · " + formatRouteDuration(current.originalDurationSeconds)
@@ -622,7 +773,16 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   }
 
-  async function loadOptimizationPreviewRoutes(state, requestToken, dayId) {
+  function optimizationModeForPair(fromItem, toItem, override) {
+    if (override
+      && String(override.fromItemId) === String(fromItem?.itineraryItemId)
+      && String(override.toItemId) === String(toItem?.itineraryItemId)) {
+      return override.mode;
+    }
+    return globalTransportMode;
+  }
+
+  async function loadOptimizationPreviewRoutes(state, requestToken, dayId, override) {
     const results = state.results;
     const sameRoute = hasSameOptimizationOrder(results.DISTANCE, results.TIME);
     const criteria = sameRoute ? ["TIME"] : ["DISTANCE", "TIME"];
@@ -637,7 +797,10 @@ document.addEventListener("DOMContentLoaded", function () {
       const routes = [];
       for (let index = 0; index < items.length - 1; index += 1) {
         try {
-          routes.push(await requestOptimizationRouteSegment(items[index], items[index + 1], globalTransportMode));
+          routes.push(await requestOptimizationRouteSegment(
+            items[index], items[index + 1],
+            optimizationModeForPair(items[index], items[index + 1], override)
+          ));
         } catch (error) {
           console.warn("[동선 최적화 미리보기] 실제 경로 계산 실패", criterion, {
             status: error?.status,
@@ -658,31 +821,51 @@ document.addEventListener("DOMContentLoaded", function () {
     refreshMap();
   }
 
-  async function requestOptimizationPreview() {
+  async function requestOptimizationPreview(override = null) {
+    optimizationRouteOverride = override;
+    if (optimizeRouteTrigger) {
+      optimizeRouteTrigger.disabled = true;
+      optimizeRouteTrigger.setAttribute("aria-busy", "true");
+    }
     const dayId = activeDay?.tripDayId;
     const requestedOrderIds = activeItems.map(function (item) {
       return Number(item.itineraryItemId);
     }).filter(Number.isFinite);
     const mode = encodeURIComponent(globalTransportMode);
+    const overrideQuery = override
+      && Number.isFinite(Number(override.fromItemId))
+      && Number.isFinite(Number(override.toItemId))
+      && travelModeOptions[override.mode]
+      ? "&overrideFromItemId=" + encodeURIComponent(override.fromItemId)
+        + "&overrideToItemId=" + encodeURIComponent(override.toItemId)
+        + "&overrideMode=" + encodeURIComponent(override.mode)
+      : "";
     const body = {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(requestedOrderIds)};
     const requestToken = ++optimizationRequestToken;
+    clearAlternativeRoutePanel();
     setOptimizationPanelLoading(true);
     try {
       const results = await Promise.all(["DISTANCE", "TIME"].map(async function (criterion) {
         return [criterion, await api(
           "/api/v1/trip-days/" + dayId + "/optimize-route?criterion="
-            + criterion + "&mode=" + mode,
+            + criterion + "&mode=" + mode + overrideQuery,
           body
         )];
       }));
       if (requestToken !== optimizationRequestToken || activeDay?.tripDayId !== dayId || allScheduleVisible) return;
       const state = {results: Object.fromEntries(results), routeData: {}};
       renderOptimizationPreview(state);
-      await loadOptimizationPreviewRoutes(state, requestToken, dayId);
+      await loadOptimizationPreviewRoutes(state, requestToken, dayId, override);
     } catch (error) {
       if (requestToken === optimizationRequestToken) {
-        clearOptimizationPreview();
-        toast(error.message || "동선 최적화 미리보기를 불러오지 못했습니다.");
+        const first = activeItems[0];
+        const second = activeItems[1];
+        if (first && second && /경로|연결|이동/.test(error.message || "")) {
+          showAlternativeRoutePanel(first, second);
+        } else {
+          clearOptimizationPreview();
+          toast(error.message || "동선 최적화 미리보기를 불러오지 못했습니다.");
+        }
       }
     } finally {
       if (requestToken === optimizationRequestToken) {
@@ -829,9 +1012,7 @@ document.addEventListener("DOMContentLoaded", function () {
     Array.from(segmentRouteResults.keys()).forEach(function (key) {
       if (key.startsWith(currentPrefix)) segmentRouteResults.delete(key);
     });
-    Array.from(segmentModes.keys()).forEach(function (key) {
-      if (key.startsWith(currentPrefix)) segmentModes.delete(key);
-    });
+    /* 장소 순서를 적용해도 사용자가 선택한 구간별 대체 이동수단은 보존한다. */
     saveSegmentModes();
   }
 
@@ -850,7 +1031,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
   function createSegmentRouteSummary(fromItem, toItem) {
     const key = segmentRouteKey(fromItem, toItem, activeDay);
-    const selectedMode = globalTransportMode || "";
+    const selectedMode = segmentModes.get(key) || globalTransportMode || "";
     const state = segmentRouteResults.get(key);
     const selectedMeta = travelModeOptions[selectedMode];
     const wrapper = document.createElement("section");
@@ -899,7 +1080,7 @@ document.addEventListener("DOMContentLoaded", function () {
     if (!timeline?.parentElement || !globalTransportMode) return;
     const pairs = currentSegmentPairs();
     const completed = pairs.map(function (pair) { return segmentRouteResults.get(pair.key); })
-      .filter(function (state) { return state?.status === "success" && state.mode === globalTransportMode; });
+      .filter(function (state) { return state?.status === "success"; });
     if (!completed.length) return;
     const totalDuration = completed.reduce(function (sum, state) {
       return sum + Number(state.data.totalDurationSeconds || 0);
@@ -945,6 +1126,9 @@ document.addEventListener("DOMContentLoaded", function () {
         mode,
         message: error.message || "해당 구간의 경로를 찾지 못했습니다.",
       });
+      if (dayIsActive(day) && mode === globalTransportMode && alternativePanel?.hidden !== false) {
+        showAlternativeRoutePanel(fromItem, toItem);
+      }
     }).finally(function () {
       segmentRouteRequests.delete(requestKey);
       if (dayIsActive(day) && !options.deferUiRefresh) {
@@ -958,7 +1142,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
   function restoreSavedSegmentRoutes() {
     currentSegmentPairs().forEach(function (pair) {
-      const mode = globalTransportMode;
+      const mode = segmentModes.get(pair.key) || globalTransportMode;
       if (mode && !segmentRouteResults.has(pair.key)) {
         segmentModes.set(pair.key, mode);
         requestSegmentRoute(pair.fromItem, pair.toItem, mode);
@@ -1226,7 +1410,7 @@ document.addEventListener("DOMContentLoaded", function () {
   function getCalculatedSegmentMinutes(fromItem, toItem, day) {
     if (!globalTransportMode) return null;
     const state = segmentRouteResults.get(segmentRouteKey(fromItem, toItem, day));
-    if (state?.status !== "success" || state.mode !== globalTransportMode) return null;
+    if (state?.status !== "success") return null;
     const seconds = Number(state.data?.totalDurationSeconds);
     return Number.isFinite(seconds) ? Math.max(0, Math.round(seconds / 60)) : null;
   }
@@ -2075,7 +2259,7 @@ document.addEventListener("DOMContentLoaded", function () {
     if (!globalTransportMode) return [];
     return currentSegmentPairs().map(function (pair) {
       const state = segmentRouteResults.get(pair.key);
-      return state?.status === "success" && state.mode === globalTransportMode ? {pair, state} : null;
+      return state?.status === "success" ? {pair, state} : null;
     }).filter(Boolean);
   }
 
@@ -4019,6 +4203,9 @@ document.addEventListener("DOMContentLoaded", function () {
     optimizeRouteTrigger?.focus();
   });
   if (optimizationApply) optimizationApply.addEventListener("click", applySelectedOptimization);
+  alternativeClose?.addEventListener("click", closeAlternativeRoutePanel);
+  alternativeKeep?.addEventListener("click", closeAlternativeRoutePanel);
+  alternativeCancel?.addEventListener("click", closeAlternativeRoutePanel);
   initMap();
   loadSchedule();
   /*
