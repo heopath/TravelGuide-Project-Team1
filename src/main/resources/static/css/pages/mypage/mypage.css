@@ -2517,6 +2517,35 @@ body.page-mypage main#page-content > .page-shell {
 }
 .page-mypage .support-chat-message small { display: block; margin-top: 5px; color: #97a1b5; font-size: 10.5px; }
 
+/* 대기 말풍선. 메신저의 "입력 중…"과 같은 자리 — 상태줄만으로 놓치는 일이 없게 한다. */
+.page-mypage .support-chat-typing {
+  display: flex; align-items: center; gap: 8px;
+  background: #f3f5fb; border-color: #e3e7f0;
+}
+.page-mypage .support-chat-typing em {
+  display: inline; color: #55607a; font-size: 12px; font-weight: 600;
+}
+/* 상담원 연결 대기는 "사람을 기다려야 한다"는 뜻이 달라 색으로도 구분한다. */
+.page-mypage .support-chat-typing-handoff {
+  background: #fff6e9; border-color: #f3d9ab;
+}
+.page-mypage .support-chat-typing-handoff em { color: #93650f; }
+.page-mypage .support-chat-typing-dots { display: inline-flex; gap: 3px; }
+.page-mypage .support-chat-typing-dots i {
+  width: 5px; height: 5px; border-radius: 50%; background: currentColor;
+  color: #97a1b5; opacity: .4; animation: support-chat-typing-bounce 1.1s infinite ease-in-out;
+}
+.page-mypage .support-chat-typing-handoff .support-chat-typing-dots i { color: #c99a3f; }
+.page-mypage .support-chat-typing-dots i:nth-child(2) { animation-delay: .15s; }
+.page-mypage .support-chat-typing-dots i:nth-child(3) { animation-delay: .3s; }
+@keyframes support-chat-typing-bounce {
+  0%, 60%, 100% { opacity: .4; transform: translateY(0); }
+  30% { opacity: 1; transform: translateY(-2px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .page-mypage .support-chat-typing-dots i { animation: none; opacity: .7; }
+}
+
 .page-mypage .support-chat-composer { display: grid; grid-template-columns: minmax(0, 1fr) 88px; gap: 8px; }
 .page-mypage .support-chat-composer input {
   padding: 11px 13px; border: 1px solid #e3e7f0; border-radius: 10px; font-size: 13px;

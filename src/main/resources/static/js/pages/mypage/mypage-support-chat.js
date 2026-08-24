@@ -21,7 +21,7 @@ const RECONNECT_DELAY_MS = 3000;
 const FALLBACK_POLL_INTERVAL_MS = 5000;
 
 const statusLabels = {
-  BOT: "상담원을 연결하고 있어요",
+  BOT: "AI 상담봇이 응대하고 있어요",
   WAITING: "담당자를 기다리는 중이에요",
   ASSIGNED: "담당자가 응대 중이에요",
   CLOSED: "종료된 상담이에요",
@@ -81,6 +81,7 @@ export function initSupportChat() {
     const response = await fetch(url, Object.assign({
       credentials: "same-origin",
       headers: { Accept: "application/json", "Content-Type": "application/json" },
+      allMyTripsLoading: false,
     }, options || {}));
     const payload = await response.json().catch(function () { return null; });
     if (!response.ok || payload?.success === false) {
@@ -125,9 +126,38 @@ export function initSupportChat() {
     if (waitingForBot && room.status === "BOT") {
       return socketDegraded
         ? "연결이 잠시 끊겼어요. 곧 다시 연결할게요…"
-        : "답변을 준비하고 있습니다...";
+        : "답변을 기다리는 중입니다...";
     }
     return statusLabels[room.status] || room.status;
+  }
+
+  /*
+   * 대기 상태를 상태줄 한 줄만으로는 놓치기 쉽다는 피드백이 있었다(QA). 실제 대화창
+   * 안에, 메신저의 "입력 중…" 말풍선과 같은 자리에 표시해 확실히 보이게 한다.
+   *
+   * <p>봇 답변 대기와 상담원 연결 대기는 손님 입장에서 뜻이 다르므로(하나는 곧 봇이
+   * 답한다, 하나는 사람을 기다려야 한다) 문구와 색을 구분한다.
+   */
+  function typingIndicatorRow(kind) {
+    const item = document.createElement("div");
+    item.className = "support-chat-message bot support-chat-typing support-chat-typing-" + kind;
+    item.setAttribute("role", "status");
+    item.setAttribute("aria-live", "polite");
+
+    const label = document.createElement("em");
+    label.textContent = kind === "handoff" ? "상담원 연결 중입니다..." : "답변을 기다리는 중입니다...";
+
+    const dots = document.createElement("span");
+    dots.className = "support-chat-typing-dots";
+    dots.setAttribute("aria-hidden", "true");
+    dots.append(
+      document.createElement("i"),
+      document.createElement("i"),
+      document.createElement("i"),
+    );
+
+    item.append(label, dots);
+    return item;
   }
 
   function render(view) {
@@ -158,6 +188,12 @@ export function initSupportChat() {
     roomMessages.forEach(function (message) {
       messages.appendChild(messageRow(message));
     });
+    /* 대기 중이면 대화 맨 끝에 타이핑 말풍선을 붙인다 — 상태줄과 별개로, 놓칠 수 없는 자리에. */
+    if (waitingForBot) {
+      messages.appendChild(typingIndicatorRow("bot"));
+    } else if (room.status === "WAITING") {
+      messages.appendChild(typingIndicatorRow("handoff"));
+    }
     messages.scrollTop = messages.scrollHeight;
 
     if (closed) {

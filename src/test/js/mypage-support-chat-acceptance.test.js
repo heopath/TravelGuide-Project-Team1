@@ -179,7 +179,7 @@ async function run() {
 
     T("마지막 메시지가 USER면 대기 상태로 복원된다", chatInput(d).disabled === true);
     T("보내기 버튼도 함께 잠긴다", send(d).disabled === true);
-    T("대기 안내 문구를 보여준다", statusText(d).textContent.includes("준비"));
+    T("대기 안내 문구를 보여준다", statusText(d).textContent.includes("기다리는"));
   }
   {
     /* 봇이 이미 답한 뒤라면 대기 상태가 아니어야 한다. */
@@ -193,13 +193,39 @@ async function run() {
     T("봇이 이미 답했으면 입력창이 열려 있다", chatInput(d).disabled === false);
   }
 
+  /* ── 대기 말풍선. 상태줄만으로는 놓칠 수 있어(QA 피드백) 대화창 안에도 확실히 보여야 한다 ── */
+  {
+    const { d, chat } = await boot(
+      () => ok({ room: room({ status: "BOT" }), messages: [message(1, "USER", "환불 문의드립니다")] }),
+      { withSocket: false }
+    );
+    await chat.load();
+    await until(() => statusText(d).textContent.length > 0);
+
+    T("봇 답변 대기 중엔 대화창 안에 타이핑 말풍선이 보인다",
+      messagesEl(d).querySelector(".support-chat-typing-bot") !== null);
+    T("상담원 연결 말풍선은 아직 보이지 않는다",
+      messagesEl(d).querySelector(".support-chat-typing-handoff") === null);
+  }
+  {
+    const { d, chat } = await boot(
+      () => ok({ room: room({ status: "WAITING" }), messages: [message(1, "USER", "환불 문의드립니다"), message(2, "BOT", "상담원에게 연결해 드릴게요.")] }),
+      { withSocket: false }
+    );
+    await chat.load();
+    await until(() => statusText(d).textContent.length > 0);
+
+    T("상담원 연결 대기 중엔 대화창 안에 연결 중 말풍선이 보인다",
+      messagesEl(d).querySelector(".support-chat-typing-handoff") !== null);
+  }
+
   /* ── 서버가 보내는 복구 가능한 오류를 실제로 받는다 ── */
   {
     const { d, log, chat, socket } = await boot(
       () => ok({ room: room({ status: "BOT" }), messages: [message(1, "USER", "환불 문의드립니다")] })
     );
     await chat.load();
-    await until(() => statusText(d).textContent.includes("준비"));
+    await until(() => statusText(d).textContent.includes("기다리는"));
     await until(() => log.some((e) => e.type === "subscribe" && e.destination === "/user/queue/support-chat/errors"));
 
     socket.subs["/user/queue/support-chat/errors"]({
