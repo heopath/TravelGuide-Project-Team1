@@ -29,8 +29,8 @@
   />
   <link
           rel="stylesheet"
-          th:href="@{/css/pages/trips/schedule.css(v=20260821-place-modal-fix)}"
-          href="../../static/css/pages/trips/schedule.css?v=20260821-place-modal-fix"
+          th:href="@{/css/pages/trips/schedule.css(v=20260824-mobile-finish)}"
+          href="../../static/css/pages/trips/schedule.css?v=20260824-mobile-finish"
   />
 <link
         rel="stylesheet"
@@ -329,6 +329,29 @@
                     <div class="route-optimization-preview-actions">
                       <button type="button" class="route-optimization-cancel" data-route-optimization-cancel>취소</button>
                       <button type="button" class="route-optimization-apply" data-route-optimization-apply>선택한 경로 적용</button>
+                    </div>
+                  </section>
+                  <section
+                          class="route-alternative-preview-panel"
+                          data-route-alternative-panel
+                          aria-live="polite"
+                          hidden
+                  >
+                    <header class="route-alternative-preview-header">
+                      <strong>대체 경로 안내</strong>
+                      <button type="button" data-route-alternative-close aria-label="대체 경로 안내 닫기">×</button>
+                    </header>
+                    <div class="route-alternative-message">
+                      <strong data-route-alternative-route></strong>
+                      <p data-route-alternative-message>
+                        선택한 교통수단 경로를 찾을 수 없습니다.<br>
+                        이동 가능한 대체 경로를 확인해보세요.
+                      </p>
+                    </div>
+                    <div class="route-alternative-options" data-route-alternative-options></div>
+                    <div class="route-alternative-actions">
+                      <button type="button" data-route-alternative-keep>현재 순서 유지</button>
+                      <button type="button" data-route-alternative-cancel>최적화 취소</button>
                     </div>
                   </section>
                 </div>

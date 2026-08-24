@@ -1,12 +1,12 @@
-# AI 여행 가이드 API (AI-03)
+# AI 여행 가이드 API
 
 ## 현재 구현 범위
 
-AI 가이드는 로그인 사용자별 최근 질문·응답 3세트를 Redis에 30분간 저장하고, 장기 이력은 DB에 보관합니다. 현재 여행·DAY·기존 일정·실제 장소 RAG 정보를 OpenAI 요청 맥락으로 전달합니다.
+AI 가이드는 로그인 사용자별 최근 질문·응답 3세트를 Redis에 30분간 저장하고, 장기 이력은 PostgreSQL에 보관합니다. 현재 여행·DAY·기존 일정·실제 장소 RAG·카카오 장소 검색 후보를 OpenAI 요청 맥락으로 전달합니다.
 
 ## 구성
 
-AI 여행 가이드는 현재 화면 DTO를 유지한 채 실행 프로필에 따라 모델 구현체를 선택합니다.
+AI 여행 가이드는 화면 DTO를 유지한 채 실행 프로필에 따라 모델 구현체를 선택합니다.
 
 ```text
 AiGuideController → AiGuideService → AiModelClient
@@ -17,9 +17,9 @@ AiGuideController → AiGuideService → AiModelClient
 - `ui` 또는 기본 프로필: DB와 외부 AI 없이 Mock 응답을 반환합니다.
 - `ai` 프로필: OpenAI Responses API(`api.openai.com/v1/responses`)를 REST로 직접 호출하고, 구조화된 JSON 응답을 `AiGuideResponse(days → items)`로 변환합니다.
 
-Spring AI의 `ChatModel` 빈은 쓰지 않습니다. 어떤 프로필 조합에서도 `spring.ai.model.chat=none`이라
-그 빈이 뜨지 않습니다. 이 자리에 있던 `GeminiAiModelClient`는 활성화되는 프로필이 없는 죽은
-코드여서 지웠습니다(#382). AI 호출 경로를 하나로 모으는 문제도 그 이슈에서 다룹니다.
+Spring AI의 `ChatModel` 빈은 사용하지 않습니다. 여행 가이드는 OpenAI REST API를 직접 호출하며,
+RAG에서만 Spring AI의 임베딩 인터페이스와 `PgVectorStore`를 사용합니다. 자세한 역할 분리는
+[`ai-model-routing.md`](ai-model-routing.md)를 참고합니다.
 
 | 구분 | 실제 호출 경로 |
 | --- | --- |

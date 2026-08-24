@@ -42,6 +42,8 @@ public interface SupportChatMapper {
      */
     int markWaiting(@Param("roomId") Long roomId);
 
+    int returnToBot(@Param("roomId") Long roomId);
+
     int closeRoom(@Param("roomId") Long roomId);
 
     int insertMessage(SupportChatMessageDTO message);

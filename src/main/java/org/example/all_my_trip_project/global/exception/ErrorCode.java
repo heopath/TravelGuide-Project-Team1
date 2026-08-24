@@ -19,6 +19,16 @@ public enum ErrorCode {
             "이메일 또는 비밀번호가 올바르지 않습니다."
     ),
 
+    TURNSTILE_VERIFICATION_FAILED(
+            HttpStatus.BAD_REQUEST,
+            "사람인지 확인하지 못했습니다. 다시 시도해 주세요."
+    ),
+
+    TURNSTILE_UNAVAILABLE(
+            HttpStatus.SERVICE_UNAVAILABLE,
+            "사람 확인 서비스에 연결하지 못했습니다. 잠시 후 다시 시도해 주세요."
+    ),
+
     PASSWORD_MISMATCH(
             HttpStatus.BAD_REQUEST,
             "현재 비밀번호가 일치하지 않습니다."
@@ -503,6 +513,11 @@ public enum ErrorCode {
     SUPPORT_CHAT_SUBSCRIBE_FORBIDDEN(
             HttpStatus.FORBIDDEN,
             "이 상담 채팅을 구독할 권한이 없습니다."
+    ),
+
+    SUPPORT_CHAT_BOT_RETURN_NOT_ALLOWED(
+            HttpStatus.CONFLICT,
+            "상담원이 응대를 시작해 봇으로 돌아갈 수 없습니다. 새 상담을 시작해 주세요."
     );
 
     private final HttpStatus status;

@@ -16,18 +16,17 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * 상담 채팅 전용 Gemini 클라이언트.
  *
- * <p><b>{@code domain.ai}의 {@code AiModelClient}와 별개다.</b> 설계 문서(§1)는 원래 Spring AI의
- * {@code ChatModel} 빈을 공유하는 방향을 전제했지만, 어떤 프로필 조합에서도
- * {@code spring.ai.model.chat=none}이라 그 빈이 뜨지 않는다. 여행 가이드가 실제로 쓰는 구현체는
- * {@code OpenAiAiModelClient}이고 그쪽도 REST를 직접 부른다.
- *
- * <p>그래서 이 클래스는 저장소에서 실제로 동작이 확인된 Gemini 경로인
- * {@code AiTripPlanService}의 패턴(REST API 직접 호출, {@code gemini.api-key})을 그대로 따른다.
- * 갈래를 하나로 모으는 문제는 이슈 #382에서 다룬다.
+ * <p>여행 AI 가이드는 {@code OpenAiAiModelClient}로 OpenAI REST API를 호출하고, 고객센터 챗봇은
+ * 이 클래스에서 Gemini REST API를 직접 호출한다. 두 기능은 프롬프트·응답 형식·장애 처리 정책이
+ * 달라 각각의 전용 클라이언트를 유지한다. Spring AI는 대화 모델 추상화가 아닌 RAG의 임베딩 및
+ * {@code PgVectorStore} 보조 용도로만 사용한다.
  */
 @Service
 @Slf4j
@@ -40,8 +39,13 @@ public class SupportChatBotClient {
     private static final Duration CONNECT_TIMEOUT = Duration.ofSeconds(5);
     private static final Duration READ_TIMEOUT = Duration.ofSeconds(15);
 
-    /** 봇 스스로 상담원에게 넘겨야 한다고 판단하면 응답 끝에 이 표시를 붙이도록 프롬프트에서 시킨다. */
+    /** 봇이 상담원 연결 확인이 필요하다고 판단하면 응답 끝에 붙이는 내부 표시다. */
     private static final String HANDOFF_MARKER = "[HANDOFF]";
+    private static final Pattern ACTION_MARKER = Pattern.compile("(?m)^\\[ACTION:([A-Z_]+)]$");
+    private static final Set<String> ALLOWED_ACTIONS = Set.of(
+            "NEW_TRIP", "MY_TRIPS", "TRIP_SCHEDULE", "RECOMMENDED_PLACES",
+            "BOOK_FLIGHT", "BOOK_HOTEL", "BOOK_TICKET", "MY_BOOKINGS", "MY_TICKETS",
+            "FAVORITES", "REVIEWS", "NOTIFICATIONS", "ACCOUNT_SETTINGS", "SUPPORT");
 
     /** 방을 막 연 직후, 아직 손님 말이 없을 때 첫 인사를 이끌어내는 내부 신호. 손님에게는 안 보인다. */
     private static final String GREETING_KICKOFF =
@@ -55,15 +59,27 @@ public class SupportChatBotClient {
             답할 수 있는 범위: 여행 예약/결제/취소, 일정(여행·일차·일정) 관리, 티켓 예매·QR
             입장, 계정·마이페이지 사용법 등 이 서비스 이용과 직접 관련된 질문입니다.
 
-            아래 중 하나에 해당하면, 손님에게 보여줄 답변 마지막 줄에 다른 내용 없이 정확히
-            "%s" 한 줄만 추가하세요.
-            - 손님이 상담원 연결을 명시적으로 요청함
+            아래 중 하나에 해당하면 상담원에게 바로 연결한다고 말하지 말고, 상담원 연결 의사를
+            확인하는 문장을 답한 뒤 마지막 줄에 다른 내용 없이 정확히 "%s" 한 줄만 추가하세요.
+            - 손님이 상담원이 필요한지 묻거나 상담원 연결 의도가 불분명함
             - 이 서비스와 무관하거나 개인정보·결제 정보 등 민감한 처리가 필요해 챗봇이 답하면
               안 되는 질문
             - 같은 문제를 여러 번 물었는데도 대화 내역상 해결되지 않고 있음
 
+            단, 손님이 "상담원 연결해 주세요"처럼 연결을 명시적으로 요청한 경우는 서버가 직접
+            처리하므로 이 대화에는 들어오지 않습니다. 확인 없는 자동 연결은 절대 안내하지 마세요.
+
             실제 예약 내역을 조회하거나 변경할 수는 없습니다. 확정되지 않은 정보를 사실인 것처럼
             답하지 마세요. 괄호로 시작하는 안내 문장은 손님이 보낸 말이 아니라 내부 지시입니다.
+
+            답변 내용과 직접 연결되는 서비스 화면이 있으면 마지막 줄에 아래 표시를 최대 3개까지
+            추가하세요. 서로 의미 있는 선택지일 때만 여러 개를 주고 같은 표시는 반복하지 마세요.
+            NEW_TRIP=새 여행 만들기, MY_TRIPS=내 여행, TRIP_SCHEDULE=여행 일정 편집,
+            RECOMMENDED_PLACES=추천 장소, BOOK_FLIGHT=항공 예약, BOOK_HOTEL=숙소 예약,
+            BOOK_TICKET=티켓·액티비티, MY_BOOKINGS=전체 예약 내역, MY_TICKETS=예매한 티켓,
+            FAVORITES=찜한 여행지, REVIEWS=리뷰·후기, NOTIFICATIONS=알림,
+            ACCOUNT_SETTINGS=계정 설정, SUPPORT=고객센터.
+            형식: [ACTION:NEW_TRIP]
             """.formatted(HANDOFF_MARKER);
 
     private final ObjectMapper objectMapper = new ObjectMapper();
@@ -93,12 +109,13 @@ public class SupportChatBotClient {
      *                      연 직후라 아직 아무 말도 없으면 빈 목록을 넘기고, 봇이 첫 인사를
      *                      스스로 시작한다.
      * @throws SupportChatBotException API 키가 없거나, 호출이 실패·시간 초과했거나, 응답 형식이
-     *                                  올바르지 않을 때. 호출부는 이 예외를 방을 {@code WAITING}
-     *                                  으로 넘기는 신호로 쓴다.
+     *                                  올바르지 않을 때. 호출부는 재시도 또는 상담원 연결 확인
+     *                                  질문을 선택하되 방은 {@code BOT}으로 유지한다.
      */
     public SupportChatBotReply reply(List<SupportChatMessageDTO> conversation) {
         if (!isAvailable()) {
-            throw new SupportChatBotException("상담 봇 API 키가 설정돼 있지 않습니다.");
+            /* 다시 불러도 같은 결과다 — 재시도 대신 상담원 연결 의사를 확인해야 한다. */
+            throw new SupportChatBotException("상담 봇 API 키가 설정돼 있지 않습니다.", false);
         }
         try {
             String responseBody = restClient.post()
@@ -117,6 +134,12 @@ public class SupportChatBotClient {
                     ? ""
                     : response.at("/candidates/0/content/parts/0/text").asText();
             if (text.isBlank()) {
+                /*
+                 * 200인데 텍스트가 없는 경우가 실제로 있다(안전 필터, 토큰 한도, 사고 과정만
+                 * 담긴 응답 등). 본문을 남기지 않으면 원인을 좁힐 방법이 아예 없어서 남긴다.
+                 */
+                log.warn("상담 봇 응답 본문에 텍스트가 없습니다. model={}, body={}", geminiModel,
+                        responseBody == null ? "null" : responseBody.substring(0, Math.min(2000, responseBody.length())));
                 throw new SupportChatBotException("상담 봇이 응답을 반환하지 않았습니다.");
             }
             return parse(text);
@@ -145,9 +168,18 @@ public class SupportChatBotClient {
         return contents;
     }
 
-    /** package-private: {@link SupportChatBotClientTest}가 네트워크 호출 없이 표시 파싱만 검증한다. */
+    /** package-private: {@code SupportChatBotClientTest}가 네트워크 호출 없이 표시 파싱만 검증한다. */
     SupportChatBotReply parse(String rawText) {
         String trimmed = rawText.strip();
+        Matcher actionMatcher = ACTION_MARKER.matcher(trimmed);
+        List<String> actionKeys = new ArrayList<>();
+        while (actionMatcher.find()) {
+            String candidate = actionMatcher.group(1);
+            if (ALLOWED_ACTIONS.contains(candidate) && !actionKeys.contains(candidate) && actionKeys.size() < 3) {
+                actionKeys.add(candidate);
+            }
+        }
+        trimmed = ACTION_MARKER.matcher(trimmed).replaceAll("").strip();
         boolean handoff = trimmed.endsWith(HANDOFF_MARKER);
         String content = handoff
                 ? trimmed.substring(0, trimmed.length() - HANDOFF_MARKER.length()).strip()
@@ -155,6 +187,6 @@ public class SupportChatBotClient {
         if (content.isBlank()) {
             content = "상담원에게 연결해 드릴게요. 잠시만 기다려 주세요.";
         }
-        return new SupportChatBotReply(content, handoff);
+        return new SupportChatBotReply(content, handoff, actionKeys);
     }
 }

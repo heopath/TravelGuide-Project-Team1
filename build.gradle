@@ -49,8 +49,6 @@ dependencies {
     implementation 'org.webjars:stomp-websocket:2.3.4'
     implementation 'org.flywaydb:flyway-database-postgresql'
     implementation 'org.mybatis.spring.boot:mybatis-spring-boot-starter:4.0.1'
-    implementation 'org.springframework.ai:spring-ai-starter-model-google-genai'
-    implementation 'org.springframework.ai:spring-ai-starter-model-google-genai-embedding'
     implementation 'org.springframework.ai:spring-ai-starter-vector-store-pgvector'
     implementation 'org.springframework.ai:spring-ai-vector-store-advisor'
     implementation 'org.thymeleaf.extras:thymeleaf-extras-springsecurity6'

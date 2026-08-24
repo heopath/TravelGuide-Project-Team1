@@ -3,6 +3,7 @@ package org.example.all_my_trip_project.domain.accommodation;
 import org.example.all_my_trip_project.domain.accommodation.provider.CompositeAccommodationSearchProvider;
 import org.example.all_my_trip_project.domain.accommodation.provider.LiteApiSandboxPriceProvider;
 import org.example.all_my_trip_project.domain.accommodation.provider.LiteApiSandboxProperties;
+import org.example.all_my_trip_project.domain.accommodation.provider.LiteApiHttpClientConfig;
 import org.example.all_my_trip_project.domain.accommodation.provider.MockAccommodationSearchProvider;
 import org.example.all_my_trip_project.domain.accommodation.provider.TourApiAccommodationSearchProvider;
 import org.example.all_my_trip_project.domain.accommodation.provider.TourApiProperties;
@@ -34,16 +35,15 @@ import static org.assertj.core.api.Assertions.assertThat;
 class AccommodationBeanWiringTest {
 
     /*
-     * RestClient.Builder는 항공의 FlightHttpClientConfig가 제공한다.
-     * 숙박이 별도 HTTP 설정을 두지 않고 그 빈을 함께 쓰고 있어 여기서도 같은 설정을 올린다.
-     * 숙박 전용 설정이 생기면 이 줄을 바꾼다.
+     * 목록 조회는 기존 Builder를 쓰고, 느린 LiteAPI 가격 조회는 전용 RestClient를 쓴다.
+     * 둘을 같이 올려야 실제 애플리케이션과 같은 생성자 배선을 검증할 수 있다.
      */
     private ApplicationContextRunner runner(String... activeProfiles) {
         MockEnvironment environment = new MockEnvironment();
         environment.setActiveProfiles(activeProfiles);
 
         return new ApplicationContextRunner()
-                .withUserConfiguration(FlightHttpClientConfig.class)
+                .withUserConfiguration(FlightHttpClientConfig.class, LiteApiHttpClientConfig.class)
                 .withBean(TourApiProperties.class)
                 .withBean(LiteApiSandboxProperties.class)
                 .withBean(AccommodationRecommendationScorer.class)
@@ -51,11 +51,7 @@ class AccommodationBeanWiringTest {
                 .withBean(AccommodationDeeplinkProperties.class)
                 .withBean(SearchAccommodationDeeplinkBuilder.class)
                 .withBean(TourApiAccommodationSearchProvider.class)
-                .withBean(LiteApiSandboxPriceProvider.class,
-                        () -> new LiteApiSandboxPriceProvider(
-                                new LiteApiSandboxProperties(),
-                                RestClient.builder(),
-                                environment))
+                .withBean(LiteApiSandboxPriceProvider.class)
                 .withBean(CompositeAccommodationSearchProvider.class);
     }
 
@@ -65,6 +61,7 @@ class AccommodationBeanWiringTest {
         runner().withBean(MockAccommodationSearchProvider.class).run(context -> {
             assertThat(context).hasNotFailed();
             assertThat(context).hasSingleBean(RestClient.Builder.class);
+            assertThat(context).hasSingleBean(RestClient.class);
             assertThat(context).hasSingleBean(TourApiAccommodationSearchProvider.class);
             assertThat(context).hasSingleBean(LiteApiSandboxPriceProvider.class);
             assertThat(context).hasSingleBean(MockAccommodationSearchProvider.class);
