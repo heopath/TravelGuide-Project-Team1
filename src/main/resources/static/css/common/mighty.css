@@ -134,6 +134,13 @@
 }
 .mighty-line.them p { background: #f4f5f9; color: #1c1f26; }
 .mighty-line.me p { background: var(--primary, #5c68ff); color: #fff; }
+.mighty-links { display: flex; flex-wrap: wrap; gap: 6px; max-width: 84%; }
+.mighty-link {
+  padding: 7px 10px; border: 1px solid #cdd2f5; border-radius: 8px;
+  background: #fff; color: var(--primary, #5c68ff); font-size: 12px; font-weight: 700; cursor: pointer;
+}
+.mighty-link:hover { background: #eef0ff; }
+.mighty-link:focus-visible { outline: 2px solid var(--primary, #5c68ff); outline-offset: 2px; }
 
 .mighty-empty { margin: 0; padding: 10px 16px 14px; color: #9aa0b2; font-size: 12.5px; }
 .mighty-empty[hidden] { display: none; }

@@ -12,6 +12,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -31,13 +32,16 @@ class SupportChatBotOrchestratorTest {
 
     private SupportChatService service;
     private SupportChatBotClient client;
+    private SupportChatActionPersonalizer actionPersonalizer;
     private SupportChatBotOrchestrator orchestrator;
 
     @BeforeEach
     void setUp() {
         service = mock(SupportChatService.class);
         client = mock(SupportChatBotClient.class);
-        orchestrator = new SupportChatBotOrchestrator(service, client);
+        actionPersonalizer = mock(SupportChatActionPersonalizer.class);
+        orchestrator = new SupportChatBotOrchestrator(service, client, actionPersonalizer);
+        when(actionPersonalizer.personalize(any(), any(), any())).thenAnswer(invocation -> invocation.getArgument(2));
         when(service.isStillBot(ROOM_ID)).thenReturn(true);
         when(service.recentMessages(ROOM_ID)).thenReturn(List.of());
     }
@@ -101,7 +105,7 @@ class SupportChatBotOrchestratorTest {
 
         assertThat(replyCalls.get()).isEqualTo(1); /* Gemini는 한 번만 불렸다 */
         assertThat(peak.get()).isEqualTo(1);        /* 같은 방에 동시 호출은 없었다 */
-        verify(service, times(1)).recordBotReply(eq(ROOM_ID), any());
+        verify(service, times(1)).recordBotReply(eq(ROOM_ID), any(), anyList());
     }
 
     /*
@@ -154,7 +158,7 @@ class SupportChatBotOrchestratorTest {
 
         assertThat(replyCalls.get()).isEqualTo(2); /* USER1에 한 번, USER2에 한 번 */
         assertThat(peak.get()).isEqualTo(1);        /* 같은 방에 동시 호출은 없었다 */
-        verify(service, times(2)).recordBotReply(eq(ROOM_ID), any());
+        verify(service, times(2)).recordBotReply(eq(ROOM_ID), any(), anyList());
     }
 
     /*
@@ -214,7 +218,7 @@ class SupportChatBotOrchestratorTest {
 
         assertThat(replyCalls.get()).isEqualTo(2); /* USER1에 한 번, 놓칠 뻔한 USER2에 한 번 */
         assertThat(peak.get()).isEqualTo(1);         /* 같은 방에 동시 호출은 없었다 */
-        verify(service, times(2)).recordBotReply(eq(ROOM_ID), any());
+        verify(service, times(2)).recordBotReply(eq(ROOM_ID), any(), anyList());
     }
 
     /*
@@ -284,7 +288,7 @@ class SupportChatBotOrchestratorTest {
         orchestrator.onTrigger(new SupportChatBotTriggerEvent(ROOM_ID));
         orchestrator.onTrigger(new SupportChatBotTriggerEvent(ROOM_ID));
 
-        verify(service, times(2)).recordBotReply(eq(ROOM_ID), any());
+        verify(service, times(2)).recordBotReply(eq(ROOM_ID), any(), anyList());
     }
 
     /* 예외로 빠져나가도 방이 잠긴 채 남으면, 그 뒤로 그 방은 영영 답을 못 받는다. */
@@ -320,8 +324,8 @@ class SupportChatBotOrchestratorTest {
 
     /* 계속 실패하는데도 봇이 붙들고 있으면 손님은 같은 안내만 무한히 받는다. */
     @Test
-    @DisplayName("직전에도 재시도 안내였으면 연속 실패로 보고 상담원에게 넘긴다")
-    void handsOffWhenFailureRepeats() {
+    @DisplayName("직전에도 재시도 안내였으면 자동 연결하지 않고 상담원 연결 의사를 묻는다")
+    void asksBeforeHandoffWhenFailureRepeats() {
         when(service.recentMessages(ROOM_ID)).thenReturn(List.of(
                 message(1, "USER", "환불 문의드립니다"),
                 message(2, "BOT", RETRY_NOTICE),
@@ -331,21 +335,34 @@ class SupportChatBotOrchestratorTest {
 
         orchestrator.onTrigger(new SupportChatBotTriggerEvent(ROOM_ID));
 
-        verify(service).recordBotHandoff(eq(ROOM_ID), any());
-        verify(service, never()).recordBotReply(eq(ROOM_ID), eq(RETRY_NOTICE));
+        verify(service).recordBotReply(eq(ROOM_ID), eq(SupportChatService.HUMAN_CONFIRMATION_REPLY));
+        verify(service, never()).recordBotHandoff(eq(ROOM_ID), any());
     }
 
     /* API 키 미설정처럼 다시 불러도 같은 결과인 실패는 재시도할 이유가 없다. */
     @Test
-    @DisplayName("재시도해도 소용없는 실패는 곧장 상담원에게 넘긴다")
-    void handsOffImmediatelyWhenFailureIsNotRetryable() {
+    @DisplayName("재시도 불가능한 실패도 자동 연결하지 않고 상담원 연결 의사를 묻는다")
+    void asksBeforeHandoffWhenFailureIsNotRetryable() {
         when(service.recentMessages(ROOM_ID)).thenReturn(List.of(message(1, "USER", "환불 문의드립니다")));
         when(client.reply(any()))
                 .thenThrow(new SupportChatBotException("상담 봇 API 키가 설정돼 있지 않습니다.", false));
 
         orchestrator.onTrigger(new SupportChatBotTriggerEvent(ROOM_ID));
 
-        verify(service).recordBotHandoff(eq(ROOM_ID), any());
-        verify(service, never()).recordBotReply(eq(ROOM_ID), eq(RETRY_NOTICE));
+        verify(service).recordBotReply(eq(ROOM_ID), eq(SupportChatService.HUMAN_CONFIRMATION_REPLY));
+        verify(service, never()).recordBotHandoff(eq(ROOM_ID), any());
+    }
+
+    @Test
+    @DisplayName("Gemini가 이관을 제안해도 방을 넘기지 않고 사용자에게 확인한다")
+    void asksBeforeModelSuggestedHandoff() {
+        when(service.recentMessages(ROOM_ID)).thenReturn(List.of(message(1, "USER", "계속 해결이 안 돼요")));
+        when(client.reply(any())).thenReturn(new SupportChatBotReply("상담원에게 연결할게요.", true));
+
+        orchestrator.onTrigger(new SupportChatBotTriggerEvent(ROOM_ID));
+
+        verify(service).recordBotReply(
+                eq(ROOM_ID), eq(SupportChatService.HUMAN_CONFIRMATION_REPLY), anyList());
+        verify(service, never()).recordBotHandoff(eq(ROOM_ID), any(), anyList());
     }
 }

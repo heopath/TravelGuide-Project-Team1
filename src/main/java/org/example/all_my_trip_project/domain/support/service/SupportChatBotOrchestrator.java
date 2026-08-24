@@ -78,13 +78,11 @@ import java.util.concurrent.atomic.AtomicBoolean;
 @Slf4j
 public class SupportChatBotOrchestrator {
 
-    private static final String GEMINI_FAILURE_MESSAGE =
-            "죄송해요, 지금 답변을 준비하는 데 문제가 생겼어요. 상담원에게 연결해 드릴게요.";
 
     /**
      * 일시적 실패에 남기는 안내. 방은 {@code BOT}에 그대로 두고 손님이 다시 물어볼 수 있게 한다.
      *
-     * <p>이 문구가 직전 봇 발화와 같으면 "연속 실패"로 보고 그때는 상담원에게 넘긴다
+     * <p>이 문구가 직전 봇 발화와 같으면 "연속 실패"로 보고 상담원 연결 의사를 확인한다
      * ({@link #lastBotMessageIsRetryNotice}). 별도 카운터를 두지 않고 대화 내역으로 판단하므로
      * 서버가 재시작해도 판단이 유지된다.
      */
@@ -96,6 +94,7 @@ public class SupportChatBotOrchestrator {
 
     private final SupportChatService supportChatService;
     private final SupportChatBotClient supportChatBotClient;
+    private final SupportChatActionPersonalizer actionPersonalizer;
 
     /**
      * 지금 답을 만들고 있는 방들. 방 번호가 있으면 진행 중이라는 뜻이다.
@@ -193,19 +192,22 @@ public class SupportChatBotOrchestrator {
         Instant geminiStartedAt = Instant.now();
         try {
             SupportChatBotReply reply = supportChatBotClient.reply(conversation);
+            List<String> personalizedActions = actionPersonalizer.personalize(
+                    roomId, conversation, reply.actionKeys());
             log.info("상담 봇 Gemini 호출 소요 시간: roomId={}, ms={}",
                     roomId, Duration.between(geminiStartedAt, Instant.now()).toMillis());
             if (reply.handoff()) {
-                supportChatService.recordBotHandoff(roomId, reply.content());
+                supportChatService.recordBotReply(
+                        roomId, SupportChatService.HUMAN_CONFIRMATION_REPLY, personalizedActions);
             } else {
-                supportChatService.recordBotReply(roomId, reply.content());
+                supportChatService.recordBotReply(roomId, reply.content(), personalizedActions);
             }
         } catch (SupportChatBotException exception) {
             long failedAfterMs = Duration.between(geminiStartedAt, Instant.now()).toMillis();
             /*
-             * 일시적 실패를 상담원 대기로 넘기지 않는다. 한번 WAITING이 되면 그 방은 다시
-             * BOT으로 돌아올 길이 없어서(상태 전환에 → BOT 경로가 없다), Gemini가 한 번만
-             * 삐끗해도 그 손님은 봇을 영영 못 쓰게 된다. 방을 BOT에 두고 다시 물어볼 수 있게 한다.
+             * 일시적 실패를 상담원 대기로 넘기지 않는다. 복구 가능한 오류마다 WAITING으로
+             * 넘기면 손님이 직접 봇 복귀나 새 상담을 선택해야 하므로, 방을 BOT에 둔 채 바로
+             * 다시 물어볼 수 있게 한다.
              *
              * 다만 연달아 실패하면(직전 봇 발화가 이미 같은 안내였다면) 사람이 받아야 한다 —
              * 그러지 않으면 Gemini가 계속 죽어 있을 때 손님이 같은 안내만 무한히 받는다.
@@ -215,9 +217,9 @@ public class SupportChatBotOrchestrator {
                         roomId, failedAfterMs, exception);
                 supportChatService.recordBotReply(roomId, GEMINI_RETRY_MESSAGE);
             } else {
-                log.warn("상담 봇 응답 생성에 실패해 상담원 대기로 넘깁니다. roomId={}, 실패까지 ms={}, 재시도가능={}",
+                log.warn("상담 봇 응답 생성에 반복 실패해 상담원 연결 의사를 확인합니다. roomId={}, 실패까지 ms={}, 재시도가능={}",
                         roomId, failedAfterMs, exception.isRetryable(), exception);
-                supportChatService.recordBotHandoff(roomId, GEMINI_FAILURE_MESSAGE);
+                supportChatService.recordBotReply(roomId, SupportChatService.HUMAN_CONFIRMATION_REPLY);
             }
         }
         return latestUserMessageId;

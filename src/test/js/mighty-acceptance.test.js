@@ -68,6 +68,22 @@ async function boot(responder) {
 const el = (d, s) => d.querySelector(s);
 
 async function run() {
+  /* ── 답변에서 다음 화면으로 이어 주기 ── */
+  {
+    const { d } = await boot(() => ok({
+      room: room("BOT"),
+      messages: [{ senderType: "BOT", content: "원하는 방법을 선택해 주세요.",
+        actionKey: "NEW_TRIP", actionKey2: "MY_TRIPS", actionKey3: "TRIP_SCHEDULE" }],
+    }));
+    el(d, "[data-mighty-open]").click();
+    await until(() => el(d, ".mighty-link") !== null);
+    test("마이티 답변에 여행 만들기 버튼을 붙인다", el(d, ".mighty-link").textContent === "여행 만들기 →");
+    test("마이티 버튼은 허용된 내부 경로를 쓴다", el(d, ".mighty-link").dataset.route === "/trips/new/plan");
+    test("마이티도 복수 선택지를 표시한다",
+      [...d.querySelectorAll(".mighty-link")].map((item) => item.textContent).join("|")
+      === "여행 만들기 →|내 여행 보기 →|여행 일정 열기 →");
+  }
+
   /* ── 화면에 실렸는가 ── */
   {
     /* 손님이 쉬며 둘러보는 화면에는 다 있어야 한다. 한 곳만 빠지면 거기서만 없다. */

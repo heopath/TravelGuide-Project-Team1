@@ -61,11 +61,19 @@ public class SupportChatService {
      */
     private static final String ADMIN_ROOMS_TOPIC = "/topic/support-chat/admin/rooms";
 
-    /** 봇 호출 없이 곧장 사람을 붙여도 되는, 손님이 명시적으로 상담원을 찾는 표현들. */
-    private static final List<String> HUMAN_HANDOFF_KEYWORDS =
-            List.of("상담원", "상담사", "사람이랑", "사람과 얘기", "사람 연결", "직원 연결", "실제 사람");
+    /** 사용자가 실제 연결 동작을 요청한 경우만 즉시 넘긴다. 단순 언급·문의는 여기에 포함하지 않는다. */
+    private static final List<String> HUMAN_HANDOFF_REQUESTS = List.of(
+            "상담원 연결", "상담사 연결", "직원 연결", "사람 연결",
+            "상담원과 연결", "상담사와 연결", "직원과 연결",
+            "상담원이랑 얘기", "상담사랑 얘기", "직원이랑 얘기", "사람이랑 얘기",
+            "상담원과 얘기", "상담사와 얘기", "직원과 얘기", "사람과 얘기",
+            "상담원 바꿔", "상담사 바꿔", "직원 바꿔", "사람 바꿔");
+
+    private static final List<String> HANDOFF_CONFIRMATIONS =
+            List.of("네", "예", "응", "좋아", "연결해줘", "연결해주세요", "연결해 주세요", "부탁해");
 
     private static final String HUMAN_REQUEST_REPLY = "상담원에게 연결해 드릴게요. 잠시만 기다려 주세요.";
+    static final String HUMAN_CONFIRMATION_REPLY = "상담원을 연결해 드릴까요? 원하시면 ‘네’라고 답해 주세요.";
 
     /**
      * 봇 트리거·재실행 표시는 전부 애플리케이션 메모리에만 있다. 방 생성·손님 메시지 저장이
@@ -135,7 +143,7 @@ public class SupportChatService {
         append(room.getSupportChatRoomId(), "USER", userId, content);
 
         if ("BOT".equals(room.getStatus())) {
-            if (requestsHuman(content)) {
+            if (requestsHuman(content) || confirmsPendingHandoff(room.getSupportChatRoomId(), content)) {
                 recordBotHandoff(room.getSupportChatRoomId(), HUMAN_REQUEST_REPLY);
             } else {
                 eventPublisher.publishEvent(new SupportChatBotTriggerEvent(room.getSupportChatRoomId()));
@@ -197,8 +205,26 @@ public class SupportChatService {
     }
 
     private boolean requestsHuman(String content) {
-        String normalized = content == null ? "" : content;
-        return HUMAN_HANDOFF_KEYWORDS.stream().anyMatch(normalized::contains);
+        String normalized = normalize(content);
+        return HUMAN_HANDOFF_REQUESTS.stream().map(SupportChatService::normalize).anyMatch(normalized::contains);
+    }
+
+    private boolean confirmsPendingHandoff(Long roomId, String content) {
+        String normalized = normalize(content);
+        if (HANDOFF_CONFIRMATIONS.stream().noneMatch(normalized::equals)) return false;
+
+        List<SupportChatMessageDTO> messages = supportChatDAO.findMessages(roomId, MAX_MESSAGES);
+        for (int i = messages.size() - 1; i >= 0; i--) {
+            SupportChatMessageDTO message = messages.get(i);
+            if ("USER".equals(message.getSenderType())) continue;
+            return "BOT".equals(message.getSenderType())
+                    && HUMAN_CONFIRMATION_REPLY.equals(message.getContent());
+        }
+        return false;
+    }
+
+    private static String normalize(String content) {
+        return content == null ? "" : content.replaceAll("\\s+", "").strip();
     }
 
     /* ── 봇(비동기 오케스트레이터 전용) ── */
@@ -223,17 +249,37 @@ public class SupportChatService {
      */
     @Transactional
     public void recordBotReply(Long roomId, String content) {
-        SupportChatRoomDTO locked = supportChatDAO.lockRoom(roomId).orElse(null);
-        if (locked == null || !"BOT".equals(locked.getStatus())) return;
-        append(roomId, "BOT", null, content);
+        recordBotReply(roomId, content, List.of());
     }
 
-    /** 봇이 스스로 상담원에게 넘긴다(사용자 요청 / Gemini 실패 / 정책 범위 밖 / 반복 미해결). */
     @Transactional
-    public void recordBotHandoff(Long roomId, String content) {
+    public void recordBotReply(Long roomId, String content, String actionKey) {
+        recordBotReply(roomId, content, actionKey == null ? List.of() : List.of(actionKey));
+    }
+
+    @Transactional
+    public void recordBotReply(Long roomId, String content, List<String> actionKeys) {
         SupportChatRoomDTO locked = supportChatDAO.lockRoom(roomId).orElse(null);
         if (locked == null || !"BOT".equals(locked.getStatus())) return;
-        append(roomId, "BOT", null, content);
+        append(roomId, "BOT", null, content, actionKeys);
+    }
+
+    /** 명시적 사용자 요청 또는 연결 확인 동의가 있을 때만 상담원 대기로 넘긴다. */
+    @Transactional
+    public void recordBotHandoff(Long roomId, String content) {
+        recordBotHandoff(roomId, content, List.of());
+    }
+
+    @Transactional
+    public void recordBotHandoff(Long roomId, String content, String actionKey) {
+        recordBotHandoff(roomId, content, actionKey == null ? List.of() : List.of(actionKey));
+    }
+
+    @Transactional
+    public void recordBotHandoff(Long roomId, String content, List<String> actionKeys) {
+        SupportChatRoomDTO locked = supportChatDAO.lockRoom(roomId).orElse(null);
+        if (locked == null || !"BOT".equals(locked.getStatus())) return;
+        append(roomId, "BOT", null, content, actionKeys);
         if (supportChatDAO.markWaiting(roomId) == 1) {
             broadcastRoomStatus(roomId);
         }
@@ -333,13 +379,26 @@ public class SupportChatService {
     /* ── 공통 ── */
 
     private void append(Long roomId, String senderType, Long senderUserId, String content) {
+        append(roomId, senderType, senderUserId, content, List.of());
+    }
+
+    private void append(Long roomId, String senderType, Long senderUserId, String content, String actionKey) {
+        append(roomId, senderType, senderUserId, content,
+                actionKey == null ? List.of() : List.of(actionKey));
+    }
+
+    private void append(Long roomId, String senderType, Long senderUserId, String content, List<String> actionKeys) {
         String normalized = text(content);
         if (normalized == null) throw new BusinessException(ErrorCode.INVALID_SUPPORT_CHAT_REQUEST);
+        List<String> actions = actionKeys == null ? List.of() : actionKeys.stream().distinct().limit(3).toList();
         SupportChatMessageDTO toInsert = SupportChatMessageDTO.builder()
                 .supportChatRoomId(roomId)
                 .senderType(senderType)
                 .senderUserId(senderUserId)
                 .content(normalized)
+                .actionKey(actions.size() > 0 ? actions.get(0) : null)
+                .actionKey2(actions.size() > 1 ? actions.get(1) : null)
+                .actionKey3(actions.size() > 2 ? actions.get(2) : null)
                 .build();
         supportChatDAO.insertMessage(toInsert);
         /* 목록을 최근 대화순으로 세우려면 방에도 표시해야 한다. */

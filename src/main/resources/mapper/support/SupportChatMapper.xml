@@ -125,16 +125,19 @@
     <insert id="insertMessage" useGeneratedKeys="true"
             keyProperty="supportChatMessageId" keyColumn="support_chat_message_id">
         INSERT INTO support_chat_messages (
-            support_chat_room_id, sender_type, sender_user_id, content
+            support_chat_room_id, sender_type, sender_user_id, content,
+            action_key, action_key_2, action_key_3
         ) VALUES (
-            #{supportChatRoomId}, #{senderType}, #{senderUserId}, #{content}
+            #{supportChatRoomId}, #{senderType}, #{senderUserId}, #{content},
+            #{actionKey}, #{actionKey2}, #{actionKey3}
         )
     </insert>
 
     <select id="findMessage"
             resultType="org.example.all_my_trip_project.domain.support.dto.SupportChatMessageDTO">
         SELECT m.support_chat_message_id, m.support_chat_room_id, m.sender_type,
-               m.sender_user_id, s.nickname AS sender_nickname, m.content, m.created_at
+               m.sender_user_id, s.nickname AS sender_nickname, m.content,
+               m.action_key, m.action_key_2, m.action_key_3, m.created_at
         FROM support_chat_messages m
         LEFT JOIN users s ON s.user_id = m.sender_user_id
         WHERE m.support_chat_message_id = #{messageId}
@@ -154,7 +157,8 @@
     <select id="findMessages"
             resultType="org.example.all_my_trip_project.domain.support.dto.SupportChatMessageDTO">
         SELECT m.support_chat_message_id, m.support_chat_room_id, m.sender_type,
-               m.sender_user_id, s.nickname AS sender_nickname, m.content, m.created_at
+               m.sender_user_id, s.nickname AS sender_nickname, m.content,
+               m.action_key, m.action_key_2, m.action_key_3, m.created_at
         FROM (
             SELECT *
             FROM support_chat_messages

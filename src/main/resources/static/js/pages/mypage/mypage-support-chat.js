@@ -40,6 +40,15 @@ function socketAvailable() {
 
 
 export function initSupportChat() {
+  const actionLinks = Object.freeze({
+    NEW_TRIP: ["여행 만들기", "/trips/new/plan"], MY_TRIPS: ["내 여행 보기", "/mypage?view=trips"],
+    TRIP_SCHEDULE: ["여행 일정 열기", "/trips/schedule"], RECOMMENDED_PLACES: ["추천 장소 보기", "/guide"],
+    BOOK_FLIGHT: ["항공편 찾기", "/booking/flights?tab=flight"], BOOK_HOTEL: ["숙소 찾기", "/booking/flights?tab=hotel"],
+    BOOK_TICKET: ["티켓·액티비티 보기", "/booking/flights?tab=ticket"], MY_BOOKINGS: ["예약 내역 보기", "/booking/flights?tab=mine"],
+    MY_TICKETS: ["예매한 티켓 보기", "/mypage?view=tickets"], FAVORITES: ["찜한 여행지 보기", "/mypage?view=favorites"],
+    REVIEWS: ["리뷰·후기 보기", "/mypage?view=reviews"], NOTIFICATIONS: ["알림 보기", "/mypage?view=notifications"],
+    ACCOUNT_SETTINGS: ["계정 설정 열기", "/mypage?view=settings"], SUPPORT: ["고객센터 보기", "/mypage?view=support"],
+  });
   const panel = document.querySelector('[data-support-panel="chat"]');
   if (!panel) return;
 
@@ -122,6 +131,22 @@ export function initSupportChat() {
     when.textContent = time(message.createdAt);
 
     item.append(who, body, when);
+    const actionKeys = [message.actionKey, message.actionKey2, message.actionKey3]
+      .filter((key, index, keys) => actionLinks[key] && keys.indexOf(key) === index);
+    if (message.senderType === "BOT" && actionKeys.length) {
+      const group = document.createElement("div");
+      group.className = "support-chat-links";
+      actionKeys.forEach(function (key) {
+        const action = actionLinks[key];
+        const link = document.createElement("button");
+        link.type = "button";
+        link.className = "support-chat-link";
+        link.dataset.route = action[1];
+        link.textContent = action[0] + " →";
+        group.appendChild(link);
+      });
+      item.appendChild(group);
+    }
     return item;
   }
 

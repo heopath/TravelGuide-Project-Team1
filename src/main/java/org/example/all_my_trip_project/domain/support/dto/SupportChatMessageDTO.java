@@ -21,5 +21,9 @@ public class SupportChatMessageDTO {
     private Long senderUserId;
     private String senderNickname;
     private String content;
+    /** 봇 답변 뒤에 표시할 내부 화면 이동 액션. URL은 프론트의 허용 목록에서 결정한다. */
+    private String actionKey;
+    private String actionKey2;
+    private String actionKey3;
     private OffsetDateTime createdAt;
 }

@@ -153,6 +153,29 @@ const returnBtn = (d) => panel(d).querySelector("[data-support-chat-return]");
 const restartBtn = (d) => panel(d).querySelector("[data-support-chat-restart]");
 
 async function run() {
+  /* ── 봇 답변에서 실제 화면으로 이어 주는 액션 ── */
+  {
+    const actionMessage = Object.assign(message(1, "BOT", "원하는 방법을 선택해 주세요."),
+      { actionKey: "NEW_TRIP", actionKey2: "MY_TRIPS", actionKey3: "TRIP_SCHEDULE" });
+    const { d, chat } = await boot(() => ok({ room: room(), messages: [actionMessage] }),
+      { withSocket: false });
+    await chat.load();
+    const link = messagesEl(d).querySelector(".support-chat-link");
+    T("여행 만들기 안내에 이동 버튼을 붙인다", link?.textContent === "여행 만들기 →");
+    T("이동 주소는 허용된 내부 경로다", link?.dataset.route === "/trips/new/plan");
+    T("한 답변에 복수 선택지를 순서대로 표시한다",
+      [...messagesEl(d).querySelectorAll(".support-chat-link")].map((item) => item.textContent).join("|")
+      === "여행 만들기 →|내 여행 보기 →|여행 일정 열기 →");
+  }
+  {
+    const unknown = Object.assign(message(1, "BOT", "임의 안내"), { actionKey: "EXTERNAL_SITE" });
+    const { d, chat } = await boot(() => ok({ room: room(), messages: [unknown] }),
+      { withSocket: false });
+    await chat.load();
+    T("알 수 없는 액션은 버튼으로 만들지 않는다",
+      messagesEl(d).querySelector(".support-chat-link") === null);
+  }
+
   /* ── 구독을 먼저 걸고, 그다음 REST로 동기화한다 ── */
   {
     const { d, log, chat } = await boot(() => ok({ room: room(), messages: [message(1, "BOT", "무엇을 도와드릴까요?")] }));

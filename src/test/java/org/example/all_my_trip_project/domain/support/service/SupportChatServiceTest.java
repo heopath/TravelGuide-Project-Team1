@@ -73,6 +73,12 @@ class SupportChatServiceTest {
                 .senderType(senderType).content("내용").build();
     }
 
+    private SupportChatMessageDTO message(long id, String senderType, String content) {
+        return SupportChatMessageDTO.builder()
+                .supportChatMessageId(id).supportChatRoomId(ROOM_ID)
+                .senderType(senderType).content(content).build();
+    }
+
     /* ── 손님 ── */
 
     @Test
@@ -281,6 +287,48 @@ class SupportChatServiceTest {
         ArgumentCaptor<SupportChatMessageDTO> saved = ArgumentCaptor.forClass(SupportChatMessageDTO.class);
         verify(dao, times(2)).insertMessage(saved.capture());
         assertThat(saved.getAllValues().get(1).getSenderType()).isEqualTo("BOT");
+    }
+
+    @Test
+    @DisplayName("상담원을 단순히 언급하면 자동 연결하지 않고 봇에게 판단을 맡긴다")
+    void doesNotHandOffOnAmbiguousHumanMention() {
+        when(dao.findOpenRoomByUser(USER_ID)).thenReturn(Optional.of(room("BOT", null)));
+        when(dao.findRoom(ROOM_ID)).thenReturn(Optional.of(room("BOT", null)));
+
+        service.sendAsUser(USER_ID, "상담원 있나요?");
+
+        verify(eventPublisher).publishEvent(any(SupportChatBotTriggerEvent.class));
+        verify(dao, never()).markWaiting(any());
+    }
+
+    @Test
+    @DisplayName("상담원 연결 확인 질문 직후 동의하면 대기로 넘긴다")
+    void handsOffAfterConfirmation() {
+        when(dao.findOpenRoomByUser(USER_ID)).thenReturn(Optional.of(room("BOT", null)));
+        when(dao.findRoom(ROOM_ID)).thenReturn(Optional.of(room("BOT", null)));
+        when(dao.findMessages(eq(ROOM_ID), anyInt())).thenReturn(List.of(
+                message(1, "BOT", SupportChatService.HUMAN_CONFIRMATION_REPLY),
+                message(2, "USER", "네")));
+        when(dao.lockRoom(ROOM_ID)).thenReturn(Optional.of(room("BOT", null)));
+        when(dao.markWaiting(ROOM_ID)).thenReturn(1);
+
+        service.sendAsUser(USER_ID, "네");
+
+        verify(eventPublisher, never()).publishEvent(any());
+        verify(dao).markWaiting(ROOM_ID);
+    }
+
+    @Test
+    @DisplayName("확인 질문이 없었던 일반 동의는 상담원 연결로 해석하지 않는다")
+    void doesNotHandOffOnStandaloneAgreement() {
+        when(dao.findOpenRoomByUser(USER_ID)).thenReturn(Optional.of(room("BOT", null)));
+        when(dao.findRoom(ROOM_ID)).thenReturn(Optional.of(room("BOT", null)));
+        when(dao.findMessages(eq(ROOM_ID), anyInt())).thenReturn(List.of(message(1, "USER", "네")));
+
+        service.sendAsUser(USER_ID, "네");
+
+        verify(eventPublisher).publishEvent(any(SupportChatBotTriggerEvent.class));
+        verify(dao, never()).markWaiting(any());
     }
 
     @Test
