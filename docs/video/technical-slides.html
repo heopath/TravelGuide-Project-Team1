@@ -1,0 +1,268 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>All My Trips — 기술 설명 자료화면</title>
+<!--
+  시연 영상 6장(기술 이야기)에서 띄울 자료화면.
+
+  브라우저를 전체 화면(F11)으로 놓고 녹화한다. 좌우 방향키나 화면 아래 버튼으로
+  넘긴다. 1920x1080에 맞춰져 있고 그보다 작으면 자동으로 줄어든다.
+
+  내용을 고칠 때는 각 <section class="slide"> 안만 손대면 된다.
+  숫자가 바뀌면(마이그레이션·테스트 개수) 마지막 장을 함께 고친다.
+-->
+<style>
+  :root {
+    --ink: #16202f;
+    --muted: #64748b;
+    --line: #dbe2ec;
+    --paper: #f7f9fc;
+    --accent: #3d5afe;
+    --warn: #b45309;
+    --ok: #0f766e;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    display: flex; flex-direction: column;
+    background: var(--paper); color: var(--ink);
+    font-family: Pretendard, -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  main { flex: 1; position: relative; overflow: hidden; }
+
+  .slide {
+    position: absolute; inset: 0;
+    display: none; flex-direction: column; justify-content: center;
+    padding: 6vh 8vw;
+    animation: in .35s ease;
+  }
+  .slide.on { display: flex; }
+  @keyframes in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+
+  .eyebrow { color: var(--accent); font-size: clamp(14px, 1.4vw, 20px); font-weight: 700; letter-spacing: .04em; }
+  h1 { margin: .3em 0 .1em; font-size: clamp(30px, 4.4vw, 68px); font-weight: 800; line-height: 1.15; }
+  .lead { margin: 0; color: var(--muted); font-size: clamp(16px, 1.7vw, 26px); line-height: 1.6; max-width: 46ch; }
+
+  .flow { display: flex; align-items: stretch; gap: clamp(8px, 1vw, 18px); margin-top: 4vh; flex-wrap: wrap; }
+  .step {
+    flex: 1 1 0; min-width: 150px;
+    padding: clamp(12px, 1.4vw, 22px);
+    border: 1px solid var(--line); border-radius: 14px; background: #fff;
+  }
+  .step b { display: block; font-size: clamp(14px, 1.3vw, 20px); }
+  .step span { display: block; margin-top: .4em; color: var(--muted); font-size: clamp(12px, 1.05vw, 16px); line-height: 1.5; }
+  .step.hi { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(61,90,254,.1); }
+  .arrow { align-self: center; color: var(--line); font-size: clamp(18px, 2vw, 30px); }
+
+  .cols { display: grid; grid-template-columns: 1fr 1fr; gap: clamp(16px, 2vw, 36px); margin-top: 4vh; }
+  .card { padding: clamp(14px, 1.6vw, 26px); border: 1px solid var(--line); border-radius: 14px; background: #fff; }
+  .card h3 { margin: 0 0 .5em; font-size: clamp(15px, 1.4vw, 21px); }
+  .card p { margin: 0; color: var(--muted); font-size: clamp(13px, 1.1vw, 17px); line-height: 1.65; }
+  .card.bad { border-color: #f0c9c9; background: #fdf6f6; }
+  .card.good { border-color: #bfe3d9; background: #f4fbf9; }
+  .tag { display: inline-block; margin-bottom: .6em; padding: 3px 10px; border-radius: 999px; font-size: clamp(11px, .95vw, 14px); font-weight: 700; }
+  .tag.bad { background: #fbe3e3; color: #9b2c2c; }
+  .tag.good { background: #d8f0e9; color: var(--ok); }
+
+  pre {
+    margin: 3vh 0 0; padding: clamp(14px, 1.5vw, 24px);
+    border-radius: 14px; background: #10192a; color: #e2e8f0;
+    font-family: "JetBrains Mono", Consolas, monospace;
+    font-size: clamp(12px, 1.05vw, 17px); line-height: 1.7;
+    overflow: auto;
+  }
+  pre .k { color: #93c5fd; } pre .c { color: #7c8aa0; } pre .s { color: #86efac; }
+
+  .facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: clamp(12px, 1.4vw, 24px); margin-top: 4vh; }
+  .fact { padding: clamp(14px, 1.6vw, 26px); border-radius: 14px; background: #fff; border: 1px solid var(--line); }
+  .fact b { display: block; font-size: clamp(26px, 3.2vw, 46px); font-weight: 800; }
+  .fact span { display: block; margin-top: .3em; color: var(--muted); font-size: clamp(12px, 1.05vw, 16px); }
+
+  .note { margin-top: 3vh; padding-left: 14px; border-left: 3px solid var(--accent); color: var(--muted); font-size: clamp(13px, 1.15vw, 18px); line-height: 1.65; }
+  .note b { color: var(--ink); }
+
+  nav {
+    display: flex; align-items: center; gap: 14px;
+    padding: 10px 20px; border-top: 1px solid var(--line); background: #fff;
+  }
+  nav button {
+    padding: 7px 14px; border: 1px solid var(--line); border-radius: 8px;
+    background: #fff; color: var(--ink); font-size: 14px; cursor: pointer;
+  }
+  nav button:hover { border-color: var(--accent); color: var(--accent); }
+  nav .pos { margin-left: auto; color: var(--muted); font-size: 13px; }
+  nav .title { color: var(--muted); font-size: 13px; }
+  @media print { nav { display: none; } .slide { display: flex !important; position: static; page-break-after: always; } }
+</style>
+</head>
+<body>
+
+<main>
+
+  <section class="slide on" data-title="여는 장">
+    <p class="eyebrow">ALL MY TRIPS</p>
+    <h1>계획부터 현장 입장까지<br />끊기지 않게</h1>
+    <p class="lead">화면에 보이는 흐름 뒤에서 무엇을 어떻게 처리했는지 이야기합니다.</p>
+  </section>
+
+  <section class="slide" data-title="대기열 — 문제">
+    <p class="eyebrow">01 · 예약 대기열</p>
+    <h1>같은 자리를 동시에 누르면</h1>
+    <div class="cols">
+      <div class="card bad">
+        <span class="tag bad">나눠서 하면</span>
+        <h3>재고를 확인하고, 그다음 뺀다</h3>
+        <p>두 동작 사이에 다른 요청이 끼어듭니다. 둘 다 "남았다"를 보고 둘 다 빼면 재고가 음수가 됩니다.</p>
+      </div>
+      <div class="card good">
+        <span class="tag good">한 번에 하면</span>
+        <h3>확인과 차감을 한 덩어리로</h3>
+        <p>Redis가 스크립트를 통째로 하나의 작업처럼 실행합니다. 사이에 끼어들 틈이 없습니다.</p>
+      </div>
+    </div>
+    <p class="note">재고는 <b>돈과 직결</b>됩니다. 한 자리를 두 사람에게 팔면 환불과 사과로 끝나지 않습니다.</p>
+  </section>
+
+  <section class="slide" data-title="대기열 — 방법">
+    <p class="eyebrow">01 · 예약 대기열</p>
+    <h1>줄을 세우고 초당 인원만 들여보낸다</h1>
+    <div class="flow">
+      <div class="step"><b>대기</b><span>줄에 넣고 순번을 돌려줍니다</span></div>
+      <div class="arrow">→</div>
+      <div class="step hi"><b>입장 허용</b><span>초당 정해진 수만 통과시킵니다</span></div>
+      <div class="arrow">→</div>
+      <div class="step"><b>처리 중</b><span>결제할 동안 자리를 잡아둡니다</span></div>
+      <div class="arrow">→</div>
+      <div class="step"><b>완료</b><span>끝나면 줄에서 빼냅니다</span></div>
+    </div>
+<pre><span class="c">-- 한 번에 실행되는 스크립트 (일부)</span>
+<span class="k">local</span> admitted = redis.call(<span class="s">'INCR'</span>, 초당카운터)
+<span class="k">if</span> admitted &lt;= 초당허용수 <span class="k">then</span> state = <span class="s">'READY'</span> <span class="k">end</span>
+redis.call(<span class="s">'ZREMRANGEBYSCORE'</span>, 대기열, <span class="s">'-inf'</span>, 만료시각)</pre>
+    <p class="note">각 단계에 <b>제한 시간</b>을 둡니다. 결제하다 창을 닫아도 자리가 영원히 잠기지 않습니다.</p>
+  </section>
+
+  <section class="slide" data-title="대기열 — 확인">
+    <p class="eyebrow">01 · 예약 대기열</p>
+    <h1>말로만 하지 않고 재봤습니다</h1>
+    <p class="lead">k6 부하 테스트 스크립트를 저장소에 함께 둡니다. 가상 사용자 수를 바꿔가며 재고가 정확히 지켜지는지 확인합니다.</p>
+<pre>k6 run -e VUS=50 load-test/booking-queue.js</pre>
+    <p class="note">동시성은 <b>한 번 눌러서는 재현되지 않습니다.</b> 여러 명이 같은 순간에 눌러야 드러납니다.</p>
+  </section>
+
+  <section class="slide" data-title="입장 코드">
+    <p class="eyebrow">02 · 입장 코드</p>
+    <h1>캡처해서 넘겨도 소용없게</h1>
+    <div class="cols">
+      <div class="card">
+        <h3>서명한다</h3>
+        <p>예약 번호·사용자·만료 시각을 묶어 HMAC-SHA256으로 서명합니다. 값을 고치면 서명이 깨져 바로 걸립니다.</p>
+      </div>
+      <div class="card">
+        <h3>짧게 만료시킨다</h3>
+        <p>발급 후 5분이면 만료됩니다. 검표 직전에 새로 받으면 되고, 캡처 이미지는 금방 쓸모없어집니다.</p>
+      </div>
+    </div>
+    <p class="note">서버가 <b>코드만 보고</b> 진짜인지 판단합니다. 검표할 때 DB를 뒤지지 않아도 됩니다.</p>
+  </section>
+
+  <section class="slide" data-title="상담 — 봇에서 사람으로">
+    <p class="eyebrow">03 · 실시간 상담</p>
+    <h1>봇이 먼저 받고, 못 하면 사람에게</h1>
+    <div class="flow">
+      <div class="step"><b>봇 응대 중</b><span>방이 이 상태로 시작합니다</span></div>
+      <div class="arrow">→</div>
+      <div class="step hi"><b>대기</b><span>봇이 넘기거나, 답을 못 하거나, 늦으면</span></div>
+      <div class="arrow">→</div>
+      <div class="step"><b>상담원 응대</b><span>관리자가 가져가 이어받습니다</span></div>
+    </div>
+    <p class="note">주고받기는 <b>WebSocket(STOMP)</b>으로 합니다. 새로고침하지 않아도 상대의 말이 바로 뜹니다.</p>
+    <p class="note">봇이 스스로 "이건 사람이 봐야 한다"고 판단하면 표시를 붙여 넘깁니다. 응답이 늦어도 손님을 기다리게 두지 않고 대기로 넘어갑니다.</p>
+  </section>
+
+  <section class="slide" data-title="책 지면 — 조판">
+    <p class="eyebrow">04 · 여행 기록</p>
+    <h1>사진이 몇 장 올지 모른 채 지면을 짠다</h1>
+    <p class="lead">자리를 좌표로 박아두면 3장일 때와 7장일 때 같은 지면이 나옵니다. 장수와 사진 비율을 보고 배치를 고르게 만들었습니다.</p>
+    <div class="flow">
+      <div class="step"><b>1장</b><span>가로 사진이면 가로 자리, 세로면 세로 자리</span></div>
+      <div class="step"><b>3장</b><span>큰 것 하나 + 작은 것 둘</span></div>
+      <div class="step"><b>6장</b><span>큰 것 하나 + 다섯</span></div>
+      <div class="step"><b>7장~</b><span>3×3, 넘치면 "외 N장"</span></div>
+    </div>
+    <p class="note">첫 글자를 크게 놓고 <b>본문이 그 옆을 감싸 흐르게</b> 했습니다. 줄마다 시작점을 다르게 주는 방식입니다.</p>
+  </section>
+
+  <section class="slide" data-title="책 지면 — 부딪힌 문제">
+    <p class="eyebrow">04 · 여행 기록</p>
+    <h1>사진 한 장 때문에 저장이 통째로 막혔다</h1>
+    <div class="cols">
+      <div class="card bad">
+        <span class="tag bad">그냥 그리면</span>
+        <h3>브라우저가 내보내기를 막는다</h3>
+        <p>다른 도메인 사진을 캔버스에 그리면 "오염"으로 표시하고, 이미지로 뽑는 것 자체를 거부합니다. 사진 한 장 때문에 지면 전체를 저장할 수 없습니다.</p>
+      </div>
+      <div class="card good">
+        <span class="tag good">허락받은 것만 그리면</span>
+        <h3>못 받은 자리만 비운다</h3>
+        <p>허락을 받아 불러오고, 실패한 사진은 그 자리만 빈칸으로 둡니다. 나머지는 정상적으로 저장됩니다. 왜 비었는지도 화면에 알려줍니다.</p>
+      </div>
+    </div>
+    <p class="note">직접 만들다 <b>부딪혀야 알 수 있는 제약</b>이었습니다.</p>
+  </section>
+
+  <section class="slide" data-title="보이지 않는 것들">
+    <p class="eyebrow">05 · 눈에 안 보이는 것</p>
+    <h1>계속 돌아가게 만드는 것들</h1>
+    <div class="facts">
+      <div class="fact"><b>27</b><span>Flyway 마이그레이션<br />DB 변경을 코드로 관리</span></div>
+      <div class="fact"><b>107</b><span>서버 테스트</span></div>
+      <div class="fact"><b>37</b><span>화면 수용 테스트 파일</span></div>
+      <div class="fact"><b>0</b><span>배포 시 로그아웃<br />세션을 Redis에 저장</span></div>
+    </div>
+    <p class="note">밀어 넣을 때마다 GitHub Actions가 <b>빌드·테스트·보안 검사(CodeQL)</b>를 돌립니다. EC2에 자동 배포되고 Cloudflare로 HTTPS를 붙였습니다.</p>
+  </section>
+
+  <section class="slide" data-title="맺음">
+    <p class="eyebrow">ALL MY TRIPS</p>
+    <h1>여기까지 봐주셔서<br />감사합니다</h1>
+    <p class="lead">계획부터 현장 입장까지 실제로 이어지는 흐름을 만드는 데 집중했습니다.</p>
+  </section>
+
+</main>
+
+<nav>
+  <button id="prev">← 이전</button>
+  <button id="next">다음 →</button>
+  <span class="title" id="title"></span>
+  <span class="pos" id="pos"></span>
+</nav>
+
+<script>
+  var slides = Array.prototype.slice.call(document.querySelectorAll('.slide'));
+  var at = 0;
+
+  function show(i) {
+    at = Math.max(0, Math.min(slides.length - 1, i));
+    slides.forEach(function (s, n) { s.classList.toggle('on', n === at); });
+    document.getElementById('pos').textContent = (at + 1) + ' / ' + slides.length;
+    document.getElementById('title').textContent = slides[at].dataset.title || '';
+  }
+
+  document.getElementById('prev').addEventListener('click', function () { show(at - 1); });
+  document.getElementById('next').addEventListener('click', function () { show(at + 1); });
+
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') { e.preventDefault(); show(at + 1); }
+    if (e.key === 'ArrowLeft' || e.key === 'PageUp') { e.preventDefault(); show(at - 1); }
+    if (e.key === 'Home') show(0);
+    if (e.key === 'End') show(slides.length - 1);
+  });
+
+  show(0);
+</script>
+</body>
+</html>

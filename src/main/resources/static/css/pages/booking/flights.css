@@ -441,7 +441,7 @@
 
 @media (max-width: 1080px) { .page-flights .cols { grid-template-columns: 1fr; } .page-flights .side { position: static; } }
 @media (max-width: 900px) {
-  .page-flights .form { grid-template-columns: 1fr 1fr; }
+  .page-flights .form { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
   .page-flights .hotel-form { grid-template-columns: repeat(2, 1fr); }
   .page-flights .hotel-field.wide, .page-flights .hotel-go { grid-column: span 2; }
 }
@@ -612,7 +612,7 @@
 @media (max-width: 900px) {
   .page-flights .page-heading { flex-direction: column; }
   .page-flights .cond { align-self: stretch; border-radius: 14px; }
-  .page-flights .form { grid-template-columns: 1fr 1fr; }
+  .page-flights .form { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
   .page-flights .swap { justify-self: center; grid-column: 1 / -1; }
 }
 
@@ -1162,3 +1162,45 @@
   line-height: 1.4;
 }
 .page-flights .mb .pz .mock-note[hidden] { display: none; }
+
+/*
+ * 좁은 화면에서 항공편 카드의 시간 줄을 접는다.
+ *
+ * 출발·소요·도착 세 덩어리가 한 줄에 묶여 있는데, 담는 칸은 190px까지 좁아진다.
+ * 줄바꿈을 막아두면 도착 시각이 칸 밖으로 밀려 나가 화면이 옆으로 21px 밀렸다.
+ * 접히게 두면 도착 시각이 아랫줄로 내려가고 잘리는 곳이 없다.
+ */
+@media (max-width: 760px) {
+  .page-flights .tm {
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+}
+
+/* =========================================================
+   누를 면적
+   =========================================================
+   보이는 모양은 그대로 두고 손가락이 닿는 면적만 넓힌다. 크기를 직접 키우면
+   촘촘한 검색 막대의 배치가 흐트러진다.
+
+   닫기(✕)는 16×15, 조건 변경은 54×20이었다. 손끝이 닿는 넓이는 대략 9mm이니
+   화면에서 44px 안팎은 되어야 한 번에 눌린다.
+   ========================================================= */
+
+.page-flights .extbar .x,
+.page-flights .cond-edit {
+  position: relative;
+}
+
+.page-flights .extbar .x::after,
+.page-flights .cond-edit::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  min-width: 44px;
+  min-height: 44px;
+  width: 100%;
+  height: 100%;
+  transform: translate(-50%, -50%);
+}

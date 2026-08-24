@@ -11,11 +11,15 @@ AI 여행 가이드는 현재 화면 DTO를 유지한 채 실행 프로필에 �
 ```text
 AiGuideController → AiGuideService → AiModelClient
                                       ├─ MockAiModelClient   (ui / 기본 프로필)
-                                      └─ GeminiAiModelClient (ai 프로필)
+                                      └─ CohereAiModelClient (ai 프로필)
 ```
 
 - `ui` 또는 기본 프로필: DB와 외부 AI 없이 Mock 응답을 반환합니다.
-- `ai` 프로필: Spring AI의 Google GenAI ChatModel로 Gemini를 호출하고, 모델 JSON을 `AiGuideResponse(days → items)`로 변환합니다.
+- `ai` 프로필: Cohere Chat API(`api.cohere.com/v2/chat`)를 REST로 직접 호출하고, 모델 JSON을 `AiGuideResponse(days → items)`로 변환합니다.
+
+Spring AI의 `ChatModel` 빈은 쓰지 않습니다. 어떤 프로필 조합에서도 `spring.ai.model.chat=none`이라
+그 빈이 뜨지 않습니다. 이 자리에 있던 `GeminiAiModelClient`는 활성화되는 프로필이 없는 죽은
+코드여서 지웠습니다(#382). AI 호출 경로를 하나로 모으는 문제도 그 이슈에서 다룹니다.
 
 `ai`는 단독으로 쓰지 않고 실행 환경 프로필 위에 덧씌웁니다.
 

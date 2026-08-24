@@ -39,6 +39,7 @@ function until(predicate, timeoutMs = 4000) {
 /** 신고 목록 응답을 상황별로 바꿔 끼울 수 있는 화면 한 벌. */
 async function boot(responder, url) {
   const calls = [];
+  const requests = [];
   const dom = new JSDOM(fs.readFileSync(HTML, "utf8"), {
     url: url || "http://localhost/admin",
     runScripts: "outside-only"
@@ -46,16 +47,17 @@ async function boot(responder, url) {
   const w = dom.window;
   const d = w.document;
 
-  w.fetch = async (url) => {
+  w.fetch = async (url, options = {}) => {
     calls.push(url);
-    return responder(url);
+    requests.push({ url: String(url), options });
+    return responder(url, options);
   };
 
   w.eval(fs.readFileSync(ADMIN_JS, "utf8"));
   if (d.readyState !== "loading") d.dispatchEvent(new w.Event("DOMContentLoaded"));
   await until(() => d.body.dataset.pageReady === "true" && !w.__adminDashboard.state.loading);
 
-  return { w, d, calls, api: w.__adminDashboard };
+  return { w, d, calls, requests, api: w.__adminDashboard };
 }
 
 const ok = (data) => ({
@@ -270,6 +272,10 @@ async function run() {
       d.getElementById("reportList").textContent.includes("부적절")
         && d.getElementById("reportList").textContent.includes("처리 완료"));
     T("목록이 있으면 빈 안내를 감춘다", d.getElementById("reportEmpty").hidden);
+    T("신고마다 검토 또는 결과 보기 버튼이 있다",
+      d.querySelectorAll("[data-report-open]").length === 2);
+    T("전체 조회 건수를 보여준다",
+      d.querySelector("[data-report-count]").textContent === "조회 결과 2건");
 
     d.querySelector('[data-report-status="PENDING"]').click();
     await until(() => calls.some((url) => url.includes("status=PENDING")));
@@ -278,7 +284,54 @@ async function run() {
     T("선택한 필터만 활성 표시된다",
       d.querySelectorAll("[data-report-status].on").length === 1
         && d.querySelector("[data-report-status].on").dataset.reportStatus === "PENDING");
+    T("선택한 필터를 보조기기에도 알린다",
+      d.querySelector('[data-report-status="PENDING"]').getAttribute("aria-pressed") === "true");
     T("api 상태에 선택한 필터가 남는다", api.state.reportStatus === "PENDING");
+  }
+
+  /* ── 신고 상세 확인과 처리 ── */
+  {
+    const pending = report(7, "PENDING", "ABUSE");
+    const { d, requests } = await boot((url, options) =>
+      options.method === "PATCH" ? ok({ ...pending, status: "REVIEWING", resolutionNote: "내용 확인 중" }) : ok([pending]));
+
+    d.querySelector('[data-report-open="7"]').click();
+    T("검토하기를 누르면 신고 상세 창이 열린다",
+      d.querySelector("[data-report-modal]").hidden === false);
+    T("상세 창에서 신고 내용과 신고자를 확인한다",
+      d.querySelector("[data-report-detail]").textContent.includes("광고성 링크")
+        && d.querySelector("[data-report-meta]").textContent.includes("회원 #9"));
+
+    d.querySelector("[data-report-action-form]").dispatchEvent(
+      new d.defaultView.Event("submit", { bubbles: true, cancelable: true }));
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    T("처리 사유가 없으면 서버로 보내지 않는다",
+      !requests.some((request) => request.options.method === "PATCH"));
+
+    d.querySelector("[data-report-action-note]").value = "내용 확인 중";
+    d.querySelector("[data-report-action-form]").dispatchEvent(
+      new d.defaultView.Event("submit", { bubbles: true, cancelable: true }));
+    await until(() => requests.some((request) => request.options.method === "PATCH"));
+    const patch = requests.find((request) => request.options.method === "PATCH");
+    T("처리 결과는 신고 처리 API에 PATCH로 보낸다",
+      patch.url.endsWith("/api/v1/travel-record-reports/7"));
+    T("처리 상태와 사유를 함께 기록한다",
+      JSON.parse(patch.options.body).status === "REVIEWING"
+        && JSON.parse(patch.options.body).resolutionNote === "내용 확인 중");
+    await until(() => d.querySelector("[data-report-modal]").hidden === true);
+    T("저장 성공 후 상세 창을 닫고 결과를 알린다",
+      d.querySelector("[data-report-feedback]").textContent.includes("저장했습니다"));
+  }
+
+  {
+    const finished = { ...report(8, "RESOLVED", "SPAM"), resolutionNote: "광고 게시물 확인", processedBy: 3 };
+    const { d } = await boot(() => ok([finished]));
+    d.querySelector('[data-report-open="8"]').click();
+    T("처리 완료 신고는 처리 결과를 보여준다",
+      !d.querySelector("[data-report-resolution]").hidden
+        && d.querySelector("[data-report-resolution-note]").textContent === "광고 게시물 확인");
+    T("처리 완료 신고는 다시 처리할 수 없다",
+      d.querySelector("[data-report-action-form]").hidden === true);
   }
 
   /* ── 권한: 승격 전에는 403이 온다(#163). 빈 화면으로 두지 않는다 ── */

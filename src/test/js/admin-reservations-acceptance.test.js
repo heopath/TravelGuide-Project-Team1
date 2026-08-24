@@ -114,8 +114,14 @@ async function run() {
     T("상품과 회원을 함께 밝힌다",
       rows(d)[0].querySelector("small").textContent.includes("해변 열차 이용권")
         && rows(d)[0].querySelector("small").textContent.includes("여행자"));
+    T("결제 금액을 바로 보여준다",
+      rows(d)[0].querySelector("[data-reservation-amount]").textContent === "36,000원");
+    T("여행 연결 여부를 바로 보여준다",
+      rows(d)[0].querySelector("[data-reservation-trip]").textContent === "여행 일정 연결됨");
     T("상태를 한국어로 보여준다",
       rows(d)[0].querySelector(".admin-status").textContent === "확정");
+    T("전체 조회 건수를 보여준다",
+      d.querySelector("[data-reservation-count]").textContent === "조회 결과 2건");
   }
 
   /* ── 여러 건 묶인 예약 ── */
@@ -141,14 +147,14 @@ async function run() {
       month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit",
     }).format(new Date(value));
 
-    const shown = rows(d)[0].querySelector("[data-changed-at]").textContent;
+    const shown = rows(d)[0].querySelector("[data-changed-at] strong").textContent;
     T("취소 건은 취소 시각을 보여준다", shown === format(cancelledAt));
     T("취소 건에 updated_at을 쓰지 않는다", shown !== format(updatedAt));
   }
 
   /* ── 만료 방치 ── */
   {
-    const { d } = await boot(() => ok(page([
+    const { d, calls } = await boot(() => ok(page([
       reservation(1, {
         status: "PENDING",
         expiresAt: "2026-08-11T00:00:00Z",
@@ -160,13 +166,20 @@ async function run() {
     await until(() => rows(d).length === 2);
 
     T("만료 시각이 지난 대기 건을 표시한다",
-      rows(d)[0].querySelector("[data-expired-pending]").textContent === "만료 시각 지남");
+      rows(d)[0].querySelector("[data-expired-pending]").textContent.includes("결제 기한")
+        && rows(d)[0].querySelector("[data-expired-pending]").textContent.includes("지남"));
+    T("만료 방치 행을 눈에 띄게 구분한다", rows(d)[0].classList.contains("needs-attention"));
     T("정상 건에는 표시하지 않는다",
       rows(d)[1].querySelector("[data-expired-pending]") === null);
     T("상태는 대기 그대로 둔다",
       rows(d)[0].querySelector(".admin-status").textContent === "대기");
     T("방치된 전체 건수를 따로 알린다",
       alertBox(d).hidden === false && alertBox(d).textContent.includes("4건"));
+    d.querySelector("[data-reservation-alert-open]").click();
+    await until(() => calls.length === 2);
+    T("방치 경고에서 해당 예약 목록을 바로 연다",
+      calls[1].includes("expiredPendingOnly=true")
+        && d.querySelector('[data-reservation-status="EXPIRED_PENDING"]').classList.contains("on"));
   }
 
   /* ── 방치 건이 없으면 배너를 띄우지 않는다 ── */
@@ -201,9 +214,21 @@ async function run() {
 
     const search = d.querySelector("[data-reservation-search]");
     search.value = "R2026";
-    search.dispatchEvent(new d.defaultView.KeyboardEvent("keydown", { key: "Enter", cancelable: true }));
+    d.querySelector("[data-reservation-search-form]")
+      .dispatchEvent(new d.defaultView.Event("submit", { bubbles: true, cancelable: true }));
     await until(() => calls.length === 3);
     T("검색어를 질의에 반영한다", calls[2].includes("keyword=R2026"));
+    T("검색 뒤 초기화 버튼을 보여준다",
+      d.querySelector("[data-reservation-search-clear]").hidden === false);
+
+    d.querySelector("[data-reservation-search-clear]").click();
+    await until(() => calls.length === 4);
+    T("검색을 초기화하면 전체 목록을 다시 조회한다",
+      !calls[3].includes("keyword=") && search.value === "");
+
+    d.querySelector("[data-reservation-refresh]").click();
+    await until(() => calls.length === 5);
+    T("새로고침으로 현재 조건을 다시 조회한다", calls[4].includes("status=PENDING"));
   }
 
   /* ── 실패와 빈 목록 ── */

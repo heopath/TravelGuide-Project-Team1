@@ -246,11 +246,79 @@ body.page-admin #page-content {
 }
 .page-admin .admin-table-body > div:last-child { border-bottom: 0; }
 
-.page-admin .admin-report-row { grid-template-columns: 90px 100px 1fr 90px 110px; }
+.page-admin .admin-report-row { grid-template-columns: 92px 82px minmax(150px, 1fr) 88px 86px 82px; }
+.page-admin .admin-report-row strong,
+.page-admin .admin-report-row small { display: block; }
+.page-admin .admin-report-row small { margin-top: 2px; color: var(--muted); font-size: 10.5px; }
+.page-admin .admin-report-controls {
+  margin-bottom: 14px;
+  padding-bottom: 14px;
+  display: grid;
+  gap: 10px;
+  border-bottom: 1px solid var(--border);
+}
+.page-admin .admin-report-controls .admin-filter { margin: 0; }
+.page-admin .admin-report-summary { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.page-admin .admin-report-summary p { margin: 0; }
+.page-admin [data-report-feedback]:not(.error) {
+  border-color: #a6f4c5;
+  background: #f0fdf4;
+  color: #067647;
+}
+body[data-report-modal-open] { overflow: hidden; }
+.page-admin .admin-report-modal .modal-card {
+  width: min(620px, calc(100vw - 32px));
+  max-height: calc(100vh - 48px);
+  overflow-y: auto;
+}
+.page-admin .admin-report-modal h3 { margin: 0 42px 8px 0; }
+.page-admin .admin-report-target { margin: 0 0 14px; color: var(--primary); font-size: 13px; font-weight: 800; }
+.page-admin .admin-report-meta {
+  margin: 0;
+  padding: 14px 16px;
+  display: grid;
+  grid-template-columns: 90px minmax(0, 1fr);
+  gap: 7px 12px;
+  border-radius: 12px;
+  background: #f7f8fc;
+  font-size: 12px;
+}
+.page-admin .admin-report-meta dt { color: var(--muted); font-weight: 750; }
+.page-admin .admin-report-meta dd { margin: 0; }
+.page-admin .admin-report-detail,
+.page-admin .admin-report-resolution { margin-top: 16px; }
+.page-admin .admin-report-detail h4,
+.page-admin .admin-report-resolution h4 { margin: 0 0 7px; font-size: 13px; }
+.page-admin .admin-report-detail p,
+.page-admin .admin-report-resolution p {
+  margin: 0;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font-size: 12px;
+  line-height: 1.65;
+  white-space: pre-wrap;
+}
+.page-admin .admin-report-resolution p { border-color: #a6f4c5; background: #f0fdf4; }
+.page-admin [data-report-action-form] { margin-top: 18px; display: grid; gap: 12px; }
+.page-admin .admin-report-status-select,
+.page-admin .admin-report-note { display: grid; gap: 6px; }
+.page-admin .admin-report-status-select > span,
+.page-admin .admin-report-note > span { font-size: 12px; font-weight: 750; }
+.page-admin .admin-report-note em { color: #b42318; font-size: 10px; font-style: normal; }
+.page-admin .admin-report-status-select select,
+.page-admin .admin-report-note textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font: inherit;
+}
+.page-admin [data-report-action-error] { min-height: 18px; margin: 0; color: #b42318; }
 /* 판매 상태가 select라 96px으로는 라벨이 잘린다. 재고는 "남은 / 전체" 두 값을 한 칸에 쓴다. */
 .page-admin .admin-product-row { grid-template-columns: 1fr 104px 112px 128px; }
-/* 상태 칸에 `만료 시각 지남`이 배지 아래로 붙어서 90px으로는 줄바꿈이 지저분해진다. */
-.page-admin .admin-monitor-row { grid-template-columns: 1fr 116px 120px; }
+/* 예약번호·결제 정보·처리 상태를 한 줄에서 판단할 수 있게 네 묶음으로 나눈다. */
+.page-admin .admin-monitor-row { grid-template-columns: minmax(210px, 1.45fr) minmax(120px, .75fr) minmax(150px, .9fr) 120px; }
 
 /* 예약번호 아래에 상품·회원을 붙여 한 칸에 담는다. 상품 이름은 길어서 별도 칸으로 빼기 어렵다. */
 .page-admin .admin-monitor-row strong { display: block; }
@@ -263,6 +331,42 @@ body.page-admin #page-content {
 .page-admin .admin-monitor-row .admin-status { display: inline-block; }
 /* 방치된 건은 상태 배지만으로 구분되지 않는다. 색으로 한 번 더 드러낸다. */
 .page-admin .admin-monitor-row [data-expired-pending] { color: #b4451f; font-weight: 700; }
+.page-admin .admin-monitor-row.needs-attention {
+  border-left: 3px solid #f59e0b;
+  background: #fffaf0;
+}
+
+.page-admin .admin-reservation-alert {
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+.page-admin .admin-reservation-alert .text-button {
+  flex: 0 0 auto;
+  color: #7a4c07;
+  font-weight: 800;
+}
+.page-admin .admin-reservation-controls {
+  margin-bottom: 14px;
+  padding-bottom: 14px;
+  display: grid;
+  gap: 12px;
+  border-bottom: 1px solid var(--border);
+}
+.page-admin .admin-reservation-controls .admin-filter { margin: 0; }
+.page-admin .admin-reservation-search {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.page-admin .admin-reservation-search .admin-search {
+  flex: 1;
+  flex-basis: 100%;
+  min-width: 0;
+  margin: 0;
+}
+.page-admin .admin-reservation-search .admin-chip { flex: 0 0 auto; }
+.page-admin .admin-reservation-count { margin: 0; }
 
 /* 상품명 아래에 장소를 붙여 한 칸에 담는다. 장소를 별도 칸으로 빼면 좁은 화면에서 먼저 잘린다. */
 .page-admin .admin-product-row strong { display: block; }
@@ -346,7 +450,7 @@ body.page-admin #page-content {
 }
 .page-admin .admin-version-form {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) auto auto;
   align-items: end;
   gap: 10px;
 }
@@ -418,22 +522,122 @@ body.page-admin #page-content {
 /* 요일 체크박스는 폼 전체 규칙(width:100%)에 걸리면 칸을 다 차지한다. */
 .page-admin .admin-weekday-set input { width: auto; }
 
-/* 변경 내용이 여러 줄이라 행 높이가 들쭉날쭉하다. 위쪽 정렬이 읽기 편하다. */
-.page-admin .admin-audit-row { grid-template-columns: 120px 96px 150px 1fr; align-items: start; }
+/* 목록은 한 줄 요약으로 훑고, 전체 전후 값과 요청 정보는 상세 창에서 확인한다. */
+.page-admin .admin-audit-controls {
+  margin-bottom: 14px;
+  padding-bottom: 14px;
+  display: grid;
+  gap: 10px;
+  border-bottom: 1px solid var(--border);
+}
+.page-admin .admin-audit-controls .admin-filter { margin: 0; }
+.page-admin .admin-audit-search {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.page-admin .admin-audit-search .admin-search {
+  flex: 1 1 100%;
+  min-width: 0;
+  margin: 0;
+}
+.page-admin .admin-audit-count { margin: 0; }
+.page-admin .admin-audit-row {
+  grid-template-columns: 108px 86px 146px minmax(180px, 1fr) 82px;
+  align-items: start;
+}
 .page-admin .admin-audit-row > span { padding: 10px 0; }
 .page-admin .admin-audit-row strong { display: block; }
 .page-admin .admin-audit-row small { display: block; margin-top: 2px; color: var(--muted); font-size: 11px; }
 .page-admin .admin-audit-row [data-audit-time] { color: var(--muted); font-size: 11.5px; }
-.page-admin .admin-audit-row [data-audit-change] small { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+.page-admin .admin-audit-row [data-audit-change] { min-width: 0; }
+.page-admin .admin-audit-row [data-audit-change] small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.page-admin .admin-audit-row .admin-audit-more { color: var(--primary); font-weight: 700; }
 .page-admin .admin-audit-row [data-audit-empty-payload] { color: var(--muted); font-size: 11px; }
+
+body[data-audit-modal-open] { overflow: hidden; }
+.page-admin .admin-audit-modal .modal-card {
+  width: min(720px, calc(100vw - 32px));
+  max-height: min(760px, calc(100vh - 48px));
+  overflow-y: auto;
+}
+.page-admin .admin-audit-modal h3 { margin: 0 42px 8px 0; }
+.page-admin .admin-audit-detail-summary {
+  margin: 0 0 16px;
+  color: var(--primary);
+  font-size: 13px;
+  font-weight: 800;
+}
+.page-admin .admin-audit-meta {
+  margin: 0;
+  padding: 14px 16px;
+  display: grid;
+  grid-template-columns: 96px minmax(0, 1fr);
+  gap: 8px 14px;
+  border-radius: 12px;
+  background: #f7f8fc;
+  font-size: 12px;
+  line-height: 1.5;
+}
+.page-admin .admin-audit-meta dt { color: var(--muted); font-weight: 750; }
+.page-admin .admin-audit-meta dd { min-width: 0; margin: 0; overflow-wrap: anywhere; }
+.page-admin .admin-audit-change-detail { margin-top: 20px; }
+.page-admin .admin-audit-change-detail h4 { margin: 0 0 10px; font-size: 14px; }
+.page-admin .admin-audit-change-row {
+  display: grid;
+  grid-template-columns: 120px repeat(2, minmax(0, 1fr));
+  border-bottom: 1px solid var(--border);
+}
+.page-admin .admin-audit-change-row:last-child { border-bottom: 0; }
+.page-admin .admin-audit-change-row span {
+  min-width: 0;
+  padding: 10px 12px;
+  overflow-wrap: anywhere;
+  font-size: 12px;
+  line-height: 1.5;
+}
+.page-admin .admin-audit-change-row span + span { border-left: 1px solid var(--border); }
+.page-admin .admin-audit-change-row.is-head { border-radius: 8px 8px 0 0; background: #f7f8fc; }
+.page-admin .admin-audit-change-row.is-head span { color: var(--muted); font-size: 11px; font-weight: 800; }
 
 /* ── 티켓 검표 ── */
 
+.page-admin .admin-validation-panel-head,
+.page-admin .admin-validation-history-head {
+  margin-bottom: 16px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+.page-admin .admin-validation-panel-head h3,
+.page-admin .admin-validation-history-head h3 { margin: 0; font-size: 16px; }
+.page-admin .admin-validation-panel-head p { margin: 5px 0 0; color: var(--muted); font-size: 12px; line-height: 1.55; }
+.page-admin .admin-validation-panel-head .primary-button {
+  flex: 0 0 auto;
+  min-height: 38px;
+  display: inline-flex;
+  align-items: center;
+  text-decoration: none;
+}
+.page-admin .admin-validation-history-head .admin-hint { margin: 4px 0 0; }
+
 .page-admin .admin-scan {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 72px;
+  grid-template-columns: minmax(0, 1fr) 104px;
   gap: 8px;
   margin-bottom: 12px;
+}
+.page-admin .admin-scan label {
+  grid-column: 1 / -1;
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 750;
 }
 .page-admin .admin-scan input {
   padding: 11px 13px;
@@ -444,6 +648,7 @@ body.page-admin #page-content {
   font-size: 13px;
 }
 .page-admin .admin-scan button { border: 0; cursor: pointer; }
+.page-admin .admin-scan button:disabled { cursor: wait; opacity: .65; }
 
 /*
   결과는 색으로만 구분하지 않는다. 문구가 스스로 무엇인지 말하고 색은 거들기만 한다.
@@ -462,13 +667,14 @@ body.page-admin #page-content {
   color: var(--muted);
   font-size: 11.5px;
 }
+.page-admin .admin-scan-result .admin-scan-result-actions { margin-top: 12px; }
 .page-admin .admin-scan-result.ok { border-color: #a6f4c5; background: #f0fdf4; }
 .page-admin .admin-scan-result.ok strong { color: #067647; }
 .page-admin .admin-scan-result.no { border-color: #fecdca; background: #fff5f4; }
 .page-admin .admin-scan-result.no strong { color: #b42318; }
 
 .page-admin .admin-validation-row {
-  grid-template-columns: 132px 72px minmax(0, 1fr) 96px;
+  grid-template-columns: 132px minmax(130px, .9fr) minmax(180px, 1.2fr) 130px;
   align-items: center;
 }
 .page-admin .admin-validation-row > span { padding: 10px 0; min-width: 0; }
@@ -476,6 +682,8 @@ body.page-admin #page-content {
 .page-admin .admin-validation-row small {
   display: block; margin-top: 2px; color: var(--muted); font-size: 11px;
 }
+.page-admin .admin-validation-row [data-validation-failure-reason] { color: #b4451f; }
+.page-admin .admin-validation-history-head + .admin-filter { margin: 0 0 14px; }
 
 /*
   관리 칸은 버튼 두 개(`정지`·`관리자 승격`)가 나란히 서야 해서 고정 폭이다. 1fr로 두면
@@ -501,6 +709,21 @@ body.page-admin #page-content {
   white-space: nowrap;
 }
 .page-admin .admin-member-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.page-admin .admin-member-self {
+  margin-left: 6px;
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: #eef0ff;
+  color: var(--primary);
+  font-size: 10px;
+  font-style: normal;
+}
+.page-admin .admin-member-actions [data-member-lock-reason] {
+  flex-basis: 100%;
+  white-space: normal;
+  color: #7a4c07;
+  line-height: 1.4;
+}
 /*
   잠긴 버튼도 지우지 않고 남긴다. 사라지면 "원래 못 하는 것"으로 읽히는데, 실제로는
   조건이 바뀌면 할 수 있다. 왜 잠겼는지는 title에 붙어 있다.
@@ -509,6 +732,62 @@ body.page-admin #page-content {
   opacity: .45;
   cursor: not-allowed;
 }
+
+.page-admin .admin-member-controls {
+  margin-bottom: 14px;
+  padding-bottom: 14px;
+  display: grid;
+  gap: 10px;
+  border-bottom: 1px solid var(--border);
+}
+.page-admin .admin-member-controls .admin-filter { margin: 0; }
+.page-admin .admin-member-search {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.page-admin .admin-member-search .admin-search {
+  flex: 1 1 100%;
+  min-width: 0;
+  margin: 0;
+}
+.page-admin .admin-member-search .admin-chip { flex: 0 0 auto; }
+.page-admin .admin-member-count { margin: 0; }
+.page-admin [data-member-feedback] {
+  border-color: #a6f4c5;
+  background: #f0fdf4;
+  color: #067647;
+}
+
+body[data-member-modal-open] { overflow: hidden; }
+.page-admin .admin-member-modal .modal-card { width: min(520px, calc(100vw - 32px)); }
+.page-admin .admin-member-modal h3 { margin: 0 42px 8px 0; }
+.page-admin .admin-member-target { margin: 0; color: var(--ink); font-size: 13px; font-weight: 750; }
+.page-admin .admin-member-impact {
+  margin: 12px 0 16px;
+  padding: 12px 14px;
+  border: 1px solid #fed7aa;
+  border-radius: 10px;
+  background: #fff7ed;
+  color: #9a3412;
+  font-size: 12px;
+  line-height: 1.55;
+}
+.page-admin .admin-member-reason { display: grid; gap: 7px; }
+.page-admin .admin-member-reason > span { font-size: 12px; font-weight: 750; }
+.page-admin .admin-member-reason em { color: #b42318; font-size: 10px; font-style: normal; }
+.page-admin .admin-member-reason textarea {
+  width: 100%;
+  padding: 10px 12px;
+  resize: vertical;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font: inherit;
+  line-height: 1.5;
+}
+.page-admin .admin-member-reason textarea:focus { outline: 2px solid rgba(92, 95, 255, .22); border-color: var(--primary); }
+.page-admin .admin-member-modal .admin-hint.error { min-height: 18px; color: #b42318; }
 
 .page-admin .admin-search { display: block; margin-bottom: 12px; }
 .page-admin .admin-search input {
@@ -611,7 +890,19 @@ body.page-admin #page-content {
   border-right: 1px solid var(--border);
   background: #fbfcfe;
 }
-.page-admin .admin-chat-search { padding: 14px; border-bottom: 1px solid var(--border); }
+.page-admin .admin-chat-search {
+  padding: 14px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  border-bottom: 1px solid var(--border);
+}
+.page-admin .admin-performance-health { margin: 0 0 8px; padding: 10px 12px; border-radius: 9px; font-size: 12px; font-weight: 800; }
+.page-admin .admin-performance-health[data-level="normal"] { background: #ecfdf3; color: #067647; }
+.page-admin .admin-performance-health[data-level="warning"] { background: #fff7e8; color: #9a6513; }
+.page-admin .admin-performance-health[data-level="danger"] { background: #fff1f2; color: #b42318; }
+.page-admin .admin-performance-health[data-level="unknown"] { background: #f2f4f7; color: var(--muted); }
+.page-admin .admin-chat-search label { flex: 1 1 100%; }
 .page-admin .admin-chat-search input {
   width: 100%;
   height: 38px;
@@ -622,6 +913,7 @@ body.page-admin #page-content {
   font-size: 12.5px;
 }
 .page-admin .admin-chat-search input:disabled { background: #f2f4f9; color: #a5aec1; }
+.page-admin .admin-chat-count { margin: 0; padding: 8px 14px; border-bottom: 1px solid var(--border); }
 
 .page-admin .admin-chat-room-list { flex: 1; overflow-y: auto; }
 /* 방이 없을 때는 목록이 자리를 차지하지 않게 두고, 안내 문구를 가운데에 세운다. */
@@ -807,6 +1099,7 @@ body.page-admin #page-content {
     숨기는 칸 수와 남는 칸 수를 반드시 같이 고친다.
   */
   .page-admin .admin-report-row { grid-template-columns: 58px minmax(0, 1fr) 74px; }
+  .page-admin .admin-report-row > :nth-child(2),
   .page-admin .admin-report-row > :nth-child(3),
   .page-admin .admin-report-row > :nth-child(5) { display: none; }
 
@@ -817,7 +1110,10 @@ body.page-admin #page-content {
   */
   .page-admin .admin-panel { overflow-x: auto; }
   .page-admin .admin-product-row { min-width: 440px; }
-  .page-admin .admin-monitor-row { min-width: 400px; }
+  .page-admin .admin-monitor-row { min-width: 690px; }
+  .page-admin .admin-reservation-search { flex-wrap: wrap; }
+  .page-admin .admin-reservation-search .admin-search { flex-basis: 100%; }
+  .page-admin .admin-reservation-alert { align-items: flex-start; flex-direction: column; }
 
   /*
     회원 관리는 마지막 칸에 버튼 두 개가 들어가 눌러 담을 수 없다. 마지막 로그인을 숨겨
@@ -830,9 +1126,22 @@ body.page-admin #page-content {
   }
   .page-admin .admin-member-row > :nth-child(4) { display: none; }
 
-  /* 검표 기록은 검표자를 숨겨 세 칸으로 줄인다. 현장에서는 결과와 티켓이 먼저다. */
-  .page-admin .admin-validation-row { grid-template-columns: 108px 64px minmax(0, 1fr); }
+  /* 조작 이력은 변경 요약을 남기고 관리자 칸을 감춰 다섯 칸을 네 칸으로 줄인다. */
+  .page-admin .admin-audit-row {
+    min-width: 520px;
+    grid-template-columns: 96px 140px minmax(180px, 1fr) 82px;
+  }
+  .page-admin .admin-audit-row > :nth-child(2) { display: none; }
+  .page-admin .admin-audit-meta { grid-template-columns: 82px minmax(0, 1fr); }
+  .page-admin .admin-audit-change-row { min-width: 520px; }
+  .page-admin .admin-audit-change-detail { overflow-x: auto; }
+
+  /* 검표 기록은 입력 경로·검표자를 숨겨 세 칸으로 줄인다. 현장에서는 결과와 티켓이 먼저다. */
+  .page-admin .admin-validation-row { min-width: 520px; grid-template-columns: 108px 120px minmax(0, 1fr); }
   .page-admin .admin-validation-row > :nth-child(4) { display: none; }
+
+  .page-admin .admin-validation-panel-head { flex-direction: column; }
+  .page-admin .admin-validation-panel-head .primary-button { width: 100%; justify-content: center; }
 
   .page-admin .admin-filter { margin-left: 0; }
 }
@@ -880,6 +1189,38 @@ body.page-admin #page-content {
   line-height: 1.7;
 }
 .admin-slot-guide strong { display: block; color: var(--primary); }
+
+.admin-slot-tabs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  padding: 5px;
+  border-radius: 14px;
+  background: #f3f5fa;
+}
+.admin-slot-tabs button {
+  min-height: 64px;
+  padding: 10px 14px;
+  display: grid;
+  align-content: center;
+  gap: 4px;
+  border: 1px solid transparent;
+  border-radius: 11px;
+  background: transparent;
+  color: #697386;
+  text-align: left;
+  cursor: pointer;
+}
+.admin-slot-tabs button strong { color: inherit; font-size: 13px; }
+.admin-slot-tabs button span { font-size: 11.5px; }
+.admin-slot-tabs button.is-current {
+  border-color: #d9deff;
+  background: #fff;
+  color: var(--primary);
+  box-shadow: 0 6px 18px rgba(70, 79, 220, .1);
+}
+.admin-slot-tabs button:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+.admin-slot-tabpanel[hidden] { display: none; }
 
 .admin-slot-section {
   margin-top: 14px;
@@ -931,6 +1272,8 @@ body[data-slot-modal-open] { overflow: hidden; }
     padding: 16px 64px 12px 16px;
   }
   .admin-slot-card .admin-slot-close { top: 12px; right: 14px; }
+  .admin-slot-tabs { grid-template-columns: 1fr; }
+  .admin-slot-tabs button { min-height: 56px; }
   .admin-slot-section { padding: 14px; }
   .admin-slot-filter [data-slot-count] { margin-left: 0; width: 100%; }
 }

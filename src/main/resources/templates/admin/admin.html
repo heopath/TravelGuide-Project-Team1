@@ -105,12 +105,13 @@
                   <button type="button" data-status="ANSWERED">답변 완료</button>
                   <button type="button" data-status="CLOSED">종료</button>
                 </nav>
+                <p class="admin-notice" data-support-feedback role="status" hidden></p>
 
                 <div class="support-admin-workspace">
                   <section class="support-admin-list-panel" aria-labelledby="inquiryListTitle">
                     <div class="support-admin-panel-head">
                       <h2 id="inquiryListTitle">문의 목록</h2>
-                      <span data-total>0건</span>
+                      <div><span data-total>0건</span><button type="button" data-support-refresh>새로고침</button></div>
                     </div>
                     <div class="support-admin-list" data-inquiry-list aria-live="polite"></div>
                     <div class="support-admin-pagination" data-pagination></div>
@@ -160,23 +161,68 @@
                 <div class="admin-section-head">
                   <div class="admin-section-title">
                     <h2 id="reportsTitle">신고 관리</h2>
-                    <p class="admin-section-description">접수된 여행 기록 신고를 검토하고 처리 결과를 확인합니다.</p>
+                    <p class="admin-section-description">신고 내용을 확인하고 검토·처리 결과와 사유를 기록합니다.</p>
                   </div>
                   <span class="admin-tag live" data-admin-state="reports">실연동</span>
-                  <div class="admin-filter" role="group" aria-label="신고 상태 필터">
-                    <button type="button" class="admin-chip on" data-report-status="">전체</button>
-                    <button type="button" class="admin-chip" data-report-status="PENDING">접수</button>
-                    <button type="button" class="admin-chip" data-report-status="REVIEWING">검토 중</button>
-                    <button type="button" class="admin-chip" data-report-status="RESOLVED">처리 완료</button>
-                    <button type="button" class="admin-chip" data-report-status="REJECTED">반려</button>
-                  </div>
                 </div>
+                <p class="admin-notice" data-report-feedback role="status" hidden></p>
                 <div class="white-panel admin-panel">
+                  <div class="admin-report-controls">
+                    <div class="admin-filter" role="group" aria-label="신고 상태 필터">
+                      <button type="button" class="admin-chip on" data-report-status="" aria-pressed="true">전체</button>
+                      <button type="button" class="admin-chip" data-report-status="PENDING" aria-pressed="false">접수</button>
+                      <button type="button" class="admin-chip" data-report-status="REVIEWING" aria-pressed="false">검토 중</button>
+                      <button type="button" class="admin-chip" data-report-status="RESOLVED" aria-pressed="false">처리 완료</button>
+                      <button type="button" class="admin-chip" data-report-status="REJECTED" aria-pressed="false">반려</button>
+                    </div>
+                    <div class="admin-report-summary">
+                      <p class="admin-hint" data-report-count role="status"></p>
+                      <button type="button" class="admin-chip" data-report-refresh>새로고침</button>
+                    </div>
+                  </div>
                   <div class="admin-table-head admin-report-row">
-                    <span>기록</span><span>사유</span><span>상세</span><span>상태</span><span>접수일</span>
+                    <span>신고</span><span>사유</span><span>상세</span><span>상태</span><span>접수일</span><span>관리</span>
                   </div>
                   <div id="reportList" class="admin-table-body"></div>
                   <p class="admin-empty" id="reportEmpty" role="status">신고 목록을 불러오는 중이에요.</p>
+                </div>
+
+                <div class="modal-backdrop admin-report-modal" data-report-modal hidden>
+                  <div class="modal-card" data-report-modal-card role="dialog" aria-modal="true"
+                       aria-labelledby="reportDetailTitle" tabindex="-1">
+                    <button type="button" class="modal-close" data-report-modal-close aria-label="신고 상세 닫기">×</button>
+                    <h3 id="reportDetailTitle">신고 상세 및 처리</h3>
+                    <p class="admin-report-target" data-report-target></p>
+                    <dl class="admin-report-meta" data-report-meta></dl>
+                    <section class="admin-report-detail">
+                      <h4>신고 내용</h4>
+                      <p data-report-detail></p>
+                    </section>
+                    <section class="admin-report-resolution" data-report-resolution hidden>
+                      <h4>처리 결과</h4>
+                      <p data-report-resolution-note></p>
+                    </section>
+                    <form data-report-action-form>
+                      <label class="admin-report-status-select">
+                        <span>처리 상태</span>
+                        <select data-report-action-status required>
+                          <option value="REVIEWING">검토 중</option>
+                          <option value="RESOLVED">처리 완료</option>
+                          <option value="REJECTED">반려</option>
+                        </select>
+                      </label>
+                      <label class="admin-report-note">
+                        <span>처리 사유 <em>필수</em></span>
+                        <textarea data-report-action-note rows="4" maxlength="1000"
+                                  placeholder="판단 근거와 처리 결과를 남겨 주세요." required></textarea>
+                      </label>
+                      <p class="admin-hint error" data-report-action-error role="alert"></p>
+                      <div class="modal-actions">
+                        <button type="button" class="secondary-button" data-report-action-cancel>닫기</button>
+                        <button type="submit" class="primary-button" data-report-action-submit>처리 결과 저장</button>
+                      </div>
+                    </form>
+                  </div>
                 </div>
               </section>
 
@@ -252,6 +298,7 @@
                              pattern="v?[0-9]+\.[0-9]+\.[0-9]+"
                              placeholder="예: v0.0.5" required />
                     </label>
+                    <button type="button" class="secondary-button" data-version-reset disabled>변경 취소</button>
                     <button type="submit" class="primary-button" data-version-submit>저장</button>
                   </form>
                   <p class="admin-hint">빌드 버전과 별개로 관리되며, 저장 즉시 모든 화면의 푸터에 적용됩니다.</p>
@@ -366,17 +413,28 @@
                             aria-label="판매 설정 닫기">×</button>
                   </div>
                   <p class="admin-slot-guide">
-                    <strong>등록 순서</strong>
-                    ① 성인권·아동권 같은 티켓 종류 만들기 → ② 날짜·시간별 판매 회차 등록 → ③ 예약 수량과 재고 확인
+                    <strong>판매 설정 순서</strong>
+                    먼저 티켓 종류별 가격과 구매 한도를 정한 뒤, 판매 회차·재고에서 예약받을 날짜와 수량을 등록하세요.
                   </p>
+                  <div class="admin-slot-tabs" role="tablist" aria-label="판매 설정 단계">
+                    <button type="button" class="is-current" role="tab" id="slotOptionTab"
+                            aria-selected="true" aria-controls="slotOptionPanel" data-slot-tab="options">
+                      <strong>1. 티켓 종류</strong><span>가격·구매 한도 설정</span>
+                    </button>
+                    <button type="button" role="tab" id="slotScheduleTab" tabindex="-1"
+                            aria-selected="false" aria-controls="slotSchedulePanel" data-slot-tab="slots">
+                      <strong>2. 판매 회차·재고</strong><span>날짜·시간·판매 수량 설정</span>
+                    </button>
+                  </div>
                   <!--
                     옵션이 먼저다. 시간대는 옵션에 달리므로(ticket_time_slots는 상품이 아니라
                     옵션을 참조한다) 옵션이 하나도 없으면 시간대를 만들 수 없다.
                   -->
-                  <section class="admin-slot-section" aria-labelledby="ticketTypeTitle">
-                  <h4 class="admin-subhead" id="ticketTypeTitle">1. 티켓 종류</h4>
+                  <section class="admin-slot-section admin-slot-tabpanel" id="slotOptionPanel" role="tabpanel"
+                           aria-labelledby="slotOptionTab" data-slot-tabpanel="options">
+                  <h4 class="admin-subhead" id="ticketTypeTitle">티켓 종류 등록·수정</h4>
                   <p class="admin-slot-description">
-                    성인권·아동권처럼 가격과 1인 구매 한도가 다른 티켓을 구분합니다.
+                    성인권·아동권처럼 가격과 1인 구매 한도가 다른 티켓을 구분하고 수정합니다.
                   </p>
                   <div data-option-list class="admin-table-body"></div>
                   <p class="admin-empty" data-option-empty role="status"></p>
@@ -402,12 +460,14 @@
                   </form>
                   </section>
 
+                  <div class="admin-slot-tabpanel" id="slotSchedulePanel" role="tabpanel"
+                       aria-labelledby="slotScheduleTab" data-slot-tabpanel="slots" hidden>
                   <!--
                     시간대는 기간으로 받는다. 하루씩 만들게 하면 한 달 판매를 여는 데 30번을
                     눌러야 하고, 중간에 빠뜨린 날이 생겨도 아무도 알아채지 못한다.
                   -->
                   <section class="admin-slot-section" aria-labelledby="saleSlotTitle">
-                  <h4 class="admin-subhead" id="saleSlotTitle">2. 판매 회차 등록</h4>
+                  <h4 class="admin-subhead" id="saleSlotTitle">판매 회차 등록</h4>
                   <p class="admin-slot-description">
                     티켓 종류를 고른 뒤 예약받을 날짜·시간과 회차별 판매 수량을 등록합니다.
                   </p>
@@ -447,7 +507,7 @@
                   </section>
 
                   <section class="admin-slot-section" aria-labelledby="saleStockTitle">
-                  <h4 class="admin-subhead" id="saleStockTitle">3. 등록된 회차·재고</h4>
+                  <h4 class="admin-subhead" id="saleStockTitle">등록된 회차·재고 현황</h4>
                   <p class="admin-slot-description">
                     예약된 수량을 확인하고 전체 판매 수량이나 판매 상태를 조정합니다.
                   </p>
@@ -472,16 +532,19 @@
                   <p class="admin-empty" data-slot-empty role="status"></p>
                   </section>
                   </div>
+                  </div>
                 </div>
               </section>
 
               <!--
-                테마 여행 등록 패널은 제거했다. `연동 전`은 앞으로 붙일 것이라는 뜻인데,
-                이 화면은 구현 범위에서 빼기로 확정해 앞으로도 붙지 않는다. 막아둔 폼을
-                남겨두면 다음 사람이 연동만 하면 되는 줄로 읽는다.
+                테마 여행은 구현 범위에서 뺐다. 등록 패널을 여기서 제거했고, 사용자 화면
+                `/guide/themes`도 함께 걷어냈다. 남겨둔 근거였던 "카드를 고르면 여행 기본
+                정보가 채워진다"가 실제로는 동작하지 않았다 — 저장하는 키와 읽는 키가
+                달랐다. 자세한 경위는 이슈 #374.
 
-                사용자 화면 `/guide/themes`는 그대로 둔다. 카드가 고정 샘플이라도 선택하면
-                여행 기본 정보로 값이 채워져 넘어가는 동작은 실제로 쓰인다.
+                DB의 travel_themes·travel_theme_places는 남아 있다. V6가 이미 모든 환경에
+                적용돼 있어, 지우려면 DROP 마이그레이션을 새로 써야 한다. 빈 테이블이라
+                해가 없으므로 스키마를 정리할 때 함께 다룬다.
               -->
 
               <!--
@@ -507,34 +570,44 @@
                     <p class="admin-section-description">입장 코드를 직접 확인하거나 이전 검표 결과를 조회합니다.</p>
                   </div>
                   <span class="admin-tag live" data-admin-state="validation">실연동</span>
-                  <!--
-                    현장에서는 이 화면이 아니라 폰으로 스캔한다. (#266)
-                    여기는 수동 입력과 이력 조회용으로 남긴다 — 스캐너가 안 될 때 유일한 길이다.
-                  -->
-                  <a class="text-button" data-route="/admin/scan" href="/admin/scan">폰으로 스캔 →</a>
+                </div>
+
+                <div class="white-panel admin-panel">
+                  <div class="admin-validation-panel-head">
+                    <div>
+                      <h3>지금 검표하기</h3>
+                      <p>현장에서는 QR 스캔을 우선 사용하고, 카메라를 쓸 수 없을 때만 입장 코드를 직접 입력하세요.</p>
+                    </div>
+                    <a class="primary-button" data-route="/admin/scan" href="/admin/scan">QR 스캔 화면 열기</a>
+                  </div>
+                  <form class="admin-scan" data-validation-form>
+                    <label for="validationToken">입장 코드 직접 입력</label>
+                    <input id="validationToken" type="text" data-validation-token autocomplete="off"
+                           spellcheck="false" placeholder="손님이 보여준 입장 코드를 입력하세요" required />
+                    <button type="submit" class="primary-button" data-validation-submit>입장 확인</button>
+                  </form>
+                  <!-- 결과는 색으로만 구분하지 않는다. 문구가 스스로 무엇인지 말해야 한다. -->
+                  <div class="admin-scan-result" data-validation-result-box aria-live="assertive" aria-atomic="true" hidden></div>
+                </div>
+
+                <div class="white-panel admin-panel">
+                  <div class="admin-validation-history-head">
+                    <div>
+                      <h3>이전 검표 기록</h3>
+                      <p class="admin-hint" data-validation-count role="status"></p>
+                    </div>
+                    <button type="button" class="admin-chip" data-validation-refresh>새로고침</button>
+                  </div>
                   <div class="admin-filter" role="group" aria-label="검표 결과 필터" data-validation-filter>
                     <button type="button" class="admin-chip on" data-validation-result="">전체</button>
                     <button type="button" class="admin-chip" data-validation-result="SUCCESS">입장</button>
                     <button type="button" class="admin-chip" data-validation-result="ALREADY_USED">사용됨</button>
+                    <button type="button" class="admin-chip" data-validation-result="CANCELLED">취소됨</button>
                     <button type="button" class="admin-chip" data-validation-result="EXPIRED">기간 밖</button>
                     <button type="button" class="admin-chip" data-validation-result="NOT_FOUND">없는 코드</button>
                   </div>
-                </div>
-
-                <div class="white-panel admin-panel">
-                  <form class="admin-scan" data-validation-form>
-                    <label class="sr-only" for="validationToken">입장 코드</label>
-                    <input id="validationToken" type="text" data-validation-token autocomplete="off"
-                           spellcheck="false" placeholder="손님이 보여준 입장 코드를 입력하세요" />
-                    <button type="submit" class="admin-chip on" data-validation-submit>확인</button>
-                  </form>
-                  <!-- 결과는 색으로만 구분하지 않는다. 문구가 스스로 무엇인지 말해야 한다. -->
-                  <div class="admin-scan-result" data-validation-result-box role="status" hidden></div>
-                </div>
-
-                <div class="white-panel admin-panel">
                   <div class="admin-table-head admin-validation-row">
-                    <span>시각</span><span>결과</span><span>티켓</span><span>검표자</span>
+                    <span>시각</span><span>결과·사유</span><span>티켓</span><span>입력 경로·검표자</span>
                   </div>
                   <div data-validation-list class="admin-table-body"></div>
                   <p class="admin-empty" data-validation-empty role="status">
@@ -559,6 +632,11 @@
                     <p class="admin-section-description">회원 상태와 관리자 권한을 조회하고 변경합니다.</p>
                   </div>
                   <span class="admin-tag live" data-admin-state="members">실연동</span>
+                </div>
+                <p class="admin-notice" data-member-notice role="status" hidden></p>
+                <p class="admin-notice" data-member-feedback role="status" hidden></p>
+                <div class="white-panel admin-panel">
+                  <div class="admin-member-controls">
                   <div class="admin-filter" role="group" aria-label="회원 상태 필터" data-member-filter>
                     <button type="button" class="admin-chip on" data-member-status="">전체</button>
                     <button type="button" class="admin-chip" data-member-status="ACTIVE">활동</button>
@@ -570,14 +648,18 @@
                     <button type="button" class="admin-chip" data-member-role="ADMIN">관리자</button>
                     <button type="button" class="admin-chip" data-member-role="USER">일반</button>
                   </div>
-                </div>
-                <p class="admin-notice" data-member-notice role="status" hidden></p>
-                <div class="white-panel admin-panel">
-                  <label class="admin-search">
+                  <form class="admin-member-search" data-member-search-form>
+                    <label class="admin-search">
                     <span class="sr-only">회원 검색</span>
                     <input type="search" data-member-search autocomplete="off"
-                           placeholder="닉네임 또는 이메일로 검색 후 Enter" />
-                  </label>
+                           placeholder="닉네임 또는 이메일" />
+                    </label>
+                    <button type="submit" class="admin-chip on">검색</button>
+                    <button type="button" class="admin-chip" data-member-search-clear hidden>검색 초기화</button>
+                    <button type="button" class="admin-chip" data-member-refresh>새로고침</button>
+                  </form>
+                  <p class="admin-hint admin-member-count" data-member-count role="status"></p>
+                  </div>
                   <div class="admin-table-head admin-member-row">
                     <span>회원</span><span>권한</span><span>상태</span><span>마지막 로그인</span><span>관리</span>
                   </div>
@@ -587,34 +669,82 @@
                   </p>
                   <div class="admin-pagination" data-member-pagination></div>
                 </div>
+
+                <div class="modal-backdrop admin-member-modal" data-member-modal hidden>
+                  <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="memberActionTitle"
+                       data-member-modal-card>
+                    <button type="button" class="modal-close" data-member-modal-close aria-label="회원 변경 닫기">×</button>
+                    <h3 id="memberActionTitle" data-member-action-title>회원 정보 변경</h3>
+                    <p class="admin-member-target" data-member-action-target></p>
+                    <p class="admin-member-impact" data-member-action-impact></p>
+                    <form data-member-action-form>
+                      <label class="admin-member-reason">
+                        <span>변경 사유 <em>필수</em></span>
+                        <textarea data-member-action-reason maxlength="200" rows="3" required
+                                  placeholder="변경이 필요한 이유를 입력하세요"></textarea>
+                      </label>
+                      <p class="admin-hint">입력한 사유는 회원에게 전송되지 않고 관리자 조작 이력에 남습니다.</p>
+                      <p class="admin-hint error" data-member-action-error role="alert"></p>
+                      <div class="admin-form-buttons">
+                        <button type="button" class="text-button" data-member-action-cancel>취소</button>
+                        <button type="submit" class="primary-button" data-member-action-confirm>변경하기</button>
+                      </div>
+                    </form>
+                  </div>
+                </div>
               </section>
 
               <section class="admin-section" data-admin-section="audit" aria-labelledby="auditTitle" hidden>
                 <div class="admin-section-head">
                   <div class="admin-section-title">
                     <h2 id="auditTitle">변경 이력</h2>
-                    <p class="admin-section-description">관리자가 변경한 대상과 이전·이후 값을 확인합니다.</p>
+                    <p class="admin-section-description">누가 무엇을 변경했는지 확인하고 필요한 기록을 자세히 살펴봅니다.</p>
                   </div>
                   <span class="admin-tag live" data-admin-state="audit">실연동</span>
-                  <div class="admin-filter" role="group" aria-label="동작 필터" data-audit-filter>
-                    <button type="button" class="admin-chip on" data-audit-action="">전체</button>
-                  </div>
                 </div>
                 <p class="admin-notice" data-audit-notice role="status" hidden></p>
                 <div class="white-panel admin-panel">
-                  <label class="admin-search">
-                    <span class="sr-only">대상 검색</span>
-                    <input type="search" data-audit-search autocomplete="off"
-                           placeholder="대상 번호로 검색 후 Enter (예: 20)" />
-                  </label>
+                  <div class="admin-audit-controls">
+                    <div class="admin-filter" role="group" aria-label="동작 필터" data-audit-filter>
+                      <button type="button" class="admin-chip on" data-audit-action="" aria-pressed="true">전체</button>
+                    </div>
+                    <form class="admin-audit-search" data-audit-search-form>
+                      <label class="admin-search">
+                        <span class="sr-only">대상 번호 검색</span>
+                        <input type="search" data-audit-search autocomplete="off"
+                               placeholder="대상 번호 검색 (예: 상품 20번은 20 입력)" />
+                      </label>
+                      <button type="submit" class="admin-chip">검색</button>
+                      <button type="button" class="admin-chip" data-audit-search-clear hidden>검색 해제</button>
+                      <button type="button" class="admin-chip" data-audit-refresh>새로고침</button>
+                    </form>
+                    <p class="admin-hint admin-audit-count" data-audit-count role="status"></p>
+                  </div>
                   <div class="admin-table-head admin-audit-row">
-                    <span>시각</span><span>관리자</span><span>동작</span><span>변경 내용</span>
+                    <span>시각</span><span>관리자</span><span>동작·대상</span><span>변경 요약</span><span>상세</span>
                   </div>
                   <div data-audit-list class="admin-table-body"></div>
                   <p class="admin-empty" data-audit-empty role="status">
                     변경 이력을 불러오는 중이에요.
                   </p>
                   <div class="admin-pagination" data-audit-pagination></div>
+                </div>
+
+                <div class="modal-backdrop admin-audit-modal" data-audit-modal hidden>
+                  <div class="modal-card" data-audit-modal-card role="dialog" aria-modal="true"
+                       aria-labelledby="auditDetailTitle" tabindex="-1">
+                    <button type="button" class="modal-close" data-audit-modal-close aria-label="상세 닫기">×</button>
+                    <h3 id="auditDetailTitle">변경 이력 상세</h3>
+                    <p class="admin-audit-detail-summary" data-audit-detail-summary></p>
+                    <dl class="admin-audit-meta" data-audit-detail-meta></dl>
+                    <div class="admin-audit-change-detail">
+                      <h4>변경된 값</h4>
+                      <div data-audit-detail-changes></div>
+                    </div>
+                    <div class="modal-actions">
+                      <button type="button" class="secondary-button" data-audit-modal-cancel>닫기</button>
+                    </div>
+                  </div>
                 </div>
               </section>
 
@@ -635,6 +765,13 @@
                     <p class="admin-section-description">예약 상태와 결제 대기 시간이 지난 건을 조회합니다.</p>
                   </div>
                   <span class="admin-tag live" data-admin-state="reservations">실연동</span>
+                </div>
+                <div class="admin-notice admin-reservation-alert" data-reservation-alert role="status" hidden>
+                  <strong data-reservation-alert-text></strong>
+                  <button type="button" class="text-button" data-reservation-alert-open>해당 예약 보기 →</button>
+                </div>
+                <div class="white-panel admin-panel">
+                  <div class="admin-reservation-controls">
                   <div class="admin-filter" role="group" aria-label="예약 상태 필터" data-reservation-filter>
                     <button type="button" class="admin-chip on" data-reservation-status="">전체</button>
                     <button type="button" class="admin-chip" data-reservation-status="PENDING">대기</button>
@@ -643,16 +780,20 @@
                     <button type="button" class="admin-chip" data-reservation-status="USED">사용 완료</button>
                     <button type="button" class="admin-chip" data-reservation-status="EXPIRED_PENDING">만료 방치</button>
                   </div>
-                </div>
-                <p class="admin-notice" data-reservation-alert role="status" hidden></p>
-                <div class="white-panel admin-panel">
-                  <label class="admin-search">
+                  <form class="admin-reservation-search" data-reservation-search-form>
+                    <label class="admin-search">
                     <span class="sr-only">예약 검색</span>
                     <input type="search" data-reservation-search autocomplete="off"
-                           placeholder="예약번호·닉네임 검색 후 Enter" />
-                  </label>
+                           placeholder="예약번호 또는 닉네임" />
+                    </label>
+                    <button type="submit" class="admin-chip on">검색</button>
+                    <button type="button" class="admin-chip" data-reservation-search-clear hidden>검색 초기화</button>
+                    <button type="button" class="admin-chip" data-reservation-refresh>새로고침</button>
+                  </form>
+                  <p class="admin-hint admin-reservation-count" data-reservation-count role="status"></p>
+                  </div>
                   <div class="admin-table-head admin-monitor-row">
-                    <span>예약</span><span>상태</span><span>변경 시각</span>
+                    <span>예약</span><span>결제 금액·여행</span><span>상태·결제 기한</span><span>처리 시각</span>
                   </div>
                   <div id="reservationList" class="admin-table-body"></div>
                   <p class="admin-empty" id="reservationEmpty" role="status">
@@ -681,12 +822,14 @@
                   <button type="button" class="admin-chip" data-performance-refresh>새로고침</button>
                 </div>
                 <div class="white-panel admin-panel admin-perf">
+                  <p class="admin-performance-health" data-performance-health role="status">상태 확인 중</p>
                   <div><span>TPS</span><strong data-metric="tps">—</strong></div>
                   <div><span>평균 응답시간</span><strong data-metric="latency">—</strong></div>
                   <div><span>오류율</span><strong data-metric="failureRate">—</strong></div>
                   <p class="admin-hint" data-performance-note role="status">
                     성능 지표를 불러오는 중이에요.
                   </p>
+                  <p class="admin-hint">화면 참고 기준: 응답 500ms·오류율 1% 이상은 주의, 응답 1초·오류율 5% 이상은 위험입니다.</p>
                 </div>
               </section>
 
@@ -706,20 +849,26 @@
                   </div>
                   <span class="admin-tag live" data-admin-state="chat">실연동</span>
                   <div class="admin-filter" role="group" aria-label="상담 상태 필터">
-                    <button type="button" class="admin-chip on" data-chat-filter="">전체</button>
-                    <button type="button" class="admin-chip" data-chat-filter="BOT">봇 응대 중</button>
-                    <button type="button" class="admin-chip" data-chat-filter="WAITING">대기</button>
-                    <button type="button" class="admin-chip" data-chat-filter="ASSIGNED">내 담당</button>
-                    <button type="button" class="admin-chip" data-chat-filter="CLOSED">종료</button>
+                    <button type="button" class="admin-chip on" data-chat-filter="" aria-pressed="true">전체</button>
+                    <button type="button" class="admin-chip" data-chat-filter="BOT" aria-pressed="false">봇 응대 중</button>
+                    <button type="button" class="admin-chip" data-chat-filter="WAITING" aria-pressed="false">대기</button>
+                    <button type="button" class="admin-chip" data-chat-filter="ASSIGNED" aria-pressed="false">내 담당</button>
+                    <button type="button" class="admin-chip" data-chat-filter="CLOSED" aria-pressed="false">종료</button>
                   </div>
                 </div>
 
                 <div class="white-panel admin-chat">
                   <div class="admin-chat-rooms">
-                    <label class="admin-chat-search">
-                      <span class="sr-only">상담 검색</span>
-                      <input id="chatSearch" type="search" placeholder="닉네임·이메일로 검색 후 Enter" />
-                    </label>
+                    <form class="admin-chat-search" data-chat-search-form>
+                      <label>
+                        <span class="sr-only">상담 검색</span>
+                        <input id="chatSearch" type="search" placeholder="닉네임·이메일 검색" />
+                      </label>
+                      <button type="submit" class="admin-chip">검색</button>
+                      <button type="button" class="admin-chip" data-chat-search-clear hidden>검색 해제</button>
+                      <button type="button" class="admin-chip" data-chat-refresh>새로고침</button>
+                    </form>
+                    <p class="admin-hint admin-chat-count" data-chat-count role="status"></p>
                     <div id="chatRoomList" class="admin-chat-room-list"></div>
                     <p class="admin-empty" id="chatRoomEmpty" role="status">
                       상담 목록을 불러오는 중이에요.
@@ -759,9 +908,10 @@
                   </div>
                 </div>
                 <p class="admin-hint">
-                  봇이 먼저 받고 관리자가 넘겨받는 구조예요. 챗봇은 아직 붙지 않아 지금은 모든 상담이
-                  <b>대기</b>로 들어옵니다. 봇이 붙으면 <b>봇 응대 중</b>으로 시작하고,
-                  <b>내가 응대하기</b>가 그 상담을 사람에게 넘깁니다.
+                  봇이 먼저 받고 관리자가 넘겨받는 구조예요. 상담은 <b>봇 응대 중</b>으로 시작하고,
+                  봇이 스스로 넘기거나 <b>내가 응대하기</b>를 누르면 사람에게 넘어옵니다.
+                  봇이 답하지 못하거나 응답이 늦으면 <b>대기</b>로 넘어옵니다 — 상담 봇 키가
+                  설정돼 있지 않으면 모든 상담이 이 경로로 들어옵니다.
                 </p>
               </section>
             </div>

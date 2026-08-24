@@ -78,3 +78,10 @@ const scheduleMarkup = fs.readFileSync(
 assert.match(scheduleMarkup, /data-schedule-booking/);
 assert.match(scheduleSource, /"\/booking\/flights\?tripId=" \+ encodeURIComponent\(activeTripId\)/);
 assert.match(scheduleSource, /먼저 여행을 저장해 주세요\./);
+
+// 방문 시각은 HTML 문자열에 끼워 넣지 않는다. 저장해 둔 값에 따옴표가 섞이면
+// 속성을 빠져나와 태그로 읽히기 때문에, 칸을 만든 뒤 값으로만 채운다.
+assert.doesNotMatch(scheduleSource, /value="\$\{currentHour\}"/);
+assert.doesNotMatch(scheduleSource, /value="\$\{currentMinute\}"/);
+assert.match(scheduleSource, /hourInput\.value = currentHour;/);
+assert.match(scheduleSource, /minuteInput\.value = currentMinute;/);

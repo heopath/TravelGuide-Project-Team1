@@ -8,10 +8,13 @@ import org.example.all_my_trip_project.domain.ai.service.AiTripPlanGenerationExc
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 import java.util.List;
 
@@ -89,6 +92,51 @@ public class ApiExceptionHandler {
 
         return ResponseEntity.badRequest()
                 .body(ErrorResponse.validation(errors));
+    }
+
+    /*
+     * 요청 자체가 형식에 맞지 않는 경우다. 아래 셋은 컨트롤러에 닿기 전에 걸리며,
+     * 따로 잡지 않으면 맨 아래 Exception 처리기로 떨어져 500이 된다. 보낸 쪽이
+     * 잘못 보낸 것이므로 400으로 답하고, 어디가 잘못됐는지도 알려준다.
+     *
+     *   - 필수 파라미터 누락        GET /tickets            (from, to 없음)
+     *   - 값의 형식이 안 맞음        GET /tickets?from=abc   (날짜가 아님)
+     *   - 본문이 JSON이 아님         POST 본문 파싱 실패
+     */
+    @ExceptionHandler(MissingServletRequestParameterException.class)
+    public ResponseEntity<ErrorResponse> handleMissingParameter(
+            MissingServletRequestParameterException exception
+    ) {
+        return ResponseEntity.badRequest().body(
+                ErrorResponse.of(
+                        "MISSING_REQUEST_PARAMETER",
+                        exception.getParameterName() + " 값이 필요합니다."
+                )
+        );
+    }
+
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<ErrorResponse> handleTypeMismatch(
+            MethodArgumentTypeMismatchException exception
+    ) {
+        return ResponseEntity.badRequest().body(
+                ErrorResponse.of(
+                        "INVALID_REQUEST_PARAMETER",
+                        exception.getName() + " 값의 형식이 올바르지 않습니다."
+                )
+        );
+    }
+
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<ErrorResponse> handleUnreadableBody(
+            HttpMessageNotReadableException exception
+    ) {
+        return ResponseEntity.badRequest().body(
+                ErrorResponse.of(
+                        "MALFORMED_REQUEST_BODY",
+                        "요청 본문을 읽을 수 없습니다."
+                )
+        );
     }
 
     @ExceptionHandler(Exception.class)

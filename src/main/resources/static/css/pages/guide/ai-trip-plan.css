@@ -1,11 +1,15 @@
 body.page-ai-trip-plan #page-content { background: linear-gradient(180deg, #f5f8ff 0, #fff 46%); }
-.ai-plan-shell { max-width: 1240px; margin: 0 auto; }
-.trip-condition-card { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; overflow: hidden; margin-bottom: 28px; border: 1px solid var(--border); border-radius: 20px; background: var(--border); box-shadow: 0 12px 32px rgba(37, 57, 101, .05); }
-.trip-condition-card > div { min-height: 102px; padding: 22px 28px; background: #fff; }
+body.page-ai-trip-plan .page-shell.ai-plan-shell { width: min(1480px, calc(100vw - 64px)); max-width: none; padding-inline: 32px; margin-inline: auto; }
+.ai-plan-shell > .page-heading { min-height: auto; margin-bottom: 28px; align-items: center; }
+.ai-plan-shell > .page-heading > div { min-width: 0; }
+.ai-plan-shell > .page-heading h1 { max-width: none; white-space: nowrap; }
+.ai-plan-shell > .page-heading .outline-button { flex: 0 0 auto; white-space: nowrap; }
+.trip-condition-card { width: min(calc(54% - 13px), 980px); display: grid; grid-template-columns: .85fr 1.5fr .65fr; gap: 1px; overflow: hidden; margin-bottom: 22px; border: 1px solid var(--border); border-radius: 15px; background: var(--border); box-shadow: 0 8px 22px rgba(37, 57, 101, .04); }
+.trip-condition-card > div { min-height: 76px; padding: 15px 22px; background: #fff; }
 .trip-condition-card span, .trip-condition-card strong { display: block; }
-.trip-condition-card span { color: var(--muted); font-size: 12px; font-weight: 750; }
-.trip-condition-card strong { margin-top: 9px; color: var(--navy); font-size: 19px; }
-.ai-plan-layout { display: grid; grid-template-columns: 330px 1fr; gap: 24px; align-items: start; }
+.trip-condition-card span { color: var(--muted); font-size: 10px; font-weight: 800; }
+.trip-condition-card strong { margin-top: 5px; color: var(--navy); font-size: 16px; line-height: 1.3; white-space: nowrap; }
+.ai-plan-layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: 24px; align-items: start; }
 .ai-plan-layout.ai-plan-layout-result { grid-template-columns: minmax(0, 1fr); }
 .plan-preferences { padding: 28px; }
 .plan-icon { width: 48px; height: 48px; display: grid; place-items: center; border-radius: 16px; background: var(--gradient); color: #fff; font-size: 22px; }
@@ -14,7 +18,10 @@ body.page-ai-trip-plan #page-content { background: linear-gradient(180deg, #f5f8
 .plan-preferences label { display: block; margin-bottom: 16px; color: var(--navy); font-size: 13px; font-weight: 800; }
 .plan-preferences select { width: 100%; min-height: 48px; margin-top: 8px; padding: 0 13px; border: 1px solid var(--border); border-radius: 10px; background: #fff; color: var(--ink); }
 .plan-preferences button span { margin-left: 8px; }
-.plan-result { min-height: 448px; padding: 34px; }
+.plan-result { min-height: 448px; padding: 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; }
+.plan-result-content { display: grid; grid-template-columns: minmax(0, 1.08fr) minmax(0, .92fr); gap: 24px; align-items: start; }
+.plan-result-main { min-width: 0; min-height: 620px; padding: 34px; }
+.plan-result-side { min-width: 0; padding-top: 0; }
 .plan-result-empty { min-height: 378px; display: grid; place-items: center; align-content: center; text-align: center; }
 .plan-result-empty > span { width: 56px; height: 56px; display: grid; place-items: center; border-radius: 20px; background: var(--primary-soft); color: var(--primary); font-size: 26px; }
 .plan-result-empty h2 { margin: 17px 0 8px; font-size: 22px; }
@@ -57,6 +64,7 @@ body.page-ai-trip-plan #page-content { background: linear-gradient(180deg, #f5f8
 .plan-timeline strong { color: var(--navy); font-size: 14px; }
 .plan-timeline span { margin-top: 5px; color: var(--muted); font-size: 12px; line-height: 1.45; }
 .plan-note { margin: 5px 0 18px; padding: 13px 15px; border-radius: 10px; background: #f5f7ff; color: var(--muted); font-size: 12px; line-height: 1.55; }
+.plan-save-button { grid-column: 2; justify-self: end; min-width: 230px; margin-top: -2px; }
 .plan-loading { min-height: 378px; display: grid; place-items: center; align-content: center; gap: 10px; color: var(--muted); font-size: 13px; text-align: center; }
 .plan-loading span { color: var(--primary); font-size: 29px; animation: plan-pulse 1s ease-in-out infinite; }
 .plan-loading p { margin: 0; }
@@ -68,4 +76,6 @@ body.page-ai-trip-plan #page-content { background: linear-gradient(180deg, #f5f8
 .plan-error[hidden],
 [data-plan-result][hidden] { display: none !important; }
 @keyframes plan-pulse { 50% { opacity: .35; transform: scale(1.25); } }
-@media (max-width: 760px) { .trip-condition-card { grid-template-columns: 1fr; }.trip-condition-card > div { min-height: 80px; padding: 17px 20px; }.trip-condition-card strong { margin-top: 5px; font-size: 17px; }.ai-plan-layout { grid-template-columns: 1fr; }.plan-preferences, .plan-result { padding: 22px 18px; }.plan-result { min-height: 0; }.plan-result-empty, .plan-loading { min-height: 270px; }.plan-timeline li { grid-template-columns: 52px 1fr; }.plan-map { min-height: 230px; }.plan-map-title { display: block; }.plan-map-title p { margin-top: 6px; }.plan-place-list { grid-template-columns: 1fr; }.plan-day-tabs { overflow-x: auto; flex-wrap: nowrap; padding-bottom: 2px; }.plan-day-tabs button { flex: 0 0 auto; } }
+@media (max-width: 1100px) { body.page-ai-trip-plan .page-shell.ai-plan-shell { width: calc(100vw - 56px); padding-inline: 28px; }.plan-result-content { grid-template-columns: minmax(0, 1.05fr) minmax(360px, .95fr); }.plan-result-main { padding: 28px; }.plan-place-list { grid-template-columns: 1fr; } }
+@media (max-width: 900px) { .trip-condition-card { width: 100%; }.plan-result-content { grid-template-columns: 1fr; }.plan-save-button { grid-column: auto; justify-self: start; } }
+@media (max-width: 760px) { body.page-ai-trip-plan .page-shell.ai-plan-shell { width: 100%; padding-inline: 16px; }.ai-plan-shell > .page-heading { align-items: stretch; }.ai-plan-shell > .page-heading h1 { white-space: normal; }.ai-plan-shell > .page-heading .outline-button { align-self: flex-start; margin-top: 18px; }.trip-condition-card { width: 100%; grid-template-columns: 1fr; }.trip-condition-card > div { min-height: 68px; padding: 13px 18px; }.trip-condition-card strong { margin-top: 4px; font-size: 16px; white-space: normal; }.ai-plan-layout { grid-template-columns: 1fr; }.plan-preferences { padding: 22px 18px; }.plan-result-main { min-height: 0; padding: 22px 18px; }.plan-result-content { grid-template-columns: 1fr; gap: 18px; }.plan-result-empty, .plan-loading { min-height: 270px; }.plan-timeline li { grid-template-columns: 52px 1fr; }.plan-map { min-height: 230px; }.plan-map-title { display: block; }.plan-map-title p { margin-top: 6px; }.plan-place-list { grid-template-columns: 1fr; }.plan-day-tabs { overflow-x: auto; flex-wrap: nowrap; padding-bottom: 2px; }.plan-day-tabs button { flex: 0 0 auto; }.plan-save-button { width: 100%; min-width: 0; margin-top: 0; } }

@@ -1,69 +1,228 @@
-<img src="https://capsule-render.vercel.app/api?type=waving&color=0:4FACFE,100:00C9A7&theme=navy&height=250&section=header&text=All%20My%20Trips&fontSize=55&animation=fadeIn&desc=All%20My%20Trips%20Web%20Application%20Development&descSize=20&descAlignY=65" width="100%" />
+<img src="https://capsule-render.vercel.app/api?type=waving&color=0:4FACFE,100:00C9A7&theme=navy&height=250&section=header&text=All%20My%20Trips&fontSize=55&animation=fadeIn&desc=%EA%B3%84%ED%9A%8D%EB%B6%80%ED%84%B0%20%ED%98%84%EC%9E%A5%20%EC%9E%85%EC%9E%A5%EA%B9%8C%EC%A7%80%20%ED%95%9C%20%EA%B3%B3%EC%97%90%EC%84%9C&descSize=20&descAlignY=65" width="100%" />
 
 <div align="center">
 
-# ✈️ All My Trips
+**여행 계획을 세우고, 티켓을 예약하고, 결제하고, 현장에서 QR로 입장까지.**<br />
+중간에 다른 서비스로 넘어가지 않습니다.
 
-### 🌍 AI-Powered Travel Guide & Planner
+<br />
 
-**AI가 추천하고, 사용자가 완성하는 맞춤형 여행 플래너**
+<!--
+  배포 주소와 영상이 준비되면 아래 두 줄의 주석을 풀고 링크를 채웁니다.
+  주소가 빈 채로 두면 눌렀을 때 아무 데도 가지 않아 미완성으로 보입니다.
 
-<br>
+[![Demo](https://img.shields.io/badge/🌐_바로_써보기-4FACFE?style=for-the-badge)](배포-주소)
+[![Video](https://img.shields.io/badge/🎬_시연_영상-FF0000?style=for-the-badge&logo=youtube&logoColor=white)](영상-주소)
+-->
+[![Wiki](https://img.shields.io/badge/📖_문서-181717?style=for-the-badge&logo=github&logoColor=white)](https://github.com/heopath/TravelGuide-Project-Team1/wiki)
+[![Slides](https://img.shields.io/badge/🖥️_기술_설명-4FACFE?style=for-the-badge)](https://heopath.github.io/TravelGuide-Project-Team1/video/technical-slides.html)
 
-<img src="https://img.shields.io/badge/Project-All%20My%20Trips-4FACFE?style=for-the-badge" />
-<img src="https://img.shields.io/badge/Status-Planning-00C9A7?style=for-the-badge" />
-<img src="https://img.shields.io/badge/AI-Travel%20Planner-8A2BE2?style=for-the-badge" />
-
-<br><br>
-
-<img src="https://img.shields.io/badge/Java-21-007396?style=flat-square&logo=openjdk&logoColor=white" />
-<img src="https://img.shields.io/badge/Spring%20Boot-6DB33F?style=flat-square&logo=springboot&logoColor=white" />
-<img src="https://img.shields.io/badge/PostgreSQL-4169E1?style=flat-square&logo=postgresql&logoColor=white" />
-<img src="https://img.shields.io/badge/Redis-DC382D?style=flat-square&logo=redis&logoColor=white" />
-<img src="https://img.shields.io/badge/AWS-FF9900?style=flat-square&logo=amazonaws&logoColor=white" />
+![Java](https://img.shields.io/badge/Java_21-007396?style=flat-square&logo=openjdk&logoColor=white)
+![Spring Boot](https://img.shields.io/badge/Spring_Boot_4-6DB33F?style=flat-square&logo=springboot&logoColor=white)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-4169E1?style=flat-square&logo=postgresql&logoColor=white)
+![Redis](https://img.shields.io/badge/Redis-DC382D?style=flat-square&logo=redis&logoColor=white)
+![AWS](https://img.shields.io/badge/AWS_EC2-FF9900?style=flat-square&logo=amazonec2&logoColor=white)
+![Version](https://img.shields.io/badge/version-v0.12.0-00C9A7?style=flat-square)
 
 </div>
 
 ---
 
-## 🌍 About All My Trips
+<!--
+  화면 GIF와 데모 계정.
 
-All My Trips은 사용자의 **여행 기간, 목적지, 동행자, 여행 스타일, 예산**을 기반으로
-AI가 맞춤형 여행 일정을 추천하고, 사용자가 직접 수정하여 자신만의 여행 계획을 완성할 수 있는 여행 플랫폼입니다.
+  docs/video/gif/ 에 파일을 넣고 아래 주석을 풀면 됩니다. 파일이 없는 채로 두면
+  깨진 이미지가 보이므로 지금은 감춰 둡니다. 만드는 방법은 그 폴더의 README를 보세요.
 
-단순한 여행지 추천을 넘어 다음과 같은 흐름으로 서비스를 확장하는 것을 목표로 합니다.
+  데모 계정은 실제로 로그인되는 것을 적습니다. 조사해보니 채용 담당자 상당수가
+  동작하는 데모를 보고 싶어 하고, 로그인이 필요하면 계정을 적어 두라고 합니다.
 
-```text
-AI 여행 추천
-      ↓
-사용자 일정 편집
-      ↓
-실시간 여행 정보
-      ↓
-숙박 · 교통 · 티켓 예약
-      ↓
-대규모 트래픽 처리
-      ↓
-RAG 기반 개인화 AI 여행 가이드
+## 🎬 이렇게 동작합니다
+
+<div align="center">
+
+| 예약부터 현장 입장까지 | 여행 기록을 책 지면으로 |
+|:---:|:---:|
+| <img src="docs/video/gif/booking-to-checkin.gif" width="420" /> | <img src="docs/video/gif/record-book.gif" width="420" /> |
+| 예약 → 결제 → 티켓 발급 → 알림 → QR 검표 | 사진 개수에 따라 지면 배치가 바뀝니다 |
+
+</div>
+
+> **데모 계정** — 아이디 `계정` / 비밀번호 `비밀번호`
+> 관리자 화면을 보려면 `관리자 계정`으로 로그인하세요.
+
+---
+-->
+
+## ✨ 만든 것
+
+| | 기능 | 설명 |
+|:---:|---|---|
+| 🗓️ | **여행 일정 만들기** | 목적지·기간을 고르면 DAY별 일정을 짜고 장소를 담습니다 |
+| 🤖 | **AI 일정 추천** | 취향과 일정을 보고 다음에 갈 곳을 제안합니다 |
+| 🎫 | **티켓 예약·결제** | 대기열을 거쳐 예약하고 결제하면 QR 티켓이 발급됩니다 |
+| 📱 | **현장 검표** | 관리자가 QR을 찍어 입장을 확인합니다 |
+| 📖 | **여행 기록** | 다녀온 뒤 사진과 글을 남기고 책 지면 이미지로 뽑습니다 |
+| 💬 | **실시간 상담** | 봇이 먼저 받고, 필요하면 상담원이 이어받습니다 |
+| ⚙️ | **관리자 운영** | 신고·문의·회원·재고·검표 이력을 한 곳에서 처리합니다 |
+
+---
+
+## 🔧 기술적으로 풀어낸 것
+
+<table>
+<tr>
+<td width="50%" valign="top">
+
+### 재고를 정확히 지키기
+
+인기 티켓은 같은 회차에 동시에 몰립니다. **재고를 확인하고 빼는 두 동작이 갈라지면** 그 사이에 다른 요청이 끼어들어 한 자리를 두 사람에게 팔게 됩니다.
+
+Redis Lua 스크립트로 **한 덩어리로 실행**해 틈을 없앴습니다. k6 부하 테스트로 확인했습니다.
+
+`RedisBookingQueueStore` · `load-test/booking-queue.js`
+
+</td>
+<td width="50%" valign="top">
+
+### 입장 코드 위조 막기
+
+QR을 캡처해 남에게 넘기면 검표가 무의미해집니다.
+
+**HMAC-SHA256으로 서명**하고 **5분 뒤 만료**시킵니다. 값을 고치면 서명이 깨지고, 서버는 코드만 보고 진짜인지 판단합니다.
+
+`PaymentQrSigner`
+
+</td>
+</tr>
+<tr>
+<td width="50%" valign="top">
+
+### 사진 개수를 모른 채 지면 짜기
+
+자리를 좌표로 박아두면 3장일 때와 7장일 때 같은 지면이 나옵니다.
+
+**장수와 사진 비율을 보고 배치를 고르게** 만들었습니다. 첫 글자를 크게 놓고 본문이 그 옆을 감싸 흐르는 조판도 직접 구현했습니다.
+
+`record-book.js`
+
+</td>
+<td width="50%" valign="top">
+
+### 사진 한 장 때문에 저장이 막히던 것
+
+다른 도메인 사진을 canvas에 그리면 브라우저가 **이미지 내보내기를 통째로 막습니다.**
+
+허락받은 사진만 그리고 실패한 자리는 비워, 한 장 때문에 지면 전체를 잃지 않게 했습니다.
+
+</td>
+</tr>
+</table>
+
+---
+
+## 🏗️ 구조
+
+```mermaid
+flowchart LR
+    U["🌐 사용자"] --> N["Nginx<br/>HTTPS"]
+    N --> A["Spring Boot"]
+
+    A --> DB[("PostgreSQL<br/>+ pgvector")]
+    A --> R[("Redis<br/>세션·캐시·대기열")]
+    A --> AI["AI<br/>일정 추천·상담 봇"]
+    A --> EX["외부 API<br/>결제·지도·관광"]
+
+    style U fill:#e8f2fd,stroke:#4FACFE
+    style A fill:#e9f7ee,stroke:#6DB33F
+    style DB fill:#eef1fd,stroke:#4169E1
+    style R fill:#fdeceb,stroke:#DC382D
 ```
 
----
-
-## ✈️ How All My Trips Works
-
-| Step | Journey             |
-| :--: | ------------------- |
-| `01` | 📍 여행 조건 입력         |
-| `02` | 🤖 AI 맞춤 여행 일정 생성   |
-| `03` | 🗓️ 사용자 일정 수정 및 저장  |
-| `04` | 🌤️ 실시간 여행 정보 확인    |
-| `05` | 🎫 숙박 · 교통 · 티켓 예약  |
-| `06` | 🧠 RAG 기반 개인화 여행 추천 |
+Redis는 캐시만이 아니라 **세션 저장소**와 **예약 대기열**로도 씁니다. 세션을 Redis에 두어 배포해도 로그인이 풀리지 않고, 서버를 늘려도 유지됩니다.
 
 ---
+
+## 📊 규모
+
+<div align="center">
+
+| DB 마이그레이션 | 서버 테스트 | 화면 테스트 | 화면 |
+|:---:|:---:|:---:|:---:|
+| **27** | **107개** | **37개 파일** | **40+** |
+
+</div>
+
+밀어 넣을 때마다 GitHub Actions가 **빌드 · 테스트 · CodeQL 보안 검사**를 돌리고, 통과하면 EC2에 자동 배포됩니다.
+
+---
+
+## 🚀 실행해보기
+
+```bash
+git clone https://github.com/heopath/TravelGuide-Project-Team1.git
+cd TravelGuide-Project-Team1
+
+docker compose up -d          # PostgreSQL + Redis
+./gradlew bootRun --args='--spring.profiles.active=local'
+```
+
+http://localhost:8080 으로 접속합니다. 자세한 준비 과정은 [실행 시나리오](https://github.com/heopath/TravelGuide-Project-Team1/wiki/프로젝트-실행-시나리오)를 보세요.
+
+> 지도·결제·AI 기능은 외부 API 키가 필요합니다. 키 없이도 앱은 뜨고, 해당 기능은 안내 문구가 나옵니다.
+
+---
+
+## 🛠️ 기술 스택
+
+<div align="center">
+
+**Backend**<br />
+![Java](https://img.shields.io/badge/Java_21-007396?style=flat-square&logo=openjdk&logoColor=white)
+![Spring Boot](https://img.shields.io/badge/Spring_Boot-6DB33F?style=flat-square&logo=springboot&logoColor=white)
+![Spring Security](https://img.shields.io/badge/Spring_Security-6DB33F?style=flat-square&logo=springsecurity&logoColor=white)
+![JPA](https://img.shields.io/badge/JPA-59666C?style=flat-square)
+![MyBatis](https://img.shields.io/badge/MyBatis-000000?style=flat-square)
+![WebSocket](https://img.shields.io/badge/WebSocket_STOMP-010101?style=flat-square)
+
+**Frontend**<br />
+![HTML5](https://img.shields.io/badge/HTML5-E34F26?style=flat-square&logo=html5&logoColor=white)
+![CSS3](https://img.shields.io/badge/CSS3-1572B6?style=flat-square&logo=css3&logoColor=white)
+![JavaScript](https://img.shields.io/badge/JavaScript-F7DF1E?style=flat-square&logo=javascript&logoColor=black)
+![Thymeleaf](https://img.shields.io/badge/Thymeleaf-005F0F?style=flat-square&logo=thymeleaf&logoColor=white)
+![Canvas](https://img.shields.io/badge/Canvas_API-FF6F00?style=flat-square)
+
+**Data · Infra**<br />
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-4169E1?style=flat-square&logo=postgresql&logoColor=white)
+![Redis](https://img.shields.io/badge/Redis-DC382D?style=flat-square&logo=redis&logoColor=white)
+![Flyway](https://img.shields.io/badge/Flyway-CC0200?style=flat-square&logo=flyway&logoColor=white)
+![AWS](https://img.shields.io/badge/EC2_·_RDS-FF9900?style=flat-square&logo=amazonwebservices&logoColor=white)
+![GitHub Actions](https://img.shields.io/badge/GitHub_Actions-2088FF?style=flat-square&logo=githubactions&logoColor=white)
+![Cloudflare](https://img.shields.io/badge/Cloudflare-F38020?style=flat-square&logo=cloudflare&logoColor=white)
+
+</div>
+
+---
+
+## 👥 팀
+
+<div align="center">
+
+| 👑 팀장 | 팀원 | 팀원 | 팀원 | 팀원 |
+|:---:|:---:|:---:|:---:|:---:|
+| **허민재** | 정인길 | 홍유원 | 남현호 | 한성주 |
+
+</div>
+
+---
+
+## 📚 더 보기
 
 <details>
-<summary><b>📖 1. 프로젝트 소개</b></summary>
+<summary><b>📖 프로젝트 소개와 기획</b></summary>
+
+<br />
+
 
 <br>
 
@@ -112,12 +271,9 @@ AI가 만든 일정은 사용자가 자유롭게 수정할 수 있으며,
 > All My Trips은 여행 계획의 시작부터 실제 여행 준비까지
 > 하나의 서비스 안에서 해결하는 것을 목표로 합니다.
 
-</details>
 
 ---
 
-<details>
-<summary><b>✨ 2. 핵심 기능</b></summary>
 
 <br>
 
@@ -226,12 +382,9 @@ AI가 만든 일정을 그대로 사용하는 것이 아니라
 * 내 여행 일정 조회
 * 즐겨찾기 관리
 
-</details>
 
 ---
 
-<details>
-<summary><b>🗺️ 3. 서비스 플로우</b></summary>
 
 <br>
 
@@ -297,9 +450,13 @@ Google 검색 페이지처럼 복잡하지 않고 직관적인 UI를 목표로 �
 * 숙박 스타일
 * 관심 여행 테마
 
+
 </details>
 
----
+<details>
+<summary><b>🗺️ 구현 단계와 로드맵</b></summary>
+
+<br />
 
 ## 🚀 Development Roadmap
 
@@ -311,8 +468,8 @@ Google 검색 페이지처럼 복잡하지 않고 직관적인 UI를 목표로 �
 
 ---
 
-<details>
-<summary><b>1️⃣ 4-1. 1차 구현 - MVP</b></summary>
+### 1차 — MVP
+
 
 <br>
 
@@ -338,12 +495,9 @@ All My Trips의 핵심 서비스를 먼저 구현하는 단계입니다.
 1차 구현에서는 All My Trips 서비스의 핵심 가치인
 **AI 추천 + 사용자 일정 관리** 기능을 완성하는 것을 목표로 합니다.
 
-</details>
 
----
+### 2차 — 서비스 확장
 
-<details>
-<summary><b>2️⃣ 4-2. 2차 구현 - 서비스 확장</b></summary>
 
 <br>
 
@@ -462,12 +616,9 @@ nGrinder
 
 > **실제 서비스 환경에서 발생할 수 있는 트래픽과 동시성 문제를 직접 재현하고 해결**
 
-</details>
 
----
+### 3차 — AI 고도화
 
-<details>
-<summary><b>3️⃣ 4-3. 3차 구현 - AI 고도화</b></summary>
 
 <br>
 
@@ -582,108 +733,14 @@ Milvus
 
 > **사용자의 여행 데이터를 이해하고 개인화된 추천을 제공하는 AI Travel Assistant 구현**
 
-</details>
-
----
-
-<details>
-<summary><b>🛠️ 5. 기술 스택</b></summary>
-
-<br>
-
-## Backend
-
-<img src="https://img.shields.io/badge/Java%2017-007396?style=for-the-badge&logo=openjdk&logoColor=white">
-<img src="https://img.shields.io/badge/Spring%20Boot-6DB33F?style=for-the-badge&logo=springboot&logoColor=white">
-<img src="https://img.shields.io/badge/Spring%20Security-6DB33F?style=for-the-badge&logo=springsecurity&logoColor=white">
-<img src="https://img.shields.io/badge/JPA-59666C?style=for-the-badge">
-<img src="https://img.shields.io/badge/MyBatis-000000?style=for-the-badge">
-
----
-
-## Frontend
-
-<img src="https://img.shields.io/badge/HTML5-E34F26?style=for-the-badge&logo=html5&logoColor=white">
-<img src="https://img.shields.io/badge/CSS3-1572B6?style=for-the-badge&logo=css3&logoColor=white">
-<img src="https://img.shields.io/badge/JavaScript-F7DF1E?style=for-the-badge&logo=javascript&logoColor=black">
-<img src="https://img.shields.io/badge/Thymeleaf-005F0F?style=for-the-badge&logo=thymeleaf&logoColor=white">
-
----
-
-## Database / Cache
-
-<img src="https://img.shields.io/badge/PostgreSQL-4169E1?style=for-the-badge&logo=postgresql&logoColor=white">
-<img src="https://img.shields.io/badge/Redis-DC382D?style=for-the-badge&logo=redis&logoColor=white">
-
----
-
-## AI
-
-<img src="https://img.shields.io/badge/Ollama-000000?style=for-the-badge">
-<img src="https://img.shields.io/badge/Gemini%20API-4285F4?style=for-the-badge&logo=google&logoColor=white">
-<img src="https://img.shields.io/badge/RAG-8A2BE2?style=for-the-badge">
-<img src="https://img.shields.io/badge/Vector%20DB-4B0082?style=for-the-badge">
-
----
-
-## Infrastructure
-
-<img src="https://img.shields.io/badge/AWS%20EC2-FF9900?style=for-the-badge&logo=amazonec2&logoColor=white">
-<img src="https://img.shields.io/badge/Nginx-009639?style=for-the-badge&logo=nginx&logoColor=white">
-<img src="https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white">
-<img src="https://img.shields.io/badge/GitHub%20Actions-2088FF?style=for-the-badge&logo=githubactions&logoColor=white">
-
----
-
-## Collaboration
-
-<img src="https://img.shields.io/badge/Git-F05032?style=for-the-badge&logo=git&logoColor=white">
-<img src="https://img.shields.io/badge/GitHub-181717?style=for-the-badge&logo=github&logoColor=white">
-<img src="https://img.shields.io/badge/Figma-F24E1E?style=for-the-badge&logo=figma&logoColor=white">
 
 </details>
 
----
-
 <details>
-<summary><b>⚙️ 6. 시스템 아키텍처</b></summary>
+<summary><b>🗄️ 데이터베이스 설계</b></summary>
 
-<br>
+<br />
 
-```text
-                 ┌──────────────┐
-                 │    Client    │
-                 │  Web Browser │
-                 └──────┬───────┘
-                        │
-                        ▼
-                 ┌──────────────┐
-                 │    Nginx     │
-                 └──────┬───────┘
-                        │
-                        ▼
-               ┌────────────────┐
-               │  Spring Boot   │
-               │  Application   │
-               └───────┬────────┘
-                       │
-          ┌────────────┼────────────┐
-          │            │            │
-          ▼            ▼            ▼
-    PostgreSQL       Redis       AI Service
-                                      │
-                           ┌──────────┴──────────┐
-                           │                     │
-                           ▼                     ▼
-                          LLM              Vector Database
-```
-
-</details>
-
----
-
-<details>
-<summary><b>🗄️ 7. 데이터베이스 설계</b></summary>
 
 <br>
 
@@ -711,12 +768,14 @@ Milvus
 
 </details>
 
+
 </details>
 
----
-
 <details>
-<summary><b>📂 8. 프로젝트 구조</b></summary>
+<summary><b>📂 프로젝트 구조</b></summary>
+
+<br />
+
 
 <br>
 
@@ -754,31 +813,32 @@ AllMyTrips/
 └── README.md
 ```
 
+
 </details>
 
----
-
 <details>
-<summary><b>👥 9. 팀원 구성</b></summary>
+<summary><b>🔮 향후 확장 기능</b></summary>
+
+<br />
+
 
 <br>
 
-|    역할    |    이름   |
-| :------: | :-----: |
-|   👑 팀장  | **허민재** |
-| 👨‍💻 팀원 |   정인길   |
-| 👨‍💻 팀원 |   홍유원   |
-| 👨‍💻 팀원 |   남현호   |
-| 👨‍💻 팀원 |   한성주   |
+* 실시간 날씨 기반 일정 변경
+* 지도 기반 여행 동선 최적화
+* 항공 및 숙박 정보 연동
+* 관광지 티켓 예약
+* Redis 기반 예약 동시성 제어
+* 대규모 트래픽 대기열 시스템
+* 사용자 여행 패턴 분석
+* 개인 맞춤형 여행 추천
+* RAG 기반 여행 챗봇
 
-[📘 백엔드 도메인·Service 역할 분담 초안](All_My_Trip_Project/docs/backend-service-role-plan.md)
-
-</details>
 
 ---
 
-<details>
-<summary><b>📈 10. 프로젝트를 통해 얻고자 하는 경험</b></summary>
+### 이 프로젝트로 얻고자 한 경험
+
 
 <br>
 
@@ -813,39 +873,22 @@ AllMyTrips/
 * Docker 활용
 * GitHub Actions 기반 CI/CD
 
-</details>
-
----
-
-<details>
-<summary><b>🔮 11. 향후 확장 기능</b></summary>
-
-<br>
-
-* 실시간 날씨 기반 일정 변경
-* 지도 기반 여행 동선 최적화
-* 항공 및 숙박 정보 연동
-* 관광지 티켓 예약
-* Redis 기반 예약 동시성 제어
-* 대규모 트래픽 대기열 시스템
-* 사용자 여행 패턴 분석
-* 개인 맞춤형 여행 추천
-* RAG 기반 여행 챗봇
 
 </details>
 
 ---
 
-## 🔗 Project Links
+## 🔗 링크
 
-|     구분    | 링크    |
-| :-------: | ----- |
-|  🎨 Figma | [바로가기](https://www.figma.com/design/byqjrBMhrQzNsuE7AWJCfd/All-My-Trips-%E2%80%94-AI-%EB%A7%9E%EC%B6%A4-%EC%97%AC%ED%96%89-%ED%94%8C%EB%9E%AB%ED%8F%BC-%EC%A0%84%EC%B2%B4-%ED%99%94%EB%A9%B4--%ED%97%88%EB%AF%BC%EC%9E%AC-%ED%8C%80-?node-id=3-4310&p=f&t=FA8LwNIAQxCFGwsn-0) |
-| 📖 Notion | [바로가기](https://app.notion.com/p/chhak0503/1-3b17537e85eb80d09a97df02653cc676) |
-|  🌐 Demo  | 추후 추가 |
-|  🎬 Video | 추후 추가 |
+| 구분 | 링크 |
+|:---:|---|
+| 🌐 배포 | _배포 후 추가_ |
+| 🎬 시연 영상 | _촬영 후 추가_ |
+| 📖 위키 | [바로가기](https://github.com/heopath/TravelGuide-Project-Team1/wiki) |
+| 🎨 Figma | [바로가기](https://www.figma.com/design/byqjrBMhrQzNsuE7AWJCfd/All-My-Trips-%E2%80%94-AI-%EB%A7%9E%EC%B6%A4-%EC%97%AC%ED%96%89-%ED%94%8C%EB%9E%AB%ED%8F%BC-%EC%A0%84%EC%B2%B4-%ED%99%94%EB%A9%B4--%ED%97%88%EB%AF%BC%EC%9E%AC-%ED%8C%80-?node-id=3-4310) |
+| 📝 Notion | [바로가기](https://app.notion.com/p/chhak0503/1-3b17537e85eb80d09a97df02653cc676) |
 
----
+<br />
 
 <div align="center">
 
@@ -854,7 +897,5 @@ AllMyTrips/
 **Plan Smarter. Travel Better.**
 
 </div>
-
-
 
 <img src="https://capsule-render.vercel.app/api?type=waving&color=0:4FACFE,100:00C9A7&height=160&section=footer&text=Ready%20for%20Your%20Next%20Journey&fontSize=26&animation=fadeIn" width="100%" />

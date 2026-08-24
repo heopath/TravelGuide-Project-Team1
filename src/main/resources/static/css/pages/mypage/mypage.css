@@ -1079,6 +1079,36 @@ body.page-mypage main#page-content > .page-shell {
   padding-top: 12px;
 }
 
+/* 기록 버튼이 왼쪽, 일정으로 가는 화살표가 오른쪽이다. */
+.page-mypage .trip-full-card-bottom {
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.page-mypage .trip-full-card-record {
+  min-height: 34px;
+  padding: 0 14px;
+  border: 1px solid #d6dbf5;
+  border-radius: 999px;
+  color: #3d4b8f;
+  background: #ffffff;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.page-mypage .trip-full-card-record:hover {
+  border-color: #5365ff;
+  color: #5365ff;
+  background: #f5f6ff;
+}
+
+/* 기록 버튼이 없는 카드에서는 화살표가 그대로 오른쪽에 붙는다. */
+.page-mypage .trip-full-card-arrow {
+  margin-left: auto;
+}
+
 .page-mypage .trip-full-card-arrow {
   display: grid;
   width: 30px;
@@ -2965,4 +2995,44 @@ body.page-mypage main#page-content > .page-shell {
 @media (max-width: 640px) {
   .page-mypage .booking-entry-list li { grid-template-columns: auto minmax(0, 1fr); }
   .page-mypage .booking-entry-list li b { grid-column: 2; justify-self: end; }
+}
+
+/* =========================================================
+   좁은 화면: 사이드바를 본문 위로 접는다
+   ========================================================= */
+
+/*
+ * 사이드바 250px는 폭에 상관없이 고정이라, 375px에서는 본문에 41px만 남는다.
+ * 본문이 그 안에 들어가지 못해 화면이 옆으로 밀렸다(마이 페이지 86px,
+ * 예매한 티켓 174px). 약 525px 아래에서 생기던 문제다.
+ */
+@media (max-width: 760px) {
+  .page-mypage .mypage-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  /* 위로 접은 뒤에는 따라다닐 이유가 없다. 690px를 유지하면 본문이 그만큼
+     아래로 밀려 첫 화면이 사이드바로만 찬다. */
+  .page-mypage .mypage-sidebar {
+    position: static;
+    min-height: 0;
+    padding: 20px 16px;
+  }
+
+  /* 메뉴 8개를 세로로 쌓으면 그것만으로 한 화면이다. 가로로 훑게 한다. */
+  .page-mypage .mypage-nav {
+    flex-direction: row;
+    overflow-x: auto;
+    gap: 6px;
+  }
+
+  .page-mypage .mypage-nav button {
+    flex: 0 0 auto;
+    white-space: nowrap;
+  }
+
+  .page-mypage .mypage-nav.secondary {
+    margin-top: 8px;
+    padding-top: 10px;
+  }
 }
