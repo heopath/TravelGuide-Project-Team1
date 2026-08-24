@@ -19,6 +19,16 @@ public enum ErrorCode {
             "이메일 또는 비밀번호가 올바르지 않습니다."
     ),
 
+    TURNSTILE_VERIFICATION_FAILED(
+            HttpStatus.BAD_REQUEST,
+            "사람인지 확인하지 못했습니다. 다시 시도해 주세요."
+    ),
+
+    TURNSTILE_UNAVAILABLE(
+            HttpStatus.SERVICE_UNAVAILABLE,
+            "사람 확인 서비스에 연결하지 못했습니다. 잠시 후 다시 시도해 주세요."
+    ),
+
     PASSWORD_MISMATCH(
             HttpStatus.BAD_REQUEST,
             "현재 비밀번호가 일치하지 않습니다."

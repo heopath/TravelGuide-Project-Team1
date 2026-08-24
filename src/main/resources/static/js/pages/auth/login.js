@@ -34,9 +34,20 @@ document.addEventListener("DOMContentLoaded", function () {
     submitButton.disabled = true;
     submitButton.textContent = "로그인 중...";
 
+    const turnstileWidget = form.querySelector(".cf-turnstile");
+    const turnstileToken = form.querySelector('[name="cf-turnstile-response"]')?.value || "";
+    if (turnstileWidget && !turnstileToken) {
+      errorMessage.textContent = "사람인지 확인이 끝날 때까지 잠시 기다려 주세요.";
+      errorMessage.hidden = false;
+      submitButton.disabled = false;
+      submitButton.textContent = "로그인";
+      return;
+    }
+
     const request = {
       email: document.querySelector("#login-email").value.trim(),
-      password: document.querySelector("#login-password").value
+      password: document.querySelector("#login-password").value,
+      turnstileToken: turnstileToken
     };
 
     try {
@@ -60,6 +71,9 @@ document.addEventListener("DOMContentLoaded", function () {
     } catch (error) {
       errorMessage.textContent = error.message;
       errorMessage.hidden = false;
+      if (turnstileWidget && window.turnstile) {
+        window.turnstile.reset();
+      }
     } finally {
       submitButton.disabled = false;
       submitButton.textContent = "로그인";

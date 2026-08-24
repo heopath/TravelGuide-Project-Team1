@@ -10,6 +10,7 @@
     <link rel="stylesheet" th:href="@{/css/common/layout.css}" href="../../static/css/common/layout.css" />
     <link rel="stylesheet" th:href="@{/css/common/components.css}" href="../../static/css/common/components.css" />
     <link rel="stylesheet" th:href="@{/css/pages/auth/login.css}" href="../../static/css/pages/auth/login.css" />
+    <script th:if="${turnstileEnabled}" src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
   </head>
   <body class="page-login" data-route="/auth/login">
     <div class="app">
@@ -50,6 +51,12 @@
                     required
             />
           </label>
+
+          <div th:if="${turnstileEnabled}"
+               class="cf-turnstile"
+               th:attr="data-sitekey=${turnstileSiteKey}"
+               data-action="login"
+               data-theme="light"></div>
 
           <p id="login-error" class="notice danger" role="alert" hidden></p>
 
