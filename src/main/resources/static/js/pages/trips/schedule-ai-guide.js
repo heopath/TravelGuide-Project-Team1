@@ -240,6 +240,11 @@ document.addEventListener("DOMContentLoaded", function () {
               mapLink.target = "_blank";
               mapLink.rel = "noopener noreferrer";
               actions.append(mapLink);
+              const openingHoursLink = create("a", "카카오맵에서 영업시간 확인 ↗", "schedule-ai-opening-hours-link");
+              openingHoursLink.href = placeUrl;
+              openingHoursLink.target = "_blank";
+              openingHoursLink.rel = "noopener noreferrer";
+              actions.append(openingHoursLink);
             }
             const addButton = create("button", "일정에 추가", "schedule-ai-add-item");
             addButton.type = "button";

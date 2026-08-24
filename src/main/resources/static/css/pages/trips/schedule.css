@@ -621,8 +621,8 @@ body.map-modal-open {
 .schedule-ai-place-meta em { width: fit-content; padding: 2px 6px; border-radius: 999px; background: #f0f2ff; color: var(--primary); font-size: 9px; font-style: normal; font-weight: 900; }
 .schedule-ai-place-meta small { overflow: hidden; color: #78849b; font-size: 9px; line-height: 1.35; text-overflow: ellipsis; white-space: nowrap; }
 .schedule-ai-place-actions { display: grid; gap: 4px; justify-items: end; }
-.schedule-ai-map-link { padding: 4px 6px; color: #5465df; font-size: 9px; font-weight: 900; text-decoration: none; white-space: nowrap; }
-.schedule-ai-map-link:hover { text-decoration: underline; }
+.schedule-ai-map-link, .schedule-ai-opening-hours-link { padding: 4px 6px; color: #5465df; font-size: 9px; font-weight: 900; text-decoration: none; white-space: nowrap; }
+.schedule-ai-map-link:hover, .schedule-ai-opening-hours-link:hover { text-decoration: underline; }
 .schedule-ai-add-item { min-height: 28px; padding: 0 8px; border: 1px solid #cdd4ff; border-radius: 8px; background: #fff; color: var(--primary); font-size: 10px; font-weight: 900; cursor: pointer; }
 .schedule-ai-add-item:hover:not(:disabled) { border-color: var(--primary); background: var(--primary-soft); }
 .schedule-ai-add-item:disabled { cursor: default; opacity: .7; }

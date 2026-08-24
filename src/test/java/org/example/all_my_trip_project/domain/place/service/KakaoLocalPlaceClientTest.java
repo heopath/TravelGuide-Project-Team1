@@ -17,6 +17,7 @@ class KakaoLocalPlaceClientTest {
         String response = """
                 {"documents":[{
                   "id":"12345", "place_name":"Real Seongsu Cafe", "category_group_code":"CE7",
+                  "category_name":"음식점 > 카페",
                   "road_address_name":"서울특별시 성동구 성수동1가 10",
                   "address_name":"서울특별시 성동구 성수동1가 10",
                   "x":"127.054", "y":"37.544", "phone":"02-123-4567",
@@ -31,6 +32,7 @@ class KakaoLocalPlaceClientTest {
             assertThat(place.getExternalPlaceId()).isEqualTo("12345");
             assertThat(place.getName()).isEqualTo("Real Seongsu Cafe");
             assertThat(place.getCategory()).isEqualTo("CAFE");
+            assertThat(place.getDescription()).isEqualTo("카카오 세부업종: 음식점 > 카페");
             assertThat(place.getRegion()).isEqualTo("서울특별시");
             assertThat(place.getLatitude()).hasToString("37.544");
             assertThat(place.getLongitude()).hasToString("127.054");

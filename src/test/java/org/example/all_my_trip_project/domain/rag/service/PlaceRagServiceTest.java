@@ -2,6 +2,7 @@ package org.example.all_my_trip_project.domain.rag.service;
 
 import org.example.all_my_trip_project.domain.place.dao.PlaceDAO;
 import org.example.all_my_trip_project.domain.place.dto.PlaceDTO;
+import org.example.all_my_trip_project.domain.ai.service.AiModelException;
 import org.junit.jupiter.api.Test;
 import org.springframework.ai.document.Document;
 import org.springframework.ai.vectorstore.VectorStore;
@@ -42,7 +43,7 @@ class PlaceRagServiceTest {
     }
 
     @Test
-    void indexesMoreThanNinetySixPlacesInSeparateCohereBatches() {
+    void indexesMoreThanNinetySixPlacesInSeparateEmbeddingBatches() {
         List<PlaceDTO> places = IntStream.rangeClosed(1, 97)
                 .mapToObj(index -> PlaceDTO.builder()
                         .placeId((long) index)
@@ -66,6 +67,17 @@ class PlaceRagServiceTest {
                 .thenThrow(new IllegalStateException("vector store unavailable"));
 
         assertThat(service.search("부산 해변 추천")).isEmpty();
+    }
+
+    @Test
+    void pausesFurtherRagCallsAfterEmbeddingRateLimit() {
+        when(vectorStore.similaritySearch(any(org.springframework.ai.vectorstore.SearchRequest.class)))
+                .thenThrow(new AiModelException("OpenAI embedding request failed. status=429"));
+
+        assertThat(service.search("서귀포 식당 추천")).isEmpty();
+        assertThat(service.search("다른 식당 추천")).isEmpty();
+
+        verify(vectorStore, times(1)).similaritySearch(any(org.springframework.ai.vectorstore.SearchRequest.class));
     }
 
     @Test
