@@ -312,6 +312,25 @@ class SupportChatBotOrchestratorTest {
     }
 
     /*
+     * RAG 후보 검색·개인화·장소 카드 조회는 SupportChatBotClient 호출과 달리
+     * SupportChatBotException을 쓰지 않는다(kilo-code-bot PR #407 리뷰 지적). 이 구간에서
+     * 예상 못 한 RuntimeException이 나도 손님 메시지만 저장된 채 방이 조용히 BOT에 멈춰
+     * 있으면 안 되고, 다른 실패와 마찬가지로 안내가 남아야 한다.
+     */
+    @Test
+    @DisplayName("RAG·개인화 구간에서 예상 못 한 오류가 나도 이용 불가 안내를 남긴다")
+    void leavesUnavailableNoticeWhenNonBotExceptionOccurs() {
+        when(service.recentMessages(ROOM_ID)).thenReturn(List.of(message(1, "USER", "환불 문의드립니다")));
+        when(placeRecommendationService.candidates(any())).thenThrow(new IllegalStateException("RAG 후보 검색 실패"));
+
+        orchestrator.onTrigger(new SupportChatBotTriggerEvent(ROOM_ID));
+
+        verify(service).recordBotReply(eq(ROOM_ID), eq(UNAVAILABLE_NOTICE));
+        verify(service, never()).recordBotHandoff(eq(ROOM_ID), any());
+        verify(client, never()).reply(any());
+    }
+
+    /*
      * 한번 WAITING이 되면 그 방은 다시 BOT으로 돌아올 길이 없다(상태 전환에 → BOT 경로가 없고,
      * 방을 닫는 것도 관리자만 할 수 있다). 그래서 Gemini가 한 번 삐끗한 것만으로 넘겨 버리면
      * 그 손님은 봇을 영영 못 쓰고 새 대화를 시작할 수도 없다.

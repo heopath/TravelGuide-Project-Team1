@@ -251,6 +251,18 @@ public class SupportChatBotOrchestrator {
                         roomId, failedAfterMs, exception.isRetryable(), exception);
                 supportChatService.recordBotReply(roomId, GEMINI_UNAVAILABLE_MESSAGE);
             }
+        } catch (RuntimeException exception) {
+            /*
+             * RAG 후보 검색·개인화·장소 카드 조회는 SupportChatBotClient 호출과 달리
+             * SupportChatBotException을 쓰지 않는다. 이 구간에서 예상 못 한 오류가 나면
+             * 위 catch가 못 잡아 손님 메시지만 저장된 채 방이 조용히 BOT에 멈춰 있었다
+             * (kilo-code-bot PR #407 리뷰 지적). 원인을 알 수 없는 오류라 재시도 여부를
+             * 섣불리 판단하지 않고, 우선 이용 불가 안내로 손님이 다시 시도해 볼 수 있게 한다.
+             */
+            long failedAfterMs = Duration.between(respondStartedAt, Instant.now()).toMillis();
+            log.error("상담 봇 응답 생성 중 예상하지 못한 오류가 발생해 이용 불가 안내를 남깁니다. roomId={}, 실패까지 ms={}",
+                    roomId, failedAfterMs, exception);
+            supportChatService.recordBotReply(roomId, GEMINI_UNAVAILABLE_MESSAGE);
         }
         return latestUserMessageId;
     }
