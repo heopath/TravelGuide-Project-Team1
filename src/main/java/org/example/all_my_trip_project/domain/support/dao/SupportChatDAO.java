@@ -35,6 +35,8 @@ public class SupportChatDAO {
 
     public int markWaiting(Long roomId) { return mapper.markWaiting(roomId); }
 
+    public int returnToBot(Long roomId) { return mapper.returnToBot(roomId); }
+
     public int closeRoom(Long roomId) { return mapper.closeRoom(roomId); }
 
     public int insertMessage(SupportChatMessageDTO message) { return mapper.insertMessage(message); }

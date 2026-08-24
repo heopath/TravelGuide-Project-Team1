@@ -59,6 +59,9 @@ public class RouteOptimizationController {
             @PathVariable Long tripDayId,
             @RequestParam(defaultValue = "TIME") String criterion,
             @RequestParam(defaultValue = "CAR") String mode,
+            @RequestParam(required = false) Long overrideFromItemId,
+            @RequestParam(required = false) Long overrideToItemId,
+            @RequestParam(required = false) String overrideMode,
             @RequestBody(required = false) List<Long> requestedOrderIds) {
         if (principal == null) throw new BusinessException(ErrorCode.UNAUTHORIZED);
         String normalizedCriterion = criterion == null ? "TIME" : criterion.trim().toUpperCase();
@@ -67,7 +70,8 @@ public class RouteOptimizationController {
                 : "이동시간 우선으로 동선을 최적화했습니다.";
         return ApiResponse.success(message,
                 routeOptimizationService.optimize(
-                        principal.userId(), tripDayId, normalizedCriterion, mode, requestedOrderIds));
+                        principal.userId(), tripDayId, normalizedCriterion, mode, requestedOrderIds,
+                        overrideFromItemId, overrideToItemId, overrideMode));
     }
 
     @PostMapping("/api/v1/trip-days/{tripDayId}/items/reorder")

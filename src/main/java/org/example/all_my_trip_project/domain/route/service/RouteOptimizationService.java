@@ -8,6 +8,7 @@ import org.example.all_my_trip_project.domain.place.dto.PlaceDTO;
 import org.example.all_my_trip_project.domain.place.service.PlaceService;
 import org.example.all_my_trip_project.domain.route.dto.RouteOptimizationResponse;
 import org.example.all_my_trip_project.domain.route.dto.RouteOptimizationResponse.RouteSegment;
+import org.example.all_my_trip_project.domain.route.dto.RouteOptimizationResponse.UnavailableRoute;
 import org.example.all_my_trip_project.domain.route.dto.TransitRouteRequest;
 import org.example.all_my_trip_project.domain.route.dto.TransitRouteResponse;
 import org.example.all_my_trip_project.domain.trip.dto.ItineraryItemDTO;
@@ -304,8 +305,23 @@ public class RouteOptimizationService {
             String criterionValue,
             String modeValue,
             List<Long> requestedOrderIds) {
+        return optimize(userId, tripDayId, criterionValue, modeValue, requestedOrderIds,
+                null, null, null);
+    }
+
+    public RouteOptimizationResponse optimize(
+            Long userId,
+            Long tripDayId,
+            String criterionValue,
+            String modeValue,
+            List<Long> requestedOrderIds,
+            Long overrideFromItemId,
+            Long overrideToItemId,
+            String overrideModeValue) {
         OptimizationCriterion criterion = OptimizationCriterion.parse(criterionValue);
         TransportMode mode = TransportMode.parse(modeValue);
+        RouteModeOverride routeModeOverride = RouteModeOverride.parse(
+                overrideFromItemId, overrideToItemId, overrideModeValue);
         if (restApiKey == null || restApiKey.isBlank()) {
             throw new BusinessException(ErrorCode.ROUTE_NOT_CONFIGURED);
         }
@@ -316,7 +332,7 @@ public class RouteOptimizationService {
                 .toList();
         if (placeItems.size() < 2) {
             PathMetrics empty = PathMetrics.empty();
-            return response(allItems, empty, empty, false);
+            return response(allItems, empty, empty, false, List.of());
         }
 
         Map<Long, PlaceDTO> places = new HashMap<>();
@@ -324,7 +340,9 @@ public class RouteOptimizationService {
             places.put(item.getItineraryItemId(), placeService.get(item.getPlaceId()));
         }
 
-        Map<RouteEdge, Leg> legMatrix = buildLegMatrix(placeItems, places, criterion, mode);
+        Map<RouteEdge, Leg> legMatrix = buildLegMatrix(
+                placeItems, places, criterion, mode, routeModeOverride);
+        List<UnavailableRoute> unavailableRoutes = findUnavailableRoutes(placeItems, legMatrix);
         PathMetrics originalMetrics = measurePath(placeItems, legMatrix);
         RouteOrderOptimizer.Result optimized = routeOrderOptimizer.optimize(
                 placeItems,
@@ -343,7 +361,26 @@ public class RouteOptimizationService {
                 orderedAllItems,
                 optimizedMetrics,
                 originalMetrics,
-                optimized.distancePriorityApplied());
+                optimized.distancePriorityApplied(),
+                unavailableRoutes);
+    }
+
+    private List<UnavailableRoute> findUnavailableRoutes(
+            List<ItineraryItemDTO> items,
+            Map<RouteEdge, Leg> legMatrix) {
+        List<UnavailableRoute> unavailable = new ArrayList<>();
+        for (ItineraryItemDTO from : items) {
+            for (ItineraryItemDTO to : items) {
+                if (from == to) continue;
+                if (legMatrix.get(new RouteEdge(
+                        from.getItineraryItemId(), to.getItineraryItemId())) == null) {
+                    unavailable.add(new UnavailableRoute(
+                            from.getItineraryItemId(), from.getTitle(),
+                            to.getItineraryItemId(), to.getTitle()));
+                }
+            }
+        }
+        return unavailable;
     }
 
     private List<ItineraryItemDTO> applyRequestedOrder(
@@ -365,7 +402,8 @@ public class RouteOptimizationService {
             List<ItineraryItemDTO> items,
             Map<Long, PlaceDTO> places,
             OptimizationCriterion criterion,
-            TransportMode mode) {
+            TransportMode mode,
+            RouteModeOverride routeModeOverride) {
         Map<RouteEdge, Leg> matrix = new HashMap<>();
         OptimizationCriterion routeCriterion = criterion == OptimizationCriterion.DISTANCE
                 ? OptimizationCriterion.TIME
@@ -375,12 +413,15 @@ public class RouteOptimizationService {
                 if (from == to) continue;
                 RouteEdge edge = new RouteEdge(
                         from.getItineraryItemId(), to.getItineraryItemId());
+                TransportMode edgeMode = routeModeOverride != null && routeModeOverride.appliesTo(edge)
+                        ? routeModeOverride.mode()
+                        : mode;
                 try {
                     matrix.put(edge, directions(
                             places.get(from.getItineraryItemId()),
                             places.get(to.getItineraryItemId()),
                             routeCriterion,
-                            mode));
+                            edgeMode));
                 } catch (BusinessException error) {
                     if (error.getErrorCode() != ErrorCode.ROUTE_NOT_FOUND) throw error;
                     matrix.put(edge, null);
@@ -481,7 +522,8 @@ public class RouteOptimizationService {
             List<ItineraryItemDTO> items,
             PathMetrics optimized,
             PathMetrics original,
-            boolean distancePriorityApplied) {
+            boolean distancePriorityApplied,
+            List<UnavailableRoute> unavailableRoutes) {
         boolean originalAvailable = original != null;
         int originalDuration = originalAvailable ? original.durationSeconds() : 0;
         int originalDistance = originalAvailable ? original.distanceMeters() : 0;
@@ -500,7 +542,8 @@ public class RouteOptimizationService {
                 optimized.durationSeconds(),
                 optimized.distanceMeters(),
                 savedDuration,
-                originalAvailable
+                originalAvailable,
+                unavailableRoutes
         );
     }
 
@@ -574,6 +617,23 @@ public class RouteOptimizationService {
     }
 
     private record RouteEdge(Long fromItineraryItemId, Long toItineraryItemId) {}
+
+    private record RouteModeOverride(
+            Long fromItineraryItemId,
+            Long toItineraryItemId,
+            TransportMode mode) {
+        private static RouteModeOverride parse(Long fromItemId, Long toItemId, String modeValue) {
+            if (fromItemId == null || toItemId == null || modeValue == null || modeValue.isBlank()) {
+                return null;
+            }
+            return new RouteModeOverride(fromItemId, toItemId, TransportMode.parse(modeValue));
+        }
+
+        private boolean appliesTo(RouteEdge edge) {
+            return edge.fromItineraryItemId().equals(fromItineraryItemId)
+                    && edge.toItineraryItemId().equals(toItineraryItemId);
+        }
+    }
 
     private record Leg(int durationSeconds, int distanceMeters) {}
 

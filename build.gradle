@@ -32,6 +32,12 @@ dependencies {
      * 서버를 두 대로 늘리면 요청이 다른 대로 갈 때마다 로그인이 풀린다.
      */
     implementation 'org.springframework.session:spring-session-data-redis'
+    /*
+     * 위 라이브러리만으로는 켜지지 않는다. Spring Boot 4는 자동설정이 기능별 모듈로
+     * 쪼개져 있어, 세션 자동설정이 담긴 이 모듈이 없으면 SessionRepository가 만들어지지
+     * 않는다. 그러면 오류 없이 조용히 톰캣 기본 세션(JSESSIONID)으로 되돌아간다.
+     */
+    implementation 'org.springframework.boot:spring-boot-session-data-redis'
     implementation 'org.springframework.boot:spring-boot-starter-flyway'
     implementation 'org.springframework.boot:spring-boot-starter-jdbc'
     implementation 'org.springframework.boot:spring-boot-starter-security'
@@ -43,8 +49,6 @@ dependencies {
     implementation 'org.webjars:stomp-websocket:2.3.4'
     implementation 'org.flywaydb:flyway-database-postgresql'
     implementation 'org.mybatis.spring.boot:mybatis-spring-boot-starter:4.0.1'
-    implementation 'org.springframework.ai:spring-ai-starter-model-google-genai'
-    implementation 'org.springframework.ai:spring-ai-starter-model-google-genai-embedding'
     implementation 'org.springframework.ai:spring-ai-starter-vector-store-pgvector'
     implementation 'org.springframework.ai:spring-ai-vector-store-advisor'
     implementation 'org.thymeleaf.extras:thymeleaf-extras-springsecurity6'

@@ -1,12 +1,12 @@
-# AI 여행 가이드 API (AI-03)
+# AI 여행 가이드 API
 
 ## 현재 구현 범위
 
-AI-04에서는 로그인 사용자별 최근 질문·응답 3세트를 Redis에 30분간 저장하고, 다음 Gemini 요청의 대화 맥락으로 전달합니다. 장기 대화 DB 저장, RAG, 현재 여행·사용자 선호·기존 일정·장소 DB 연동은 후속 작업으로 분리합니다.
+로그인 사용자의 여행·DAY·기존 일정·최근 대화·실제 장소 후보를 바탕으로 Cohere에 일정 추천을 요청합니다. 최근 대화는 Redis와 PostgreSQL에 보관하며, RAG와 카카오 장소 검색 결과를 실제 장소 후보로 활용합니다.
 
 ## 구성
 
-AI 여행 가이드는 현재 화면 DTO를 유지한 채 실행 프로필에 따라 모델 구현체를 선택합니다.
+AI 여행 가이드는 화면 DTO를 유지한 채 실행 프로필에 따라 모델 구현체를 선택합니다.
 
 ```text
 AiGuideController → AiGuideService → AiModelClient
@@ -17,9 +17,9 @@ AiGuideController → AiGuideService → AiModelClient
 - `ui` 또는 기본 프로필: DB와 외부 AI 없이 Mock 응답을 반환합니다.
 - `ai` 프로필: Cohere Chat API(`api.cohere.com/v2/chat`)를 REST로 직접 호출하고, 모델 JSON을 `AiGuideResponse(days → items)`로 변환합니다.
 
-Spring AI의 `ChatModel` 빈은 쓰지 않습니다. 어떤 프로필 조합에서도 `spring.ai.model.chat=none`이라
-그 빈이 뜨지 않습니다. 이 자리에 있던 `GeminiAiModelClient`는 활성화되는 프로필이 없는 죽은
-코드여서 지웠습니다(#382). AI 호출 경로를 하나로 모으는 문제도 그 이슈에서 다룹니다.
+Spring AI의 `ChatModel` 빈은 사용하지 않습니다. 여행 가이드는 Cohere REST API를 직접 호출하며,
+RAG에서만 Spring AI의 임베딩 인터페이스와 `PgVectorStore`를 사용합니다. 자세한 역할 분리는
+[`ai-model-routing.md`](ai-model-routing.md)를 참고합니다.
 
 `ai`는 단독으로 쓰지 않고 실행 환경 프로필 위에 덧씌웁니다.
 
@@ -35,7 +35,7 @@ Spring AI의 `ChatModel` 빈은 쓰지 않습니다. 어떤 프로필 조합에�
 
 - AI 가이드 URL에 `/ai-guide?tripId={tripId}`를 전달하면 화면이 해당 값을 요청 본문의 `tripId`로 보냅니다.
 - 서버는 기존 `TripService`, `TripDayService`, `ItineraryItemService`를 통해 로그인 사용자가 소유한 여행·DAY·일정 항목만 조회합니다. AI 가이드에서 여행, DAY, 일정 항목을 새로 생성하거나 수정하지 않습니다.
-- 여행 목적지·기간·동행·예산·이동/음식/숙소 선호·DAY 제목/메모·기존 일정 항목과 사용자 여행 선호를 Gemini 프롬프트에 전달합니다.
+- 여행 목적지·기간·동행·예산·이동/음식/숙소 선호·DAY 제목/메모·기존 일정 항목과 사용자 여행 선호를 Cohere 요청 프롬프트에 전달합니다.
 - `tripId`는 필수이며, 누락 또는 양의 정수가 아닌 값은 `400 VALIDATION_ERROR`로 거절합니다.
 - 다른 사용자의 `tripId`를 전달하면 기존 여행 조회의 소유권 검증에 따라 요청이 거절됩니다.
 
@@ -62,16 +62,16 @@ Mock 화면 확인:
 .\gradlew.bat bootRun --args="--spring.profiles.active=ui"
 ```
 
-Gemini 연결 확인(실제 키는 터미널/환경 변수에만 설정):
+Cohere 연결 확인(실제 키는 터미널/환경 변수에만 설정):
 
 ```powershell
-$env:GEMINI_API_KEY = "발급받은_키"
+$env:COHERE_API_KEY = "발급받은_키"
 .\gradlew.bat bootRun --args="--spring.profiles.active=ui,ai"
 ```
 
-`GEMINI_API_KEY` 값은 `application*.properties`, Git, 문서, HTML, JavaScript에 절대 작성하거나 커밋하지 않습니다. AWS에서는 배포 환경 변수 또는 팀이 정한 Secret 저장소에서만 주입합니다.
+`COHERE_API_KEY` 값은 `application*.properties`, Git, 문서, HTML, JavaScript에 절대 작성하거나 커밋하지 않습니다. AWS에서는 배포 환경 변수 또는 팀이 정한 Secret 저장소에서만 주입합니다.
 
-전체 사이트와 Gemini를 함께 확인하려면 Docker Desktop에서 `docker compose up -d`로 PostgreSQL·Redis를 시작한 뒤 아래 프로필 조합으로 실행합니다.
+전체 사이트와 Cohere를 함께 확인하려면 Docker Desktop에서 `docker compose up -d`로 PostgreSQL·Redis를 시작한 뒤 아래 프로필 조합으로 실행합니다.
 
 ```powershell
 .\gradlew.bat bootRun --args="--spring.profiles.active=local,ai"

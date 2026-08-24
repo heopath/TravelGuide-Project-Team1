@@ -128,7 +128,7 @@
   function price(offer) {
     if (!hasPrice(offer)) {
       return `<div class="hotel-price none">${esc(offer.priceSourceLabel || "요금 미제공")}</div>
-        <div class="hotel-price-sub">Sandbox Key가 있으면 실습 요금을 조회해요</div>`;
+        <div class="hotel-price-sub">실시간 요금은 예약 사이트에서 확인해 주세요</div>`;
     }
     if (offer.priceSource === "SANDBOX") {
       return `<div class="hotel-price">${money(offer.totalPrice, offer.currency)}</div>
@@ -236,7 +236,7 @@
     $("hotelPriceMode").textContent = state.loading
       ? "가격 정보 조회 중"
       : sandboxPrice ? `LiteAPI Sandbox · 실습 요금 ${state.meta.matchedPriceCount}곳`
-        : mockListing ? "Mock 개발용 샘플 가격" : "TourAPI 정보 · 가격 미제공";
+        : mockListing ? "Mock 개발용 샘플 가격" : "TourAPI 숙소 정보 · 요금 연동 불가";
     $("hotelPriceMode").classList.toggle("sandbox", sandboxPrice);
     $("hotelPriceMode").classList.toggle("mock", mockListing);
   }

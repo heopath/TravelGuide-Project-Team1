@@ -102,6 +102,17 @@
     </update>
 
     <!--
+      손님이 봇에게 되돌린다. WAITING일 때만 바뀐다 — 상담원이 이미 가져간 방(ASSIGNED)을
+      손님이 뺏지 못하게 하고, 동시에 assigned_admin_id가 NULL임을 보장해
+      ck_support_chat_rooms_assignee를 만족시킨다.
+    -->
+    <update id="returnToBot">
+        UPDATE support_chat_rooms
+        SET status = 'BOT'
+        WHERE support_chat_room_id = #{roomId} AND status = 'WAITING'
+    </update>
+
+    <!--
       종료하면 담당자를 비운다. ck_support_chat_rooms_assignee가 "ASSIGNED일 때만 담당자가
       있다"를 강제하므로, 비우지 않으면 제약에 걸린다.
     -->
@@ -114,16 +125,19 @@
     <insert id="insertMessage" useGeneratedKeys="true"
             keyProperty="supportChatMessageId" keyColumn="support_chat_message_id">
         INSERT INTO support_chat_messages (
-            support_chat_room_id, sender_type, sender_user_id, content
+            support_chat_room_id, sender_type, sender_user_id, content,
+            action_key, action_key_2, action_key_3
         ) VALUES (
-            #{supportChatRoomId}, #{senderType}, #{senderUserId}, #{content}
+            #{supportChatRoomId}, #{senderType}, #{senderUserId}, #{content},
+            #{actionKey}, #{actionKey2}, #{actionKey3}
         )
     </insert>
 
     <select id="findMessage"
             resultType="org.example.all_my_trip_project.domain.support.dto.SupportChatMessageDTO">
         SELECT m.support_chat_message_id, m.support_chat_room_id, m.sender_type,
-               m.sender_user_id, s.nickname AS sender_nickname, m.content, m.created_at
+               m.sender_user_id, s.nickname AS sender_nickname, m.content,
+               m.action_key, m.action_key_2, m.action_key_3, m.created_at
         FROM support_chat_messages m
         LEFT JOIN users s ON s.user_id = m.sender_user_id
         WHERE m.support_chat_message_id = #{messageId}
@@ -143,7 +157,8 @@
     <select id="findMessages"
             resultType="org.example.all_my_trip_project.domain.support.dto.SupportChatMessageDTO">
         SELECT m.support_chat_message_id, m.support_chat_room_id, m.sender_type,
-               m.sender_user_id, s.nickname AS sender_nickname, m.content, m.created_at
+               m.sender_user_id, s.nickname AS sender_nickname, m.content,
+               m.action_key, m.action_key_2, m.action_key_3, m.created_at
         FROM (
             SELECT *
             FROM support_chat_messages
