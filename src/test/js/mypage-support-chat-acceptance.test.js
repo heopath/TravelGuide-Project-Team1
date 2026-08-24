@@ -17,6 +17,7 @@ const path = require("path");
 const ROOT = path.resolve(__dirname, "../../..");
 const HTML = path.join(ROOT, "src/main/resources/templates/mypage/mypage.html");
 const JS = path.join(ROOT, "src/main/resources/static/js/pages/mypage/mypage-support-chat.js");
+const LIVE_JS = path.join(ROOT, "src/main/resources/static/js/core/support-chat-live.js");
 
 let passed = 0;
 let failed = 0;
@@ -129,6 +130,7 @@ async function boot(responder, { withSocket = true } = {}) {
   w.setInterval = timers.setInterval;
   w.clearInterval = timers.clearInterval;
 
+  w.eval(fs.readFileSync(LIVE_JS, "utf8"));
   const source = fs.readFileSync(JS, "utf8")
     .replace("export function initSupportChat()", "window.initSupportChat = function initSupportChat()");
   w.eval(source);
@@ -149,10 +151,49 @@ const chatInput = (d) => panel(d).querySelector("[data-support-chat-input]");
 const send = (d) => panel(d).querySelector("[data-support-chat-send]");
 const messagesEl = (d) => panel(d).querySelector("[data-support-chat-messages]");
 const actionsEl = (d) => panel(d).querySelector("[data-support-chat-actions]");
+const agentBtn = (d) => panel(d).querySelector("[data-support-chat-agent]");
 const returnBtn = (d) => panel(d).querySelector("[data-support-chat-return]");
 const restartBtn = (d) => panel(d).querySelector("[data-support-chat-restart]");
 
 async function run() {
+  /* ── 폴링 재렌더링의 스크롤 위치 ── */
+  {
+    const { d, chat } = await boot(() => ok({
+      room: room(),
+      messages: [message(1, "BOT", "첫 답변"), message(2, "USER", "추가 질문")],
+    }), { withSocket: false });
+    await chat.load();
+    const list = messagesEl(d);
+    Object.defineProperty(list, "scrollHeight", { configurable: true, get: () => 1000 });
+    Object.defineProperty(list, "clientHeight", { configurable: true, get: () => 200 });
+
+    list.scrollTop = 200;
+    await chat.load();
+    T("사용자가 위의 대화를 읽는 동안 폴링이 스크롤 위치를 유지한다", list.scrollTop === 200);
+
+    list.scrollTop = 800;
+    await chat.load();
+    T("사용자가 맨 아래를 보고 있으면 새 내용도 계속 따라간다", list.scrollTop === 1000);
+  }
+
+  /* ── AI와 별개인 직접 상담원 연결 ── */
+  {
+    let status = "BOT";
+    const { w, d, log, chat } = await boot((url) => {
+      if (url === "/api/v1/support/chat/request-agent") status = "WAITING";
+      return ok({ room: room({ status }), messages: [] });
+    }, { withSocket: false });
+    w.confirm = () => true;
+    await chat.load();
+    T("BOT 상태에서 상담원 연결 버튼을 표시한다", agentBtn(d).hidden === false);
+    agentBtn(d).click();
+    await until(() => log.some((e) => e.url === "/api/v1/support/chat/request-agent"));
+    T("버튼은 AI 메시지 API가 아닌 직접 연결 API를 호출한다",
+      log.some((e) => e.url === "/api/v1/support/chat/request-agent"));
+    await until(() => agentBtn(d).hidden === true);
+    T("연결 요청 뒤에는 중복 요청 버튼을 숨긴다", agentBtn(d).hidden === true);
+  }
+
   /* ── 봇 답변에서 실제 화면으로 이어 주는 액션 ── */
   {
     const actionMessage = Object.assign(message(1, "BOT", "원하는 방법을 선택해 주세요."),
@@ -174,6 +215,45 @@ async function run() {
     await chat.load();
     T("알 수 없는 액션은 버튼으로 만들지 않는다",
       messagesEl(d).querySelector(".support-chat-link") === null);
+  }
+  {
+    const placeMessage = Object.assign(message(2, "BOT", "서울 야경 장소예요."), { blocks: [{
+      blockType: "PLACE_CARDS", schemaVersion: 1, payload: { items: [{
+        placeId: 10, name: "남산서울타워", category: "명소", address: "서울 용산구",
+        reason: "서울 야경을 한눈에 볼 수 있어요",
+        description: "서울을 대표하는 전망 명소로 야간 조명이 특히 유명합니다.",
+        imageUrl: "https://cdn.example.com/places/10.jpg", rating: 4.6,
+      }] },
+    }] });
+    const { d, chat } = await boot(() => ok({ room: room(), messages: [placeMessage] }),
+      { withSocket: false });
+    await chat.load();
+    const card = messagesEl(d).querySelector(".support-chat-place-card");
+    T("장소 추천은 상세 정보 카드로 표시한다", card?.textContent.includes("남산서울타워"));
+    T("장소 카드는 DB 장소 번호의 상세 화면으로 연결한다", card?.dataset.route === "/guide/places/10");
+    T("장소 카드는 대표 이미지를 보여준다",
+      card?.querySelector(".support-chat-place-card-image")?.src === "https://cdn.example.com/places/10.jpg");
+    T("장소 카드는 평점을 보여준다",
+      card?.querySelector(".support-chat-place-card-rating")?.textContent === "★ 4.6");
+    T("장소 카드는 추천 이유와 별도로 설명을 보여준다",
+      card?.querySelector(".support-chat-place-card-description")?.textContent
+      === "서울을 대표하는 전망 명소로 야간 조명이 특히 유명합니다.");
+  }
+  {
+    const bareMessage = Object.assign(message(3, "BOT", "장소 하나 알려드릴게요."), { blocks: [{
+      blockType: "PLACE_CARDS", schemaVersion: 1, payload: { items: [{
+        placeId: 11, name: "경복궁", category: "명소", address: "서울 종로구",
+      }] },
+    }] });
+    const { d, chat } = await boot(() => ok({ room: room(), messages: [bareMessage] }),
+      { withSocket: false });
+    await chat.load();
+    const card = messagesEl(d).querySelector(".support-chat-place-card");
+    T("이미지·평점·설명이 없는 카드도 정상 렌더링한다", card?.textContent.includes("경복궁"));
+    T("이미지가 없으면 이미지 요소를 만들지 않는다",
+      card?.querySelector(".support-chat-place-card-image") === null);
+    T("평점이 없으면 평점 요소를 만들지 않는다",
+      card?.querySelector(".support-chat-place-card-rating") === null);
   }
 
   /* ── 구독을 먼저 걸고, 그다음 REST로 동기화한다 ── */
@@ -397,7 +477,8 @@ async function run() {
     await chat.load();
     await until(() => statusText(d).textContent.length > 0);
 
-    T("봇 응대 중에는 탈출구를 보여주지 않는다", actionsEl(d).hidden === true);
+    T("봇 응대 중에는 직접 상담원 연결 선택지를 보여준다",
+      actionsEl(d).hidden === false && agentBtn(d).hidden === false);
   }
 
   closeAllWindows();

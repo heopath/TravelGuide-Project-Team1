@@ -1,5 +1,7 @@
 package org.example.all_my_trip_project.domain.support.service;
 
+import java.util.List;
+
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -43,6 +45,15 @@ class SupportChatBotClientTest {
     }
 
     @Test
+    @DisplayName("상담원 연결 재확인 표시는 실제 연결과 구분해 파싱한다")
+    void parsesHandoffConfirmation() {
+        SupportChatBotReply reply = client.parse("상담원을 연결해 드릴까요?\n[CONFIRM_HANDOFF]");
+
+        assertThat(reply.handoffDecision()).isEqualTo(SupportChatHandoffDecision.CONFIRM);
+        assertThat(reply.content()).isEqualTo("상담원을 연결해 드릴까요?");
+    }
+
+    @Test
     @DisplayName("허용된 화면 액션은 본문에서 걷어내고 구조화한다")
     void parsesAllowedActionMarker() {
         SupportChatBotReply reply = client.parse("여행 만들기 화면에서 시작할 수 있어요.\n[ACTION:NEW_TRIP]");
@@ -79,5 +90,44 @@ class SupportChatBotClientTest {
                 + "[ACTION:BOOK_FLIGHT]\n[ACTION:BOOK_TICKET]\n[ACTION:MY_BOOKINGS]");
 
         assertThat(reply.actionKeys()).containsExactly("BOOK_FLIGHT", "BOOK_HOTEL", "BOOK_TICKET");
+    }
+
+    @Test
+    @DisplayName("표시 두 개가 같은 줄에 붙어 있어도 걷어내고 파싱한다(실사용 중 발견한 노출 버그)")
+    void parsesMarkersOnTheSameLine() {
+        SupportChatBotReply reply = client.parse(
+                "혹시 서비스 이용에 불편함이 있으셨나요? 전문 상담원에게 연결해 드릴까요?\n"
+                        + "[CONFIRM_HANDOFF] [ACTION:SUPPORT]");
+
+        assertThat(reply.content())
+                .isEqualTo("혹시 서비스 이용에 불편함이 있으셨나요? 전문 상담원에게 연결해 드릴까요?");
+        assertThat(reply.handoffDecision()).isEqualTo(SupportChatHandoffDecision.CONFIRM);
+        assertThat(reply.actionKeys()).containsExactly("SUPPORT");
+    }
+
+    @Test
+    @DisplayName("액션 표시가 상담원 표시보다 먼저 나와도 정상 파싱한다")
+    void parsesActionBeforeConfirmMarkerOnSeparateLines() {
+        SupportChatBotReply reply = client.parse(
+                "고객센터에서도 도움을 받을 수 있어요.\n[ACTION:SUPPORT]\n[CONFIRM_HANDOFF]");
+
+        assertThat(reply.content()).isEqualTo("고객센터에서도 도움을 받을 수 있어요.");
+        assertThat(reply.handoffDecision()).isEqualTo(SupportChatHandoffDecision.CONFIRM);
+        assertThat(reply.actionKeys()).containsExactly("SUPPORT");
+    }
+
+    @Test
+    @DisplayName("DB 검색 후보에 있는 장소만 카드 선택으로 받는다")
+    void parsesOnlyKnownPlaceCandidates() {
+        List<SupportChatPlaceCandidate> candidates = List.of(
+                new SupportChatPlaceCandidate(10L, "남산서울타워", "명소", "서울", "야경 명소"));
+
+        SupportChatBotReply reply = client.parse("야경을 보기 좋아요.\n"
+                + "[PLACE:10|서울 야경을 한눈에 볼 수 있어요]\n"
+                + "[PLACE:999|존재하지 않는 장소]", candidates);
+
+        assertThat(reply.content()).isEqualTo("야경을 보기 좋아요.");
+        assertThat(reply.placeSelections()).containsExactly(
+                new SupportChatPlaceSelection(10L, "서울 야경을 한눈에 볼 수 있어요"));
     }
 }

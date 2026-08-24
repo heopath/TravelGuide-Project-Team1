@@ -82,12 +82,14 @@ public class SupportChatBotOrchestrator {
     /**
      * 일시적 실패에 남기는 안내. 방은 {@code BOT}에 그대로 두고 손님이 다시 물어볼 수 있게 한다.
      *
-     * <p>이 문구가 직전 봇 발화와 같으면 "연속 실패"로 보고 상담원 연결 의사를 확인한다
+     * <p>이 문구가 직전 봇 발화와 같으면 "연속 실패"로 보고 AI 이용 불가를 안내한다
      * ({@link #lastBotMessageIsRetryNotice}). 별도 카운터를 두지 않고 대화 내역으로 판단하므로
      * 서버가 재시작해도 판단이 유지된다.
      */
     private static final String GEMINI_RETRY_MESSAGE =
             "죄송해요, 지금 답변을 준비하지 못했어요. 잠시 후 다시 물어봐 주시겠어요?";
+    private static final String GEMINI_UNAVAILABLE_MESSAGE =
+            "현재 AI 상담을 이용할 수 없어요. 잠시 후 다시 이용해 주세요.";
 
     /** 아직 어떤 손님 메시지에도 답하지 않은 상태를 나타내는 워터마크. 실제 메시지 ID는 1부터 시작한다. */
     private static final long NOT_ANSWERED_YET = -1L;
@@ -95,6 +97,7 @@ public class SupportChatBotOrchestrator {
     private final SupportChatService supportChatService;
     private final SupportChatBotClient supportChatBotClient;
     private final SupportChatActionPersonalizer actionPersonalizer;
+    private final SupportChatPlaceRecommendationService placeRecommendationService;
 
     /**
      * 지금 답을 만들고 있는 방들. 방 번호가 있으면 진행 중이라는 뜻이다.
@@ -185,42 +188,81 @@ public class SupportChatBotOrchestrator {
 
         /*
          * "봇 답변이 느리다"는 피드백이 백엔드↔프론트 구간 문제인지, 백엔드↔제미나이 호출
-         * 자체가 느린 것인지 구분할 방법이 없었다. Gemini 호출 구간만 따로 재서 남긴다 —
-         * 나머지(DB 읽기/쓰기, WebSocket 전송)는 보통 수십 ms 이내라 대부분의 지연은 여기서
-         * 갈린다.
+         * 자체가 느린 것인지 구분할 방법이 없어 Gemini 호출 구간만 따로 재서 남겼었다. 그런데
+         * 그 구간 하나로 뭉치면 오해하기 쉽다 — RAG가 켜진 프로필(local-ai/prod-ai-rag)에서는
+         * 장소와 무관한 질문에도 매번 candidates()가 먼저 Cohere 임베딩 API를 호출해 후보를
+         * 찾고, Gemini 호출이 끝난 뒤에는 개인화(TripService 조회)·장소 카드 DB 조회가 이어진다.
+         * 이 셋을 하나로 재면 "Gemini가 느리다"는 결론이 실제로는 RAG 검색이나 후처리 DB 조회
+         * 때문일 수도 있다는 걸 가려버린다. 그래서 구간별로 따로 잰다 — 나머지(DB 읽기/쓰기,
+         * WebSocket 전송)는 보통 수십 ms 이내다.
          */
-        Instant geminiStartedAt = Instant.now();
+        Instant respondStartedAt = Instant.now();
         try {
-            SupportChatBotReply reply = supportChatBotClient.reply(conversation);
+            String latestQuestion = latestUserContent(conversation);
+
+            Instant ragStartedAt = Instant.now();
+            List<SupportChatPlaceCandidate> placeCandidates = placeRecommendationService.candidates(latestQuestion);
+            long ragElapsedMs = Duration.between(ragStartedAt, Instant.now()).toMillis();
+
+            Instant geminiStartedAt = Instant.now();
+            SupportChatBotReply reply = placeCandidates.isEmpty()
+                    ? supportChatBotClient.reply(conversation)
+                    : supportChatBotClient.reply(conversation, placeCandidates);
+            long geminiElapsedMs = Duration.between(geminiStartedAt, Instant.now()).toMillis();
+
+            Instant postProcessStartedAt = Instant.now();
             List<String> personalizedActions = actionPersonalizer.personalize(
                     roomId, conversation, reply.actionKeys());
-            log.info("상담 봇 Gemini 호출 소요 시간: roomId={}, ms={}",
-                    roomId, Duration.between(geminiStartedAt, Instant.now()).toMillis());
-            if (reply.handoff()) {
+            List<Map<String, Object>> placeCards = placeRecommendationService.cards(
+                    reply.placeSelections(), placeCandidates);
+            long postProcessElapsedMs = Duration.between(postProcessStartedAt, Instant.now()).toMillis();
+
+            log.info("상담 봇 응답 생성 소요 시간: roomId={}, ragMs={}, geminiMs={}, postProcessMs={}, totalMs={}",
+                    roomId, ragElapsedMs, geminiElapsedMs, postProcessElapsedMs,
+                    Duration.between(respondStartedAt, Instant.now()).toMillis());
+            if (reply.handoffDecision() == SupportChatHandoffDecision.CONNECT) {
+                supportChatService.recordBotHandoff(roomId, reply.content(), personalizedActions);
+            } else if (reply.handoffDecision() == SupportChatHandoffDecision.CONFIRM) {
                 supportChatService.recordBotReply(
                         roomId, SupportChatService.HUMAN_CONFIRMATION_REPLY, personalizedActions);
             } else {
-                supportChatService.recordBotReply(roomId, reply.content(), personalizedActions);
+                if (placeCards.isEmpty()) {
+                    supportChatService.recordBotReply(roomId, reply.content(), personalizedActions);
+                } else {
+                    supportChatService.recordBotReply(roomId, reply.content(), personalizedActions, placeCards);
+                }
             }
         } catch (SupportChatBotException exception) {
-            long failedAfterMs = Duration.between(geminiStartedAt, Instant.now()).toMillis();
+            long failedAfterMs = Duration.between(respondStartedAt, Instant.now()).toMillis();
             /*
              * 일시적 실패를 상담원 대기로 넘기지 않는다. 복구 가능한 오류마다 WAITING으로
              * 넘기면 손님이 직접 봇 복귀나 새 상담을 선택해야 하므로, 방을 BOT에 둔 채 바로
              * 다시 물어볼 수 있게 한다.
              *
-             * 다만 연달아 실패하면(직전 봇 발화가 이미 같은 안내였다면) 사람이 받아야 한다 —
-             * 그러지 않으면 Gemini가 계속 죽어 있을 때 손님이 같은 안내만 무한히 받는다.
+             * AI가 실패한 상황에서는 문맥을 판단할 수 없으므로 상담원 연결을 추측하지 않는다.
+             * 연속 실패나 재시도 불가능 오류에는 이용 불가 안내만 남기고 방은 BOT으로 유지한다.
              */
             if (exception.isRetryable() && !lastBotMessageIsRetryNotice(conversation)) {
                 log.warn("상담 봇 응답 생성에 실패해 재시도 안내를 남깁니다(방은 BOT 유지). roomId={}, 실패까지 ms={}",
                         roomId, failedAfterMs, exception);
                 supportChatService.recordBotReply(roomId, GEMINI_RETRY_MESSAGE);
             } else {
-                log.warn("상담 봇 응답 생성에 반복 실패해 상담원 연결 의사를 확인합니다. roomId={}, 실패까지 ms={}, 재시도가능={}",
+                log.warn("상담 봇 응답 생성에 반복 실패해 이용 불가 안내를 남깁니다. roomId={}, 실패까지 ms={}, 재시도가능={}",
                         roomId, failedAfterMs, exception.isRetryable(), exception);
-                supportChatService.recordBotReply(roomId, SupportChatService.HUMAN_CONFIRMATION_REPLY);
+                supportChatService.recordBotReply(roomId, GEMINI_UNAVAILABLE_MESSAGE);
             }
+        } catch (RuntimeException exception) {
+            /*
+             * RAG 후보 검색·개인화·장소 카드 조회는 SupportChatBotClient 호출과 달리
+             * SupportChatBotException을 쓰지 않는다. 이 구간에서 예상 못 한 오류가 나면
+             * 위 catch가 못 잡아 손님 메시지만 저장된 채 방이 조용히 BOT에 멈춰 있었다
+             * (kilo-code-bot PR #407 리뷰 지적). 원인을 알 수 없는 오류라 재시도 여부를
+             * 섣불리 판단하지 않고, 우선 이용 불가 안내로 손님이 다시 시도해 볼 수 있게 한다.
+             */
+            long failedAfterMs = Duration.between(respondStartedAt, Instant.now()).toMillis();
+            log.error("상담 봇 응답 생성 중 예상하지 못한 오류가 발생해 이용 불가 안내를 남깁니다. roomId={}, 실패까지 ms={}",
+                    roomId, failedAfterMs, exception);
+            supportChatService.recordBotReply(roomId, GEMINI_UNAVAILABLE_MESSAGE);
         }
         return latestUserMessageId;
     }
@@ -249,5 +291,13 @@ public class SupportChatBotOrchestrator {
             }
         }
         return latest;
+    }
+
+    private static String latestUserContent(List<SupportChatMessageDTO> conversation) {
+        for (int index = conversation.size() - 1; index >= 0; index--) {
+            SupportChatMessageDTO message = conversation.get(index);
+            if ("USER".equals(message.getSenderType())) return message.getContent();
+        }
+        return "";
     }
 }
