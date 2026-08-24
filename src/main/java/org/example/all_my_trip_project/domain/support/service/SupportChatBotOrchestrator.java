@@ -9,6 +9,8 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
 
+import java.time.Duration;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -76,14 +78,23 @@ import java.util.concurrent.atomic.AtomicBoolean;
 @Slf4j
 public class SupportChatBotOrchestrator {
 
-    private static final String GEMINI_FAILURE_MESSAGE =
-            "죄송해요, 지금 답변을 준비하는 데 문제가 생겼어요. 상담원에게 연결해 드릴게요.";
+
+    /**
+     * 일시적 실패에 남기는 안내. 방은 {@code BOT}에 그대로 두고 손님이 다시 물어볼 수 있게 한다.
+     *
+     * <p>이 문구가 직전 봇 발화와 같으면 "연속 실패"로 보고 상담원 연결 의사를 확인한다
+     * ({@link #lastBotMessageIsRetryNotice}). 별도 카운터를 두지 않고 대화 내역으로 판단하므로
+     * 서버가 재시작해도 판단이 유지된다.
+     */
+    private static final String GEMINI_RETRY_MESSAGE =
+            "죄송해요, 지금 답변을 준비하지 못했어요. 잠시 후 다시 물어봐 주시겠어요?";
 
     /** 아직 어떤 손님 메시지에도 답하지 않은 상태를 나타내는 워터마크. 실제 메시지 ID는 1부터 시작한다. */
     private static final long NOT_ANSWERED_YET = -1L;
 
     private final SupportChatService supportChatService;
     private final SupportChatBotClient supportChatBotClient;
+    private final SupportChatActionPersonalizer actionPersonalizer;
 
     /**
      * 지금 답을 만들고 있는 방들. 방 번호가 있으면 진행 중이라는 뜻이다.
@@ -172,21 +183,64 @@ public class SupportChatBotOrchestrator {
             return answeredUpTo; /* 이미 이 지점까지 답했다 — 다시 부를 필요 없다. */
         }
 
+        /*
+         * "봇 답변이 느리다"는 피드백이 백엔드↔프론트 구간 문제인지, 백엔드↔제미나이 호출
+         * 자체가 느린 것인지 구분할 방법이 없었다. Gemini 호출 구간만 따로 재서 남긴다 —
+         * 나머지(DB 읽기/쓰기, WebSocket 전송)는 보통 수십 ms 이내라 대부분의 지연은 여기서
+         * 갈린다.
+         */
+        Instant geminiStartedAt = Instant.now();
         try {
             SupportChatBotReply reply = supportChatBotClient.reply(conversation);
+            List<String> personalizedActions = actionPersonalizer.personalize(
+                    roomId, conversation, reply.actionKeys());
+            log.info("상담 봇 Gemini 호출 소요 시간: roomId={}, ms={}",
+                    roomId, Duration.between(geminiStartedAt, Instant.now()).toMillis());
             if (reply.handoff()) {
-                supportChatService.recordBotHandoff(roomId, reply.content());
+                supportChatService.recordBotReply(
+                        roomId, SupportChatService.HUMAN_CONFIRMATION_REPLY, personalizedActions);
             } else {
-                supportChatService.recordBotReply(roomId, reply.content());
+                supportChatService.recordBotReply(roomId, reply.content(), personalizedActions);
             }
         } catch (SupportChatBotException exception) {
-            log.warn("상담 봇 응답 생성에 실패해 상담원 대기로 넘깁니다. roomId={}", roomId, exception);
-            supportChatService.recordBotHandoff(roomId, GEMINI_FAILURE_MESSAGE);
+            long failedAfterMs = Duration.between(geminiStartedAt, Instant.now()).toMillis();
+            /*
+             * 일시적 실패를 상담원 대기로 넘기지 않는다. 복구 가능한 오류마다 WAITING으로
+             * 넘기면 손님이 직접 봇 복귀나 새 상담을 선택해야 하므로, 방을 BOT에 둔 채 바로
+             * 다시 물어볼 수 있게 한다.
+             *
+             * 다만 연달아 실패하면(직전 봇 발화가 이미 같은 안내였다면) 사람이 받아야 한다 —
+             * 그러지 않으면 Gemini가 계속 죽어 있을 때 손님이 같은 안내만 무한히 받는다.
+             */
+            if (exception.isRetryable() && !lastBotMessageIsRetryNotice(conversation)) {
+                log.warn("상담 봇 응답 생성에 실패해 재시도 안내를 남깁니다(방은 BOT 유지). roomId={}, 실패까지 ms={}",
+                        roomId, failedAfterMs, exception);
+                supportChatService.recordBotReply(roomId, GEMINI_RETRY_MESSAGE);
+            } else {
+                log.warn("상담 봇 응답 생성에 반복 실패해 상담원 연결 의사를 확인합니다. roomId={}, 실패까지 ms={}, 재시도가능={}",
+                        roomId, failedAfterMs, exception.isRetryable(), exception);
+                supportChatService.recordBotReply(roomId, SupportChatService.HUMAN_CONFIRMATION_REPLY);
+            }
         }
         return latestUserMessageId;
     }
 
     /** 대화에서 가장 나중에 온 손님(USER) 메시지 ID. 손님 메시지가 없으면 {@code null}. */
+    /**
+     * 직전 봇 발화가 이미 재시도 안내였는지 본다 — 즉 이번이 연속 두 번째 실패인지.
+     *
+     * <p>손님 메시지는 건너뛰고 가장 최근 {@code BOT} 발화 하나만 본다. 실패 → 손님이 다시 물음
+     * → 또 실패인 흐름에서 중간의 손님 메시지 때문에 판단이 틀어지지 않게 하기 위해서다.
+     */
+    private static boolean lastBotMessageIsRetryNotice(List<SupportChatMessageDTO> conversation) {
+        for (int i = conversation.size() - 1; i >= 0; i--) {
+            SupportChatMessageDTO message = conversation.get(i);
+            if (!"BOT".equals(message.getSenderType())) continue;
+            return GEMINI_RETRY_MESSAGE.equals(message.getContent());
+        }
+        return false;
+    }
+
     private static Long latestUserMessageId(List<SupportChatMessageDTO> conversation) {
         Long latest = null;
         for (SupportChatMessageDTO message : conversation) {
