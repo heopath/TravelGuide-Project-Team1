@@ -33,6 +33,7 @@ class SupportChatBotOrchestratorTest {
     private SupportChatService service;
     private SupportChatBotClient client;
     private SupportChatActionPersonalizer actionPersonalizer;
+    private SupportChatPlaceRecommendationService placeRecommendationService;
     private SupportChatBotOrchestrator orchestrator;
 
     @BeforeEach
@@ -40,8 +41,11 @@ class SupportChatBotOrchestratorTest {
         service = mock(SupportChatService.class);
         client = mock(SupportChatBotClient.class);
         actionPersonalizer = mock(SupportChatActionPersonalizer.class);
-        orchestrator = new SupportChatBotOrchestrator(service, client, actionPersonalizer);
+        placeRecommendationService = mock(SupportChatPlaceRecommendationService.class);
+        orchestrator = new SupportChatBotOrchestrator(
+                service, client, actionPersonalizer, placeRecommendationService);
         when(actionPersonalizer.personalize(any(), any(), any())).thenAnswer(invocation -> invocation.getArgument(2));
+        when(placeRecommendationService.candidates(any())).thenReturn(List.of());
         when(service.isStillBot(ROOM_ID)).thenReturn(true);
         when(service.recentMessages(ROOM_ID)).thenReturn(List.of());
     }
@@ -59,6 +63,8 @@ class SupportChatBotOrchestratorTest {
     /* 프로덕션 상수와 같아야 하는 문구. 여기가 어긋나면 연속 실패 판단이 조용히 깨진다. */
     private static final String RETRY_NOTICE =
             "죄송해요, 지금 답변을 준비하지 못했어요. 잠시 후 다시 물어봐 주시겠어요?";
+    private static final String UNAVAILABLE_NOTICE =
+            "현재 AI 상담을 이용할 수 없어요. 잠시 후 다시 이용해 주세요.";
 
     /*
      * 재실행 여부는 트리거가 왔는지가 아니라, 내가 이미 어디까지 답했는지(워터마크)로 정한다
@@ -322,9 +328,8 @@ class SupportChatBotOrchestratorTest {
         verify(service, never()).recordBotHandoff(eq(ROOM_ID), any());
     }
 
-    /* 계속 실패하는데도 봇이 붙들고 있으면 손님은 같은 안내만 무한히 받는다. */
     @Test
-    @DisplayName("직전에도 재시도 안내였으면 자동 연결하지 않고 상담원 연결 의사를 묻는다")
+    @DisplayName("직전에도 재시도 안내였으면 연결을 추측하지 않고 이용 불가를 안내한다")
     void asksBeforeHandoffWhenFailureRepeats() {
         when(service.recentMessages(ROOM_ID)).thenReturn(List.of(
                 message(1, "USER", "환불 문의드립니다"),
@@ -335,13 +340,13 @@ class SupportChatBotOrchestratorTest {
 
         orchestrator.onTrigger(new SupportChatBotTriggerEvent(ROOM_ID));
 
-        verify(service).recordBotReply(eq(ROOM_ID), eq(SupportChatService.HUMAN_CONFIRMATION_REPLY));
+        verify(service).recordBotReply(eq(ROOM_ID), eq(UNAVAILABLE_NOTICE));
         verify(service, never()).recordBotHandoff(eq(ROOM_ID), any());
     }
 
     /* API 키 미설정처럼 다시 불러도 같은 결과인 실패는 재시도할 이유가 없다. */
     @Test
-    @DisplayName("재시도 불가능한 실패도 자동 연결하지 않고 상담원 연결 의사를 묻는다")
+    @DisplayName("재시도 불가능한 실패도 연결을 추측하지 않고 이용 불가를 안내한다")
     void asksBeforeHandoffWhenFailureIsNotRetryable() {
         when(service.recentMessages(ROOM_ID)).thenReturn(List.of(message(1, "USER", "환불 문의드립니다")));
         when(client.reply(any()))
@@ -349,20 +354,34 @@ class SupportChatBotOrchestratorTest {
 
         orchestrator.onTrigger(new SupportChatBotTriggerEvent(ROOM_ID));
 
-        verify(service).recordBotReply(eq(ROOM_ID), eq(SupportChatService.HUMAN_CONFIRMATION_REPLY));
+        verify(service).recordBotReply(eq(ROOM_ID), eq(UNAVAILABLE_NOTICE));
         verify(service, never()).recordBotHandoff(eq(ROOM_ID), any());
     }
 
     @Test
-    @DisplayName("Gemini가 이관을 제안해도 방을 넘기지 않고 사용자에게 확인한다")
+    @DisplayName("AI가 연결 의사를 재확인하라고 판단하면 사용자에게 확인한다")
     void asksBeforeModelSuggestedHandoff() {
         when(service.recentMessages(ROOM_ID)).thenReturn(List.of(message(1, "USER", "계속 해결이 안 돼요")));
-        when(client.reply(any())).thenReturn(new SupportChatBotReply("상담원에게 연결할게요.", true));
+        when(client.reply(any())).thenReturn(new SupportChatBotReply(
+                "상담원을 연결해 드릴까요?", SupportChatHandoffDecision.CONFIRM, List.of()));
 
         orchestrator.onTrigger(new SupportChatBotTriggerEvent(ROOM_ID));
 
         verify(service).recordBotReply(
                 eq(ROOM_ID), eq(SupportChatService.HUMAN_CONFIRMATION_REPLY), anyList());
         verify(service, never()).recordBotHandoff(eq(ROOM_ID), any(), anyList());
+    }
+
+    @Test
+    @DisplayName("AI가 명시적인 연결 요청이라고 판단하면 대기 상태로 넘긴다")
+    void handsOffWhenModelDecidesToConnect() {
+        when(service.recentMessages(ROOM_ID)).thenReturn(List.of(message(1, "USER", "상담원 연결해 주세요")));
+        when(client.reply(any())).thenReturn(new SupportChatBotReply(
+                "상담원에게 연결해 드릴게요.", SupportChatHandoffDecision.CONNECT, List.of()));
+
+        orchestrator.onTrigger(new SupportChatBotTriggerEvent(ROOM_ID));
+
+        verify(service).recordBotHandoff(
+                eq(ROOM_ID), eq("상담원에게 연결해 드릴게요."), anyList());
     }
 }

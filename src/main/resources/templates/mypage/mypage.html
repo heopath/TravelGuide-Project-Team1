@@ -744,11 +744,10 @@
               <div class="support-chat" data-support-chat hidden>
                 <p class="support-chat-status" data-support-chat-status role="status"></p>
                 <div class="support-chat-messages" data-support-chat-messages></div>
-                <!--
-                  상담원 대기·응대 중일 때만 뜨는 탈출구. WAITING이면 봇으로 되돌릴 수 있고,
-                  사람이 이미 붙은 ASSIGNED면 새 상담만 열 수 있다.
-                -->
+                <!-- BOT에서는 직접 상담원을 요청하고, 사람 상담 상태에서는 대화 탈출구를 제공한다. -->
                 <div class="support-chat-actions" data-support-chat-actions hidden>
+                  <button type="button" class="support-chat-action primary"
+                          data-support-chat-agent hidden>상담원 연결</button>
                   <button type="button" class="support-chat-action primary"
                           data-support-chat-return hidden>봇에게 다시 물어보기</button>
                   <button type="button" class="support-chat-action"

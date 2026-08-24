@@ -3,6 +3,7 @@ package org.example.all_my_trip_project.domain.support.mapper;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import org.example.all_my_trip_project.domain.support.dto.SupportChatMessageDTO;
+import org.example.all_my_trip_project.domain.support.dto.SupportChatMessageBlockDTO;
 import org.example.all_my_trip_project.domain.support.dto.SupportChatRoomDTO;
 
 import java.util.List;
@@ -47,6 +48,10 @@ public interface SupportChatMapper {
     int closeRoom(@Param("roomId") Long roomId);
 
     int insertMessage(SupportChatMessageDTO message);
+
+    int insertMessageBlock(SupportChatMessageBlockDTO block);
+
+    List<SupportChatMessageBlockDTO> findMessageBlocks(@Param("messageIds") List<Long> messageIds);
 
     /**
      * 방금 넣은 메시지를 닉네임·저장 시각까지 채워 다시 읽는다. {@code insertMessage}는 PK만
