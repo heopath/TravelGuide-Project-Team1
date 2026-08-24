@@ -14,6 +14,7 @@ import org.example.all_my_trip_project.global.exception.BusinessException;
 import org.example.all_my_trip_project.global.exception.ErrorCode;
 import org.example.all_my_trip_project.global.response.ApiResponse;
 import org.example.all_my_trip_project.global.security.AuthenticatedUser;
+import org.example.all_my_trip_project.global.security.turnstile.TurnstileVerifier;
 import org.springframework.context.annotation.Profile;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -37,11 +38,14 @@ import java.util.List;
 public class AuthController {
 
     private final AuthService authService;
+    private final TurnstileVerifier turnstileVerifier;
 
     @PostMapping("/signup")
     public ResponseEntity<ApiResponse<MemberResponse>> signup(
-            @Valid @RequestBody SignupRequest request
+            @Valid @RequestBody SignupRequest request,
+            HttpServletRequest servletRequest
     ) {
+        turnstileVerifier.verify(request.turnstileToken(), "signup", servletRequest.getRemoteAddr());
         MemberResponse response = authService.signup(request);
 
         return ResponseEntity
@@ -57,6 +61,7 @@ public class AuthController {
             @Valid @RequestBody LoginRequest request,
             HttpServletRequest servletRequest
     ) {
+        turnstileVerifier.verify(request.turnstileToken(), "login", servletRequest.getRemoteAddr());
         MemberResponse response = authService.login(request);
 
         AuthenticatedUser principal = new AuthenticatedUser(
