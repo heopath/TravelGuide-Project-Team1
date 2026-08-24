@@ -860,6 +860,8 @@
 .page-flights .fname { font-size: 16px; font-weight: 800; letter-spacing: -0.02em; }
 .page-flights .fvline .fv { flex: 1; min-width: 0; font-size: 14px; color: var(--muted); font-weight: 700; }
 .page-flights select.fv { appearance: none; cursor: pointer; }
+/* 노선은 고정 문구로 오해하지 않도록 네이티브 펼침 표시를 반드시 남긴다. */
+.page-flights select.route-select { appearance: auto; padding-right: 4px; }
 
 /* 편 선택: 두 단계를 나란히 */
 .page-flights .legbar {

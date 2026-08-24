@@ -8,6 +8,8 @@ import org.example.all_my_trip_project.domain.accommodation.dto.AccommodationPri
 import org.example.all_my_trip_project.domain.accommodation.dto.AccommodationSearchQuery;
 import org.example.all_my_trip_project.domain.accommodation.type.AccommodationPriceSource;
 import jakarta.annotation.PostConstruct;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Profile;
 import org.springframework.core.annotation.Order;
 import org.springframework.core.env.Environment;
@@ -60,13 +62,21 @@ public class LiteApiSandboxPriceProvider implements AccommodationPriceProvider {
     private record RateDetails(BigDecimal total, String currency,
                                boolean refundable, boolean breakfast) {}
 
+    @Autowired
+    public LiteApiSandboxPriceProvider(LiteApiSandboxProperties properties,
+                                       @Qualifier("liteApiRestClient") RestClient restClient,
+                                       Environment environment) {
+        this.properties = properties;
+        this.restClient = restClient;
+        this.objectMapper = new ObjectMapper();
+        this.environment = environment;
+    }
+
+    /** 단위 테스트가 MockRestServiceServer를 붙인 Builder를 그대로 사용할 때의 생성자. */
     public LiteApiSandboxPriceProvider(LiteApiSandboxProperties properties,
                                        RestClient.Builder restClientBuilder,
                                        Environment environment) {
-        this.properties = properties;
-        this.restClient = restClientBuilder.build();
-        this.objectMapper = new ObjectMapper();
-        this.environment = environment;
+        this(properties, restClientBuilder.build(), environment);
     }
 
     /**
