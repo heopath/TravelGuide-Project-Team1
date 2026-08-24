@@ -87,7 +87,7 @@ support_chat_messages.sender_type -- USER · BOT · ADMIN (BOT 메시지는 send
 
 `support_chat_messages`는 append-only라 대화 기록이 곧 로그입니다. 봇이 쓴 메시지도
 `sender_type = 'BOT'`으로 같은 테이블에 쌓입니다. 다만 버튼·장소 카드처럼 새 표현을 추가할
-때마다 메시지 테이블에 컬럼을 늘리지 않도록 V30에서 `support_chat_message_blocks`를 별도로
+때마다 메시지 테이블에 컬럼을 늘리지 않도록 V31에서 `support_chat_message_blocks`를 별도로
 추가합니다. 이 테이블의 JSONB에는 항상 메시지와 함께 읽는 화면 표현 데이터만 저장하며,
 검색·정렬·방 상태·담당자·읽음 여부 같은 운영 판단 값은 넣지 않습니다.
 
@@ -356,7 +356,7 @@ ASSIGNED / WAITING → 관리자가 "상담 종료" ──▶ CLOSED
 
 ### 11. 메시지 표현 블록과 장소 추천 카드 (2026-08-24 추가)
 
-V30은 `support_chat_message_blocks`를 추가한다. 블록은 메시지 번호, 종류, 표시 순서,
+V31은 `support_chat_message_blocks`를 추가한다. 블록은 메시지 번호, 종류, 표시 순서,
 형식 버전과 JSONB payload로 구성한다. `ACTION_GROUP`은 이동 버튼 묶음,
 `PLACE_CARDS`는 장소 추천 카드 묶음이다. 새 표현 종류는 새 컬럼 대신 새 블록 종류로 확장한다.
 payload 전체를 검색하는 기능은 만들지 않으므로 GIN 인덱스도 추가하지 않는다. 메시지 번호와
@@ -375,26 +375,26 @@ Gemini 할당량이 없는 로컬 환경에서는
 전용이며 Flyway migration이나 운영 DB에서는 실행하지 않는다. 같은 방에서 다시 실행해도
 같은 문구의 seed 메시지를 중복 생성하지 않는다.
 
-기존 `action_key` 3개는 바로 제거하지 않는다. V30이 과거 값을 `ACTION_GROUP`으로 옮기고,
+기존 `action_key` 3개는 바로 제거하지 않는다. V31이 과거 값을 `ACTION_GROUP`으로 옮기고,
 새 앱도 당분간 기존 컬럼과 블록에 액션을 함께 쓴다. 따라서 배포 직후 이전 앱으로 되돌려도
 이동 버튼은 유지된다. 새 앱은 블록을 우선 읽고, 블록이 없는 옛 메시지는 기존 컬럼을 읽는다.
 
 ### 12. PR 병합·운영 DB 반영 점검
 
-- 현재 `develop`의 마지막 Flyway는 V29라 V30 번호가 비어 있다. PR을 병합하기 직전에
-  `develop`을 다시 받아 다른 PR이 V30을 먼저 추가하지 않았는지 확인한다. 충돌했다면 아직
+- 현재 `develop`의 마지막 Flyway는 V29라 V31 번호가 비어 있다. PR을 병합하기 직전에
+  `develop`을 다시 받아 다른 PR이 V31을 먼저 추가하지 않았는지 확인한다. 충돌했다면 아직
   어떤 공유 환경에도 적용하지 않은 상태에서만 다음 빈 번호로 바꾼다.
-- V30은 기존 `support_chat_messages`를 `ALTER TABLE`하지 않고 새 테이블을 만든다. 따라서
+- V31은 기존 `support_chat_messages`를 `ALTER TABLE`하지 않고 새 테이블을 만든다. 따라서
   이전에 발생한 `must be owner of table support_chat_messages` 오류와 직접 같은 작업은 없다.
   다만 Flyway 계정에는 `public` 스키마의 `CREATE`, 기존 메시지 테이블의 `SELECT`와
   `REFERENCES` 권한이 필요하다. 이 권한이 없으면 앱 기동 중 마이그레이션이 실패하고 새 버전도
   뜨지 않는다.
-- 배포 순서는 Flyway V30 성공 후 새 애플리케이션 기동이다. Spring Boot 기동 Flyway를 쓰면
-  이 순서가 자동이지만, 운영에서 Flyway가 꺼져 있다면 앱보다 먼저 V30을 실행해야 한다.
+- 배포 순서는 Flyway V31 성공 후 새 애플리케이션 기동이다. Spring Boot 기동 Flyway를 쓰면
+  이 순서가 자동이지만, 운영에서 Flyway가 꺼져 있다면 앱보다 먼저 V31을 실행해야 한다.
 - 기존 액션 컬럼을 유지하고 새 앱이 액션을 양쪽에 쓰므로 이전 앱으로 되돌려도 기존 버튼은
   보인다. 장소 카드는 이전 앱이 모르는 새 표현이라 보이지 않을 뿐, 메시지 본문과 상담 상태는
-  정상 유지된다. V30 테이블을 되돌려 삭제하지 말고 앱만 되돌린 뒤 원인을 고쳐 전진 배포한다.
-- V30이 한 번이라도 적용된 DB에서는 SQL 파일을 수정하지 않는다. 수정하면 Flyway checksum
+  정상 유지된다. V31 테이블을 되돌려 삭제하지 말고 앱만 되돌린 뒤 원인을 고쳐 전진 배포한다.
+- V31이 한 번이라도 적용된 DB에서는 SQL 파일을 수정하지 않는다. 수정하면 Flyway checksum
   검증이 실패한다. 변경이 필요하면 V31 같은 새 migration으로 보완한다.
 - 과거 액션 backfill은 한 트랜잭션의 `INSERT ... SELECT`다. 운영 메시지 수를 먼저 세고,
   데이터가 매우 많다면 실행 시간을 점검한다. payload 내부로 검색하지 않으므로 JSONB GIN
