@@ -148,8 +148,15 @@ WHERE p.name = '부하테스트 입장권';
 
 -- ── 5. 회차 사이 초기화 ─────────────────────────────────────────────────────
 --
--- 부하를 한 번 돌리면 재고가 소진됩니다. 다시 돌리기 전에 실행하세요.
--- 예약을 지우고 예약 수량을 0으로 되돌립니다.
+-- 부하를 한 번 돌리면 재고가 소진됩니다. 다시 돌리기 전에 초기화하세요.
+--
+-- ⚠️ 아래 구문을 복사해 쓰지 말고 reset.sql을 실행하세요. 주석이라 실행되지 않고
+--    여기까지 스크롤해야 보여서, 실제로 회차 사이에 돌리지 않는 일이 있었습니다.
+--    그러면 reserved_quantity가 남은 채로 다음 회차가 돌아 측정값이 망가집니다.
+--
+--    docker compose exec -T postgres psql -U allmytrips -d all_my_trips -f - < load-test/reset.sql
+--
+-- 아래는 reset.sql이 하는 일을 그대로 옮긴 것입니다(참고용).
 --
 -- DELETE FROM reservation_items
 --  WHERE reservation_id IN (
