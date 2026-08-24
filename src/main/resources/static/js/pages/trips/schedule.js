@@ -3668,14 +3668,31 @@ document.addEventListener("DOMContentLoaded", function () {
     }[place.category_group_code] || "ATTRACTION";
   }
 
+  /*
+   * places.region/city를 서버의 KoreanAddress와 같은 규칙으로 끊는다.
+   *
+   * 둘째 토큰은 접미사를 확인하고 넘긴다. 세종특별자치시처럼 시·군·구가 없는 주소는
+   * 둘째 토큰이 도로명("한누리대로")이라 그대로 넣으면 city에 도로가 들어간다.
+   * 값이 없으면 ""이 아니라 null로 보낸다. 빈 문자열로 저장하면 지역 필터에서
+   * NULL과 다르게 걸려 조회가 갈린다.
+   */
+  function kakaoAddressAreas(kakaoPlace) {
+    const address = (kakaoPlace.address_name || kakaoPlace.road_address_name || "").trim();
+    if (!address) return {region:null, city:null};
+    const tokens = address.split(/\s+/);
+    const city = tokens[1] || "";
+    return {region:tokens[0] || null, city:/[시군구]$/.test(city) ? city : null};
+  }
+
   async function findOrCreatePlace(kakaoPlace) {
     if (kakaoPlace.category_name) {
       rememberPlaceCategory(kakaoPlace.id, kakaoPlace.category_name);
     }
+    const areas = kakaoAddressAreas(kakaoPlace);
     const placePayload = {
       externalProvider:"KAKAO", externalPlaceId:kakaoPlace.id, category:mapKakaoCategory(kakaoPlace),
-      name:kakaoPlace.place_name, countryCode:"KR", region:kakaoPlace.address_name?.split(" ")[0] || "",
-      city:kakaoPlace.address_name?.split(" ")[1] || "", address:kakaoPlace.road_address_name || kakaoPlace.address_name,
+      name:kakaoPlace.place_name, countryCode:"KR", region:areas.region,
+      city:areas.city, address:kakaoPlace.road_address_name || kakaoPlace.address_name,
       latitude:Number(kakaoPlace.y), longitude:Number(kakaoPlace.x), phone:kakaoPlace.phone, websiteUrl:kakaoPlace.place_url, active:true,
     };
     try {
