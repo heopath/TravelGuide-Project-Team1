@@ -14,6 +14,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -42,10 +43,18 @@ class SupportChatBotOrchestratorTest {
     }
 
     private static SupportChatMessageDTO message(long id, String senderType) {
+        return message(id, senderType, "내용");
+    }
+
+    private static SupportChatMessageDTO message(long id, String senderType, String content) {
         return SupportChatMessageDTO.builder()
                 .supportChatMessageId(id).supportChatRoomId(ROOM_ID)
-                .senderType(senderType).content("내용").build();
+                .senderType(senderType).content(content).build();
     }
+
+    /* 프로덕션 상수와 같아야 하는 문구. 여기가 어긋나면 연속 실패 판단이 조용히 깨진다. */
+    private static final String RETRY_NOTICE =
+            "죄송해요, 지금 답변을 준비하지 못했어요. 잠시 후 다시 물어봐 주시겠어요?";
 
     /*
      * 재실행 여부는 트리거가 왔는지가 아니라, 내가 이미 어디까지 답했는지(워터마크)로 정한다
@@ -287,6 +296,56 @@ class SupportChatBotOrchestratorTest {
         orchestrator.onTrigger(new SupportChatBotTriggerEvent(ROOM_ID));
         orchestrator.onTrigger(new SupportChatBotTriggerEvent(ROOM_ID));
 
-        verify(service, times(2)).recordBotHandoff(eq(ROOM_ID), any());
+        /* 대화 내역이 비어 있어 둘 다 "첫 실패"로 보이므로 두 번 모두 재시도 안내다. */
+        verify(service, times(2)).recordBotReply(eq(ROOM_ID), eq(RETRY_NOTICE));
+        verify(service, never()).recordBotHandoff(eq(ROOM_ID), any());
+    }
+
+    /*
+     * 한번 WAITING이 되면 그 방은 다시 BOT으로 돌아올 길이 없다(상태 전환에 → BOT 경로가 없고,
+     * 방을 닫는 것도 관리자만 할 수 있다). 그래서 Gemini가 한 번 삐끗한 것만으로 넘겨 버리면
+     * 그 손님은 봇을 영영 못 쓰고 새 대화를 시작할 수도 없다.
+     */
+    @Test
+    @DisplayName("일시적 실패는 상담원 대기로 넘기지 않고 방을 BOT에 둔다")
+    void keepsRoomOnBotWhenFailureIsRetryable() {
+        when(service.recentMessages(ROOM_ID)).thenReturn(List.of(message(1, "USER", "환불 문의드립니다")));
+        when(client.reply(any())).thenThrow(new SupportChatBotException("Gemini 호출 실패"));
+
+        orchestrator.onTrigger(new SupportChatBotTriggerEvent(ROOM_ID));
+
+        verify(service).recordBotReply(eq(ROOM_ID), eq(RETRY_NOTICE));
+        verify(service, never()).recordBotHandoff(eq(ROOM_ID), any());
+    }
+
+    /* 계속 실패하는데도 봇이 붙들고 있으면 손님은 같은 안내만 무한히 받는다. */
+    @Test
+    @DisplayName("직전에도 재시도 안내였으면 연속 실패로 보고 상담원에게 넘긴다")
+    void handsOffWhenFailureRepeats() {
+        when(service.recentMessages(ROOM_ID)).thenReturn(List.of(
+                message(1, "USER", "환불 문의드립니다"),
+                message(2, "BOT", RETRY_NOTICE),
+                message(3, "USER", "다시 물어볼게요")
+        ));
+        when(client.reply(any())).thenThrow(new SupportChatBotException("Gemini 호출 실패"));
+
+        orchestrator.onTrigger(new SupportChatBotTriggerEvent(ROOM_ID));
+
+        verify(service).recordBotHandoff(eq(ROOM_ID), any());
+        verify(service, never()).recordBotReply(eq(ROOM_ID), eq(RETRY_NOTICE));
+    }
+
+    /* API 키 미설정처럼 다시 불러도 같은 결과인 실패는 재시도할 이유가 없다. */
+    @Test
+    @DisplayName("재시도해도 소용없는 실패는 곧장 상담원에게 넘긴다")
+    void handsOffImmediatelyWhenFailureIsNotRetryable() {
+        when(service.recentMessages(ROOM_ID)).thenReturn(List.of(message(1, "USER", "환불 문의드립니다")));
+        when(client.reply(any()))
+                .thenThrow(new SupportChatBotException("상담 봇 API 키가 설정돼 있지 않습니다.", false));
+
+        orchestrator.onTrigger(new SupportChatBotTriggerEvent(ROOM_ID));
+
+        verify(service).recordBotHandoff(eq(ROOM_ID), any());
+        verify(service, never()).recordBotReply(eq(ROOM_ID), eq(RETRY_NOTICE));
     }
 }

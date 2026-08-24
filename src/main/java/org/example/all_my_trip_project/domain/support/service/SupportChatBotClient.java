@@ -98,7 +98,8 @@ public class SupportChatBotClient {
      */
     public SupportChatBotReply reply(List<SupportChatMessageDTO> conversation) {
         if (!isAvailable()) {
-            throw new SupportChatBotException("상담 봇 API 키가 설정돼 있지 않습니다.");
+            /* 다시 불러도 같은 결과다 — 재시도 대상이 아니라 곧장 상담원에게 넘겨야 한다. */
+            throw new SupportChatBotException("상담 봇 API 키가 설정돼 있지 않습니다.", false);
         }
         try {
             String responseBody = restClient.post()
@@ -117,6 +118,12 @@ public class SupportChatBotClient {
                     ? ""
                     : response.at("/candidates/0/content/parts/0/text").asText();
             if (text.isBlank()) {
+                /*
+                 * 200인데 텍스트가 없는 경우가 실제로 있다(안전 필터, 토큰 한도, 사고 과정만
+                 * 담긴 응답 등). 본문을 남기지 않으면 원인을 좁힐 방법이 아예 없어서 남긴다.
+                 */
+                log.warn("상담 봇 응답 본문에 텍스트가 없습니다. model={}, body={}", geminiModel,
+                        responseBody == null ? "null" : responseBody.substring(0, Math.min(2000, responseBody.length())));
                 throw new SupportChatBotException("상담 봇이 응답을 반환하지 않았습니다.");
             }
             return parse(text);
@@ -145,7 +152,7 @@ public class SupportChatBotClient {
         return contents;
     }
 
-    /** package-private: {@link SupportChatBotClientTest}가 네트워크 호출 없이 표시 파싱만 검증한다. */
+    /** package-private: {@code SupportChatBotClientTest}가 네트워크 호출 없이 표시 파싱만 검증한다. */
     SupportChatBotReply parse(String rawText) {
         String trimmed = rawText.strip();
         boolean handoff = trimmed.endsWith(HANDOFF_MARKER);

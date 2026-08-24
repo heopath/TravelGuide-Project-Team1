@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "all-my-trips-local",
+      "runtimeExecutable": "./gradlew",
+      "runtimeArgs": ["bootRun", "--args=--spring.profiles.active=local"],
+      "port": 8080
+    }
+  ]
+}
