@@ -23,7 +23,7 @@ import java.util.stream.Collectors;
  * <p><b>{@code domain.ai}의 {@code AiModelClient}와 별개다.</b> 설계 문서(§1)는 원래 Spring AI의
  * {@code ChatModel} 빈을 공유하는 방향을 전제했지만, 어떤 프로필 조합에서도
  * {@code spring.ai.model.chat=none}이라 그 빈이 뜨지 않는다. 여행 가이드가 실제로 쓰는 구현체는
- * {@code CohereAiModelClient}이고 그쪽도 REST를 직접 부른다.
+ * {@code OpenAiAiModelClient}이고 그쪽도 REST를 직접 부른다.
  *
  * <p>그래서 이 클래스는 저장소에서 실제로 동작이 확인된 Gemini 경로인
  * {@code AiTripPlanService}의 패턴(REST API 직접 호출, {@code gemini.api-key})을 그대로 따른다.

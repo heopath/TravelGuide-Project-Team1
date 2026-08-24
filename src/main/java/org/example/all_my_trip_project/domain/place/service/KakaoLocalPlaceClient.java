@@ -56,6 +56,11 @@ public class KakaoLocalPlaceClient {
     }
 
     public List<PlaceDTO> search(String keyword, Duration requestTimeout) {
+        return search(keyword, requestTimeout, 1);
+    }
+
+    /** Searches a specific Kakao result page for follow-up recommendations. */
+    public List<PlaceDTO> search(String keyword, Duration requestTimeout, int page) {
         if (restApiKey == null || restApiKey.isBlank() || keyword == null || keyword.isBlank()) {
             if (restApiKey == null || restApiKey.isBlank()) {
                 log.warn("Kakao Local place search skipped because KAKAO_REST_API_KEY is not configured.");
@@ -70,6 +75,7 @@ public class KakaoLocalPlaceClient {
         URI uri = UriComponentsBuilder.fromUri(KEYWORD_SEARCH_URI)
                 .queryParam("query", keyword.trim())
                 .queryParam("size", MAX_SIZE)
+                .queryParam("page", validPage(page))
                 .build()
                 .encode()
                 .toUri();
@@ -103,6 +109,11 @@ public class KakaoLocalPlaceClient {
      */
     public List<PlaceDTO> searchNearby(String keyword, BigDecimal longitude, BigDecimal latitude,
                                        int radiusMeters, Duration requestTimeout) {
+        return searchNearby(keyword, longitude, latitude, radiusMeters, requestTimeout, 1);
+    }
+
+    public List<PlaceDTO> searchNearby(String keyword, BigDecimal longitude, BigDecimal latitude,
+                                       int radiusMeters, Duration requestTimeout, int page) {
         if (restApiKey == null || restApiKey.isBlank() || keyword == null || keyword.isBlank()
                 || longitude == null || latitude == null) {
             return List.of();
@@ -114,6 +125,7 @@ public class KakaoLocalPlaceClient {
                 .queryParam("y", latitude)
                 .queryParam("radius", Math.max(1, Math.min(radiusMeters, 20_000)))
                 .queryParam("size", MAX_SIZE)
+                .queryParam("page", validPage(page))
                 .build()
                 .encode()
                 .toUri();
@@ -152,6 +164,11 @@ public class KakaoLocalPlaceClient {
 
     public List<PlaceDTO> searchByCategory(String categoryGroupCode, BigDecimal longitude, BigDecimal latitude,
                                            int radiusMeters, Duration requestTimeout) {
+        return searchByCategory(categoryGroupCode, longitude, latitude, radiusMeters, requestTimeout, 1);
+    }
+
+    public List<PlaceDTO> searchByCategory(String categoryGroupCode, BigDecimal longitude, BigDecimal latitude,
+                                           int radiusMeters, Duration requestTimeout, int page) {
         if (restApiKey == null || restApiKey.isBlank() || categoryGroupCode == null || categoryGroupCode.isBlank()
                 || longitude == null || latitude == null) {
             return List.of();
@@ -164,6 +181,7 @@ public class KakaoLocalPlaceClient {
                 .queryParam("y", latitude)
                 .queryParam("radius", Math.max(1, Math.min(radiusMeters, 20_000)))
                 .queryParam("size", MAX_SIZE)
+                .queryParam("page", validPage(page))
                 .build()
                 .encode()
                 .toUri();
@@ -222,6 +240,11 @@ public class KakaoLocalPlaceClient {
                     .address(address)
                     .latitude(decimal(document, "y"))
                     .longitude(decimal(document, "x"))
+                    // FD6(음식점) 안에는 제과·베이커리도 포함된다. DB의 대표
+                    // 카테고리는 기존 제약에 맞춰 RESTAURANT로 유지하되, 실제
+                    // 세부 업종은 description에 보존해 AI 후보 필터가 식사와
+                    // 베이커리를 구분할 수 있게 한다.
+                    .description(kakaoCategoryDescription(document))
                     .phone(text(document, "phone"))
                     .websiteUrl(text(document, "place_url"))
                     .active(true)
@@ -241,6 +264,17 @@ public class KakaoLocalPlaceClient {
             // general travel category rather than the unsupported PLACE value.
             default -> "ATTRACTION";
         };
+    }
+
+    private int validPage(int page) {
+        return Math.max(1, Math.min(page, 45));
+    }
+
+    private static String kakaoCategoryDescription(JsonNode document) {
+        String categoryName = text(document, "category_name");
+        String categoryGroupName = text(document, "category_group_name");
+        String categoryDetail = firstNonBlank(categoryName, categoryGroupName);
+        return categoryDetail.isBlank() ? null : "카카오 세부업종: " + categoryDetail;
     }
 
     private static BigDecimal decimal(JsonNode document, String field) {

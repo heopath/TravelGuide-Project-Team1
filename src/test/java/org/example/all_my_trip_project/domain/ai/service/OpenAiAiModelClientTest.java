@@ -14,6 +14,7 @@ import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.List;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -21,16 +22,16 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-class CohereAiModelClientTest {
+class OpenAiAiModelClientTest {
 
     private final HttpClient httpClient = mock(HttpClient.class);
-    private final CohereAiModelClient client = new CohereAiModelClient(
-            httpClient, new ObjectMapper(), "test-key", "command-a-plus-05-2026", Duration.ofSeconds(25));
+    private final OpenAiAiModelClient client = new OpenAiAiModelClient(
+            httpClient, new ObjectMapper(), "test-key", "gpt-5.6-terra", Duration.ofSeconds(25));
 
     @Test
-    void generateMapsCohereJsonToCurrentGuideDto() throws Exception {
+    void generateMapsOpenAiResponsesJsonToCurrentGuideDto() throws Exception {
         stubResponse(200, """
-                {"message":{"content":[{"type":"text","text":"{\\"answer\\":\\"추천 일정\\",\\"days\\":[{\\"day\\":1,\\"title\\":\\"DAY 1\\",\\"items\\":[{\\"time\\":\\"10:00\\",\\"name\\":\\"해운대\\",\\"reason\\":\\"바다 산책에 좋아요\\"}]}]}"}]}}
+                {"output":[{"type":"message","content":[{"type":"output_text","text":"{\\"answer\\":\\"추천 일정\\",\\"days\\":[{\\"day\\":1,\\"title\\":\\"DAY 1\\",\\"items\\":[{\\"time\\":\\"10:00\\",\\"name\\":\\"해운대\\",\\"reason\\":\\"바다 산책에 좋아요\\"}]}]}"}]}]}
                 """);
 
         AiGuideResponse response = client.generate(new AiGuideRequest("부산 하루 일정 추천", null),
@@ -38,17 +39,28 @@ class CohereAiModelClientTest {
 
         assertThat(response.answer()).isEqualTo("추천 일정");
         assertThat(response.days().getFirst().items().getFirst().name()).isEqualTo("해운대");
-        assertThat(response.sources()).contains("Cohere AI");
+        assertThat(response.sources()).contains("OpenAI");
     }
 
     @Test
-    void generateRejectsCohereErrorResponse() throws Exception {
-        stubResponse(429, "{\"message\":\"rate limit\"}");
+    void generateRejectsOpenAiErrorResponse() throws Exception {
+        stubResponse(429, "{\"error\":{\"type\":\"rate_limit_error\",\"code\":\"rate_limit_exceeded\",\"message\":\"rate limit\"}}");
 
         assertThatThrownBy(() -> client.generate(new AiGuideRequest("부산 하루 일정 추천", null),
                 List.of(), new AiGuideContext(null, List.of())))
                 .isInstanceOf(AiModelException.class)
-                .hasMessage("Cohere request failed. status=429");
+                .hasMessage("OpenAI request failed. status=429, type=rate_limit_error, code=rate_limit_exceeded, message=rate limit");
+    }
+
+    @Test
+    void generateRedactsApiKeyEchoedByOpenAiErrorResponse() throws Exception {
+        stubResponse(400, "{\"error\":{\"type\":\"invalid_request_error\",\"code\":\"model_not_found\",\"message\":\"The requested model 'sk-proj-secret-value' does not exist.\"}}");
+
+        assertThatThrownBy(() -> client.generate(new AiGuideRequest("부산 하루 일정 추천", null),
+                List.of(), new AiGuideContext(null, List.of())))
+                .isInstanceOf(AiModelException.class)
+                .hasMessageContaining("[REDACTED]")
+                .hasMessageNotContaining("sk-proj-secret-value");
     }
 
     @Test
@@ -80,7 +92,7 @@ class CohereAiModelClientTest {
     }
 
     @Test
-    void retriesOnceWhenCohereReturnsAnInvalidScheduleItem() throws Exception {
+    void retriesOnceWhenOpenAiReturnsAnInvalidScheduleItem() throws Exception {
         stubResponses(200,
                 """
                         {"message":{"content":[{"type":"text","text":"{\\"answer\\":\\"추천 일정\\",\\"days\\":[{\\"day\\":1,\\"title\\":\\"DAY 1\\",\\"items\\":[{\\"time\\":\\"\\",\\"name\\":\\"카페\\",\\"reason\\":\\"휴식\\"}]}]}"}]} }
@@ -98,7 +110,7 @@ class CohereAiModelClientTest {
     }
 
     @Test
-    void retriesOnceWhenCohereReturnsInvalidFencedJson() throws Exception {
+    void retriesOnceWhenOpenAiReturnsInvalidFencedJson() throws Exception {
         stubResponses(200,
                 """
                         {"message":{"content":[{"type":"text","text":"```json\\n{\\\"answer\\\":\\\"추천 일정\\\",\\\"days\\\":[{\\\"day\\\":1,\\\"title\\\":\\\"DAY 1\\\",\\\"items\\\":[{\\\"time\\\":\\\"14:00\\\",\\\"name\\\":\\\"카페\\\",\\\"reason\\\":\\\"휴식\\\"}]}]}"}]}}
@@ -116,7 +128,7 @@ class CohereAiModelClientTest {
     }
 
     @Test
-    void retriesOnceWhenCohereResponseContentIsBlank() throws Exception {
+    void retriesOnceWhenOpenAiResponseContentIsBlank() throws Exception {
         stubResponses(200,
                 """
                         {"message":{"content":[{"type":"text","text":""}]}}
@@ -148,11 +160,14 @@ class CohereAiModelClientTest {
 
         assertThat(prompt)
                 .contains("기존 점심 (10:00-12:00)")
+                .contains("Never use a bakery, confectionery, bread shop, dessert shop, or cafe as a meal")
+                .contains("Treat the retrieved detailed category as a hard venue-type constraint")
                 .contains("Treat every listed window as unavailable")
                 .contains("reserve two hours after its start time")
                 .contains("nearest available HH:mm time")
                 .contains("Never return an existing itinerary venue as a new recommendation item")
-                .contains("never return a real venue already named");
+                .contains("never return a real venue already named")
+                .contains("Do not create placeholder schedule items");
     }
 
     @Test
@@ -274,10 +289,36 @@ class CohereAiModelClientTest {
     private void stubResponses(int status, String... bodies) throws Exception {
         HttpResponse<String> response = mock(HttpResponse.class);
         when(response.statusCode()).thenReturn(status);
-        when(response.body()).thenReturn(bodies[0], java.util.Arrays.copyOfRange(bodies, 1, bodies.length));
+        String[] openAiBodies = java.util.Arrays.stream(bodies)
+                .map(this::asOpenAiResponse)
+                .toArray(String[]::new);
+        when(response.body()).thenReturn(openAiBodies[0], java.util.Arrays.copyOfRange(openAiBodies, 1, openAiBodies.length));
         when(httpClient.send(
                 any(HttpRequest.class),
                 org.mockito.ArgumentMatchers.<HttpResponse.BodyHandler<String>>any()
         )).thenReturn(response);
+    }
+
+    private String asOpenAiResponse(String body) {
+        try {
+            var root = new ObjectMapper().readTree(body);
+            var contents = root.path("message").path("content");
+            if (!contents.isArray()) {
+                return body;
+            }
+            String text = "";
+            for (var content : contents) {
+                if (!content.path("text").asText().isBlank()) {
+                    text = content.path("text").asText();
+                    break;
+                }
+            }
+            return new ObjectMapper().writeValueAsString(Map.of("output", List.of(Map.of(
+                    "type", "message",
+                    "content", List.of(Map.of("type", "output_text", "text", text))
+            ))));
+        } catch (Exception exception) {
+            throw new IllegalArgumentException(exception);
+        }
     }
 }

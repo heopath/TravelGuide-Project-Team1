@@ -14,9 +14,9 @@ class AiModelClientProfileTest {
     }
 
     @Test
-    void aiProfileSelectsCohereClient() {
+    void aiProfileSelectsOpenAiClient() {
         try (AnnotationConfigApplicationContext context = createContext("ai")) {
-            assertThat(context.getBean(AiModelClient.class)).isInstanceOf(CohereAiModelClient.class);
+            assertThat(context.getBean(AiModelClient.class)).isInstanceOf(OpenAiAiModelClient.class);
         }
     }
 
@@ -24,7 +24,7 @@ class AiModelClientProfileTest {
         AnnotationConfigApplicationContext context = new AnnotationConfigApplicationContext();
         context.getEnvironment().setActiveProfiles(profile);
         context.register(MockAiModelClient.class);
-        context.register(CohereAiModelClient.class);
+        context.register(OpenAiAiModelClient.class);
         context.refresh();
         return context;
     }

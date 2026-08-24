@@ -27,7 +27,7 @@
 | AI-TIME-03 | 2026-08-18 | 수동 테스트 통과 | 전체 보기에서 DAY별 추가 상태가 섞이지 않는 것을 확인 |
 | AI-TIME-04 | 2026-08-18 | 수동 테스트 통과 | 일괄 추가 시 추가·시간 겹침 결과가 구분되어 표시되는 것을 확인 |
 | AI-TIME-05 | 2026-08-18 | 수동 테스트 통과 | 다른 탭에서 먼저 저장한 뒤 서버가 시간 충돌 저장을 차단하는 것을 확인 |
-| AI-TIME-06 | 2026-08-18 | 자동 테스트 통과 | `CohereAiModelClientTest`에서 12:30~14:30 점유 시 13:00 추천이 14:30으로 보정되는지 검증 |
+| AI-TIME-06 | 2026-08-18 | 자동 테스트 통과 | `OpenAiAiModelClientTest`에서 12:30~14:30 점유 시 13:00 추천이 14:30으로 보정되는지 검증 |
 
 수동 테스트는 로그인한 로컬 일정 화면에서 실행한다. `AI-TIME-05`는 Postman 컬렉션의 `Time conflict - expects 409 ITINERARY_TIME_CONFLICT` 요청으로도 확인할 수 있다.
 
@@ -35,5 +35,5 @@
 
 ```powershell
 .\gradlew.bat test --tests "org.example.all_my_trip_project.domain.trip.service.ItineraryItemServiceTest"
-.\gradlew.bat test --tests "org.example.all_my_trip_project.domain.ai.service.CohereAiModelClientTest"
+.\gradlew.bat test --tests "org.example.all_my_trip_project.domain.ai.service.OpenAiAiModelClientTest"
 ```
