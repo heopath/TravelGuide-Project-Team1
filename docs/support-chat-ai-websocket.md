@@ -278,12 +278,27 @@ WebSocket 연결이 끊겼다가 재연결되면 그 사이의 이벤트(메시�
 방 생성 → BOT (봇이 자동 응답)
             │
             ├─ 관리자가 "내가 응대하기" ──▶ ASSIGNED (사람이 응대)
+            │                                   │
+            │                                   │ 손님이 "새 상담 시작"
+            │                                   ▼
+            │                          CLOSED ──▶ (새 방) BOT
             │
             └─ 봇 → WAITING 전환 기준(위 "1. 봇 연동 지점" 참고: 상담원 요청 /
                Gemini 실패·시간 초과 / 정책 범위 밖 / 반복 미해결) ──▶ WAITING (사람 대기)
+                        │                              │
+                        │ 손님이 "봇에게 다시 물어보기"    │ 손님이 "새 상담 시작"
+                        ▼                              ▼
+                       BOT                    CLOSED ──▶ (새 방) BOT
 
 ASSIGNED / WAITING → 관리자가 "상담 종료" ──▶ CLOSED
 ```
+
+**2026-08-24 추가 — 갇힌 방 문제.** 처음 구현에는 `→ BOT`으로 돌아오는 경로가 전혀 없었고, 방을 닫는 것도 관리자 전용 API(`POST /api/v1/admin/support-chats/{roomId}/close`)뿐이었다. 그런데 봇 → `WAITING` 전환 기준의 "Gemini 실패"가 일시적 오류(네트워크 지연, 빈 응답 등)와 손님의 명시적 상담원 요청을 구분하지 않고 똑같이 `WAITING`으로 넘겼다. 그 결과 Gemini가 한 번만 삐끗해도 그 손님은 봇을 영영 못 쓰고, 새 대화를 시작할 방법도 없이 상담원이 방을 닫아 줄 때까지 갇혔다. 두 가지로 고쳤다.
+
+1. **일시적 실패는 애초에 `WAITING`으로 넘기지 않는다.** `SupportChatBotException`에 `retryable`을 두어, 다시 불러도 같은 결과인 실패(API 키 미설정 등)만 곧장 넘기고 나머지는 방을 `BOT`에 둔 채 재시도 안내를 남긴다. 직전 봇 발화가 이미 같은 안내였다면(연속 실패) 그때는 사람에게 넘긴다.
+2. **손님에게 두 가지 탈출구를 준다.** `WAITING`에서는 `POST /api/v1/support/chat/return-to-bot`으로 대화 이력을 유지한 채 `BOT`으로 돌아갈 수 있다(`WHERE status = 'WAITING'` 조건이 이미 사람이 응대 중인 `ASSIGNED`를 자동으로 막는다). `WAITING`·`ASSIGNED` 어디서든 `POST /api/v1/support/chat/restart`로 지금 방을 닫고 새 `BOT` 방을 연다 — `uk_support_chat_rooms_open_user`가 손님당 열린 방을 하나로 제한하므로 닫기와 열기를 한 트랜잭션으로 묶는다. `ASSIGNED → BOT`(사람이 이미 응대 중인 대화를 손님이 되돌리는 것)은 만들지 않았다 — `SupportChatBotClient.toContents()`가 `ADMIN` 발화를 걸러 봇에게 안 넘기므로, 봇이 상담원의 답변을 못 본 채 이어받게 된다.
+
+스키마(DDL) 변경은 없다 — 두 전환 모두 `V19__support_chat.sql`의 기존 상태값(`BOT`/`WAITING`)과 기존 체크 제약만으로 표현된다.
 
 ## 로그·기록
 
@@ -311,6 +326,17 @@ ASSIGNED / WAITING → 관리자가 "상담 종료" ──▶ CLOSED
 - 상담 만족도 평가
 - AI 여행 가이드(`domain.ai`)와의 통합·공용 UI
 
+### 9. 손님용 API — 봇 복귀 · 새 상담 시작 (2026-08-24 추가)
+
+"8. 상태 전이"의 갇힌 방 문제를 고치며 손님용 엔드포인트 2개를 새로 추가했다. 둘 다 `SupportChatController`(`/api/v1/support/chat`) 아래에 있고, 관리자 API와 마찬가지로 응답 형태는 `SupportChatViewResponse`(방 + 메시지)를 그대로 돌려준다.
+
+| 엔드포인트 | 조건 | 동작 |
+| --- | --- | --- |
+| `POST /api/v1/support/chat/return-to-bot` | 방이 `WAITING`일 때만 (`WHERE status = 'WAITING'`, 0건이면 `SUPPORT_CHAT_BOT_RETURN_NOT_ALLOWED` 409) | 방을 `BOT`으로 되돌리고 `SupportChatBotTriggerEvent`를 발행해 봇이 곧바로 이어받게 한다. 대화 이력은 그대로 남는다. |
+| `POST /api/v1/support/chat/restart` | 어느 상태에서든 | 지금 방을 `closeRoom`으로 닫고 새 `BOT` 방을 `insertRoom`으로 연다. `uk_support_chat_rooms_open_user` 때문에 한 트랜잭션으로 묶는다. |
+
+두 화면(마이페이지 고객센터 탭, 화면 구석 마이티 위젯) 모두 `WAITING`에서는 두 버튼을, `ASSIGNED`에서는 "새 상담 시작"만 보여준다. `BOT`·`CLOSED`에서는 아무것도 보여줄 필요가 없다.
+
 ## 완료 기준
 
 - [ ] 방 생성 시 `BOT` 상태로 시작하고 첫 메시지가 자동으로 달린다
@@ -324,6 +350,9 @@ ASSIGNED / WAITING → 관리자가 "상담 종료" ──▶ CLOSED
 - [ ] WebSocket 연결이 계속 안 되는 동안(스크립트 없음, 핸드셰이크·nginx 실패) REST 폴백 폴링이 관리자 대기열·열어 둔 방을 계속 갱신하고, 연결되면 스스로 멈춘다
 - [ ] 질문을 보낸 뒤 새로고침하거나 다른 탭에서 열어도 봇 응답 대기 상태가 복원되고, 같은 방에 봇 호출이 겹치지 않는다
 - [x] "봇 응답 대기 중 UX"(정할 것 남은 항목)가 팀 논의를 거쳐 확정되고 이 문서에 반영된다 — "설계 > 7. 봇 응답 대기 중 UX" 참고
+- [x] 일시적 Gemini 실패가 상담원 대기로 넘어가지 않고 방이 `BOT`에 유지된다(연속 실패 시에는 넘어간다) — "설계 > 8. 상태 전이" 참고
+- [x] 손님이 `WAITING`에서 대화 이력을 유지한 채 봇으로 돌아갈 수 있다(`ASSIGNED`에서는 막힌다) — "설계 > 9. 손님용 API" 참고
+- [x] 손님이 `WAITING`·`ASSIGNED` 어디서든 새 상담을 시작할 수 있다(옛 방은 `CLOSED`로 보존) — "설계 > 9. 손님용 API" 참고
 - [ ] WebSocket 실시간 갱신(수신)이 동작한다 — 발신은 1차에서 기존 REST POST 유지
 - [ ] 운영 nginx에 WebSocket 업그레이드 헤더 설정을 확인·추가한다(로컬에서만 되고 운영에서 실패하는 상황 방지)
 - [ ] `src/test/js`의 기존 상담 채팅 수용 테스트(`admin-chat-acceptance.test.js` 등)가 회귀 없이 통과한다

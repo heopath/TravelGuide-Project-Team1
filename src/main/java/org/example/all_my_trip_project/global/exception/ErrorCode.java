@@ -503,6 +503,11 @@ public enum ErrorCode {
     SUPPORT_CHAT_SUBSCRIBE_FORBIDDEN(
             HttpStatus.FORBIDDEN,
             "이 상담 채팅을 구독할 권한이 없습니다."
+    ),
+
+    SUPPORT_CHAT_BOT_RETURN_NOT_ALLOWED(
+            HttpStatus.CONFLICT,
+            "상담원이 응대를 시작해 봇으로 돌아갈 수 없습니다. 새 상담을 시작해 주세요."
     );
 
     private final HttpStatus status;

@@ -52,6 +52,9 @@ export function initSupportChat() {
   const form = panel.querySelector("[data-support-chat-form]");
   const input = panel.querySelector("[data-support-chat-input]");
   const send = panel.querySelector("[data-support-chat-send]");
+  const actions = panel.querySelector("[data-support-chat-actions]");
+  const returnButton = panel.querySelector("[data-support-chat-return]");
+  const restartButton = panel.querySelector("[data-support-chat-restart]");
   if (!chat || !openButton || !messages || !form) return;
 
   let opened = false;
@@ -184,6 +187,16 @@ export function initSupportChat() {
     send.disabled = closed || waitingForBot;
     input.placeholder = closed ? "종료된 상담이에요" : "궁금한 내용을 입력하세요";
 
+    /*
+     * 탈출구 노출. WAITING이면 봇으로 되돌릴 수 있고, 사람이 이미 붙은 ASSIGNED면
+     * 그 대화를 뺏지 않고 새 상담만 연다. BOT·CLOSED에서는 필요 없다.
+     */
+    const canReturn = room.status === "WAITING";
+    const canRestart = room.status === "WAITING" || room.status === "ASSIGNED";
+    returnButton.hidden = !canReturn;
+    restartButton.hidden = !canRestart;
+    actions.hidden = !canReturn && !canRestart;
+
     messages.replaceChildren();
     roomMessages.forEach(function (message) {
       messages.appendChild(messageRow(message));
@@ -203,6 +216,34 @@ export function initSupportChat() {
       ensureFallbackPolling();
     }
   }
+
+  /*
+   * 두 버튼 모두 서버가 돌려준 방을 그대로 그린다. 낙관적 갱신을 하지 않는 이유는 방 상태가
+   * 경쟁하기 때문이다 — 되돌리려는 순간 관리자가 가져가면 서버가 409로 거절하고, 그때는
+   * 최신 상태를 다시 받아 그려야 한다.
+   */
+  async function act(button, url, failureText) {
+    if (button.disabled) return;
+    returnButton.disabled = true;
+    restartButton.disabled = true;
+    try {
+      render(await request(url, { method: "POST" }));
+    } catch (error) {
+      statusText.textContent = error.message || failureText;
+      await load(); /* 거절당했다면 서버가 아는 최신 상태로 화면을 맞춘다. */
+    } finally {
+      returnButton.disabled = false;
+      restartButton.disabled = false;
+    }
+  }
+
+  returnButton.addEventListener("click", function () {
+    act(returnButton, "/api/v1/support/chat/return-to-bot", "봇 상담으로 돌아가지 못했어요.");
+  });
+
+  restartButton.addEventListener("click", function () {
+    act(restartButton, "/api/v1/support/chat/restart", "새 상담을 시작하지 못했어요.");
+  });
 
   async function load() {
     const generation = ++loadGeneration;

@@ -102,6 +102,17 @@
     </update>
 
     <!--
+      손님이 봇에게 되돌린다. WAITING일 때만 바뀐다 — 상담원이 이미 가져간 방(ASSIGNED)을
+      손님이 뺏지 못하게 하고, 동시에 assigned_admin_id가 NULL임을 보장해
+      ck_support_chat_rooms_assignee를 만족시킨다.
+    -->
+    <update id="returnToBot">
+        UPDATE support_chat_rooms
+        SET status = 'BOT'
+        WHERE support_chat_room_id = #{roomId} AND status = 'WAITING'
+    </update>
+
+    <!--
       종료하면 담당자를 비운다. ck_support_chat_rooms_assignee가 "ASSIGNED일 때만 담당자가
       있다"를 강제하므로, 비우지 않으면 제약에 걸린다.
     -->

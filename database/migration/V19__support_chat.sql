@@ -19,6 +19,10 @@ CREATE TABLE support_chat_rooms (
     closed_at            TIMESTAMPTZ,
     created_at           TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at           TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    -- 상태 전이 자체(어떤 상태에서 어떤 상태로 갈 수 있는가)는 DB가 강제하지 않고
+    -- SupportChatMapper.xml의 UPDATE 문 WHERE 절이 맡는다(예: returnToBot은
+    -- WHERE status = 'WAITING'). 여기서는 값의 집합만 막는다.
+    -- docs/support-chat-ai-websocket.md "8. 상태 전이"에 전체 상태 기계가 있다.
     CONSTRAINT ck_support_chat_rooms_status
         CHECK (status IN ('BOT', 'WAITING', 'ASSIGNED', 'CLOSED')),
     -- 배정된 방에는 담당자가 있어야 하고, 그 밖의 상태에는 없어야 한다.

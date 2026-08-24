@@ -238,6 +238,56 @@ async function run() {
     test("Esc로도 닫힌다", panel.hidden === true);
   }
 
+  /* ── 상담원에게 넘어간 뒤의 탈출구 ──
+   *
+   * 상태 전환에 → BOT 경로가 없고 방을 닫는 것도 관리자만 할 수 있어서, WAITING이 되면
+   * 손님은 봇을 다시 쓸 수도 새 대화를 시작할 수도 없었다.
+   */
+  {
+    const { d, calls } = await boot(() => ok({
+      room: room("WAITING"),
+      messages: [said("USER", "환불 문의드립니다"), said("BOT", "상담원에게 연결해 드릴게요.")],
+    }));
+    el(d, "[data-mighty-open]").click();
+    await until(() => el(d, "[data-mighty-actions]").hidden === false);
+
+    test("상담원 대기 중이면 봇으로 돌아가는 길이 보인다",
+      el(d, "[data-mighty-return]").hidden === false);
+    test("새 상담 시작도 함께 보인다",
+      el(d, "[data-mighty-restart]").hidden === false);
+
+    el(d, "[data-mighty-return]").click();
+    await until(() => calls.some((c) => c.url === "/api/v1/support/chat/return-to-bot"));
+    test("봇 복귀를 서버에 요청한다",
+      calls.some((c) => c.url === "/api/v1/support/chat/return-to-bot" && c.method === "POST"));
+  }
+  {
+    /* 사람이 응대 중인 대화는 뺏지 않는다. 별개 문의는 새 방에서. */
+    const { d } = await boot(() => ok({
+      room: room("ASSIGNED"),
+      messages: [said("ADMIN", "안녕하세요, 담당자입니다.")],
+    }));
+    el(d, "[data-mighty-open]").click();
+    await until(() => el(d, "[data-mighty-actions]").hidden === false);
+
+    test("상담원 응대 중에는 봇으로 되돌리는 길이 없다",
+      el(d, "[data-mighty-return]").hidden === true);
+    test("대신 새 상담은 시작할 수 있다",
+      el(d, "[data-mighty-restart]").hidden === false);
+  }
+  {
+    /* 봇이 응대 중일 때 탈출구가 떠 있으면 무엇을 하라는 건지 알 수 없다. */
+    const { d } = await boot(() => ok({
+      room: room("BOT"),
+      messages: [said("BOT", "안녕하세요!")],
+    }));
+    el(d, "[data-mighty-open]").click();
+    await until(() => el(d, "[data-mighty-log]").children.length === 1);
+
+    test("봇 응대 중에는 탈출구를 보여주지 않는다",
+      el(d, "[data-mighty-actions]").hidden === true);
+  }
+
   console.log("\n" + passed + " passed, " + failed + " failed");
 
   /*

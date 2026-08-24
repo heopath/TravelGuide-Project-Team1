@@ -525,4 +525,63 @@ class SupportChatServiceTest {
                 .isInstanceOf(BusinessException.class)
                 .extracting("errorCode").isEqualTo(ErrorCode.INVALID_SUPPORT_CHAT_REQUEST);
     }
+
+    /* ── 봇으로 돌아가기 / 새 상담 시작 ── */
+
+    /*
+     * 상태 전환에 → BOT 경로가 없어서, WAITING이 되면 그 손님은 봇을 다시 쓸 방법이 없었다.
+     * 이력을 유지한 채 되돌아오는 유일한 경로다.
+     */
+    @Test
+    @DisplayName("대기 중이면 봇으로 돌아가고 봇을 다시 부른다")
+    void returnsToBotWhileWaiting() {
+        when(dao.findOpenRoomByUser(USER_ID)).thenReturn(Optional.of(room("WAITING", null)));
+        when(dao.returnToBot(ROOM_ID)).thenReturn(1);
+        when(dao.findRoom(ROOM_ID)).thenReturn(Optional.of(room("BOT", null)));
+
+        SupportChatViewResponse view = service.returnToBot(USER_ID);
+
+        assertThat(view.room().getStatus()).isEqualTo("BOT");
+        verify(dao).returnToBot(ROOM_ID);
+        verify(eventPublisher).publishEvent(any(SupportChatBotTriggerEvent.class));
+    }
+
+    /* 사람이 붙어 있는 대화를 손님이 뺏어 오게 두지 않는다. 조건은 SQL이 강제한다. */
+    @Test
+    @DisplayName("상담원이 응대를 시작한 뒤에는 봇으로 돌아갈 수 없다")
+    void rejectsReturnToBotWhenAlreadyAssigned() {
+        when(dao.findOpenRoomByUser(USER_ID)).thenReturn(Optional.of(room("ASSIGNED", ADMIN_ID)));
+        when(dao.returnToBot(ROOM_ID)).thenReturn(0);
+
+        assertThatThrownBy(() -> service.returnToBot(USER_ID))
+                .isInstanceOf(BusinessException.class)
+                .extracting("errorCode").isEqualTo(ErrorCode.SUPPORT_CHAT_BOT_RETURN_NOT_ALLOWED);
+
+        verify(eventPublisher, never()).publishEvent(any(SupportChatBotTriggerEvent.class));
+    }
+
+    /*
+     * uk_support_chat_rooms_open_user가 손님당 열린 방을 하나로 제한하므로, 닫기와 열기가
+     * 한 트랜잭션이어야 한다. 순서가 뒤바뀌면 유니크 제약에 걸린다.
+     */
+    @Test
+    @DisplayName("새 상담을 시작하면 옛 방을 닫고 봇 방을 새로 연다")
+    void restartClosesPreviousRoomAndOpensNewOne() {
+        long newRoomId = 77L;
+        when(dao.findOpenRoomByUser(USER_ID)).thenReturn(Optional.of(room("ASSIGNED", ADMIN_ID)));
+        when(dao.insertRoom(any())).thenAnswer(invocation -> {
+            invocation.getArgument(0, SupportChatRoomDTO.class).setSupportChatRoomId(newRoomId);
+            return 1;
+        });
+        when(dao.findRoom(newRoomId)).thenReturn(Optional.of(SupportChatRoomDTO.builder()
+                .supportChatRoomId(newRoomId).userId(USER_ID).status("BOT").build()));
+
+        SupportChatViewResponse view = service.restartMyRoom(USER_ID);
+
+        assertThat(view.room().getSupportChatRoomId()).isEqualTo(newRoomId);
+        assertThat(view.room().getStatus()).isEqualTo("BOT");
+        verify(dao).closeRoom(ROOM_ID);
+        verify(dao).insertRoom(any());
+        verify(eventPublisher).publishEvent(any(SupportChatBotTriggerEvent.class));
+    }
 }

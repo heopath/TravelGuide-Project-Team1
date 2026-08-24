@@ -2546,6 +2546,19 @@ body.page-mypage main#page-content > .page-shell {
   .page-mypage .support-chat-typing-dots i { animation: none; opacity: .7; }
 }
 
+/* 대기 상태에서만 뜨는 탈출구. 입력창 바로 위, 손이 가는 자리에 둔다. */
+.page-mypage .support-chat-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 9px; }
+.page-mypage .support-chat-actions[hidden] { display: none; }
+.page-mypage .support-chat-action {
+  padding: 8px 13px; border-radius: 8px; font-size: 12.5px; font-weight: 600;
+  border: 1px solid #e3e7f0; background: #fff; color: #55607a; cursor: pointer;
+}
+.page-mypage .support-chat-action:hover:not(:disabled) { background: #f3f5fb; }
+.page-mypage .support-chat-action.primary { border-color: #b9c6f0; color: #3550a8; background: #eef2fd; }
+.page-mypage .support-chat-action.primary:hover:not(:disabled) { background: #e3eafc; }
+.page-mypage .support-chat-action:disabled { opacity: .55; cursor: default; }
+.page-mypage .support-chat-action[hidden] { display: none; }
+
 .page-mypage .support-chat-composer { display: grid; grid-template-columns: minmax(0, 1fr) 88px; gap: 8px; }
 .page-mypage .support-chat-composer input {
   padding: 11px 13px; border: 1px solid #e3e7f0; border-radius: 10px; font-size: 13px;

@@ -144,6 +144,58 @@ public class SupportChatService {
         return view(requireRoom(room.getSupportChatRoomId()));
     }
 
+    /**
+     * 손님이 상담원 대기를 그만두고 봇에게 돌아간다.
+     *
+     * <p>{@code WAITING}에서만 된다. 상담원이 이미 응대를 시작한 방({@code ASSIGNED})은
+     * 사람이 붙어 있는 대화라 손님이 뺏어 오게 두지 않는다 — 그 경우는 {@link #restartMyRoom}
+     * 으로 새 상담을 열어야 한다. 조건은 SQL의 {@code WHERE status = 'WAITING'}이 강제하므로,
+     * Gemini 호출 중이던 다른 흐름과 겹쳐도 상태가 어긋나지 않는다.
+     *
+     * <p>대화 내역은 그대로 남는다. 봇은 되돌아온 직후의 트리거로 이어서 답한다.
+     */
+    @Transactional
+    public SupportChatViewResponse returnToBot(Long userId) {
+        requireUser(userId);
+        SupportChatRoomDTO room = requireOpenRoom(userId);
+        Long roomId = room.getSupportChatRoomId();
+
+        if (supportChatDAO.returnToBot(roomId) != 1) {
+            throw new BusinessException(ErrorCode.SUPPORT_CHAT_BOT_RETURN_NOT_ALLOWED);
+        }
+        broadcastRoomStatus(roomId);
+        eventPublisher.publishEvent(new SupportChatBotTriggerEvent(roomId));
+        return view(requireRoom(roomId));
+    }
+
+    /**
+     * 손님이 지금 상담을 접고 새로 시작한다.
+     *
+     * <p>{@code uk_support_chat_rooms_open_user}가 손님당 열린 방을 하나로 제한하므로
+     * <b>닫고 나서 여는 두 연산이 한 트랜잭션</b>이어야 한다. 중간에 끊기면 손님은 방이 없는
+     * 상태로 남는다.
+     *
+     * <p>어느 상태에서든 된다 — 상담원이 응대 중이어도 손님은 별개 문의를 새로 열 수 있어야
+     * 한다. 옛 방은 {@code CLOSED}로 남아 관리자·감사 기록에는 그대로 보존된다.
+     */
+    @Transactional
+    public SupportChatViewResponse restartMyRoom(Long userId) {
+        requireUser(userId);
+        SupportChatRoomDTO previous = requireOpenRoom(userId);
+        Long previousRoomId = previous.getSupportChatRoomId();
+
+        supportChatDAO.closeRoom(previousRoomId);
+        /* 관리자 대기열에서도 즉시 사라져야 한다 — 손님이 이미 떠난 방이다. */
+        broadcastRoomStatus(previousRoomId);
+
+        SupportChatRoomDTO created = SupportChatRoomDTO.builder().userId(userId).build();
+        supportChatDAO.insertRoom(created);
+        Long roomId = created.getSupportChatRoomId();
+        broadcastRoomStatus(roomId);
+        eventPublisher.publishEvent(new SupportChatBotTriggerEvent(roomId));
+        return view(requireRoom(roomId));
+    }
+
     private boolean requestsHuman(String content) {
         String normalized = content == null ? "" : content;
         return HUMAN_HANDOFF_KEYWORDS.stream().anyMatch(normalized::contains);
