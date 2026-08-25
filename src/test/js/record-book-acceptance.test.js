@@ -130,6 +130,10 @@ assert.match(recordSource, /AllMyTripsRecordBook\.renderAll/, "GIF에 모든 앨
 assert.match(recordSource, /AllMyTripsRecordBook\.toBlob/, "저장을 연결해야 한다");
 assert.match(recordSource, /new window\.GIF/, "GIF 렌더링을 연결해야 한다");
 assert.match(recordSource, /frames\.forEach/, "같은 캔버스가 아니라 실제 페이지들을 GIF 프레임으로 넣어야 한다");
+assert.match(recordSource, /URL\.createObjectURL\(new Blob\(\[source\]/,
+  "외부 GIF Worker는 동일 출처 Blob URL로 바꿔 브라우저 보안 오류를 막아야 한다");
+assert.doesNotMatch(recordSource, /workerScript:\s*"https:\/\//,
+  "Web Worker에 외부 주소를 직접 넘기면 운영 브라우저에서 차단된다");
 assert.match(recordSource, /images\/upload/, "사진 파일을 S3 업로드 API로 보내야 한다");
 assert.match(recordSource, /\/booking-summary/, "예약 정보를 자동으로 불러와야 한다");
 assert.match(recordSource, /\/days/, "날짜별 일정을 자동으로 불러와야 한다");
