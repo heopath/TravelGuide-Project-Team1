@@ -40,8 +40,8 @@
 
   <link
           rel="stylesheet"
-          th:href="@{/css/pages/mypage/mypage.css}"
-          href="../../static/css/pages/mypage/mypage.css"
+          th:href="@{/css/pages/mypage/mypage.css(v=20260825-records-album)}"
+          href="../../static/css/pages/mypage/mypage.css?v=20260825-records-album"
   />
 <link
         rel="stylesheet"
@@ -465,14 +465,28 @@
 
           <!-- 완료 여행으로 만든 사진첩. 기록이 없는 완료 여행은 내 여행 화면에서 먼저 기록을 만들 수 있다. -->
           <section class="white-panel mypage-records-view" data-records-view hidden>
-            <div class="mypage-view-head">
+            <div class="mypage-view-head mypage-records-head">
               <div class="mypage-view-title">
                 <button type="button" class="mypage-back-button" data-close-records>← 이전 화면</button>
                 <div>
+                  <span class="mypage-records-kicker">MY TRAVEL ALBUM</span>
                   <h2>여행 기록 사진첩</h2>
-                  <p>완료된 여행의 사진과 추억을 한 권의 앨범으로 모아보세요.</p>
+                  <p>완료된 여행의 일정과 예약, 내가 고른 사진을 한 권의 앨범으로 간직하세요.</p>
                 </div>
               </div>
+              <div class="mypage-records-count" aria-live="polite">
+                <strong data-records-count>–</strong>
+                <span>완료 여행</span>
+              </div>
+            </div>
+
+            <div class="mypage-records-guide">
+              <span class="mypage-records-guide-icon" aria-hidden="true">✦</span>
+              <div>
+                <strong>사진만 고르면 여행의 흐름이 자동으로 완성돼요</strong>
+                <p>날짜별 일정과 항공·숙소·티켓 정보가 앨범 페이지에 함께 담깁니다.</p>
+              </div>
+              <span class="mypage-records-guide-tags" aria-label="지원 기능">Canvas · PNG · GIF</span>
             </div>
             <div class="travel-record-album-list" data-records-list aria-live="polite">
               <p class="mypage-state">여행 기록을 불러오는 중입니다.</p>
@@ -1311,8 +1325,8 @@
 
 <script
         type="module"
-        th:src="@{/js/pages/mypage/mypage.js}"
-        src="../../static/js/pages/mypage/mypage.js"
+        th:src="@{/js/pages/mypage/mypage.js(v=20260825-records-album)}"
+        src="../../static/js/pages/mypage/mypage.js?v=20260825-records-album"
 ></script>
 
 <div th:replace="~{fragments/mighty :: mighty}"></div>
