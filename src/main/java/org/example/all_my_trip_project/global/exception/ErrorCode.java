@@ -126,7 +126,7 @@ public enum ErrorCode {
 
     ITINERARY_ITEM_LIMIT_EXCEEDED(
             HttpStatus.BAD_REQUEST,
-            "하루 일정은 최대 5개까지 추가할 수 있습니다."
+            "하루 장소는 최대 5곳까지 추가할 수 있습니다."
     ),
 
     ITINERARY_PLACE_ALREADY_ADDED(
@@ -507,6 +507,31 @@ public enum ErrorCode {
     TICKET_USAGE_DATE_PASSED(
             HttpStatus.CONFLICT,
             "이용일이 지나 취소할 수 없습니다."
+    ),
+
+    BOOKING_SELECTION_INCOMPLETE(
+            HttpStatus.CONFLICT,
+            "가는 편·오는 편·숙소·티켓을 모두 선택한 뒤 예약을 확정해 주세요."
+    ),
+
+    BOOKING_BATCH_NOT_FOUND(
+            HttpStatus.NOT_FOUND,
+            "확정한 항공·숙소 예약 내역을 찾을 수 없습니다."
+    ),
+
+    BOOKING_BATCH_ALREADY_LINKED(
+            HttpStatus.CONFLICT,
+            "이 예약 내역은 이미 다른 여행에 연결되어 있습니다."
+    ),
+
+    BOOKING_BATCH_TRIP_CONFLICT(
+            HttpStatus.CONFLICT,
+            "여행에 다른 항공·숙소 예약이 이미 연결되어 있습니다."
+    ),
+
+    BOOKING_BATCH_PERIOD_MISMATCH(
+            HttpStatus.CONFLICT,
+            "예약 날짜가 여행 기간에 포함되지 않아 연결할 수 없습니다."
     ),
 
     SUPPORT_CHAT_ROOM_NOT_FOUND(

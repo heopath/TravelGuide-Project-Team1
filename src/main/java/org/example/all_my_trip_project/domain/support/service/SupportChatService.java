@@ -3,6 +3,7 @@ package org.example.all_my_trip_project.domain.support.service;
 import lombok.RequiredArgsConstructor;
 import org.example.all_my_trip_project.domain.support.dao.SupportChatDAO;
 import org.example.all_my_trip_project.domain.support.dto.SupportChatMessageDTO;
+import org.example.all_my_trip_project.domain.support.dto.SupportChatMessageBlockDTO;
 import org.example.all_my_trip_project.domain.support.dto.SupportChatRoomDTO;
 import org.example.all_my_trip_project.domain.support.dto.SupportChatSocketEvent;
 import org.example.all_my_trip_project.domain.support.dto.SupportChatViewResponse;
@@ -20,6 +21,8 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.ArrayList;
+import java.util.Map;
 import java.util.Locale;
 
 /**
@@ -61,18 +64,6 @@ public class SupportChatService {
      */
     private static final String ADMIN_ROOMS_TOPIC = "/topic/support-chat/admin/rooms";
 
-    /** 사용자가 실제 연결 동작을 요청한 경우만 즉시 넘긴다. 단순 언급·문의는 여기에 포함하지 않는다. */
-    private static final List<String> HUMAN_HANDOFF_REQUESTS = List.of(
-            "상담원 연결", "상담사 연결", "직원 연결", "사람 연결",
-            "상담원과 연결", "상담사와 연결", "직원과 연결",
-            "상담원이랑 얘기", "상담사랑 얘기", "직원이랑 얘기", "사람이랑 얘기",
-            "상담원과 얘기", "상담사와 얘기", "직원과 얘기", "사람과 얘기",
-            "상담원 바꿔", "상담사 바꿔", "직원 바꿔", "사람 바꿔");
-
-    private static final List<String> HANDOFF_CONFIRMATIONS =
-            List.of("네", "예", "응", "좋아", "연결해줘", "연결해주세요", "연결해 주세요", "부탁해");
-
-    private static final String HUMAN_REQUEST_REPLY = "상담원에게 연결해 드릴게요. 잠시만 기다려 주세요.";
     static final String HUMAN_CONFIRMATION_REPLY = "상담원을 연결해 드릴까요? 원하시면 ‘네’라고 답해 주세요.";
 
     /**
@@ -132,9 +123,9 @@ public class SupportChatService {
     /**
      * 손님이 보낸다.
      *
-     * <p>방이 아직 봇 응대 중이면, 손님이 상담원을 대놓고 찾는 경우에만 여기서 곧장
-     * {@code WAITING}으로 넘긴다(봇을 부를 이유가 없다). 그 밖에는 봇을 부르는 이벤트를
-     * 발행하고, 실제 호출과 판단은 {@link SupportChatBotOrchestrator}에 맡긴다.
+     * <p>방이 아직 봇 응대 중이면 항상 AI를 부른다. 이 계층은 단어 목록이나 짧은 동의 표현을
+     * 검사하지 않는다. 상담원 연결 여부는 대화 전체를 받은 AI가 판단하고 서버는 그 결과만
+     * {@link SupportChatBotOrchestrator}에서 실행한다.
      */
     @Transactional
     public SupportChatViewResponse sendAsUser(Long userId, String content) {
@@ -143,12 +134,23 @@ public class SupportChatService {
         append(room.getSupportChatRoomId(), "USER", userId, content);
 
         if ("BOT".equals(room.getStatus())) {
-            if (requestsHuman(content) || confirmsPendingHandoff(room.getSupportChatRoomId(), content)) {
-                recordBotHandoff(room.getSupportChatRoomId(), HUMAN_REQUEST_REPLY);
-            } else {
-                eventPublisher.publishEvent(new SupportChatBotTriggerEvent(room.getSupportChatRoomId()));
-            }
+            eventPublisher.publishEvent(new SupportChatBotTriggerEvent(room.getSupportChatRoomId()));
         }
+        return view(requireRoom(room.getSupportChatRoomId()));
+    }
+
+    /**
+     * 사용자가 화면의 상담원 연결 버튼을 눌러 명시적으로 사람 응대를 요청한다.
+     *
+     * <p>자연어 해석이 필요한 메시지와 달리 버튼 클릭 자체가 확정된 의사 표시이므로 AI를
+     * 호출하지 않는다. 실제 상태 변경은 {@link #recordBotHandoff}가 방을 잠근 뒤 여전히
+     * {@code BOT}인지 확인해, 동시에 상담원이 방을 가져가는 경우와도 충돌하지 않게 한다.
+     */
+    @Transactional
+    public SupportChatViewResponse requestAgent(Long userId) {
+        requireUser(userId);
+        SupportChatRoomDTO room = requireOpenRoom(userId);
+        recordBotHandoff(room.getSupportChatRoomId(), "상담원에게 연결해 드릴게요. 잠시만 기다려 주세요.");
         return view(requireRoom(room.getSupportChatRoomId()));
     }
 
@@ -204,29 +206,6 @@ public class SupportChatService {
         return view(requireRoom(roomId));
     }
 
-    private boolean requestsHuman(String content) {
-        String normalized = normalize(content);
-        return HUMAN_HANDOFF_REQUESTS.stream().map(SupportChatService::normalize).anyMatch(normalized::contains);
-    }
-
-    private boolean confirmsPendingHandoff(Long roomId, String content) {
-        String normalized = normalize(content);
-        if (HANDOFF_CONFIRMATIONS.stream().noneMatch(normalized::equals)) return false;
-
-        List<SupportChatMessageDTO> messages = supportChatDAO.findMessages(roomId, MAX_MESSAGES);
-        for (int i = messages.size() - 1; i >= 0; i--) {
-            SupportChatMessageDTO message = messages.get(i);
-            if ("USER".equals(message.getSenderType())) continue;
-            return "BOT".equals(message.getSenderType())
-                    && HUMAN_CONFIRMATION_REPLY.equals(message.getContent());
-        }
-        return false;
-    }
-
-    private static String normalize(String content) {
-        return content == null ? "" : content.replaceAll("\\s+", "").strip();
-    }
-
     /* ── 봇(비동기 오케스트레이터 전용) ── */
 
     /** Gemini를 부르기 전에 값싸게 거르는 사전 확인. 최종 판단은 저장 시점에 다시 한다. */
@@ -259,9 +238,15 @@ public class SupportChatService {
 
     @Transactional
     public void recordBotReply(Long roomId, String content, List<String> actionKeys) {
+        recordBotReply(roomId, content, actionKeys, List.of());
+    }
+
+    @Transactional
+    public void recordBotReply(Long roomId, String content, List<String> actionKeys,
+                               List<Map<String, Object>> placeCards) {
         SupportChatRoomDTO locked = supportChatDAO.lockRoom(roomId).orElse(null);
         if (locked == null || !"BOT".equals(locked.getStatus())) return;
-        append(roomId, "BOT", null, content, actionKeys);
+        append(roomId, "BOT", null, content, actionKeys, placeCards);
     }
 
     /** 명시적 사용자 요청 또는 연결 확인 동의가 있을 때만 상담원 대기로 넘긴다. */
@@ -388,6 +373,11 @@ public class SupportChatService {
     }
 
     private void append(Long roomId, String senderType, Long senderUserId, String content, List<String> actionKeys) {
+        append(roomId, senderType, senderUserId, content, actionKeys, List.of());
+    }
+
+    private void append(Long roomId, String senderType, Long senderUserId, String content,
+                        List<String> actionKeys, List<Map<String, Object>> placeCards) {
         String normalized = text(content);
         if (normalized == null) throw new BusinessException(ErrorCode.INVALID_SUPPORT_CHAT_REQUEST);
         List<String> actions = actionKeys == null ? List.of() : actionKeys.stream().distinct().limit(3).toList();
@@ -401,9 +391,29 @@ public class SupportChatService {
                 .actionKey3(actions.size() > 2 ? actions.get(2) : null)
                 .build();
         supportChatDAO.insertMessage(toInsert);
+        List<SupportChatMessageBlockDTO> blocks = new ArrayList<>();
+        if (!actions.isEmpty()) {
+            blocks.add(block(toInsert.getSupportChatMessageId(), "ACTION_GROUP", blocks.size(),
+                    Map.of("items", actions)));
+        }
+        if (placeCards != null && !placeCards.isEmpty()) {
+            blocks.add(block(toInsert.getSupportChatMessageId(), "PLACE_CARDS", blocks.size(),
+                    Map.of("items", placeCards.stream().limit(3).toList())));
+        }
+        blocks.forEach(supportChatDAO::insertMessageBlock);
         /* 목록을 최근 대화순으로 세우려면 방에도 표시해야 한다. */
         supportChatDAO.touchRoom(roomId);
         broadcastMessage(roomId, toInsert.getSupportChatMessageId());
+    }
+
+    private SupportChatMessageBlockDTO block(Long messageId, String type, int order, Map<String, Object> payload) {
+        return SupportChatMessageBlockDTO.builder()
+                .supportChatMessageId(messageId)
+                .blockType(type)
+                .displayOrder((short) order)
+                .schemaVersion((short) 1)
+                .payload(payload)
+                .build();
     }
 
     /**

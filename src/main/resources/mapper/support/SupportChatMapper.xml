@@ -133,6 +133,28 @@
         )
     </insert>
 
+    <insert id="insertMessageBlock" useGeneratedKeys="true"
+            keyProperty="supportChatMessageBlockId" keyColumn="support_chat_message_block_id">
+        INSERT INTO support_chat_message_blocks (
+            support_chat_message_id, block_type, display_order, schema_version, payload
+        ) VALUES (
+            #{supportChatMessageId}, #{blockType}, #{displayOrder}, #{schemaVersion},
+            CAST(#{payloadJson} AS jsonb)
+        )
+    </insert>
+
+    <select id="findMessageBlocks"
+            resultType="org.example.all_my_trip_project.domain.support.dto.SupportChatMessageBlockDTO">
+        SELECT support_chat_message_block_id, support_chat_message_id, block_type,
+               display_order, schema_version, payload::text AS payload_json
+        FROM support_chat_message_blocks
+        WHERE support_chat_message_id IN
+        <foreach collection="messageIds" item="messageId" open="(" separator="," close=")">
+            #{messageId}
+        </foreach>
+        ORDER BY support_chat_message_id, display_order
+    </select>
+
     <select id="findMessage"
             resultType="org.example.all_my_trip_project.domain.support.dto.SupportChatMessageDTO">
         SELECT m.support_chat_message_id, m.support_chat_room_id, m.sender_type,

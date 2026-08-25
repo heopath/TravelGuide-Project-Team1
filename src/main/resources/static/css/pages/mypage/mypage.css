@@ -2523,6 +2523,16 @@ body.page-mypage main#page-content > .page-shell {
 }
 .page-mypage .support-chat-link:hover { background: #eef0ff; }
 .page-mypage .support-chat-link:focus-visible { outline: 2px solid #5c68ff; outline-offset: 2px; }
+.page-mypage .support-chat-place-cards { display: grid; gap: 8px; width: min(100%, 360px); margin-top: 9px; }
+.page-mypage .support-chat-place-card { display: grid; gap: 4px; width: 100%; padding: 12px 14px; border: 1px solid #dfe3f2; border-radius: 12px; background: #fff; color: #17213c; text-align: left; cursor: pointer; }
+.page-mypage .support-chat-place-card:hover { border-color: #9ba6ff; background: #f8f9ff; }
+.page-mypage .support-chat-place-card strong { font-size: 13px; }
+.page-mypage .support-chat-place-card span { color: #7a8499; font-size: 11px; }
+.page-mypage .support-chat-place-card i { color: #4e5a73; font-size: 11.5px; font-style: normal; line-height: 1.45; }
+.page-mypage .support-chat-place-card-image { width: 100%; height: 120px; border-radius: 10px; object-fit: cover; background: #eef0fa; }
+.page-mypage .support-chat-place-card-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.page-mypage .support-chat-place-card-rating { color: #b8791a; font-size: 11px; font-weight: 700; white-space: nowrap; }
+.page-mypage .support-chat-place-card-description { color: #4e5a73; font-size: 11.5px; line-height: 1.45; margin: 0; }
 
 /* 대기 말풍선. 메신저의 "입력 중…"과 같은 자리 — 상태줄만으로 놓치는 일이 없게 한다. */
 .page-mypage .support-chat-typing {

@@ -13,6 +13,7 @@ const { readMarkup } = require("./markup");
 const ROOT = path.resolve(__dirname, "../../..");
 const FRAGMENT = path.join(ROOT, "src/main/resources/templates/fragments/mighty.html");
 const JS = path.join(ROOT, "src/main/resources/static/js/core/mighty.js");
+const LIVE_JS = path.join(ROOT, "src/main/resources/static/js/core/support-chat-live.js");
 const TEMPLATES = path.join(ROOT, "src/main/resources/templates");
 
 let passed = 0;
@@ -40,8 +41,56 @@ const fail = (status, message) =>
 const room = (status) => ({ supportChatRoomId: 1, status: status || "BOT" });
 const said = (senderType, content) => ({ senderType, content });
 
+function fakeSocket(log) {
+  const subs = {};
+  function FakeSockJS(url) { this.url = url; }
+  const Stomp = {
+    over() {
+      const client = {
+        connected: false,
+        debug: null,
+        connect(headers, onConnect) {
+          setTimeout(() => { client.connected = true; onConnect(); }, 0);
+        },
+        subscribe(destination, callback) {
+          log.push({ type: "subscribe", destination });
+          subs[destination] = callback;
+          return { unsubscribe() { delete subs[destination]; } };
+        },
+        disconnect() { client.connected = false; },
+      };
+      return client;
+    },
+  };
+  return { FakeSockJS, Stomp, subs };
+}
+
+function fakeTimers() {
+  const intervals = new Map();
+  let nextId = 1;
+  return {
+    setInterval(fn) { const id = nextId++; intervals.set(id, fn); return id; },
+    clearInterval(id) { intervals.delete(id); },
+    ids() { return [...intervals.keys()]; },
+    fire(id) { intervals.get(id)?.(); },
+  };
+}
+
+/** jsdom에는 PointerEvent가 없다. 드래그 이동 테스트에 필요한 최소 속성만 흉내 낸다. */
+function definePointerEvent(w) {
+  w.PointerEvent = class PointerEvent extends w.Event {
+    constructor(type, init = {}) {
+      super(type, init);
+      this.clientX = init.clientX || 0;
+      this.clientY = init.clientY || 0;
+      this.pointerId = init.pointerId || 1;
+      this.button = init.button || 0;
+    }
+  };
+}
+
 /** 마이티를 띄운다. 프래그먼트만 담은 문서에 올린다 — 화면 전체는 필요 없다. */
-async function boot(responder) {
+async function boot(responder, { withSocket = false, withFakeTimers = false, withPointerEvents = false } = {}) {
   const fragment = fs.readFileSync(FRAGMENT, "utf8")
     /* th: 속성은 브라우저에서 의미가 없다. 서버가 렌더한 뒤의 모습으로 본다. */
     .replace(/\sth:fragment="[^"]*"/g, "");
@@ -50,6 +99,7 @@ async function boot(responder) {
     { url: "http://localhost/home", runScripts: "outside-only" });
   const w = dom.window;
   const calls = [];
+  const socketLog = [];
 
   w.fetch = async (url, request = {}) => {
     calls.push({
@@ -61,13 +111,105 @@ async function boot(responder) {
     return responder(String(url), request || {});
   };
 
+  const socket = withSocket ? fakeSocket(socketLog) : null;
+  if (socket) {
+    w.SockJS = socket.FakeSockJS;
+    w.Stomp = socket.Stomp;
+  }
+  const timers = withFakeTimers ? fakeTimers() : null;
+  if (timers) {
+    w.setInterval = timers.setInterval;
+    w.clearInterval = timers.clearInterval;
+  }
+  if (withPointerEvents) definePointerEvent(w);
+
+  w.eval(fs.readFileSync(LIVE_JS, "utf8"));
   w.eval(fs.readFileSync(JS, "utf8"));
-  return { w, d: w.document, calls };
+  return { w, d: w.document, calls, socket, socketLog, timers };
 }
 
 const el = (d, s) => d.querySelector(s);
 
 async function run() {
+  /* ── 공통 WebSocket 우선, 장애 시에만 폴백 ── */
+  {
+    const { d, calls, socket, socketLog, timers } = await boot(() => ok({
+      room: room("BOT"), messages: [said("BOT", "안녕하세요")],
+    }), { withSocket: true, withFakeTimers: true });
+    el(d, "[data-mighty-open]").click();
+    await until(() => socketLog.some((e) => e.destination === "/topic/support-chat/rooms/1"));
+    test("마이티도 방 WebSocket 토픽을 구독한다",
+      socketLog.some((e) => e.destination === "/topic/support-chat/rooms/1"));
+    test("마이티도 사용자 오류 큐를 구독한다",
+      socketLog.some((e) => e.destination === "/user/queue/support-chat/errors"));
+
+    const beforeEvent = calls.length;
+    socket.subs["/topic/support-chat/rooms/1"]({ body: JSON.stringify({ type: "MESSAGE" }) });
+    await until(() => calls.length > beforeEvent);
+    test("WebSocket 이벤트가 오면 대화를 즉시 동기화한다", calls.length > beforeEvent);
+
+    const beforePoll = calls.length;
+    timers.fire(timers.ids()[0]);
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    test("WebSocket 연결 중에는 3초 폴백 조회를 건너뛴다", calls.length === beforePoll);
+  }
+
+  {
+    const { d, calls, timers } = await boot(() => ok({ room: room("BOT"), messages: [] }),
+      { withFakeTimers: true });
+    el(d, "[data-mighty-open]").click();
+    await until(() => calls.length > 0);
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    const beforePoll = calls.length;
+    timers.fire(timers.ids()[0]);
+    await until(() => calls.length > beforePoll);
+    test("WebSocket을 연결하지 못하면 3초 폴백으로 계속 조회한다", calls.length > beforePoll);
+  }
+
+  /* ── 3초 폴링 재렌더링의 스크롤 위치 ── */
+  {
+    /* 마지막 말이 BOT이어야 대기 말풍선이 안 붙어 메시지 개수(2)를 그대로 기대할 수 있다. */
+    const { w, d } = await boot(() => ok({
+      room: room("BOT"),
+      messages: [said("USER", "추가 질문"), said("BOT", "첫 답변")],
+    }));
+    el(d, "[data-mighty-open]").click();
+    await until(() => el(d, "[data-mighty-log]").children.length === 2);
+    const log = el(d, "[data-mighty-log]");
+    Object.defineProperty(log, "scrollHeight", { configurable: true, get: () => 1000 });
+    Object.defineProperty(log, "clientHeight", { configurable: true, get: () => 200 });
+
+    log.scrollTop = 200;
+    await w.AllMyTripsMighty.refresh();
+    test("마이티에서 위의 대화를 읽는 동안 3초 폴링이 위치를 유지한다", log.scrollTop === 200);
+
+    log.scrollTop = 800;
+    await w.AllMyTripsMighty.refresh();
+    test("마이티가 맨 아래에 있으면 새 내용도 계속 따라간다", log.scrollTop === 1000);
+  }
+
+  /* ── AI와 별개인 직접 상담원 연결 ── */
+  {
+    let status = "BOT";
+    const { w, d, calls } = await boot((url) => {
+      if (url === "/api/v1/support/chat/request-agent") status = "WAITING";
+      return ok({ room: room(status), messages: [] });
+    });
+    w.confirm = () => true;
+    el(d, "[data-mighty-open]").click();
+    await until(() => el(d, "[data-mighty-tools]").hidden === false);
+    test("상담 옵션은 처음에는 대화 영역을 차지하지 않는다",
+      el(d, "[data-mighty-actions]").hidden === true);
+    el(d, "[data-mighty-tools]").click();
+    test("+ 버튼을 누르면 상담원 연결 선택지를 표시한다",
+      el(d, "[data-mighty-actions]").hidden === false
+      && el(d, "[data-mighty-agent]").hidden === false);
+    el(d, "[data-mighty-agent]").click();
+    await until(() => calls.some((c) => c.url === "/api/v1/support/chat/request-agent"));
+    test("마이티 버튼은 직접 연결 API를 POST로 호출한다",
+      calls.some((c) => c.url === "/api/v1/support/chat/request-agent" && c.method === "POST"));
+  }
+
   /* ── 답변에서 다음 화면으로 이어 주기 ── */
   {
     const { d } = await boot(() => ok({
@@ -82,6 +224,161 @@ async function run() {
     test("마이티도 복수 선택지를 표시한다",
       [...d.querySelectorAll(".mighty-link")].map((item) => item.textContent).join("|")
       === "여행 만들기 →|내 여행 보기 →|여행 일정 열기 →");
+  }
+  {
+    const { d } = await boot(() => ok({
+      room: room("BOT"), messages: [{ senderType: "BOT", content: "추천 장소예요.", blocks: [{
+        blockType: "PLACE_CARDS", schemaVersion: 1, payload: { items: [{
+          placeId: 10, name: "남산서울타워", category: "명소", address: "서울 용산구",
+          reason: "서울 야경을 한눈에 볼 수 있어요",
+          description: "서울을 대표하는 전망 명소로 야간 조명이 특히 유명합니다.",
+          imageUrl: "https://cdn.example.com/places/10.jpg", rating: 4.6,
+        }] },
+      }] }],
+    }));
+    el(d, "[data-mighty-open]").click();
+    await until(() => el(d, ".mighty-place-card") !== null);
+    test("마이티도 장소 추천을 상세 카드로 표시한다",
+      el(d, ".mighty-place-card").textContent.includes("남산서울타워"));
+    test("마이티 장소 카드는 DB 장소 상세 화면으로 연결한다",
+      el(d, ".mighty-place-card").dataset.route === "/guide/places/10");
+    test("마이티 장소 카드는 대표 이미지를 보여준다",
+      el(d, ".mighty-place-card-image").src === "https://cdn.example.com/places/10.jpg");
+    test("마이티 장소 카드는 평점을 보여준다",
+      el(d, ".mighty-place-card-rating").textContent === "★ 4.6");
+    test("마이티 장소 카드는 추천 이유와 별도로 설명을 보여준다",
+      el(d, ".mighty-place-card-description").textContent
+      === "서울을 대표하는 전망 명소로 야간 조명이 특히 유명합니다.");
+  }
+  {
+    const { d } = await boot(() => ok({
+      room: room("BOT"), messages: [{ senderType: "BOT", content: "장소 하나 알려드릴게요.", blocks: [{
+        blockType: "PLACE_CARDS", schemaVersion: 1, payload: { items: [{
+          placeId: 11, name: "경복궁", category: "명소", address: "서울 종로구",
+        }] },
+      }] }],
+    }));
+    el(d, "[data-mighty-open]").click();
+    await until(() => el(d, ".mighty-place-card") !== null);
+    test("이미지·평점·설명이 없는 마이티 카드도 정상 렌더링한다",
+      el(d, ".mighty-place-card").textContent.includes("경복궁"));
+    test("이미지가 없으면 마이티 카드에 이미지 요소를 만들지 않는다",
+      el(d, ".mighty-place-card-image") === null);
+    test("평점이 없으면 마이티 카드에 평점 요소를 만들지 않는다",
+      el(d, ".mighty-place-card-rating") === null);
+  }
+
+  /* ── 대기 말풍선. 상태줄만으로는 놓칠 수 있어(마이페이지 상담 채팅에서 먼저 반영) 마이티
+     대화창 안에도 확실히 보여야 한다 ── */
+  {
+    const { d } = await boot(() => ok({
+      room: room("BOT"), messages: [said("USER", "환불 문의드립니다")],
+    }));
+    el(d, "[data-mighty-open]").click();
+    await until(() => el(d, "[data-mighty-state]").textContent !== "마이티를 연결하는 중이에요");
+    test("봇 답변 대기 중엔 마이티 대화창 안에 타이핑 말풍선이 보인다",
+      el(d, ".mighty-typing-bot") !== null);
+    test("상담원 연결 말풍선은 아직 보이지 않는다",
+      el(d, ".mighty-typing-handoff") === null);
+    test("봇 답변 대기 중엔 상태줄도 대기 문구를 보여준다",
+      el(d, "[data-mighty-state]").textContent === "답변을 기다리는 중입니다...");
+  }
+  {
+    const { d } = await boot(() => ok({
+      room: room("BOT"),
+      messages: [said("USER", "환불 문의드립니다"), said("BOT", "환불 절차를 안내해 드릴게요.")],
+    }));
+    el(d, "[data-mighty-open]").click();
+    await until(() => el(d, "[data-mighty-state]").textContent !== "마이티를 연결하는 중이에요");
+    test("봇이 이미 답했으면 마이티에 타이핑 말풍선이 없다",
+      el(d, ".mighty-typing-bot") === null);
+  }
+  {
+    const { d } = await boot(() => ok({
+      room: room("WAITING"),
+      messages: [said("USER", "환불 문의드립니다"), said("BOT", "상담원에게 연결해 드릴게요.")],
+    }));
+    el(d, "[data-mighty-open]").click();
+    await until(() => el(d, "[data-mighty-state]").textContent !== "마이티를 연결하는 중이에요");
+    test("상담원 연결 대기 중엔 마이티 대화창 안에 연결 중 말풍선이 보인다",
+      el(d, ".mighty-typing-handoff") !== null);
+  }
+
+  /* ── 끌어서 위치 옮기기(여행 가이드 등 다른 UI와 겹칠 때 손님이 직접 비켜 준다) ── */
+  {
+    const { w, d } = await boot(() => ok({ room: room("BOT"), messages: [] }),
+      { withPointerEvents: true });
+    const root = el(d, "[data-mighty-root]");
+    const button = el(d, "[data-mighty-open]");
+    const panel = el(d, "[data-mighty-panel]");
+
+    button.dispatchEvent(new w.PointerEvent("pointerdown",
+      { clientX: 100, clientY: 100, pointerId: 1, bubbles: true }));
+    d.dispatchEvent(new w.PointerEvent("pointermove",
+      { clientX: 140, clientY: 130, pointerId: 1, bubbles: true }));
+    d.dispatchEvent(new w.PointerEvent("pointerup",
+      { clientX: 140, clientY: 130, pointerId: 1, bubbles: true }));
+
+    test("버튼을 끌면 옮긴 만큼 위치가 이동한다(아이콘이 pivot, top·right 기준)",
+      root.style.top === "30px" && parseFloat(root.style.right) === w.innerWidth - 40,
+      root.style.top + "," + root.style.right);
+    test("위치를 옮기면 왼쪽·아래 고정을 푼다",
+      root.style.left === "auto" && root.style.bottom === "auto");
+    test("옮긴 위치를 저장해 다른 화면에서도 남는다",
+      w.localStorage.getItem("allMyTripsMightyPosition") !== null);
+
+    button.dispatchEvent(new w.Event("click", { bubbles: true }));
+    test("드래그 직후 따라오는 click은 열기로 처리하지 않는다", panel.hidden === true);
+
+    button.dispatchEvent(new w.Event("click", { bubbles: true }));
+    test("끌지 않은 다음 클릭은 평소대로 연다", panel.hidden === false);
+  }
+  {
+    /* 대화창이 열려 있을 때는 머리글을 손잡이로 쓴다. 손님 말 입력창은 끌리지 않는다. */
+    const { w, d } = await boot(() => ok({ room: room("BOT"), messages: [] }),
+      { withPointerEvents: true });
+    const root = el(d, "[data-mighty-root]");
+    el(d, "[data-mighty-open]").click();
+    const head = d.querySelector(".mighty-head");
+
+    head.dispatchEvent(new w.PointerEvent("pointerdown",
+      { clientX: 50, clientY: 50, pointerId: 2, bubbles: true }));
+    /* 오른쪽으로 너무 끌어도(오른쪽 여백이 뷰포트 너비를 넘어도) 클램프돼야 한다. */
+    d.dispatchEvent(new w.PointerEvent("pointermove",
+      { clientX: 20, clientY: 90, pointerId: 2, bubbles: true }));
+    d.dispatchEvent(new w.PointerEvent("pointerup",
+      { clientX: 20, clientY: 90, pointerId: 2, bubbles: true }));
+
+    test("열린 대화창은 머리글을 끌어서 옮긴다",
+      root.style.top === "40px" && parseFloat(root.style.right) === w.innerWidth,
+      root.style.top + "," + root.style.right);
+  }
+  {
+    /* 대화창이 열리며 커진 root가 화면 아래로 넘치면 pivot을 위로 당겨 보정한다. */
+    const { w, d } = await boot(() => ok({ room: room("BOT"), messages: [] }),
+      { withPointerEvents: true });
+    const root = el(d, "[data-mighty-root]");
+    const button = el(d, "[data-mighty-open]");
+
+    button.dispatchEvent(new w.PointerEvent("pointerdown",
+      { clientX: 100, clientY: 100, pointerId: 3, bubbles: true }));
+    d.dispatchEvent(new w.PointerEvent("pointermove",
+      { clientX: 100, clientY: 900, pointerId: 3, bubbles: true }));
+    d.dispatchEvent(new w.PointerEvent("pointerup",
+      { clientX: 100, clientY: 900, pointerId: 3, bubbles: true }));
+    const draggedTop = root.style.top;
+
+    Object.defineProperty(root, "getBoundingClientRect", {
+      configurable: true,
+      value: () => ({ top: parseFloat(draggedTop), bottom: parseFloat(draggedTop) + 520, left: 0, right: 300, width: 300, height: 520 }),
+    });
+    /* 드래그 직후 따라오는 click은 억제되므로 한 번 더 눌러야 실제로 연다. */
+    button.dispatchEvent(new w.Event("click", { bubbles: true }));
+    button.dispatchEvent(new w.Event("click", { bubbles: true }));
+
+    test("대화창이 열려 화면 아래로 넘치면 자동으로 위로 당겨 보정한다",
+      parseFloat(root.style.top) < parseFloat(draggedTop),
+      draggedTop + " -> " + root.style.top);
   }
 
   /* ── 화면에 실렸는가 ── */
@@ -115,16 +412,20 @@ async function run() {
       el(d, "[data-mighty-log]").children.length === 0);
     test("입력 폼은 공통 전체 화면 로더를 사용하지 않는다",
       el(d, "[data-mighty-form]").hasAttribute("data-no-global-loading"));
+    test("보낼 말 설명은 보조기기용 라벨로만 남긴다",
+      el(d, "[data-mighty-form] label").classList.contains("sr-only"));
   }
 
   /* ── 열기 ── */
   {
+    /* 마지막 말이 BOT이어야 대기 말풍선이 안 붙어 메시지 개수(3)를 그대로 기대할 수 있다. */
     const { d, calls } = await boot(() => ok({
       room: room("BOT"),
-      messages: [said("BOT", "안녕하세요! 무엇을 도와드릴까요?"), said("USER", "티켓 QR 어디서 봐요?")],
+      messages: [said("BOT", "안녕하세요! 무엇을 도와드릴까요?"), said("USER", "티켓 QR 어디서 봐요?"),
+        said("BOT", "QR은 예매한 티켓 상세에서 확인할 수 있어요.")],
     }));
     el(d, "[data-mighty-open]").click();
-    await until(() => el(d, "[data-mighty-log]").children.length === 2);
+    await until(() => el(d, "[data-mighty-log]").children.length === 3);
 
     /* 별도 방을 만들면 마이페이지에서 하던 이야기가 끊긴다. */
     test("기존 상담 채팅을 그대로 부른다",
@@ -168,7 +469,12 @@ async function run() {
     ]) {
       const { d } = await boot(() => ok({ room: room(status), messages: [said("BOT", "안녕하세요")] }));
       el(d, "[data-mighty-open]").click();
-      await until(() => el(d, "[data-mighty-log]").children.length === 1);
+      /*
+       * WAITING은 연결 중 말풍선이 함께 붙어 로그 칸 수가 늘어나므로 상태 문구로 완료를 본다.
+       * open()이 먼저 "연결하는 중" 문구를 넣고 refresh()가 비동기로 실제 상태를 반영하므로,
+       * 그 초기 문구와 달라질 때까지 기다려야 실제 draw() 완료 시점을 잡을 수 있다.
+       */
+      await until(() => el(d, "[data-mighty-state]").textContent !== "마이티를 연결하는 중이에요");
       /* 답을 기다려도 되는지가 여기서 갈린다. */
       test(`${status}이면 그렇다고 적는다`,
         el(d, "[data-mighty-state]").textContent.includes(expected),
@@ -265,7 +571,8 @@ async function run() {
       messages: [said("USER", "환불 문의드립니다"), said("BOT", "상담원에게 연결해 드릴게요.")],
     }));
     el(d, "[data-mighty-open]").click();
-    await until(() => el(d, "[data-mighty-actions]").hidden === false);
+    await until(() => el(d, "[data-mighty-tools]").hidden === false);
+    el(d, "[data-mighty-tools]").click();
 
     test("상담원 대기 중이면 봇으로 돌아가는 길이 보인다",
       el(d, "[data-mighty-return]").hidden === false);
@@ -284,7 +591,8 @@ async function run() {
       messages: [said("ADMIN", "안녕하세요, 담당자입니다.")],
     }));
     el(d, "[data-mighty-open]").click();
-    await until(() => el(d, "[data-mighty-actions]").hidden === false);
+    await until(() => el(d, "[data-mighty-tools]").hidden === false);
+    el(d, "[data-mighty-tools]").click();
 
     test("상담원 응대 중에는 봇으로 되돌리는 길이 없다",
       el(d, "[data-mighty-return]").hidden === true);
@@ -292,7 +600,7 @@ async function run() {
       el(d, "[data-mighty-restart]").hidden === false);
   }
   {
-    /* 봇이 응대 중일 때 탈출구가 떠 있으면 무엇을 하라는 건지 알 수 없다. */
+    /* BOT 상태의 보조 기능은 + 버튼 안에 접어 둔다. */
     const { d } = await boot(() => ok({
       room: room("BOT"),
       messages: [said("BOT", "안녕하세요!")],
@@ -300,8 +608,13 @@ async function run() {
     el(d, "[data-mighty-open]").click();
     await until(() => el(d, "[data-mighty-log]").children.length === 1);
 
-    test("봇 응대 중에는 탈출구를 보여주지 않는다",
-      el(d, "[data-mighty-actions]").hidden === true);
+    test("봇 응대 중에는 + 버튼만 보여준다",
+      el(d, "[data-mighty-tools]").hidden === false
+      && el(d, "[data-mighty-actions]").hidden === true);
+    el(d, "[data-mighty-tools]").click();
+    test("+ 버튼을 열면 직접 상담원 연결 선택지를 보여준다",
+      el(d, "[data-mighty-actions]").hidden === false
+      && el(d, "[data-mighty-agent]").hidden === false);
   }
 
   console.log("\n" + passed + " passed, " + failed + " failed");

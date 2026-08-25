@@ -248,15 +248,14 @@ public class KakaoLocalPlaceClient {
                 continue;
             }
             String address = firstNonBlank(text(document, "road_address_name"), text(document, "address_name"));
-            String region = region(address);
             places.add(PlaceDTO.builder()
                     .externalProvider("KAKAO")
                     .externalPlaceId(id)
                     .category(category(document))
                     .name(name)
                     .countryCode("KR")
-                    .region(region)
-                    .city(region)
+                    .region(KoreanAddress.region(address))
+                    .city(KoreanAddress.city(address))
                     .address(address)
                     .latitude(decimal(document, "y"))
                     .longitude(decimal(document, "x"))
@@ -304,14 +303,6 @@ public class KakaoLocalPlaceClient {
         } catch (NumberFormatException exception) {
             return null;
         }
-    }
-
-    private static String region(String address) {
-        if (address == null || address.isBlank()) {
-            return null;
-        }
-        String[] tokens = address.trim().split("\\s+");
-        return tokens.length == 0 ? null : tokens[0];
     }
 
     private static String text(JsonNode document, String field) {

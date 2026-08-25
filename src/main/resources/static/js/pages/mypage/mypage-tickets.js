@@ -573,6 +573,43 @@ function createTicketScreen(mode) {
         return item;
     }
 
+    function bookingPreviewRow(booking) {
+        const typeLabels = {
+            FLIGHT: "항공",
+            ACCOMMODATION: "숙소",
+            TICKET: "티켓",
+        };
+        const item = document.createElement("article");
+        const head = document.createElement("div");
+        const title = document.createElement("strong");
+        const status = document.createElement("span");
+        const meta = document.createElement("p");
+        const context = document.createElement("small");
+
+        item.className = "mypage-ticket-item";
+        head.className = "mypage-ticket-head";
+        title.textContent = booking.title || typeLabels[booking.type] || "예약";
+        status.className = "mypage-ticket-status";
+        status.dataset.ticketStatus = booking.status || "";
+        status.textContent = booking.statusLabel || "예약 확정";
+        head.append(title, status);
+
+        meta.className = "mypage-ticket-meta";
+        meta.textContent = [
+            typeLabels[booking.type],
+            booking.detail,
+            booking.usageDate,
+            formatAmount(booking.amount, booking.currency),
+        ].filter(Boolean).join(" · ");
+
+        context.className = "mypage-ticket-number";
+        context.textContent = booking.tripTitle
+            ? booking.tripTitle
+            : "여행 일정에 연결되지 않음";
+        item.append(head, meta, context);
+        return item;
+    }
+
     /* ── 결제 (#276) ── */
 
     function paySection(
@@ -1290,7 +1327,7 @@ function createTicketScreen(mode) {
         if (!tickets.length) {
             setEmpty(
                 "아직 예약 내역이 없어요",
-                "예약 화면에서 티켓을 담으면 이곳에 표시됩니다.",
+                "예약 화면에서 항공·숙소·티켓을 확정하면 이곳에 표시됩니다.",
             );
 
             return;
@@ -1719,7 +1756,7 @@ function createTicketScreen(mode) {
         if (!tickets.length) {
             setEmpty(
                 "아직 예약 내역이 없어요",
-                "예약 화면에서 티켓을 담으면 이곳에 표시됩니다.",
+                "항공·숙소를 확정하거나 티켓을 예매하면 이곳에 표시됩니다.",
             );
 
             if (count) {
@@ -1745,7 +1782,7 @@ function createTicketScreen(mode) {
             .forEach(
                 (ticket) => {
                     list.appendChild(
-                        ticketRow(ticket),
+                        bookingPreviewRow(ticket),
                     );
                 },
             );
@@ -1753,16 +1790,13 @@ function createTicketScreen(mode) {
 
     async function load() {
         try {
-            /* tripId를 붙이지 않는다. 붙이면 여행 없는 티켓이 빠진다. (#255) */
-            const received =
-                await request(
-                    "/api/v1/ticket-reservations",
-                );
+            const received = await request(
+                history ? "/api/v1/ticket-reservations" : "/api/v1/my-bookings",
+            );
 
-            tickets =
-                Array.isArray(received)
-                    ? received
-                    : [];
+            tickets = history
+                ? (Array.isArray(received) ? received : [])
+                : (Array.isArray(received?.items) ? received.items : []);
         } catch (error) {
             setEmpty(
                 "예약 내역을 불러오지 못했어요",
@@ -1775,6 +1809,11 @@ function createTicketScreen(mode) {
         /*
          * 여행 목록은 연결 칸에만 쓴다. 실패해도 티켓은 보여야 하므로 따로 잡는다.
          */
+        if (!history) {
+            render();
+            return;
+        }
+
         try {
             const page =
                 await request(

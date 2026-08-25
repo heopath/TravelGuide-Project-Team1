@@ -7,6 +7,7 @@ import org.example.all_my_trip_project.domain.accommodation.dto.AccommodationBoo
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 @Mapper
 public interface AccommodationBookingMapper {
@@ -14,7 +15,18 @@ public interface AccommodationBookingMapper {
     /** 같은 (trip, 기간)을 다시 고르면 새 행을 만들지 않고 스냅샷을 갈아끼운다. */
     int upsertSelection(AccommodationBookingDTO booking);
 
+    int upsertStandaloneSelection(AccommodationBookingDTO booking);
+
     List<AccommodationBookingDTO> findByTrip(@Param("tripId") Long tripId);
+
+    List<AccommodationBookingDTO> findUnlinkedConfirmedByUser(@Param("userId") Long userId);
+
+    List<AccommodationBookingDTO> findByUserAndBatch(@Param("userId") Long userId,
+                                                      @Param("bookingBatchId") UUID bookingBatchId);
+
+    int linkBatchToTrip(@Param("userId") Long userId,
+                        @Param("bookingBatchId") UUID bookingBatchId,
+                        @Param("tripId") Long tripId);
 
     Optional<AccommodationBookingDTO> findById(@Param("accommodationBookingId") Long accommodationBookingId);
 
