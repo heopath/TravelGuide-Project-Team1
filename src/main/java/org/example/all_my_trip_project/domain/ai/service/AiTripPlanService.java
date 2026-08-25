@@ -157,7 +157,6 @@ public class AiTripPlanService {
                 이동 선호: %s
                 음식 선호: %s
                 숙박 형태: %s
-                총 예산: %s원
 
                 응답 조건:
                 - title, summary, recommendedPlaces, days 필드를 가진 JSON 객체만 반환합니다.
@@ -175,7 +174,7 @@ public class AiTripPlanService {
                 """.formatted(
                 request.destination(), request.startDate(), request.endDate(), totalDays, request.travelers(),
                 request.companion(), request.purpose(), request.pace(), request.transportPreference(),
-                request.foodPreference(), request.accommodationStyle(), request.budgetAmount(), totalDays
+                request.foodPreference(), request.accommodationStyle(), totalDays
         );
     }
 
@@ -241,7 +240,6 @@ public class AiTripPlanService {
         LocalDate date = request.startDate().plusDays(index);
         boolean isLastDay = index == totalDays - 1;
         String companionDescription = companionDescription(request.companion());
-        String budgetDescription = budgetDescription(request.budgetAmount());
         // items와 places는 같은 순번이 같은 장소를 가리켜야 하므로 항상 개수를 맞춘다.
         List<AiTripPlanItemResponse> items = isLastDay
                 ? List.of(
@@ -253,7 +251,7 @@ public class AiTripPlanService {
                         new AiTripPlanItemResponse(
                                 times.get(1),
                                 themePlan.second(),
-                                request.travelers() + "명이 함께 즐기기 좋은 식사 시간이에요. " + budgetDescription
+                                request.travelers() + "명이 함께 즐기기 좋은 식사 시간이에요."
                         ),
                         new AiTripPlanItemResponse(
                                 times.get(2),
@@ -270,7 +268,7 @@ public class AiTripPlanService {
                         new AiTripPlanItemResponse(
                                 times.get(1),
                                 themePlan.second(),
-                                request.travelers() + "명이 함께 즐기기 좋은 식사 시간이에요. " + budgetDescription
+                                request.travelers() + "명이 함께 즐기기 좋은 식사 시간이에요."
                         ),
                         new AiTripPlanItemResponse(
                                 times.get(2),
@@ -304,7 +302,7 @@ public class AiTripPlanService {
                 new AiTripPlanPlaceResponse(1, "추천 명소", request.destination() + " " + themePlan.first(),
                         day + "일차 오전에 들르기 좋은 추천 명소예요.", 0, 0),
                 new AiTripPlanPlaceResponse(2, "식사 장소", request.destination() + " " + themePlan.second(),
-                        request.foodPreference() + " 선호와 총 예산에 맞춘 식사 장소예요.", 0, 0)
+                        request.foodPreference() + " 선호에 맞춘 식사 장소예요.", 0, 0)
         ));
         if (isLastDay) {
             // 마지막 날의 마지막 item("귀가")은 실제 교통 거점과 연결되어야 지도·이동수단 기능이 동작한다.
@@ -392,11 +390,6 @@ public class AiTripPlanService {
             case "친구" -> "함께 즐기고 추억을 남기기 좋은 장소를 우선 추천해요.";
             default -> "혼자서도 편하게 머물 수 있는 장소와 동선을 우선으로 골랐어요.";
         };
-    }
-
-    private String budgetDescription(java.math.BigDecimal budget) {
-        if (budget == null || budget.signum() <= 0) return "선택한 여행 스타일을 중심으로 구성했어요.";
-        return "총 " + String.format(Locale.KOREAN, "%,.0f", budget) + "원 예산 안에서 균형 있게 구성했어요.";
     }
 
     private record ThemePlan(String first, String second, String third) {

@@ -34,7 +34,24 @@
 
           <div class="ai-plan-layout ai-plan-layout-result">
             <section class="white-panel plan-result" aria-live="polite">
-              <div data-plan-loading hidden class="plan-loading"><span>✦</span><p>여행 조건을 분석해 일정 초안을 만들고 있어요.</p></div>
+              <!--
+                진행률은 예상치다. 초안 만들기는 외부 AI 호출 하나가 대기 시간을
+                거의 다 차지해서, 서버가 알려줄 중간 단계가 없다. 그래서 지나간
+                시간으로 가늠하고, 응답이 오면 100%로 채운다. (ai-trip-plan.js)
+              -->
+              <div data-plan-loading hidden class="plan-loading">
+                <span>✦</span>
+                <p data-plan-loading-step>여행 조건을 정리하고 있어요.</p>
+                <div class="plan-progress">
+                  <div class="plan-progress-bar" role="progressbar"
+                       aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"
+                       aria-label="일정 초안 만들기 예상 진행률" data-plan-progress-bar>
+                    <span data-plan-progress-fill></span>
+                  </div>
+                  <strong data-plan-progress-value>0%</strong>
+                </div>
+                <small class="plan-progress-note">예상 진행률이에요. 보통 5초 안팎 걸려요.</small>
+              </div>
               <div data-plan-error hidden class="plan-error">
                 <strong>일정 초안을 만들지 못했어요.</strong>
                 <p>입력한 여행 조건을 확인한 뒤 다시 시도해 주세요.</p>
@@ -58,6 +75,21 @@
                   <div class="plan-days" data-plan-days></div>
                 </aside>
                 <button type="button" class="primary-button plan-save-button" data-plan-save>이 일정으로 직접 수정하기</button>
+                <!--
+                  저장할 때 장소를 하나씩 카카오에서 찾는다. 몇 개 중 몇 개인지 셀 수
+                  있으므로 여기 진행률은 예상이 아니라 실제 값이다. 누르기 전에는 비어
+                  있고 높이를 차지하지 않는다.
+                -->
+                <div class="plan-save-progress" data-plan-save-progress hidden aria-live="polite">
+                  <div class="plan-progress">
+                    <div class="plan-progress-bar" role="progressbar"
+                         aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"
+                         aria-label="장소 확인 진행률" data-plan-save-bar>
+                      <span data-plan-save-fill></span>
+                    </div>
+                    <strong data-plan-save-value>0 / 0</strong>
+                  </div>
+                </div>
               </section>
             </section>
           </div>

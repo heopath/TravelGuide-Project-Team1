@@ -81,7 +81,6 @@ public class AiTripPlanPersistenceService {
                 .companionType(companionType(conditions.companion()))
                 .companionCount(conditions.travelers())
                 .purpose(requiredText(conditions.purpose(), "여행 목적", 500))
-                .budgetAmount(conditions.budgetAmount())
                 .currencyCode("KRW")
                 .transportPreference(requiredText(conditions.transportPreference(), "이동 선호", 100))
                 .foodPreference(requiredText(conditions.foodPreference(), "음식 선호", 255))
