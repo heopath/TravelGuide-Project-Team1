@@ -4,6 +4,8 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.example.all_my_trip_project.domain.place.dto.PlaceDTO;
+import org.example.all_my_trip_project.global.apikey.ApiKeyProvider;
+import org.example.all_my_trip_project.global.apikey.ManagedApiKey;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Profile;
@@ -19,6 +21,7 @@ import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Supplier;
 
 /** Kakao Local REST API의 검색 결과를 내부 PlaceDTO로만 변환한다. */
 @Slf4j
@@ -32,22 +35,36 @@ public class KakaoLocalPlaceClient {
 
     private final HttpClient httpClient;
     private final ObjectMapper objectMapper;
-    private final String restApiKey;
+
+    /**
+     * 키를 값이 아니라 "꺼내는 방법"으로 들고 있는다.
+     *
+     * <p>생성자에서 받은 문자열을 그대로 보관하면 관리자가 화면에서 키를 바꿔도 재시작 전까지
+     * 옛 키로 호출한다. 호출할 때마다 {@link ApiKeyProvider}에 물어 지금 값을 쓴다.
+     */
+    private final Supplier<String> restApiKeySupplier;
     private final Duration timeout;
 
     @Autowired
     public KakaoLocalPlaceClient(
-            @Value("${kakao.local.rest-api-key:}") String restApiKey,
+            ApiKeyProvider apiKeyProvider,
             @Value("${kakao.local.timeout-millis:5000}") long timeoutMillis
     ) {
         this(HttpClient.newBuilder().connectTimeout(Duration.ofMillis(timeoutMillis)).build(),
-                new ObjectMapper(), restApiKey, Duration.ofMillis(timeoutMillis));
+                new ObjectMapper(), () -> apiKeyProvider.resolve(ManagedApiKey.KAKAO_REST),
+                Duration.ofMillis(timeoutMillis));
     }
 
+    /** 테스트가 키를 고정값으로 넘기던 방식을 그대로 유지한다. */
     KakaoLocalPlaceClient(HttpClient httpClient, ObjectMapper objectMapper, String restApiKey, Duration timeout) {
+        this(httpClient, objectMapper, () -> restApiKey, timeout);
+    }
+
+    KakaoLocalPlaceClient(HttpClient httpClient, ObjectMapper objectMapper,
+                          Supplier<String> restApiKeySupplier, Duration timeout) {
         this.httpClient = httpClient;
         this.objectMapper = objectMapper;
-        this.restApiKey = restApiKey;
+        this.restApiKeySupplier = restApiKeySupplier;
         this.timeout = timeout;
     }
 
@@ -56,6 +73,12 @@ public class KakaoLocalPlaceClient {
     }
 
     public List<PlaceDTO> search(String keyword, Duration requestTimeout) {
+        return search(keyword, requestTimeout, 1);
+    }
+
+    /** Searches a specific Kakao result page for follow-up recommendations. */
+    public List<PlaceDTO> search(String keyword, Duration requestTimeout, int page) {
+        String restApiKey = restApiKeySupplier.get();
         if (restApiKey == null || restApiKey.isBlank() || keyword == null || keyword.isBlank()) {
             if (restApiKey == null || restApiKey.isBlank()) {
                 log.warn("Kakao Local place search skipped because KAKAO_REST_API_KEY is not configured.");
@@ -70,6 +93,7 @@ public class KakaoLocalPlaceClient {
         URI uri = UriComponentsBuilder.fromUri(KEYWORD_SEARCH_URI)
                 .queryParam("query", keyword.trim())
                 .queryParam("size", MAX_SIZE)
+                .queryParam("page", validPage(page))
                 .build()
                 .encode()
                 .toUri();
@@ -103,6 +127,12 @@ public class KakaoLocalPlaceClient {
      */
     public List<PlaceDTO> searchNearby(String keyword, BigDecimal longitude, BigDecimal latitude,
                                        int radiusMeters, Duration requestTimeout) {
+        return searchNearby(keyword, longitude, latitude, radiusMeters, requestTimeout, 1);
+    }
+
+    public List<PlaceDTO> searchNearby(String keyword, BigDecimal longitude, BigDecimal latitude,
+                                       int radiusMeters, Duration requestTimeout, int page) {
+        String restApiKey = restApiKeySupplier.get();
         if (restApiKey == null || restApiKey.isBlank() || keyword == null || keyword.isBlank()
                 || longitude == null || latitude == null) {
             return List.of();
@@ -114,6 +144,7 @@ public class KakaoLocalPlaceClient {
                 .queryParam("y", latitude)
                 .queryParam("radius", Math.max(1, Math.min(radiusMeters, 20_000)))
                 .queryParam("size", MAX_SIZE)
+                .queryParam("page", validPage(page))
                 .build()
                 .encode()
                 .toUri();
@@ -152,6 +183,12 @@ public class KakaoLocalPlaceClient {
 
     public List<PlaceDTO> searchByCategory(String categoryGroupCode, BigDecimal longitude, BigDecimal latitude,
                                            int radiusMeters, Duration requestTimeout) {
+        return searchByCategory(categoryGroupCode, longitude, latitude, radiusMeters, requestTimeout, 1);
+    }
+
+    public List<PlaceDTO> searchByCategory(String categoryGroupCode, BigDecimal longitude, BigDecimal latitude,
+                                           int radiusMeters, Duration requestTimeout, int page) {
+        String restApiKey = restApiKeySupplier.get();
         if (restApiKey == null || restApiKey.isBlank() || categoryGroupCode == null || categoryGroupCode.isBlank()
                 || longitude == null || latitude == null) {
             return List.of();
@@ -164,6 +201,7 @@ public class KakaoLocalPlaceClient {
                 .queryParam("y", latitude)
                 .queryParam("radius", Math.max(1, Math.min(radiusMeters, 20_000)))
                 .queryParam("size", MAX_SIZE)
+                .queryParam("page", validPage(page))
                 .build()
                 .encode()
                 .toUri();
@@ -210,18 +248,22 @@ public class KakaoLocalPlaceClient {
                 continue;
             }
             String address = firstNonBlank(text(document, "road_address_name"), text(document, "address_name"));
-            String region = region(address);
             places.add(PlaceDTO.builder()
                     .externalProvider("KAKAO")
                     .externalPlaceId(id)
                     .category(category(document))
                     .name(name)
                     .countryCode("KR")
-                    .region(region)
-                    .city(region)
+                    .region(KoreanAddress.region(address))
+                    .city(KoreanAddress.city(address))
                     .address(address)
                     .latitude(decimal(document, "y"))
                     .longitude(decimal(document, "x"))
+                    // FD6(음식점) 안에는 제과·베이커리도 포함된다. DB의 대표
+                    // 카테고리는 기존 제약에 맞춰 RESTAURANT로 유지하되, 실제
+                    // 세부 업종은 description에 보존해 AI 후보 필터가 식사와
+                    // 베이커리를 구분할 수 있게 한다.
+                    .description(kakaoCategoryDescription(document))
                     .phone(text(document, "phone"))
                     .websiteUrl(text(document, "place_url"))
                     .active(true)
@@ -243,6 +285,17 @@ public class KakaoLocalPlaceClient {
         };
     }
 
+    private int validPage(int page) {
+        return Math.max(1, Math.min(page, 45));
+    }
+
+    private static String kakaoCategoryDescription(JsonNode document) {
+        String categoryName = text(document, "category_name");
+        String categoryGroupName = text(document, "category_group_name");
+        String categoryDetail = firstNonBlank(categoryName, categoryGroupName);
+        return categoryDetail.isBlank() ? null : "카카오 세부업종: " + categoryDetail;
+    }
+
     private static BigDecimal decimal(JsonNode document, String field) {
         String value = text(document, field);
         try {
@@ -250,14 +303,6 @@ public class KakaoLocalPlaceClient {
         } catch (NumberFormatException exception) {
             return null;
         }
-    }
-
-    private static String region(String address) {
-        if (address == null || address.isBlank()) {
-            return null;
-        }
-        String[] tokens = address.trim().split("\\s+");
-        return tokens.length == 0 ? null : tokens[0];
     }
 
     private static String text(JsonNode document, String field) {

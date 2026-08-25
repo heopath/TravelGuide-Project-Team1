@@ -14,7 +14,7 @@ public interface ItineraryItemMapper {
     int insert(ItineraryItemDTO item);
     Optional<ItineraryItemDTO> findById(Long itineraryItemId);
     List<ItineraryItemDTO> findByTripDayId(Long tripDayId);
-    int countByTripDayId(Long tripDayId);
+    int countPlaceItemsByTripDayId(Long tripDayId);
     int nextSortOrderByTripDayId(Long tripDayId);
     boolean existsByTripDayIdAndPlaceId(Long tripDayId, Long placeId);
     int update(ItineraryItemDTO item);

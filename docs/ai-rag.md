@@ -1,9 +1,11 @@
-# Cohere RAG 실행 및 운영 규칙
+# OpenAI RAG 실행 및 운영 규칙
 
 ## 모델과 차원
 
-- 채팅·임베딩 공급자: Cohere
-- 임베딩 모델: `embed-v4.0`
+- 채팅 공급자: OpenAI Responses API
+- 채팅 모델: `gpt-5.6-terra`
+- 임베딩 공급자: OpenAI Embeddings API
+- 임베딩 모델: `text-embedding-3-small`
 - 임베딩 차원: `1536`
 - 거리 방식: cosine
 - 인덱스: pgvector HNSW
@@ -18,7 +20,7 @@ Docker PostgreSQL·Redis를 실행한 후 IntelliJ 실행 프로필을 다음처
 local,ai,local-ai
 ```
 
-`COHERE_API_KEY`는 IntelliJ 환경 변수로만 설정한다. RAG 장소 전체 색인은 Cohere API 호출을 사용하므로, 필요한 경우에만 아래 환경 변수를 추가한다.
+`OPENAI_API_KEY`는 IntelliJ 환경 변수로만 설정한다. RAG 장소 전체 색인은 OpenAI Embeddings API 호출을 사용하므로, 필요한 경우에만 아래 환경 변수를 추가한다.
 
 ```text
 AI_RAG_REINDEX_ON_STARTUP=true
@@ -37,6 +39,8 @@ prod,ai,prod-ai-rag
 
 운영 데이터베이스 `all_my_trip`에는 Flyway `V10__vector_store.sql`이 먼저 적용되어야 한다.
 `application-prod-ai-rag.properties`는 `initialize-schema=false`를 유지한다. 운영 기동 중 테이블·인덱스를 자동 생성하거나 전체 재색인하지 않는다.
+
+기존 Cohere 벡터와 OpenAI 벡터는 같은 `1536` 차원을 사용해도 서로 다른 의미 공간이다. 공급자 전환 직후에는 운영자가 `AI_RAG_REINDEX_ON_STARTUP=true`로 한 번만 실행하여 모든 장소를 OpenAI 임베딩으로 재색인해야 한다.
 
 ## 장애 처리
 

@@ -186,6 +186,7 @@ CREATE TABLE trips (
     accommodation_style    VARCHAR(100),
     status                 VARCHAR(20) NOT NULL DEFAULT 'DRAFT',
     source                 VARCHAR(20) NOT NULL DEFAULT 'MANUAL',
+    booking_confirmed_at   TIMESTAMPTZ,
     created_at             TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at             TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     deleted_at             TIMESTAMPTZ,

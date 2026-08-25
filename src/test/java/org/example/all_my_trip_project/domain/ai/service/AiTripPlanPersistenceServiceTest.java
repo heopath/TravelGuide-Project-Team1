@@ -95,7 +95,11 @@ class AiTripPlanPersistenceServiceTest {
                 .containsOnly(1, 2, 3, 4);
         assertThat(itemCaptor.getAllValues()).extracting(ItineraryItemDTO::getPlaceId)
                 .doesNotContainNull();
-        verify(placeDAO, org.mockito.Mockito.times(7)).upsert(any(PlaceDTO.class));
+        // 지역 필터 조회가 region으로 거르므로, AI 일정으로 들어온 장소도 주소에서 끊어 채워야 한다.
+        ArgumentCaptor<PlaceDTO> placeCaptor = ArgumentCaptor.forClass(PlaceDTO.class);
+        verify(placeDAO, org.mockito.Mockito.times(7)).upsert(placeCaptor.capture());
+        assertThat(placeCaptor.getAllValues()).extracting(PlaceDTO::getRegion).containsOnly("부산광역시");
+        assertThat(placeCaptor.getAllValues()).extracting(PlaceDTO::getCity).containsOnly("해운대구");
     }
 
     @Test
@@ -196,7 +200,7 @@ class AiTripPlanPersistenceServiceTest {
 
     private AiTripPlanResolvedPlace resolved(int day, int number, String id, String name) {
         return new AiTripPlanResolvedPlace(
-                day, number, id, name, "부산 주소",
+                day, number, id, name, "부산광역시 해운대구 우동 1394",
                 new BigDecimal("35.1234567"), new BigDecimal("129.1234567"),
                 "", "https://place.map.kakao.com/" + id, "관광명소", name + " 추천 이유"
         );

@@ -298,7 +298,7 @@
                       class="outline-button wide mypage-panel-foot"
                       data-open-tickets
               >
-                예매한 티켓 전체 보기 →
+                예약 내역 전체 보기 →
               </button>
             </section>
 
@@ -587,7 +587,7 @@
 
                 <div>
                   <span class="mypage-eyebrow">MY TICKETS</span>
-                  <h2>예매한 티켓</h2>
+                  <h2>예약 내역</h2>
                   <p>예약 정보와 이용 방법을 한곳에서 확인하세요.</p>
                 </div>
               </div>
@@ -744,11 +744,10 @@
               <div class="support-chat" data-support-chat hidden>
                 <p class="support-chat-status" data-support-chat-status role="status"></p>
                 <div class="support-chat-messages" data-support-chat-messages></div>
-                <!--
-                  상담원 대기·응대 중일 때만 뜨는 탈출구. WAITING이면 봇으로 되돌릴 수 있고,
-                  사람이 이미 붙은 ASSIGNED면 새 상담만 열 수 있다.
-                -->
+                <!-- BOT에서는 직접 상담원을 요청하고, 사람 상담 상태에서는 대화 탈출구를 제공한다. -->
                 <div class="support-chat-actions" data-support-chat-actions hidden>
+                  <button type="button" class="support-chat-action primary"
+                          data-support-chat-agent hidden>상담원 연결</button>
                   <button type="button" class="support-chat-action primary"
                           data-support-chat-return hidden>봇에게 다시 물어보기</button>
                   <button type="button" class="support-chat-action"

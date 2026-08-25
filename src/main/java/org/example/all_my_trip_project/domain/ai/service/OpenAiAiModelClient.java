@@ -10,6 +10,8 @@ import org.example.all_my_trip_project.domain.ai.dto.AiGuideItemResponse;
 import org.example.all_my_trip_project.domain.ai.dto.AiGuideRequest;
 import org.example.all_my_trip_project.domain.ai.dto.AiGuideResponse;
 import org.example.all_my_trip_project.domain.rag.dto.RagSearchResult;
+import org.example.all_my_trip_project.global.apikey.ApiKeyProvider;
+import org.example.all_my_trip_project.global.apikey.ManagedApiKey;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Profile;
@@ -27,13 +29,14 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Supplier;
 import java.util.regex.Pattern;
 
 @Component
 @Profile("ai")
-public class CohereAiModelClient implements AiModelClient {
+public class OpenAiAiModelClient implements AiModelClient {
 
-    private static final URI CHAT_URI = URI.create("https://api.cohere.com/v2/chat");
+    private static final URI CHAT_URI = URI.create("https://api.openai.com/v1/responses");
     private static final int MAX_DAYS = 30;
     private static final int MAX_ITEMS_PER_DAY = 10;
     private static final int RECOMMENDATION_DURATION_MINUTES = 120;
@@ -57,25 +60,36 @@ public class CohereAiModelClient implements AiModelClient {
 
     private final HttpClient httpClient;
     private final ObjectMapper objectMapper;
-    private final String apiKey;
+    /**
+     * 키를 값이 아니라 "꺼내는 방법"으로 들고 있는다. 관리자가 화면에서 키를 교체하면 재시작
+     * 없이 다음 호출부터 새 키가 쓰인다.
+     */
+    private final Supplier<String> apiKeySupplier;
     private final String model;
     private final Duration requestTimeout;
 
     @Autowired
-    public CohereAiModelClient(
-            @Value("${cohere.api-key}") String apiKey,
-            @Value("${cohere.chat.model:command-a-plus-05-2026}") String model,
-            @Value("${cohere.chat.timeout-millis:25000}") long timeoutMillis
+    public OpenAiAiModelClient(
+            ApiKeyProvider apiKeyProvider,
+            @Value("${openai.chat.model:gpt-5.6-terra}") String model,
+            @Value("${openai.chat.timeout-millis:25000}") long timeoutMillis
     ) {
         this(HttpClient.newBuilder().connectTimeout(Duration.ofMillis(timeoutMillis)).build(),
-                new ObjectMapper(), apiKey, model, Duration.ofMillis(timeoutMillis));
+                new ObjectMapper(), () -> apiKeyProvider.resolve(ManagedApiKey.OPENAI),
+                model, Duration.ofMillis(timeoutMillis));
     }
 
-    CohereAiModelClient(HttpClient httpClient, ObjectMapper objectMapper, String apiKey,
+    /** 테스트가 키를 고정값으로 넘기던 방식을 그대로 유지한다. */
+    OpenAiAiModelClient(HttpClient httpClient, ObjectMapper objectMapper, String apiKey,
+                        String model, Duration requestTimeout) {
+        this(httpClient, objectMapper, () -> apiKey, model, requestTimeout);
+    }
+
+    OpenAiAiModelClient(HttpClient httpClient, ObjectMapper objectMapper, Supplier<String> apiKeySupplier,
                         String model, Duration requestTimeout) {
         this.httpClient = httpClient;
         this.objectMapper = objectMapper;
-        this.apiKey = apiKey;
+        this.apiKeySupplier = apiKeySupplier;
         this.model = model;
         this.requestTimeout = requestTimeout;
     }
@@ -91,7 +105,7 @@ public class CohereAiModelClient implements AiModelClient {
                                     AiGuideContext context, List<RagSearchResult> ragResults) {
         String prompt = createPrompt(request, conversationHistory, context, ragResults);
         try {
-            CohereGuideContent content;
+            OpenAiGuideContent content;
             try {
                 content = generateContent(prompt, context, request.selectedDayNumber());
             } catch (AiModelException exception) {
@@ -101,30 +115,30 @@ public class CohereAiModelClient implements AiModelClient {
                 content = generateContent(prompt + STRICT_JSON_RETRY_INSTRUCTION, context, request.selectedDayNumber());
             }
 
-            List<String> sources = new ArrayList<>(List.of("Cohere AI", "질문: " + request.question()));
+            List<String> sources = new ArrayList<>(List.of("OpenAI", "질문: " + request.question()));
             return new AiGuideResponse(content.answer(), content.days(), DEFAULT_EXTERNAL_LINKS, sources);
         } catch (AiModelException exception) {
             throw exception;
         } catch (Exception exception) {
-            throw new AiModelException("Cohere request failed", exception);
+            throw new AiModelException("OpenAI request failed", exception);
         }
     }
 
-    private CohereGuideContent generateContent(String prompt, AiGuideContext context, Integer selectedDayNumber) {
+    private OpenAiGuideContent generateContent(String prompt, AiGuideContext context, Integer selectedDayNumber) {
         try {
-            CohereGuideContent content = objectMapper.readValue(
-                    extractJson(requestModel(prompt)), CohereGuideContent.class);
+            OpenAiGuideContent content = objectMapper.readValue(
+                    extractJson(requestModel(prompt)), OpenAiGuideContent.class);
             content = normalize(content);
             content = focusOnSelectedDay(content, selectedDayNumber);
             content = moveItemsToAvailableTimes(content, context);
             validate(content);
             return content;
         } catch (JsonProcessingException exception) {
-            throw new AiModelException("Cohere response is not valid JSON", exception);
+            throw new AiModelException("OpenAI response is not valid JSON", exception);
         }
     }
 
-    private CohereGuideContent focusOnSelectedDay(CohereGuideContent content, Integer selectedDayNumber) {
+    private OpenAiGuideContent focusOnSelectedDay(OpenAiGuideContent content, Integer selectedDayNumber) {
         if (selectedDayNumber == null || content == null || content.days() == null) {
             return content;
         }
@@ -146,7 +160,7 @@ public class CohereAiModelClient implements AiModelClient {
         String title = hasSelectedDayTitle(selectedDay.title(), selectedDayNumber)
                 ? selectedDay.title()
                 : "DAY " + selectedDayNumber + " 추천 일정";
-        return new CohereGuideContent(content.answer(), List.of(new AiGuideDayResponse(
+        return new OpenAiGuideContent(content.answer(), List.of(new AiGuideDayResponse(
                 selectedDayNumber, title, selectedDay.items())));
     }
 
@@ -172,39 +186,87 @@ public class CohereAiModelClient implements AiModelClient {
         try {
             HttpRequest request = HttpRequest.newBuilder(CHAT_URI)
                     .timeout(requestTimeout)
-                    .header("Authorization", "Bearer " + apiKey)
+                    .header("Authorization", "Bearer " + apiKeySupplier.get())
                     .header("Content-Type", "application/json")
-                    .header("X-Client-Name", "all-my-trips")
                     .POST(HttpRequest.BodyPublishers.ofString(objectMapper.writeValueAsString(createRequestBody(prompt))))
                     .build();
             HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() < 200 || response.statusCode() >= 300) {
-                throw new AiModelException("Cohere request failed. status=" + response.statusCode());
+                throw openAiFailure(response);
             }
 
             JsonNode root = objectMapper.readTree(response.body());
-            JsonNode content = root.path("message").path("content");
-            String responseText = extractTextContent(content);
+            String responseText = extractOutputText(root.path("output"));
             if (responseText == null) {
-                throw new AiModelException("Cohere returned an empty response");
+                throw new AiModelException("OpenAI returned an empty response");
             }
             return responseText;
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();
-            throw new AiModelException("Cohere request was interrupted", exception);
+            throw new AiModelException("OpenAI request was interrupted", exception);
         } catch (IOException exception) {
-            throw new AiModelException("Cohere request failed", exception);
+            throw new AiModelException("OpenAI request failed", exception);
         }
     }
 
-    private String extractTextContent(JsonNode content) {
-        if (!content.isArray()) {
+    /**
+     * Keeps the API key and request body out of logs, while preserving OpenAI's
+     * error type/code/message.  A status code alone is not enough to distinguish
+     * a model configuration error from a quota or request-schema error.
+     */
+    private AiModelException openAiFailure(HttpResponse<String> response) {
+        String detail = "";
+        try {
+            JsonNode root = objectMapper.readTree(response.body());
+            JsonNode error = root.path("error");
+            if (error.isMissingNode() || error.isNull()) {
+                error = root;
+            }
+
+            List<String> parts = new ArrayList<>();
+            addErrorPart(parts, "type", error.path("type").asText());
+            addErrorPart(parts, "code", error.path("code").asText());
+            addErrorPart(parts, "message", error.path("message").asText());
+            detail = String.join(", ", parts);
+        } catch (JsonProcessingException ignored) {
+            // Some gateway errors are not JSON. The HTTP status remains useful.
+        }
+
+        String message = "OpenAI request failed. status=" + response.statusCode();
+        return detail.isBlank() ? new AiModelException(message)
+                : new AiModelException(message + ", " + detail);
+    }
+
+    private void addErrorPart(List<String> parts, String name, String value) {
+        if (value == null || value.isBlank()) {
+            return;
+        }
+        String normalized = redactSecret(value.replaceAll("[\\r\\n]+", " ").trim());
+        parts.add(name + "=" + normalized.substring(0, Math.min(normalized.length(), 300)));
+    }
+
+    private String redactSecret(String value) {
+        // OpenAI can echo an invalid model value in an error response. If an
+        // environment variable is misconfigured, that value could be an API key.
+        return value.replaceAll("sk-[A-Za-z0-9_-]+", "[REDACTED]");
+    }
+
+    private String extractOutputText(JsonNode output) {
+        if (!output.isArray()) {
             return null;
         }
-        for (JsonNode block : content) {
-            String text = block.path("text").asText();
-            if (!text.isBlank()) {
-                return text;
+        for (JsonNode outputItem : output) {
+            if (!"message".equals(outputItem.path("type").asText())) {
+                continue;
+            }
+            for (JsonNode content : outputItem.path("content")) {
+                if (!"output_text".equals(content.path("type").asText())) {
+                    continue;
+                }
+                String text = content.path("text").asText();
+                if (!text.isBlank()) {
+                    return text;
+                }
             }
         }
         return null;
@@ -213,12 +275,14 @@ public class CohereAiModelClient implements AiModelClient {
     private Map<String, Object> createRequestBody(String prompt) {
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("model", model);
-        body.put("temperature", 0.2);
-        body.put("messages", List.of(
-                Map.of("role", "system", "content", "You are a Korean travel itinerary assistant."),
-                Map.of("role", "user", "content", prompt)
-        ));
-        body.put("response_format", Map.of("type", "json_object", "schema", guideJsonSchema()));
+        body.put("instructions", "You are a Korean travel itinerary assistant.");
+        body.put("input", prompt);
+        body.put("text", Map.of("format", Map.of(
+                "type", "json_schema",
+                "name", "travel_itinerary",
+                "strict", true,
+                "schema", guideJsonSchema()
+        )));
         return body;
     }
 
@@ -230,7 +294,8 @@ public class CohereAiModelClient implements AiModelClient {
                         "name", Map.of("type", "string"),
                         "reason", Map.of("type", "string")
                 ),
-                "required", List.of("time", "name", "reason")
+                "required", List.of("time", "name", "reason"),
+                "additionalProperties", false
         );
         Map<String, Object> day = Map.of(
                 "type", "object",
@@ -239,7 +304,8 @@ public class CohereAiModelClient implements AiModelClient {
                         "title", Map.of("type", "string"),
                         "items", Map.of("type", "array", "items", item)
                 ),
-                "required", List.of("day", "title", "items")
+                "required", List.of("day", "title", "items"),
+                "additionalProperties", false
         );
         return Map.of(
                 "type", "object",
@@ -247,7 +313,8 @@ public class CohereAiModelClient implements AiModelClient {
                         "answer", Map.of("type", "string"),
                         "days", Map.of("type", "array", "items", day)
                 ),
-                "required", List.of("answer", "days")
+                "required", List.of("answer", "days"),
+                "additionalProperties", false
         );
     }
 
@@ -273,9 +340,17 @@ public class CohereAiModelClient implements AiModelClient {
                 - When retrieved candidates match the requested location and broad category, use their exact venue names
                   rather than generic placeholder items. If a narrow feature such as an LP room is not documented,
                   say that the feature is unverified but still present the verified venue as a general bar/cafe option.
+                - For lunch, dinner, meal, restaurant, or 맛집 requests, select only candidates whose detailed category
+                  is a meal restaurant. Never use a bakery, confectionery, bread shop, dessert shop, or cafe as a meal
+                  recommendation unless the user explicitly asks for that type of venue.
+                - Treat the retrieved detailed category as a hard venue-type constraint: cafe/coffee requests require
+                  a cafe or roastery; bakery/dessert requests require a bakery or confectionery; bar/drink requests
+                  require a bar, pub, or izakaya; attraction requests require a cultural, scenic, or activity venue;
+                  shopping requests require a retail venue. Do not substitute a different venue type.
                 - If no matching verified place knowledge is available, do not invent a cafe, restaurant, address,
-                  popularity claim, or neighborhood-specific fact. Explain that verified place candidates are unavailable
-                  and give general planning guidance instead.
+                  popularity claim, or neighborhood-specific fact. State only that verified place candidates are unavailable.
+                  Do not create placeholder schedule items such as "자유 시간", "카페 탐방", or "점심 검색",
+                  and do not tell the user to search a map or explore an area themselves.
 
                 Scheduling rules:
                 - Existing itinerary entries in Travel context belong to their stated DAY only.
@@ -349,17 +424,17 @@ public class CohereAiModelClient implements AiModelClient {
 
     private String extractJson(String response) {
         String trimmed = response == null ? "" : response.trim();
-        if (trimmed.isBlank()) throw new AiModelException("Cohere returned an empty response");
+        if (trimmed.isBlank()) throw new AiModelException("OpenAI returned an empty response");
         if (!trimmed.startsWith("```")) return trimmed;
         int firstLineEnd = trimmed.indexOf('\n');
         int closingFence = trimmed.lastIndexOf("```");
         if (firstLineEnd < 0 || closingFence <= firstLineEnd) {
-            throw new AiModelException("Cohere returned an invalid fenced JSON response");
+            throw new AiModelException("OpenAI returned an invalid fenced JSON response");
         }
         return trimmed.substring(firstLineEnd + 1, closingFence).trim();
     }
 
-    private CohereGuideContent normalize(CohereGuideContent content) {
+    private OpenAiGuideContent normalize(OpenAiGuideContent content) {
         if (content == null || content.days() == null) {
             return content;
         }
@@ -376,14 +451,14 @@ public class CohereAiModelClient implements AiModelClient {
                     : day.title().trim();
             days.add(new AiGuideDayResponse(dayNumber, title, day.items()));
         }
-        return new CohereGuideContent(content.answer(), days);
+        return new OpenAiGuideContent(content.answer(), days);
     }
 
     /**
-     * Cohere is instructed not to overlap existing plans, but the final response is also adjusted here
+     * OpenAI is instructed not to overlap existing plans, but the final response is also adjusted here
      * so that an addable recommendation is presented whenever the same DAY has an available time slot.
      */
-    private CohereGuideContent moveItemsToAvailableTimes(CohereGuideContent content, AiGuideContext context) {
+    private OpenAiGuideContent moveItemsToAvailableTimes(OpenAiGuideContent content, AiGuideContext context) {
         if (content == null || content.days() == null || context == null || context.trip() == null) {
             return content;
         }
@@ -410,7 +485,7 @@ public class CohereAiModelClient implements AiModelClient {
                 adjustedDays.add(new AiGuideDayResponse(day.day(), day.title(), adjustedItems));
             }
         }
-        return new CohereGuideContent(content.answer(), adjustedDays);
+        return new OpenAiGuideContent(content.answer(), adjustedDays);
     }
 
     private Map<Integer, List<TimeWindow>> existingOccupiedWindows(List<AiGuideContext.Day> days) {
@@ -504,28 +579,28 @@ public class CohereAiModelClient implements AiModelClient {
         return LocalTime.of(minutes / 60, minutes % 60).format(TIME_FORMATTER);
     }
 
-    private void validate(CohereGuideContent content) {
+    private void validate(OpenAiGuideContent content) {
         if (content == null || content.answer() == null || content.answer().isBlank()
                 || content.days() == null || content.days().isEmpty() || content.days().size() > MAX_DAYS) {
-            throw new AiModelException("Cohere response is missing guide data");
+            throw new AiModelException("OpenAI response is missing guide data");
         }
         for (int index = 0; index < content.days().size(); index++) {
             AiGuideDayResponse day = content.days().get(index);
             if (day == null || day.day() < 1 || day.title() == null || day.title().isBlank()
                     || day.items() == null || day.items().isEmpty() || day.items().size() > MAX_ITEMS_PER_DAY) {
-                throw new AiModelException("Cohere response has an invalid day at index " + index);
+                throw new AiModelException("OpenAI response has an invalid day at index " + index);
             }
             for (AiGuideItemResponse item : day.items()) {
                 if (item == null || item.time() == null || !TIME_PATTERN.matcher(item.time()).matches()
                         || item.name() == null || item.name().isBlank()
                         || item.reason() == null || item.reason().isBlank()) {
-                    throw new AiModelException("Cohere response has an invalid schedule item");
+                    throw new AiModelException("OpenAI response has an invalid schedule item");
                 }
             }
         }
     }
 
-    private record CohereGuideContent(String answer, List<AiGuideDayResponse> days) {
+    private record OpenAiGuideContent(String answer, List<AiGuideDayResponse> days) {
     }
 
     private record TimeWindow(int start, int end) {

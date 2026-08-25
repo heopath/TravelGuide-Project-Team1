@@ -367,8 +367,8 @@
     }
   }
 
-  async function saveStay(offer) {
-    const payload = await request("POST", `/api/v1/trips/${state.tripId}/accommodations`, {
+  async function saveStay(offer, targetTripId = state.tripId) {
+    const payload = await request("POST", `/api/v1/trips/${targetTripId}/accommodations`, {
       checkIn: $("h-checkin").value,
       checkOut: $("h-checkout").value,
       offerId: offer.offerId,
@@ -393,6 +393,27 @@
     state.status = saved.status;
     state.bookingRef = saved.bookingRef || "";
     return saved.accommodationBookingId;
+  }
+
+  /**
+   * 여행을 고르지 않은 상태에서 담아 둔 숙소를 나중에 선택한 여행에 연결한다.
+   * 화면의 선택값은 그대로 두고 저장 대상 여행만 갱신한다.
+   */
+  async function attachToTrip(nextTripId) {
+    const normalizedTripId = String(nextTripId || "").trim();
+    if (!/^\d+$/.test(normalizedTripId)) {
+      throw new Error("예약을 저장할 여행 정보가 올바르지 않습니다.");
+    }
+
+    const offer = selectedOffer();
+    if (!offer) throw new Error("선택한 숙소 정보를 찾지 못했습니다.");
+
+    const bookingId = await saveStay(offer, normalizedTripId);
+    if (!bookingId) throw new Error("숙소 선택을 여행에 저장하지 못했습니다.");
+    state.tripId = normalizedTripId;
+    state.bookingId = bookingId;
+    render();
+    return state.bookingId;
   }
 
   async function removeStay(bookingId) {
@@ -698,6 +719,7 @@
 
   window.__accommodationBooking = {
     state, searchHotels, select, sortedOffers, selectedOffer,
-    openBooking, goOut, reportBooked, reportLater, reportNo, saveRefAndClose, restoreSaved
+    openBooking, goOut, reportBooked, reportLater, reportNo, saveRefAndClose, restoreSaved,
+    attachToTrip
   };
 })();

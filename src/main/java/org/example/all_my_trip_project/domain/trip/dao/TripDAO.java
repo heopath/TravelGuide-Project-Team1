@@ -19,5 +19,7 @@ public class TripDAO {
     public Optional<TripDTO> findById(Long tripId) { return tripMapper.findById(tripId); }
     public List<TripDTO> findByUserId(Long userId) { return tripMapper.findByUserId(userId); }
     public int update(TripDTO trip) { return tripMapper.update(trip); }
+    public int confirmBooking(Long tripId) { return tripMapper.confirmBooking(tripId); }
+    public int clearBookingConfirmation(Long tripId) { return tripMapper.clearBookingConfirmation(tripId); }
     public int softDelete(Long tripId) { return tripMapper.softDelete(tripId); }
 }

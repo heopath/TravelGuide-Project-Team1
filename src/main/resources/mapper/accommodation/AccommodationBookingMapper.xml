@@ -3,7 +3,7 @@
 <mapper namespace="org.example.all_my_trip_project.domain.accommodation.mapper.AccommodationBookingMapper">
 
     <sql id="columns">
-        accommodation_booking_id, trip_id, user_id, check_in, check_out,
+        accommodation_booking_id, trip_id, booking_batch_id, user_id, check_in, check_out,
         offer_id, provider, name, accommodation_type, area_label, address,
         rating, latitude, longitude,
         quoted_nightly_price, quoted_total_price, quoted_currency,
@@ -56,12 +56,77 @@
             booking_ref_added_at = NULL
     </insert>
 
+    <insert id="upsertStandaloneSelection" useGeneratedKeys="true"
+            keyProperty="accommodationBookingId" keyColumn="accommodation_booking_id">
+        INSERT INTO accommodation_bookings (
+            trip_id, booking_batch_id, user_id, check_in, check_out,
+            offer_id, provider, name, accommodation_type, area_label, address,
+            rating, latitude, longitude,
+            quoted_nightly_price, quoted_total_price, quoted_currency,
+            quoted_price_source, quoted_at, rooms, adults,
+            user_reported_booked, user_reported_at
+        ) VALUES (
+            NULL, #{bookingBatchId}, #{userId}, #{checkIn}, #{checkOut},
+            #{offerId}, #{provider}, #{name}, #{accommodationType}, #{areaLabel}, #{address},
+            #{rating}, #{latitude}, #{longitude},
+            #{quotedNightlyPrice}, #{quotedTotalPrice}, #{quotedCurrency},
+            #{quotedPriceSource}, CURRENT_TIMESTAMP, #{rooms}, #{adults},
+            TRUE, CURRENT_TIMESTAMP
+        )
+        ON CONFLICT (user_id, booking_batch_id, check_in, check_out) DO UPDATE SET
+            offer_id             = EXCLUDED.offer_id,
+            provider             = EXCLUDED.provider,
+            name                 = EXCLUDED.name,
+            accommodation_type   = EXCLUDED.accommodation_type,
+            area_label           = EXCLUDED.area_label,
+            address              = EXCLUDED.address,
+            rating               = EXCLUDED.rating,
+            latitude             = EXCLUDED.latitude,
+            longitude            = EXCLUDED.longitude,
+            quoted_nightly_price = EXCLUDED.quoted_nightly_price,
+            quoted_total_price   = EXCLUDED.quoted_total_price,
+            quoted_currency      = EXCLUDED.quoted_currency,
+            quoted_price_source  = EXCLUDED.quoted_price_source,
+            quoted_at            = CURRENT_TIMESTAMP,
+            rooms                = EXCLUDED.rooms,
+            adults               = EXCLUDED.adults,
+            user_reported_booked = TRUE,
+            user_reported_at     = CURRENT_TIMESTAMP
+    </insert>
+
     <select id="findByTrip" resultType="org.example.all_my_trip_project.domain.accommodation.dto.AccommodationBookingDTO">
         SELECT <include refid="columns"/>
         FROM accommodation_bookings
         WHERE trip_id = #{tripId}
         ORDER BY check_in, accommodation_booking_id
     </select>
+
+    <select id="findUnlinkedConfirmedByUser"
+            resultType="org.example.all_my_trip_project.domain.accommodation.dto.AccommodationBookingDTO">
+        SELECT <include refid="columns"/>
+        FROM accommodation_bookings
+        WHERE user_id = #{userId}
+          AND trip_id IS NULL
+          AND booking_batch_id IS NOT NULL
+          AND user_reported_booked = TRUE
+        ORDER BY created_at DESC, booking_batch_id, check_in
+    </select>
+
+    <select id="findByUserAndBatch"
+            resultType="org.example.all_my_trip_project.domain.accommodation.dto.AccommodationBookingDTO">
+        SELECT <include refid="columns"/>
+        FROM accommodation_bookings
+        WHERE user_id = #{userId} AND booking_batch_id = #{bookingBatchId}
+        ORDER BY check_in, accommodation_booking_id
+    </select>
+
+    <update id="linkBatchToTrip">
+        UPDATE accommodation_bookings
+        SET trip_id = #{tripId}
+        WHERE user_id = #{userId}
+          AND booking_batch_id = #{bookingBatchId}
+          AND trip_id IS NULL
+    </update>
 
     <select id="findById" resultType="org.example.all_my_trip_project.domain.accommodation.dto.AccommodationBookingDTO">
         SELECT <include refid="columns"/>

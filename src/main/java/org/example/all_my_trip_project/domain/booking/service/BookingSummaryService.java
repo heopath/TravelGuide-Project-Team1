@@ -3,12 +3,14 @@ package org.example.all_my_trip_project.domain.booking.service;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.example.all_my_trip_project.domain.accommodation.dto.TripAccommodationsResponse;
+import org.example.all_my_trip_project.domain.accommodation.dto.AccommodationBookingDTO;
 import org.example.all_my_trip_project.domain.accommodation.service.AccommodationBookingService;
 import org.example.all_my_trip_project.domain.booking.dto.MyBookingsResponse;
 import org.example.all_my_trip_project.domain.booking.dto.TripBookingSummaryResponse;
 import org.example.all_my_trip_project.domain.booking.dto.TripBookingSummaryResponse.BookingItem;
 import org.example.all_my_trip_project.domain.booking.dto.TripBookingSummaryResponse.SectionError;
 import org.example.all_my_trip_project.domain.flight.dto.FlightBookingLegResponse;
+import org.example.all_my_trip_project.domain.flight.dto.FlightBookingDTO;
 import org.example.all_my_trip_project.domain.flight.dto.TripFlightBookingsResponse;
 import org.example.all_my_trip_project.domain.flight.service.FlightBookingService;
 import org.example.all_my_trip_project.domain.ticket.dto.TicketReservationDTO;
@@ -26,6 +28,9 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.time.format.DateTimeFormatter;
+import java.time.OffsetDateTime;
+import java.util.Comparator;
 
 @Slf4j
 @Service
@@ -35,6 +40,7 @@ public class BookingSummaryService {
 
     private static final String KRW = "KRW";
     private static final int PROGRESS_TOTAL = 3;
+    private static final DateTimeFormatter DATE_TIME = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
 
     private final FlightBookingService flightBookingService;
     private final AccommodationBookingService accommodationBookingService;
@@ -55,9 +61,9 @@ public class BookingSummaryService {
     public MyBookingsResponse getAll(Long userId, String type) {
         String wanted = type == null || type.isBlank() ? null : type.trim().toUpperCase();
 
-        Map<Long, String> tripTitles = new LinkedHashMap<>();
+        Map<Long, TripDTO> trips = new LinkedHashMap<>();
         for (TripDTO trip : tripDAO.findByUserId(userId)) {
-            tripTitles.put(trip.getTripId(), trip.getTitle());
+            trips.put(trip.getTripId(), trip);
         }
 
         List<MyBookingsResponse.Entry> entries = new ArrayList<>();
@@ -66,7 +72,9 @@ public class BookingSummaryService {
          * 항공과 숙소는 여행에만 붙는다. 여행을 하나씩 훑는다. 한 여행을 못 읽어도 나머지는
          * 보여준다 — 하나 때문에 목록 전체가 비면 안 된다.
          */
-        for (Map.Entry<Long, String> trip : tripTitles.entrySet()) {
+        for (Map.Entry<Long, TripDTO> trip : trips.entrySet()) {
+            /* 항공·숙소는 사용자가 최종 확정한 여행만 마이페이지 예약 내역에 노출한다. */
+            if (trip.getValue().getBookingConfirmedAt() == null) continue;
             TripBookingSummaryResponse summary;
             try {
                 summary = get(userId, trip.getKey());
@@ -78,8 +86,30 @@ public class BookingSummaryService {
             for (BookingItem item : summary.items()) {
                 /* 티켓은 아래에서 한 번에 받는다. 여기서 담으면 두 번 들어간다. */
                 if ("TICKET".equals(item.type())) continue;
-                entries.add(entryOf(trip.getKey(), trip.getValue(), item));
+                entries.add(entryOf(trip.getKey(), trip.getValue().getTitle(), item, true,
+                        trip.getValue().getBookingConfirmedAt()));
             }
+        }
+
+        /*
+         * 여행 생성 전에 확정한 항공·숙소다. tripId가 아직 없으므로 여행 순회로는 찾을 수
+         * 없다. 여행에 연결되는 순간 아래 조회에서는 빠지고 위 여행별 조회에 나타난다.
+         */
+        try {
+            for (FlightBookingDTO flight : flightBookingService.getUnlinkedConfirmed(userId)) {
+                entries.add(entryOf(null, null, standaloneFlightItem(flight), true,
+                        latestOf(flight.getUpdatedAt(), flight.getCreatedAt())));
+            }
+        } catch (RuntimeException exception) {
+            log.warn("예약 목록에서 미연결 항공을 건너뜁니다. type={}", exception.getClass().getSimpleName());
+        }
+        try {
+            for (AccommodationBookingDTO stay : accommodationBookingService.getUnlinkedConfirmed(userId)) {
+                entries.add(entryOf(null, null, standaloneAccommodationItem(stay), true,
+                        latestOf(stay.getUpdatedAt(), stay.getCreatedAt())));
+            }
+        } catch (RuntimeException exception) {
+            log.warn("예약 목록에서 미연결 숙소를 건너뜁니다. type={}", exception.getClass().getSimpleName());
         }
 
         /*
@@ -88,8 +118,9 @@ public class BookingSummaryService {
          */
         try {
             for (TicketReservationDTO ticket : ticketService.reservations(userId, null)) {
-                entries.add(entryOf(ticket.getTripId(), tripTitles.get(ticket.getTripId()),
-                        ticketItem(ticket)));
+                TripDTO trip = trips.get(ticket.getTripId());
+                entries.add(entryOf(ticket.getTripId(), trip == null ? null : trip.getTitle(),
+                        ticketItem(ticket), false, ticket.getPaidAt()));
             }
         } catch (RuntimeException exception) {
             log.warn("예약 목록에서 티켓을 건너뜁니다. type={}", exception.getClass().getSimpleName());
@@ -99,6 +130,9 @@ public class BookingSummaryService {
          * 개수는 고른 종류와 무관하게 전부 센다. 탭에 붙는 숫자라, 항공만 보고 있을 때도
          * 숙소가 몇 건인지 보여야 넘어갈 이유가 생긴다. 그래서 거르기 전에 센다.
          */
+        entries.sort(Comparator.comparing(
+                MyBookingsResponse.Entry::bookedAt,
+                Comparator.nullsLast(Comparator.reverseOrder())));
         MyBookingsResponse.Counts counts = countOf(entries);
 
         List<MyBookingsResponse.Entry> shown = wanted == null
@@ -108,12 +142,22 @@ public class BookingSummaryService {
         return new MyBookingsResponse(shown, counts);
     }
 
-    private MyBookingsResponse.Entry entryOf(Long tripId, String tripTitle, BookingItem item) {
+    private MyBookingsResponse.Entry entryOf(
+            Long tripId, String tripTitle, BookingItem item, boolean finalConfirmed,
+            OffsetDateTime bookedAt) {
         return new MyBookingsResponse.Entry(
                 tripId, tripTitle,
                 item.type(), item.referenceId(), item.title(), item.detail(),
-                item.status(), item.statusLabel(), item.amount(), item.currency(),
-                item.practice(), item.usageDate(), item.quantity());
+                finalConfirmed ? "CONFIRMED" : item.status(),
+                finalConfirmed ? "예약 확정" : item.statusLabel(),
+                item.amount(), item.currency(),
+                item.practice(), item.usageDate(), item.quantity(), bookedAt);
+    }
+
+    private OffsetDateTime latestOf(OffsetDateTime first, OffsetDateTime second) {
+        if (first == null) return second;
+        if (second == null) return first;
+        return first.isAfter(second) ? first : second;
     }
 
     private MyBookingsResponse.Counts countOf(List<MyBookingsResponse.Entry> entries) {
@@ -206,6 +250,23 @@ public class BookingSummaryService {
                 leg.bookingRef(), null, null);
     }
 
+    private BookingItem standaloneFlightItem(FlightBookingDTO flight) {
+        boolean included = positive(flight.getQuotedTotalPrice())
+                && KRW.equalsIgnoreCase(flight.getQuotedCurrency());
+        boolean practice = "MOCK".equalsIgnoreCase(flight.getQuotedPriceSource());
+        String title = join(" ", flight.getCarrierName(), flight.getFlightNumber());
+        String detail = flight.getDepartureAt() == null || flight.getArrivalAt() == null
+                ? join(" → ", flight.getOrigin(), flight.getDestination())
+                : flight.getDepartureAt().format(DATE_TIME) + " → "
+                + flight.getArrivalAt().format(DATE_TIME);
+        return new BookingItem(
+                "FLIGHT", String.valueOf(flight.getFlightBookingId()), flight.getLeg(),
+                title, detail, flight.status().name(), "예약 확정",
+                flight.getQuotedTotalPrice(), flight.getQuotedCurrency(),
+                flight.getQuotedPriceSource(), included, practice,
+                flight.getBookingRef(), null, null);
+    }
+
     private BookingItem accommodationItem(TripAccommodationsResponse.Stay stay) {
         boolean included = stay.countedInTotal()
                 && positive(stay.totalPrice())
@@ -222,6 +283,19 @@ public class BookingSummaryService {
                 },
                 stay.totalPrice(), stay.currency(), stay.priceSource(), included, practice,
                 stay.bookingRef(), stay.checkIn(), null);
+    }
+
+    private BookingItem standaloneAccommodationItem(AccommodationBookingDTO stay) {
+        boolean included = stay.hasPrice() && KRW.equalsIgnoreCase(stay.getQuotedCurrency());
+        boolean practice = "MOCK".equalsIgnoreCase(stay.getQuotedPriceSource())
+                || "SANDBOX".equalsIgnoreCase(stay.getQuotedPriceSource());
+        return new BookingItem(
+                "ACCOMMODATION", String.valueOf(stay.getAccommodationBookingId()), null,
+                stay.getName(), stay.getCheckIn() + " → " + stay.getCheckOut(),
+                stay.status().name(), "예약 확정",
+                stay.getQuotedTotalPrice(), stay.getQuotedCurrency(),
+                stay.getQuotedPriceSource(), included, practice,
+                stay.getBookingRef(), stay.getCheckIn().toString(), null);
     }
 
     private BookingItem ticketItem(TicketReservationDTO ticket) {

@@ -16,6 +16,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicLong;
 
 @Slf4j
 @Service
@@ -24,13 +25,20 @@ import java.util.UUID;
 public class PlaceRagService {
 
     private static final int TOP_K = 3;
-    /** Cohere Embed v2 accepts at most 96 texts in one request. */
+    /** 요청 수와 비용을 제어하기 위해 색인 문서를 96건 단위로 전송한다. */
     private static final int EMBEDDING_BATCH_SIZE = 96;
+    /** 무료/체험 키의 429 연속 호출을 막고, 카카오 검색 기반 추천을 우선 유지한다. */
+    private static final long RATE_LIMIT_COOLDOWN_MILLIS = 60_000L;
     private final PlaceDAO placeDAO;
     private final VectorStore vectorStore;
+    private final AtomicLong rateLimitedUntilMillis = new AtomicLong();
 
     /** 관리자·개발자만 명시적으로 호출하는 전체 장소 재색인 작업이다. */
     public int reindexAllPlaces() {
+        if (isRateLimited()) {
+            log.warn("RAG reindex skipped while the embedding API is rate limited.");
+            return 0;
+        }
         List<Document> documents = placeDAO.findAll().stream()
                 .map(this::toDocument)
                 .toList();
@@ -39,19 +47,19 @@ public class PlaceRagService {
         }
         for (int start = 0; start < documents.size(); start += EMBEDDING_BATCH_SIZE) {
             int end = Math.min(start + EMBEDDING_BATCH_SIZE, documents.size());
-            vectorStore.add(documents.subList(start, end));
+            addDocuments(documents.subList(start, end));
         }
         return documents.size();
     }
 
     /** 외부 검색으로 새로 확인한 장소만 즉시 RAG에 추가한다. */
     public void indexPlaces(List<PlaceDTO> places) {
-        if (places == null || places.isEmpty()) {
+        if (places == null || places.isEmpty() || isRateLimited()) {
             return;
         }
         for (int start = 0; start < places.size(); start += EMBEDDING_BATCH_SIZE) {
             int end = Math.min(start + EMBEDDING_BATCH_SIZE, places.size());
-            vectorStore.add(places.subList(start, end).stream().map(this::toDocument).toList());
+            addDocuments(places.subList(start, end).stream().map(this::toDocument).toList());
         }
     }
 
@@ -60,6 +68,10 @@ public class PlaceRagService {
      */
     public List<RagSearchResult> search(String question) {
         if (question == null || question.isBlank()) {
+            return List.of();
+        }
+        if (isRateLimited()) {
+            log.debug("RAG place search skipped while the embedding API is rate limited.");
             return List.of();
         }
         try {
@@ -75,6 +87,7 @@ public class PlaceRagService {
                             toNullableString(document.getMetadata().get("placeUrl"))))
                     .toList();
         } catch (Exception exception) {
+            markRateLimited(exception);
             log.warn("RAG place search failed. Falling back to question-based recommendation.", exception);
             return List.of();
         }
@@ -123,6 +136,27 @@ public class PlaceRagService {
                         + "\n설명: " + nullToEmpty(place.getDescription()))
                 .metadata(metadata)
                 .build();
+    }
+
+    private void addDocuments(List<Document> documents) {
+        try {
+            vectorStore.add(documents);
+        } catch (RuntimeException exception) {
+            markRateLimited(exception);
+            throw exception;
+        }
+    }
+
+    private boolean isRateLimited() {
+        return System.currentTimeMillis() < rateLimitedUntilMillis.get();
+    }
+
+    private void markRateLimited(Exception exception) {
+        if (exception.getMessage() != null && exception.getMessage().contains("status=429")) {
+            rateLimitedUntilMillis.set(System.currentTimeMillis() + RATE_LIMIT_COOLDOWN_MILLIS);
+            log.warn("Embedding API rate limit detected. RAG embedding calls will pause for {} seconds.",
+                    RATE_LIMIT_COOLDOWN_MILLIS / 1_000);
+        }
     }
 
     private String nullToEmpty(String value) {
