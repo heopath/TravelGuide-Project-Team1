@@ -1,9 +1,9 @@
 # 여행 기록 API 명세
 
-> **현재 비노출 기능**: 구현과 기존 데이터는 보존하지만, 기능을 보완할 때까지 일반 사용자 화면의 진입점에서는 노출하지 않는다. 직접 API 호환성은 유지한다.
+> **사진첩 기능**: 완료된 여행의 기록은 마이페이지 **여행 기록** 메뉴와 여행별 기록 화면에서 사진첩으로 확인할 수 있다.
 
 > 구현: `domain.record` (`TravelRecordController` → `TravelRecordService`). 담당: 남현호(TRIP-00과 동일 담당 경계, [trip-service-structure.md](../trip-service-structure.md) 9절 참고).
-> 상태: 백엔드 API 구현·컴파일 확인 완료, **프론트엔드(`trips/record.html`, `static/js/pages/trips/record.js`) 연동 전**. 현재 화면 JS는 `body.dataset.pageReady`만 설정하는 데모 상태다.
+> 상태: S3 파일 업로드와 사진첩 화면 연동 완료. 사진은 공개 버킷 URL이 아니라 공개 범위/소유권을 검사하는 API를 통해 제공한다.
 
 ## 1. 기본 규칙
 
@@ -24,6 +24,8 @@
 | 내 여행 기록 목록 조회 | GET | `/api/v1/travel-records/me` | 필요 |
 | 여행 기록 수정 | PUT | `/api/v1/travel-records/{travelRecordId}` | 필요 |
 | 여행 기록 이미지 전체 교체 | PUT | `/api/v1/travel-records/{travelRecordId}/images` | 필요 |
+| 여행 사진 S3 업로드 | POST | `/api/v1/travel-records/{travelRecordId}/images/upload` | 필요 |
+| 여행 사진 조회 | GET | `/api/v1/travel-records/images/{travelRecordImageId}/content` | 선택(비공개 기록은 필요) |
 | 여행 기록 삭제 | DELETE | `/api/v1/travel-records/{travelRecordId}` | 필요 |
 
 ---
@@ -263,7 +265,7 @@ Cookie: JSESSIONID=세션값
 | images[].altText | String | X | 최대 255자 |
 | images[].cover | boolean | O | 기본값 없음, 명시적으로 보내야 함 |
 
-**이미지 업로드 자체는 이 API의 범위가 아니다.** `imageUrl`은 이미 업로드가 끝난 이미지의 접근 URL을 프론트가 채워 보내야 하는데, 현재 백엔드에 별도의 이미지 업로드 API가 없다 — 9절의 미확정 항목 참고.
+`imageUrl`에는 업로드 API가 반환한 내부 S3 참조 또는 기존 이미지 조회 URL을 보낼 수 있다. 응답의 `imageUrl`은 항상 `/api/v1/travel-records/images/{id}/content` 형태이며, 버킷 객체 키를 직접 공개하지 않는다.
 
 ### 성공 응답
 
@@ -280,7 +282,22 @@ Cookie: JSESSIONID=세션값
 
 ---
 
-## 8. 여행 기록 삭제
+## 8. 여행 사진 S3 업로드·조회
+
+```http
+POST /api/v1/travel-records/{travelRecordId}/images/upload
+Content-Type: multipart/form-data
+
+file=@photo.jpg
+```
+
+- 허용 형식: JPEG, PNG, WEBP, GIF
+- 최대 크기: 10MB
+- 대상 기록의 작성자만 업로드할 수 있다.
+- S3 설정은 `TRAVEL_RECORD_S3_ENABLED=true`, `AWS_S3_BUCKET`, `AWS_REGION`으로 켠다. 운영은 IAM Role, 로컬은 AWS SDK 기본 자격 증명 환경 변수로 인증한다.
+- 사진 조회는 PUBLIC 기록이면 누구나, PRIVATE 기록이면 작성자만 가능하다.
+
+## 9. 여행 기록 삭제
 
 소프트 삭제(`deleted_at` 기록)이며 복구 API는 없다.
 
@@ -311,7 +328,7 @@ Cookie: JSESSIONID=세션값
 
 ---
 
-## 9. DTO 목록
+## 10. DTO 목록
 
 | DTO | 용도 |
 |---|---|
@@ -321,7 +338,7 @@ Cookie: JSESSIONID=세션값
 | TravelRecordResponse | 여행 기록 응답(생성·조회·수정·이미지 교체 공통) |
 | TravelRecordImageResponse | `TravelRecordResponse.images`의 원소 |
 
-## 10. 오류 코드 목록
+## 11. 오류 코드 목록
 
 | 오류 코드 | HTTP 상태 | 의미 |
 |---|---:|---|
@@ -333,19 +350,21 @@ Cookie: JSESSIONID=세션값
 | RECORD_NOT_FOUND | 404 | 대상 기록이 없거나 볼 수 없음 |
 | RECORD_ALREADY_EXISTS | 409 | 여행당 1건 제한 위반 |
 
-## 11. 미확정 항목 — 페이지 담당자 논의 필요
+## 12. 구현 범위
 
 아래 항목은 이 문서를 쓰면서 발견했지만 기존 기획 문서([backend-service-role-plan.md](../backend-service-role-plan.md), [trip-service-structure.md](../trip-service-structure.md))에 명시적인 답이 없어 확정하지 않았다. `trips/record.js` 연동 전에 GitHub 이슈에서 논의해 확정한다.
 
-1. ~~**이미지 업로드 경로 미정**~~ — 결정됨(이슈 #144). 별도 업로드 API를 지금 만들지 않고, `trips/record.js`가 이미지 URL을 직접 입력받아 `PUT .../images`에 그대로 넘기는 방식으로 연동했다. 실제 업로드(스토리지) API는 이 이슈 범위 밖이라 후속 이슈로 분리한다.
-2. ~~**목록 페이지네이션 없음**~~ — 결정됨(이슈 #144). `trips/record.js`는 여행 1건당 기록 1건만 다루는 단일 레코드 편집 화면이라 목록 자체가 없다. "내 기록 목록" 같은 실제 목록 화면(마이페이지 등)이 생길 때 페이지네이션 필요 여부를 다시 결정한다.
-3. ~~**공개 기록 피드 없음**~~ — 결정됨(이슈 #144). `trips/record.html`은 본인 소유 완료 여행 1건의 기록만 다루는 화면(`TripService.get()`이 타인 소유는 404)이라 이번 연동 범위에 포함하지 않는다.
+1. 사진 업로드는 완료 여행에서 만든 기록에만 가능하다. 업로드 버튼을 처음 누르면 비어 있는 기록도 기본 제목/메모/전체 공개로 생성된다.
+2. 마이페이지 사진첩은 내 기록 목록을 최신 작성일 순으로 보여 준다. 페이지네이션은 기록 수가 증가하면 별도 이슈로 추가한다.
+3. GIF 내보내기는 브라우저에서 생성하며, 업로드 사진 원본은 S3에 계속 보관된다.
 
-## 12. 완료 기준
+## 13. 완료 기준
 
 - [x] 요청·응답 DTO 필드 확정
 - [x] 오류 코드와 HTTP 상태 확정
 - [x] 백엔드 컴파일·단위 배선 확인
-- [x] 페이지 담당자(남현호) 검수 — 11절 미확정 항목 확정(이슈 #144 댓글 참고)
+- [x] 완료 여행 전용 사진첩·마이페이지 진입점 연결
+- [x] S3 업로드와 PUBLIC/PRIVATE 이미지 접근 제어
+- [x] PNG/GIF 사진첩 내보내기
 - [x] `trips/record.html` / `static/js/pages/trips/record.js` 실제 연동
-- [ ] 통합·단위 테스트 작성 — 백엔드 서비스 단위 테스트만 있음(`TravelRecordServiceTest` 등). `TravelRecordController` 통합 테스트와 `record.js` 프론트 테스트는 아직 없다.
+- [ ] S3 실제 버킷 통합 테스트 — AWS 자격 증명·테스트 버킷이 필요한 별도 환경에서 수행

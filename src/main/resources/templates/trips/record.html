@@ -46,8 +46,9 @@
 
               <form class="record-image-form" data-record-image-form data-no-global-loading novalidate>
                 <div class="field">
-                  <span>이미지 URL 추가</span>
-                  <input type="url" name="imageUrl" placeholder="https://..." maxlength="1000" required />
+                  <span>여행 사진 추가</span>
+                  <input type="file" name="photo" accept="image/jpeg,image/png,image/webp,image/gif" required />
+                  <small>JPG, PNG, WEBP, GIF · 사진당 최대 10MB · S3에 안전하게 보관됩니다.</small>
                 </div>
                 <div class="field">
                   <span>대체 텍스트(선택)</span>
@@ -57,7 +58,7 @@
                   <input type="checkbox" name="cover" />
                   <span>대표 사진으로 지정</span>
                 </label>
-                <button type="submit" class="outline-button">이미지 추가</button>
+                <button type="submit" class="outline-button">사진 업로드</button>
               </form>
               <p class="field-error" data-record-image-error role="alert"></p>
 
@@ -88,8 +89,8 @@
               <div class="field">
                 <span>공개 범위</span>
                 <select data-record-visibility>
-                  <option value="PRIVATE">나만 보기</option>
                   <option value="PUBLIC">전체 공개</option>
+                  <option value="PRIVATE">나만 보기</option>
                 </select>
               </div>
 
@@ -119,6 +120,7 @@
               <div class="record-book-actions">
                 <button type="button" class="outline-button" data-record-book-draw data-no-global-loading>지면 만들기</button>
                 <button type="button" class="primary-button" data-record-book-save data-no-global-loading hidden>PNG로 저장</button>
+                <button type="button" class="outline-button" data-record-book-gif data-no-global-loading hidden>GIF로 저장</button>
               </div>
             </div>
 
@@ -134,6 +136,7 @@
       <div th:replace="~{fragments/footer :: footer}"></div>
     </div>
     <div th:replace="~{fragments/scripts :: appScripts}"></div>
+    <script src="https://cdn.jsdelivr.net/npm/gif.js.optimized@1.0.1/dist/gif.js"></script>
     <script th:src="@{/js/pages/trips/record-book.js}" src="../../static/js/pages/trips/record-book.js"></script>
     <script th:src="@{/js/pages/trips/record.js}" src="../../static/js/pages/trips/record.js"></script>
   <div th:replace="~{fragments/mighty :: mighty}"></div>
