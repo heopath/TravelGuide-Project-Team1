@@ -5,6 +5,8 @@ import {
 
 const TRIP_PREVIEW_COUNT = 3;
 const TRIP_PAGE_SIZE = 8;
+// 기능을 보완해 다시 공개할 때 이 값만 켜면 기존 화면과 API를 그대로 사용할 수 있다.
+const SHOW_TRAVEL_RECORD_ENTRY = false;
 
 const tripStatusLabels = {
     DRAFT: "작성 중",
@@ -829,7 +831,7 @@ function createTripFullCard(
      * 다녀온 여행에서만 기록으로 갈 수 있다. 카드 전체가 일정으로 가는 링크라
      * 여기서 막지 않으면 기록을 누르려다 일정으로 넘어간다.
      */
-    if (finished) {
+    if (SHOW_TRAVEL_RECORD_ENTRY && finished) {
         const recordButton =
             document.createElement(
                 "button",

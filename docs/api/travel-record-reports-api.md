@@ -1,5 +1,7 @@
 # 여행 기록 신고 API 명세
 
+> **현재 비노출 기능**: 여행 기록 진입점과 함께 일반 사용자 흐름에서는 노출하지 않는다. 기존 신고의 관리자 조회·처리와 API 구현은 보존한다.
+
 > 구현: `domain.social` (`TravelRecordReportController` → `TravelRecordReportService`). 담당: 남현호(작성 접수), 관리자 처리 화면은 허민재 담당 `admin/admin.html`([backend-service-role-plan.md](../backend-service-role-plan.md) 10절)과 연결될 예정.
 > 상태: 백엔드 API 구현·컴파일 확인 완료, **프론트엔드 연동 전**. `trips/record.html`(신고 버튼)과 `admin/admin.html`(신고 처리 목록) 양쪽 모두 아직 이 API를 호출하지 않는다.
 

@@ -1,5 +1,7 @@
 # 여행 기록 API 명세
 
+> **현재 비노출 기능**: 구현과 기존 데이터는 보존하지만, 기능을 보완할 때까지 일반 사용자 화면의 진입점에서는 노출하지 않는다. 직접 API 호환성은 유지한다.
+
 > 구현: `domain.record` (`TravelRecordController` → `TravelRecordService`). 담당: 남현호(TRIP-00과 동일 담당 경계, [trip-service-structure.md](../trip-service-structure.md) 9절 참고).
 > 상태: 백엔드 API 구현·컴파일 확인 완료, **프론트엔드(`trips/record.html`, `static/js/pages/trips/record.js`) 연동 전**. 현재 화면 JS는 `body.dataset.pageReady`만 설정하는 데모 상태다.
 

@@ -184,44 +184,13 @@ redis.call(<span class="s">'ZREMRANGEBYSCORE'</span>, 대기열, <span class="s"
     <p class="note">봇이 스스로 "이건 사람이 봐야 한다"고 판단하면 표시를 붙여 넘깁니다. 응답이 늦어도 손님을 기다리게 두지 않고 대기로 넘어갑니다.</p>
   </section>
 
-  <section class="slide" data-title="책 지면 — 조판">
-    <p class="eyebrow">04 · 여행 기록</p>
-    <h1>사진이 몇 장 올지 모른 채 지면을 짠다</h1>
-    <p class="lead">자리를 좌표로 박아두면 3장일 때와 7장일 때 같은 지면이 나옵니다. 장수와 사진 비율을 보고 배치를 고르게 만들었습니다.</p>
-    <div class="flow">
-      <div class="step"><b>1장</b><span>가로 사진이면 가로 자리, 세로면 세로 자리</span></div>
-      <div class="step"><b>3장</b><span>큰 것 하나 + 작은 것 둘</span></div>
-      <div class="step"><b>6장</b><span>큰 것 하나 + 다섯</span></div>
-      <div class="step"><b>7장~</b><span>3×3, 넘치면 "외 N장"</span></div>
-    </div>
-    <p class="note">첫 글자를 크게 놓고 <b>본문이 그 옆을 감싸 흐르게</b> 했습니다. 줄마다 시작점을 다르게 주는 방식입니다.</p>
-  </section>
-
-  <section class="slide" data-title="책 지면 — 부딪힌 문제">
-    <p class="eyebrow">04 · 여행 기록</p>
-    <h1>사진 한 장 때문에 저장이 통째로 막혔다</h1>
-    <div class="cols">
-      <div class="card bad">
-        <span class="tag bad">그냥 그리면</span>
-        <h3>브라우저가 내보내기를 막는다</h3>
-        <p>다른 도메인 사진을 캔버스에 그리면 "오염"으로 표시하고, 이미지로 뽑는 것 자체를 거부합니다. 사진 한 장 때문에 지면 전체를 저장할 수 없습니다.</p>
-      </div>
-      <div class="card good">
-        <span class="tag good">허락받은 것만 그리면</span>
-        <h3>못 받은 자리만 비운다</h3>
-        <p>허락을 받아 불러오고, 실패한 사진은 그 자리만 빈칸으로 둡니다. 나머지는 정상적으로 저장됩니다. 왜 비었는지도 화면에 알려줍니다.</p>
-      </div>
-    </div>
-    <p class="note">직접 만들다 <b>부딪혀야 알 수 있는 제약</b>이었습니다.</p>
-  </section>
-
   <section class="slide" data-title="보이지 않는 것들">
-    <p class="eyebrow">05 · 눈에 안 보이는 것</p>
+    <p class="eyebrow">04 · 눈에 안 보이는 것</p>
     <h1>계속 돌아가게 만드는 것들</h1>
     <div class="facts">
-      <div class="fact"><b>31</b><span>Flyway 마이그레이션<br />DB 변경을 코드로 관리</span></div>
-      <div class="fact"><b>109</b><span>서버 테스트 클래스<br />테스트 728개, 회귀를 자동으로 확인</span></div>
-      <div class="fact"><b>38</b><span>화면 수용 테스트 파일</span></div>
+      <div class="fact"><b>35</b><span>Flyway 마이그레이션<br />DB 변경을 코드로 관리</span></div>
+      <div class="fact"><b>112</b><span>서버 테스트 클래스<br />회귀를 자동으로 확인</span></div>
+      <div class="fact"><b>41</b><span>화면 수용 테스트 파일</span></div>
       <div class="fact"><b>0</b><span>배포 시 로그아웃<br />세션을 Redis에 저장</span></div>
     </div>
     <p class="note">밀어 넣을 때마다 GitHub Actions가 <b>빌드·테스트·보안 검사(CodeQL)</b>를 돌리고 EC2에 자동 배포합니다.</p>
