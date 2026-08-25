@@ -62,9 +62,9 @@
 |---:|---|---:|---|
 | [00:00](https://www.youtube.com/watch?v=VIDEO_ID&t=0s) | 여는 장 | [06:30](https://www.youtube.com/watch?v=VIDEO_ID&t=390s) | 입장 QR·현장 검표 |
 | [01:10](https://www.youtube.com/watch?v=VIDEO_ID&t=70s) | 여행 계획 만들기 | [07:20](https://www.youtube.com/watch?v=VIDEO_ID&t=440s) | 실시간 상담 |
-| [03:10](https://www.youtube.com/watch?v=VIDEO_ID&t=190s) | 일정 편집·경로 최적화 | [08:50](https://www.youtube.com/watch?v=VIDEO_ID&t=530s) | 관리자 운영 |
-| [04:00](https://www.youtube.com/watch?v=VIDEO_ID&t=240s) | 항공·숙소 예약 | [10:00](https://www.youtube.com/watch?v=VIDEO_ID&t=600s) | API 키 관리 |
-| [04:50](https://www.youtube.com/watch?v=VIDEO_ID&t=290s) | 티켓 예매·대기열 | [10:40](https://www.youtube.com/watch?v=VIDEO_ID&t=640s) | 기술 판단과 검증 |
+| [03:10](https://www.youtube.com/watch?v=VIDEO_ID&t=190s) | 일정 편집·경로 최적화 | [08:00](https://www.youtube.com/watch?v=VIDEO_ID&t=480s) | 관리자 운영 |
+| [04:00](https://www.youtube.com/watch?v=VIDEO_ID&t=240s) | 항공·숙소 예약 | [09:10](https://www.youtube.com/watch?v=VIDEO_ID&t=550s) | API 키 관리 |
+| [04:50](https://www.youtube.com/watch?v=VIDEO_ID&t=290s) | 티켓 예매·대기열 | [09:50](https://www.youtube.com/watch?v=VIDEO_ID&t=590s) | 기술 판단과 검증 |
 
 <div align="center">
 
