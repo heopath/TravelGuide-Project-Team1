@@ -16,18 +16,21 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class TravelRecordImageReplacerTest {
 
     @Mock
     private TravelRecordImageRepository travelRecordImageRepository;
+    @Mock
+    private TravelRecordImageStorage imageStorage;
 
     private TravelRecordImageReplacer replacer;
 
     @BeforeEach
     void setUp() {
-        replacer = new TravelRecordImageReplacer(travelRecordImageRepository);
+        replacer = new TravelRecordImageReplacer(travelRecordImageRepository, imageStorage);
     }
 
     @Test
@@ -60,5 +63,16 @@ class TravelRecordImageReplacerTest {
         assertThat(saved.get(1).getSortOrder()).isEqualTo(2);
         assertThat(saved.get(1).getAltText()).isNull();
         assertThat(saved.get(1).getCover()).isFalse();
+    }
+
+    @Test
+    void deletesAFileManagedByTheApplicationWhenItIsRemovedFromTheRecord() {
+        String managedUrl = "/api/v1/travel-records/1/images/files/11111111-1111-1111-1111-111111111111.jpg";
+        when(travelRecordImageRepository.findByTravelRecordIdOrderBySortOrderAsc(1L))
+                .thenReturn(List.of(TravelRecordImageEntity.of(1L, managedUrl, null, 1, true)));
+
+        replacer.replace(1L, new ReplaceRecordImagesRequest(List.of()));
+
+        verify(imageStorage).deleteManaged(1L, managedUrl);
     }
 }

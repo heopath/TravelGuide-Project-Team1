@@ -42,34 +42,48 @@
 
           <div class="record-layout" data-record-app hidden>
             <section class="white-panel">
+              <div class="record-section-heading">
+                <div>
+                  <span class="record-section-kicker">PHOTO ALBUM</span>
+                  <h2>여행 사진</h2>
+                </div>
+                <span class="record-image-count" data-record-image-count>0 / 20</span>
+              </div>
               <div class="record-grid" data-record-image-list></div>
 
               <form class="record-image-form" data-record-image-form data-no-global-loading novalidate>
-                <div class="field">
-                  <span>이미지 URL 추가</span>
-                  <input type="url" name="imageUrl" placeholder="https://..." maxlength="1000" required />
-                </div>
-                <div class="field">
-                  <span>대체 텍스트(선택)</span>
-                  <input type="text" name="altText" placeholder="사진 설명" maxlength="255" />
-                </div>
-                <label class="record-image-cover">
-                  <input type="checkbox" name="cover" />
-                  <span>대표 사진으로 지정</span>
+                <label class="record-file-picker">
+                  <input type="file" name="file" accept="image/jpeg,image/png,image/webp" required data-record-image-file />
+                  <span class="record-file-picker-icon" aria-hidden="true">＋</span>
+                  <span class="record-file-picker-copy">
+                    <strong>내 PC에서 사진 선택</strong>
+                    <small data-record-image-file-name>JPG, PNG, WEBP · 파일당 최대 10MB</small>
+                  </span>
                 </label>
-                <button type="submit" class="outline-button">이미지 추가</button>
+                <div class="field">
+                  <span>사진 설명 <small>(선택)</small></span>
+                  <input type="text" name="altText" placeholder="예: 해운대에서 본 노을" maxlength="255" />
+                </div>
+                <div class="record-image-form-actions">
+                  <label class="record-image-cover">
+                    <input type="checkbox" name="cover" />
+                    <span>대표 사진으로 지정</span>
+                  </label>
+                  <button type="submit" class="outline-button" data-record-image-submit>선택한 사진 추가</button>
+                </div>
               </form>
               <p class="field-error" data-record-image-error role="alert"></p>
 
               <label class="record-note">
-                <span>여행 메모</span>
+                <span class="record-note-title">여행 메모</span>
                 <textarea data-record-content placeholder="이번 여행에서 기억에 남는 순간을 적어보세요."></textarea>
               </label>
               <p class="field-error" data-record-content-error role="alert"></p>
             </section>
 
             <aside class="white-panel record-summary">
-              <span data-record-mode-label>새 기록 작성</span>
+              <span class="record-section-kicker" data-record-mode-label>새 기록 작성</span>
+              <h2>기록 정보</h2>
 
               <div class="field">
                 <span>제목</span>
@@ -78,11 +92,14 @@
               <p class="field-error" data-record-title-error role="alert"></p>
 
               <div class="record-rating" data-record-rating role="group" aria-label="평점">
-                <button type="button" data-value="1">★</button>
-                <button type="button" data-value="2">★</button>
-                <button type="button" data-value="3">★</button>
-                <button type="button" data-value="4">★</button>
-                <button type="button" data-value="5">★</button>
+                <span>여행 만족도</span>
+                <div>
+                  <button type="button" data-value="1" aria-label="1점" aria-pressed="false">★</button>
+                  <button type="button" data-value="2" aria-label="2점" aria-pressed="false">★</button>
+                  <button type="button" data-value="3" aria-label="3점" aria-pressed="false">★</button>
+                  <button type="button" data-value="4" aria-label="4점" aria-pressed="false">★</button>
+                  <button type="button" data-value="5" aria-label="5점" aria-pressed="false">★</button>
+                </div>
               </div>
 
               <div class="field">

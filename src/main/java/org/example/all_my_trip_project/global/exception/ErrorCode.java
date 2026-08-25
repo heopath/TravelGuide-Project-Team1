@@ -174,6 +174,21 @@ public enum ErrorCode {
             "여행 기록을 찾을 수 없습니다."
     ),
 
+    INVALID_RECORD_IMAGE_FILE(
+            HttpStatus.BAD_REQUEST,
+            "JPG, PNG, WEBP 사진만 10MB 이하로 올릴 수 있습니다."
+    ),
+
+    RECORD_IMAGE_NOT_FOUND(
+            HttpStatus.NOT_FOUND,
+            "여행 기록 사진을 찾을 수 없습니다."
+    ),
+
+    RECORD_IMAGE_STORAGE_FAILED(
+            HttpStatus.INTERNAL_SERVER_ERROR,
+            "사진을 저장하지 못했습니다. 잠시 후 다시 시도해 주세요."
+    ),
+
     PLACE_REVIEW_ALREADY_EXISTS(
             HttpStatus.CONFLICT,
             "이미 이 장소에 작성한 후기가 있습니다."

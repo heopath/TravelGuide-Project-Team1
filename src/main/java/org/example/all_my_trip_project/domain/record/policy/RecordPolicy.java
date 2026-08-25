@@ -7,6 +7,7 @@ public final class RecordPolicy {
     public static final int MAX_IMAGE_COUNT = 20;
     public static final int MAX_IMAGE_URL_LENGTH = 1000;
     public static final int MAX_IMAGE_ALT_TEXT_LENGTH = 255;
+    public static final long MAX_IMAGE_FILE_SIZE = 10L * 1024 * 1024;
 
     private RecordPolicy() {
     }

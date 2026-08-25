@@ -23,6 +23,10 @@ document.addEventListener("DOMContentLoaded", function () {
   const imageListEl = document.querySelector("[data-record-image-list]");
   const imageForm = document.querySelector("[data-record-image-form]");
   const imageError = document.querySelector("[data-record-image-error]");
+  const imageFileInput = document.querySelector("[data-record-image-file]");
+  const imageFileName = document.querySelector("[data-record-image-file-name]");
+  const imageSubmitButton = document.querySelector("[data-record-image-submit]");
+  const imageCount = document.querySelector("[data-record-image-count]");
 
   const deleteSection = document.querySelector("[data-record-delete-section]");
   const deleteOpenButton = document.querySelector("[data-record-delete-open]");
@@ -42,6 +46,7 @@ document.addEventListener("DOMContentLoaded", function () {
   let currentRating = 0;
   let images = [];
   let saving = false;
+  let imageMutating = false;
   let drawing = false;
   let routePoints = [];
 
@@ -55,9 +60,10 @@ document.addEventListener("DOMContentLoaded", function () {
 
   async function request(url, options = {}) {
     const method = String(options.method || "GET").toUpperCase();
+    const isFormData = typeof FormData !== "undefined" && options.body instanceof FormData;
     const headers = {
       Accept: "application/json",
-      ...(options.body ? { "Content-Type": "application/json" } : {}),
+      ...(options.body && !isFormData ? { "Content-Type": "application/json" } : {}),
       ...(options.headers || {}),
     };
 
@@ -137,6 +143,7 @@ document.addEventListener("DOMContentLoaded", function () {
     currentRating = value;
     ratingButtons.forEach((button) => {
       button.classList.toggle("active", Number(button.dataset.value) <= value);
+      button.setAttribute("aria-pressed", String(Number(button.dataset.value) <= value));
     });
   }
 
@@ -154,11 +161,12 @@ document.addEventListener("DOMContentLoaded", function () {
   function renderImages() {
     if (!imageListEl) return;
     imageListEl.replaceChildren();
+    if (imageCount) imageCount.textContent = `${images.length} / 20`;
 
     if (images.length === 0) {
       const empty = document.createElement("p");
       empty.className = "record-image-empty";
-      empty.textContent = "아직 등록된 사진이 없습니다.";
+      empty.innerHTML = "<strong>여행의 첫 장면을 남겨보세요</strong><span>아래에서 PC에 저장된 사진을 선택할 수 있어요.</span>";
       imageListEl.appendChild(empty);
       return;
     }
@@ -166,8 +174,15 @@ document.addEventListener("DOMContentLoaded", function () {
     images.forEach((image, index) => {
       const tile = document.createElement("div");
       tile.className = "record-image-tile" + (image.cover ? " featured" : "");
-      tile.style.backgroundImage = `url("${image.imageUrl}")`;
+      tile.style.backgroundImage = `url("${image.previewUrl || image.imageUrl}")`;
       if (image.altText) tile.title = image.altText;
+
+      if (image.pending) {
+        const pendingBadge = document.createElement("span");
+        pendingBadge.className = "record-image-pending";
+        pendingBadge.textContent = "기록 저장 시 업로드";
+        tile.appendChild(pendingBadge);
+      }
 
       const removeButton = document.createElement("button");
       removeButton.type = "button";
@@ -190,15 +205,27 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   }
 
-  function mutateImages(nextImages) {
+  async function mutateImages(nextImages) {
+    if (imageMutating) return;
+    const previousImages = images;
     images = nextImages;
     renderImages();
     if (currentRecord) {
-      persistImagesToServer();
+      imageMutating = true;
+      try {
+        await persistImagesToServer();
+      } catch (error) {
+        images = previousImages;
+        renderImages();
+        if (imageError) imageError.textContent = error.message || "사진 변경을 저장하지 못했습니다.";
+      } finally {
+        imageMutating = false;
+      }
     }
   }
 
   function removeImage(index) {
+    if (images[index]?.previewUrl) URL.revokeObjectURL(images[index].previewUrl);
     mutateImages(images.filter((_, i) => i !== index));
   }
 
@@ -208,37 +235,64 @@ document.addEventListener("DOMContentLoaded", function () {
 
   async function persistImagesToServer() {
     if (imageError) imageError.textContent = "";
-    try {
-      const response = await request(`/api/v1/travel-records/${currentRecord.travelRecordId}/images`, {
-        method: "PUT",
-        body: JSON.stringify({
-          images: images.map((image) => ({
-            imageUrl: image.imageUrl,
-            altText: image.altText || null,
-            cover: image.cover,
-          })),
-        }),
-      });
-      currentRecord = response;
-      images = normalizeImages(response.images);
-      renderImages();
-      toast("여행 기록 이미지가 수정되었습니다.");
-    } catch (error) {
-      if (imageError) imageError.textContent = error.message;
-    }
+    const response = await request(`/api/v1/travel-records/${currentRecord.travelRecordId}/images`, {
+      method: "PUT",
+      body: JSON.stringify({
+        images: images.map((image) => ({
+          imageUrl: image.imageUrl,
+          altText: image.altText || null,
+          cover: image.cover,
+        })),
+      }),
+    });
+    currentRecord = response;
+    images = normalizeImages(response.images);
+    renderImages();
+    toast("여행 기록 이미지가 수정되었습니다.");
   }
 
-  imageForm?.addEventListener("submit", (event) => {
+  function resetImageForm() {
+    imageForm?.reset();
+    if (imageFileName) imageFileName.textContent = "JPG, PNG, WEBP · 파일당 최대 10MB";
+  }
+
+  imageFileInput?.addEventListener("change", () => {
+    const file = imageFileInput.files?.[0];
+    if (imageFileName) {
+      imageFileName.textContent = file ? `${file.name} · ${(file.size / 1024 / 1024).toFixed(1)}MB` : "JPG, PNG, WEBP · 파일당 최대 10MB";
+    }
+  });
+
+  async function uploadImage(file, altText, cover) {
+    const uploadData = new FormData();
+    uploadData.append("file", file);
+    uploadData.append("altText", altText);
+    uploadData.append("cover", String(cover));
+    const response = await request(`/api/v1/travel-records/${currentRecord.travelRecordId}/images/upload`, {
+      method: "POST",
+      body: uploadData,
+    });
+    currentRecord = response;
+    images = normalizeImages(response.images);
+    renderImages();
+  }
+
+  imageForm?.addEventListener("submit", async (event) => {
     event.preventDefault();
     if (imageError) imageError.textContent = "";
 
     const formData = new FormData(imageForm);
-    const imageUrl = String(formData.get("imageUrl") || "").trim();
+    const file = formData.get("file");
     const altText = String(formData.get("altText") || "").trim();
     const cover = formData.get("cover") === "on";
 
-    if (!imageUrl) {
-      if (imageError) imageError.textContent = "이미지 URL을 입력해주세요.";
+    if (!(file instanceof File) || file.size === 0) {
+      if (imageError) imageError.textContent = "내 PC에서 추가할 사진을 선택해주세요.";
+      return;
+    }
+
+    if ((file.type && !["image/jpeg", "image/png", "image/webp"].includes(file.type)) || file.size > 10 * 1024 * 1024) {
+      if (imageError) imageError.textContent = "JPG, PNG, WEBP 사진만 10MB 이하로 올릴 수 있습니다.";
       return;
     }
 
@@ -247,11 +301,31 @@ document.addEventListener("DOMContentLoaded", function () {
       return;
     }
 
-    const nextImages = cover ? images.map((image) => ({ ...image, cover: false })) : images.slice();
-    nextImages.push({ imageUrl, altText, cover });
-
-    imageForm.reset();
-    mutateImages(nextImages);
+    imageSubmitButton.disabled = true;
+    imageSubmitButton.textContent = currentRecord ? "업로드 중…" : "사진 준비 중…";
+    try {
+      if (currentRecord) {
+        await uploadImage(file, altText, cover);
+        toast("사진이 추가되었습니다.");
+      } else {
+        const nextImages = cover ? images.map((image) => ({ ...image, cover: false })) : images.slice();
+        nextImages.push({
+          imageUrl: "",
+          previewUrl: URL.createObjectURL(file),
+          file,
+          altText,
+          cover: cover || images.length === 0,
+          pending: true,
+        });
+        mutateImages(nextImages);
+      }
+      resetImageForm();
+    } catch (error) {
+      if (imageError) imageError.textContent = error.message || "사진을 추가하지 못했습니다.";
+    } finally {
+      imageSubmitButton.disabled = false;
+      imageSubmitButton.textContent = "선택한 사진 추가";
+    }
   });
 
   function applyRecord(record) {
@@ -314,8 +388,11 @@ document.addEventListener("DOMContentLoaded", function () {
         applyRecord(response);
 
         if (pendingImages && pendingImages.length > 0) {
-          images = pendingImages;
-          await persistImagesToServer();
+          for (const pending of pendingImages) {
+            await uploadImage(pending.file, pending.altText || "", pending.cover);
+            if (pending.previewUrl) URL.revokeObjectURL(pending.previewUrl);
+          }
+          toast("기록과 사진을 모두 저장했습니다.");
         }
       }
     } catch (error) {

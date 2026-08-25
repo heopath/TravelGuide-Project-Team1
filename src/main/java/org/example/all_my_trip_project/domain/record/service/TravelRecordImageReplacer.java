@@ -16,8 +16,13 @@ import java.util.List;
 class TravelRecordImageReplacer {
 
     private final TravelRecordImageRepository travelRecordImageRepository;
+    private final TravelRecordImageStorage imageStorage;
 
     void replace(Long travelRecordId, ReplaceRecordImagesRequest request) {
+        List<String> previousUrls = travelRecordImageRepository
+                .findByTravelRecordIdOrderBySortOrderAsc(travelRecordId).stream()
+                .map(TravelRecordImageEntity::getImageUrl)
+                .toList();
         travelRecordImageRepository.deleteByTravelRecordId(travelRecordId);
 
         List<ReplaceRecordImagesRequest.ImageItem> items = request.images();
@@ -35,5 +40,13 @@ class TravelRecordImageReplacer {
         }
 
         travelRecordImageRepository.saveAll(images);
+
+        List<String> nextUrls = items.stream()
+                .map(ReplaceRecordImagesRequest.ImageItem::imageUrl)
+                .map(String::trim)
+                .toList();
+        previousUrls.stream()
+                .filter(url -> !nextUrls.contains(url))
+                .forEach(url -> imageStorage.deleteManaged(travelRecordId, url));
     }
 }
