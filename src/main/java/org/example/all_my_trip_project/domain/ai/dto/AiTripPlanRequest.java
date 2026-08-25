@@ -7,7 +7,6 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
 import java.time.LocalDate;
-import java.math.BigDecimal;
 
 public record AiTripPlanRequest(
         @NotBlank(message = "목적지를 입력해 주세요.")
@@ -33,8 +32,6 @@ public record AiTripPlanRequest(
         String foodPreference,
         @JsonProperty("accommodation_style")
         @NotBlank(message = "숙박 형태를 선택해 주세요.")
-        String accommodationStyle,
-        @JsonProperty("budget_amount")
-        BigDecimal budgetAmount
+        String accommodationStyle
 ) {
 }

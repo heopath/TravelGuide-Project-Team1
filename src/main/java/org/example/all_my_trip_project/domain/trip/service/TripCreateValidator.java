@@ -31,7 +31,6 @@ final class TripCreateValidator {
 
         int dayCount = validatePeriod(request);
         validateCompanion(request);
-        validateBudget(request);
         return dayCount;
     }
 
@@ -54,12 +53,6 @@ final class TripCreateValidator {
                 || companionCount > TripPolicy.MAX_COMPANION_COUNT
                 || (request.companionType() == CompanionType.SOLO && companionCount != 1)) {
             throw new BusinessException(ErrorCode.INVALID_COMPANION_COUNT);
-        }
-    }
-
-    private void validateBudget(TripCreateRequest request) {
-        if (request.budgetAmount() != null && request.budgetAmount().signum() < 0) {
-            throw new BusinessException(ErrorCode.INVALID_TRIP_REQUEST);
         }
     }
 }

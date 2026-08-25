@@ -1,6 +1,5 @@
 package org.example.all_my_trip_project.domain.ai.dto;
 
-import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.List;
@@ -13,7 +12,7 @@ public record AiGuideContext(Trip trip, List<Preference> preferences) {
 
     public record Trip(Long tripId, String title, String destinationName,
                        LocalDate startDate, LocalDate endDate, String companionType,
-                       Integer companionCount, String purpose, BigDecimal budgetAmount,
+                       Integer companionCount, String purpose,
                        String currencyCode, String transportPreference, String foodPreference,
                        String pace, String accommodationStyle, List<Day> days) {
         public Trip {

@@ -52,8 +52,7 @@ class TripControllerTest {
                 LocalDate.of(2026, 8, 10),
                 LocalDate.of(2026, 8, 12),
                 CompanionType.COUPLE,
-                2,
-                BigDecimal.valueOf(300_000)
+                2
         );
         TripCreateResult result = new TripCreateResult(10L, 3);
         when(tripService.create(42L, request)).thenReturn(result);
