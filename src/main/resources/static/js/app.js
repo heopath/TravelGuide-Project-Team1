@@ -453,6 +453,11 @@ const ALL_MY_TRIPS_SCREENS = [
     "admin"
   ],
   [
+    "/admin?panel=apikeys",
+    "관리자 · API 키 관리",
+    "admin"
+  ],
+  [
     "/admin?panel=members",
     "관리자 · 회원 관리",
     "admin"
