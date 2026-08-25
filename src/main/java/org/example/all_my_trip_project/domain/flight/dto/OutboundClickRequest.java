@@ -19,6 +19,8 @@ import java.time.OffsetDateTime;
 public record OutboundClickRequest(
         @NotBlank String offerId,
         @NotBlank String provider,
+        @NotBlank String origin,
+        @NotBlank String destination,
         @NotBlank String carrierCode,
         @NotBlank String carrierName,
         @NotBlank String flightNumber,

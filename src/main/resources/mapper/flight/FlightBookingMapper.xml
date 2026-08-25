@@ -3,7 +3,8 @@
 <mapper namespace="org.example.all_my_trip_project.domain.flight.mapper.FlightBookingMapper">
 
     <sql id="columns">
-        flight_booking_id, trip_id, user_id, leg, offer_id, provider,
+        flight_booking_id, trip_id, booking_batch_id, user_id, leg, offer_id, provider,
+        origin, destination,
         carrier_code, carrier_name, flight_number, departure_at, arrival_at,
         quoted_total_price, quoted_currency, quoted_price_source, quoted_at,
         user_reported_booked, user_reported_at,
@@ -18,10 +19,12 @@
             keyProperty="flightBookingId" keyColumn="flight_booking_id">
         INSERT INTO flight_bookings (
             trip_id, user_id, leg, offer_id, provider,
+            origin, destination,
             carrier_code, carrier_name, flight_number, departure_at, arrival_at,
             quoted_total_price, quoted_currency, quoted_price_source, quoted_at
         ) VALUES (
             #{tripId}, #{userId}, #{leg}, #{offerId}, #{provider},
+            #{origin}, #{destination},
             #{carrierCode}, #{carrierName}, #{flightNumber}, #{departureAt}, #{arrivalAt},
             #{quotedTotalPrice}, COALESCE(#{quotedCurrency}, 'KRW'), #{quotedPriceSource},
             CURRENT_TIMESTAMP
@@ -30,6 +33,8 @@
             user_id              = EXCLUDED.user_id,
             offer_id             = EXCLUDED.offer_id,
             provider             = EXCLUDED.provider,
+            origin               = EXCLUDED.origin,
+            destination         = EXCLUDED.destination,
             carrier_code         = EXCLUDED.carrier_code,
             carrier_name         = EXCLUDED.carrier_name,
             flight_number        = EXCLUDED.flight_number,
@@ -43,6 +48,39 @@
             user_reported_at     = NULL,
             booking_ref          = NULL,
             booking_ref_added_at = NULL
+    </insert>
+
+    <insert id="upsertStandaloneSelection" useGeneratedKeys="true"
+            keyProperty="flightBookingId" keyColumn="flight_booking_id">
+        INSERT INTO flight_bookings (
+            trip_id, booking_batch_id, user_id, leg, offer_id, provider,
+            origin, destination,
+            carrier_code, carrier_name, flight_number, departure_at, arrival_at,
+            quoted_total_price, quoted_currency, quoted_price_source, quoted_at,
+            user_reported_booked, user_reported_at
+        ) VALUES (
+            NULL, #{bookingBatchId}, #{userId}, #{leg}, #{offerId}, #{provider},
+            #{origin}, #{destination},
+            #{carrierCode}, #{carrierName}, #{flightNumber}, #{departureAt}, #{arrivalAt},
+            #{quotedTotalPrice}, COALESCE(#{quotedCurrency}, 'KRW'), #{quotedPriceSource},
+            CURRENT_TIMESTAMP, TRUE, CURRENT_TIMESTAMP
+        )
+        ON CONFLICT (user_id, booking_batch_id, leg) DO UPDATE SET
+            offer_id             = EXCLUDED.offer_id,
+            provider             = EXCLUDED.provider,
+            origin               = EXCLUDED.origin,
+            destination          = EXCLUDED.destination,
+            carrier_code         = EXCLUDED.carrier_code,
+            carrier_name         = EXCLUDED.carrier_name,
+            flight_number        = EXCLUDED.flight_number,
+            departure_at         = EXCLUDED.departure_at,
+            arrival_at           = EXCLUDED.arrival_at,
+            quoted_total_price   = EXCLUDED.quoted_total_price,
+            quoted_currency      = EXCLUDED.quoted_currency,
+            quoted_price_source  = EXCLUDED.quoted_price_source,
+            quoted_at            = CURRENT_TIMESTAMP,
+            user_reported_booked = TRUE,
+            user_reported_at     = CURRENT_TIMESTAMP
     </insert>
 
     <select id="findByTripAndLeg"
@@ -59,6 +97,33 @@
         WHERE trip_id = #{tripId}
         ORDER BY leg
     </select>
+
+    <select id="findUnlinkedConfirmedByUser"
+            resultType="org.example.all_my_trip_project.domain.flight.dto.FlightBookingDTO">
+        SELECT <include refid="columns"/>
+        FROM flight_bookings
+        WHERE user_id = #{userId}
+          AND trip_id IS NULL
+          AND booking_batch_id IS NOT NULL
+          AND user_reported_booked = TRUE
+        ORDER BY created_at DESC, booking_batch_id, leg
+    </select>
+
+    <select id="findByUserAndBatch"
+            resultType="org.example.all_my_trip_project.domain.flight.dto.FlightBookingDTO">
+        SELECT <include refid="columns"/>
+        FROM flight_bookings
+        WHERE user_id = #{userId} AND booking_batch_id = #{bookingBatchId}
+        ORDER BY leg
+    </select>
+
+    <update id="linkBatchToTrip">
+        UPDATE flight_bookings
+        SET trip_id = #{tripId}
+        WHERE user_id = #{userId}
+          AND booking_batch_id = #{bookingBatchId}
+          AND trip_id IS NULL
+    </update>
 
     <update id="updateUserReported">
         UPDATE flight_bookings

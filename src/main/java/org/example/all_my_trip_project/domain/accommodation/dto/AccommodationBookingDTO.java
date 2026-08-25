@@ -8,6 +8,7 @@ import org.example.all_my_trip_project.domain.accommodation.type.AccommodationBo
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
+import java.util.UUID;
 
 /**
  * 숙소 예약 상태 한 건.
@@ -22,6 +23,7 @@ public class AccommodationBookingDTO {
 
     private Long accommodationBookingId;
     private Long tripId;
+    private UUID bookingBatchId;
     private Long userId;
 
     private LocalDate checkIn;

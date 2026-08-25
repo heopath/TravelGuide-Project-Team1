@@ -25,6 +25,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -55,6 +56,15 @@ public class FlightBookingService {
     private final FlightBookingDAO flightBookingDAO;
     private final TripDAO tripDAO;
 
+    /** 사용자가 항공편을 고른 즉시 스냅샷을 저장한다. */
+    @Transactional
+    public void saveSelection(Long userId, Long tripId, int leg, OutboundClickRequest request) {
+        requireOwnedTrip(userId, tripId);
+        requireValidLeg(leg);
+        upsertSelection(userId, tripId, leg, request);
+        tripDAO.clearBookingConfirmation(tripId);
+    }
+
     /**
      * 딥링크 클릭 기록.
      *
@@ -66,21 +76,7 @@ public class FlightBookingService {
         requireOwnedTrip(userId, tripId);
         requireValidLeg(leg);
 
-        flightBookingDAO.upsertSelection(FlightBookingDTO.builder()
-                .tripId(tripId)
-                .userId(userId)
-                .leg(leg)
-                .offerId(request.offerId())
-                .provider(request.provider())
-                .carrierCode(request.carrierCode())
-                .carrierName(request.carrierName())
-                .flightNumber(request.flightNumber())
-                .departureAt(request.departureAt())
-                .arrivalAt(request.arrivalAt())
-                .quotedTotalPrice(request.totalPrice())
-                .quotedCurrency(request.currency())
-                .quotedPriceSource(request.priceSource().name())
-                .build());
+        upsertSelection(userId, tripId, leg, request);
 
         return flightBookingDAO.insertOutboundClick(OutboundClickDTO.builder()
                 .userId(userId)
@@ -89,6 +85,26 @@ public class FlightBookingService {
                 .offerId(request.offerId())
                 .provider(request.provider())
                 .deeplinkUrl(Objects.requireNonNullElse(request.deeplinkUrl(), ""))
+                .build());
+    }
+
+    private void upsertSelection(Long userId, Long tripId, int leg, OutboundClickRequest request) {
+        flightBookingDAO.upsertSelection(FlightBookingDTO.builder()
+                .tripId(tripId)
+                .userId(userId)
+                .leg(leg)
+                .offerId(request.offerId())
+                .provider(request.provider())
+                .origin(request.origin())
+                .destination(request.destination())
+                .carrierCode(request.carrierCode())
+                .carrierName(request.carrierName())
+                .flightNumber(request.flightNumber())
+                .departureAt(request.departureAt())
+                .arrivalAt(request.arrivalAt())
+                .quotedTotalPrice(request.totalPrice())
+                .quotedCurrency(request.currency())
+                .quotedPriceSource(request.priceSource().name())
                 .build());
     }
 
@@ -130,6 +146,7 @@ public class FlightBookingService {
         requireValidLeg(leg);
 
         flightBookingDAO.delete(tripId, leg);
+        tripDAO.clearBookingConfirmation(tripId);
         resolveClick(clickId, OUTCOME_REPORTED_NO);
     }
 
@@ -169,6 +186,21 @@ public class FlightBookingService {
         );
     }
 
+    /** 아직 여행에 연결하지 않은, 사용자가 확정한 항공 예약. */
+    @Transactional(readOnly = true)
+    public List<FlightBookingDTO> getUnlinkedConfirmed(Long userId) {
+        if (userId == null || userId < 1) throw new BusinessException(ErrorCode.UNAUTHORIZED);
+        return flightBookingDAO.findUnlinkedConfirmedByUser(userId);
+    }
+
+    /** 여행 저장 전 예약 묶음에 포함된 항공편. 소유자와 묶음 UUID를 함께 검사한다. */
+    @Transactional(readOnly = true)
+    public List<FlightBookingDTO> getByBatch(Long userId, UUID bookingBatchId) {
+        if (userId == null || userId < 1) throw new BusinessException(ErrorCode.UNAUTHORIZED);
+        if (bookingBatchId == null) return List.of();
+        return flightBookingDAO.findByUserAndBatch(userId, bookingBatchId);
+    }
+
     private boolean isReported(FlightBookingDTO booking) {
         return booking != null && booking.isUserReportedBooked();
     }
@@ -189,7 +221,11 @@ public class FlightBookingService {
                 booking.getQuotedTotalPrice(),
                 booking.getQuotedCurrency(),
                 booking.getQuotedPriceSource(),
-                booking.getBookingRef()
+                booking.getBookingRef(),
+                booking.getOrigin(),
+                booking.getDestination(),
+                booking.getDepartureAt(),
+                booking.getArrivalAt()
         );
     }
 

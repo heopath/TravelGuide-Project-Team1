@@ -10,6 +10,7 @@ import org.springframework.stereotype.Repository;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 @Repository
 @Profile("!ui")
@@ -23,12 +24,28 @@ public class FlightBookingDAO {
         return flightBookingMapper.upsertSelection(booking);
     }
 
+    public int upsertStandaloneSelection(FlightBookingDTO booking) {
+        return flightBookingMapper.upsertStandaloneSelection(booking);
+    }
+
     public Optional<FlightBookingDTO> findByTripAndLeg(Long tripId, int leg) {
         return flightBookingMapper.findByTripAndLeg(tripId, leg);
     }
 
     public List<FlightBookingDTO> findByTrip(Long tripId) {
         return flightBookingMapper.findByTrip(tripId);
+    }
+
+    public List<FlightBookingDTO> findUnlinkedConfirmedByUser(Long userId) {
+        return flightBookingMapper.findUnlinkedConfirmedByUser(userId);
+    }
+
+    public List<FlightBookingDTO> findByUserAndBatch(Long userId, UUID bookingBatchId) {
+        return flightBookingMapper.findByUserAndBatch(userId, bookingBatchId);
+    }
+
+    public int linkBatchToTrip(Long userId, UUID bookingBatchId, Long tripId) {
+        return flightBookingMapper.linkBatchToTrip(userId, bookingBatchId, tripId);
     }
 
     public int updateUserReported(Long tripId, int leg, boolean userReportedBooked) {

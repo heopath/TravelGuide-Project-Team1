@@ -12,5 +12,7 @@ public interface TripMapper {
     Optional<TripDTO> findById(Long tripId);
     List<TripDTO> findByUserId(Long userId);
     int update(TripDTO trip);
+    int confirmBooking(Long tripId);
+    int clearBookingConfirmation(Long tripId);
     int softDelete(Long tripId);
 }

@@ -33,6 +33,7 @@ public class TripDTO {
     private String accommodationStyle;
     private String status;
     private String source;
+    private OffsetDateTime bookingConfirmedAt;
     // PostgreSQL TIMESTAMPTZ의 UTC offset을 보존하기 위한 타입이며 DTO 필드명은 기존과 동일하다.
     private OffsetDateTime createdAt;
     private OffsetDateTime updatedAt;
