@@ -539,24 +539,6 @@ body.page-record [hidden] {
   border-radius: 14px;
   background: #fff;
   box-shadow: 0 20px 54px rgba(42, 52, 125, 0.18);
-  transform-style: preserve-3d;
-  backface-visibility: hidden;
-  transition: filter 0.2s ease;
-}
-
-.page-record .record-book-stage canvas.is-turning-next { animation: albumPageOutNext 0.34s ease-in-out; transform-origin: left center; }
-.page-record .record-book-stage canvas.is-turning-prev { animation: albumPageOutPrev 0.34s ease-in-out; transform-origin: right center; }
-
-@keyframes albumPageOutNext {
-  0% { opacity: 1; transform: rotateY(0) scale(1); }
-  48% { opacity: 0.55; filter: brightness(0.94); transform: rotateY(-7deg) scale(0.985); }
-  100% { opacity: 1; transform: rotateY(0) scale(1); }
-}
-
-@keyframes albumPageOutPrev {
-  0% { opacity: 1; transform: rotateY(0) scale(1); }
-  48% { opacity: 0.55; filter: brightness(0.94); transform: rotateY(7deg) scale(0.985); }
-  100% { opacity: 1; transform: rotateY(0) scale(1); }
 }
 
 .page-record .record-book-footer {

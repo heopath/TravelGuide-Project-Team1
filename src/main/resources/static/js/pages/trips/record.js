@@ -408,17 +408,21 @@ document.addEventListener("DOMContentLoaded", function () {
     };
   }
 
+  function applyAlbumPageResult(result) {
+    currentPage = result.index;
+    pageCount = result.pageCount;
+    if (pageControls) pageControls.hidden = pageCount <= 1;
+    if (pageIndicator) pageIndicator.textContent = `${currentPage + 1} / ${pageCount}`;
+    if (pagePrev) pagePrev.disabled = currentPage <= 0;
+    if (pageNext) pageNext.disabled = currentPage >= pageCount - 1;
+  }
+
   async function renderAlbumPage(index) {
     if (drawing || !bookCanvas || !window.AllMyTripsRecordBook || !images.length) return;
     drawing = true;
     try {
       const result = await window.AllMyTripsRecordBook.renderAlbum(bookCanvas, collectAlbumData(), index);
-      currentPage = result.index;
-      pageCount = result.pageCount;
-      if (pageControls) pageControls.hidden = pageCount <= 1;
-      if (pageIndicator) pageIndicator.textContent = `${currentPage + 1} / ${pageCount}`;
-      if (pagePrev) pagePrev.disabled = currentPage <= 0;
-      if (pageNext) pageNext.disabled = currentPage >= pageCount - 1;
+      applyAlbumPageResult(result);
       if (bookNote && !bookNote.textContent) {
         bookNote.textContent = `사진 ${images.length}장, 일정 ${tripDays.length}일, 예약 ${bookingSummary?.items?.length || 0}건으로 자동 구성했습니다.`;
       }
@@ -431,12 +435,26 @@ document.addEventListener("DOMContentLoaded", function () {
 
   async function turnAlbumPage(index, direction) {
     if (drawing || !bookCanvas || index < 0 || index >= pageCount || index === currentPage) return;
-    const animationClass = direction === "prev" ? "is-turning-prev" : "is-turning-next";
-    bookCanvas.classList.remove("is-turning-prev", "is-turning-next");
-    void bookCanvas.offsetWidth;
-    bookCanvas.classList.add(animationClass);
-    window.setTimeout(() => void renderAlbumPage(index), 155);
-    window.setTimeout(() => bookCanvas.classList.remove(animationClass), 360);
+    drawing = true;
+    if (pagePrev) pagePrev.disabled = true;
+    if (pageNext) pageNext.disabled = true;
+    try {
+      const result = await window.AllMyTripsRecordBook.animatePageTurn(
+        bookCanvas,
+        collectAlbumData(),
+        currentPage,
+        index,
+        direction,
+      );
+      applyAlbumPageResult(result);
+      if (bookNote) bookNote.textContent = `${currentPage + 1}번째 앨범 페이지를 펼쳤습니다.`;
+    } catch (error) {
+      if (bookNote) bookNote.textContent = error.message || "앨범 페이지를 넘기지 못했습니다.";
+      if (pagePrev) pagePrev.disabled = currentPage <= 0;
+      if (pageNext) pageNext.disabled = currentPage >= pageCount - 1;
+    } finally {
+      drawing = false;
+    }
   }
 
   pagePrev?.addEventListener("click", () => void turnAlbumPage(currentPage - 1, "prev"));
@@ -500,7 +518,7 @@ document.addEventListener("DOMContentLoaded", function () {
         workerScript,
       });
       frames.forEach((frame, index) => {
-        gif.addFrame(frame, { copy: true, delay: index === 0 ? 2100 : 1600 });
+        gif.addFrame(frame, { copy: true, delay: frame.albumFrameDelay || (index === 0 ? 1600 : 1200) });
       });
       gif.on("finished", resolve);
       gif.on("abort", () => reject(new Error("GIF 생성을 중단했습니다.")));
@@ -517,10 +535,10 @@ document.addEventListener("DOMContentLoaded", function () {
 
   bookGifButton?.addEventListener("click", async () => {
     setGifBusy(true);
-    if (bookNote) bookNote.textContent = `표지와 ${Math.max(pageCount - 1, 1)}개의 여행 페이지로 GIF를 만드는 중입니다…`;
+    if (bookNote) bookNote.textContent = `표지와 ${Math.max(pageCount - 1, 1)}개의 여행 페이지 사이에 책장 넘김 프레임을 만드는 중입니다…`;
     try {
       downloadBlob(await createGifBlob(), safeFileName("gif"));
-      if (bookNote) bookNote.textContent = "페이지가 순서대로 넘어가는 GIF 사진첩을 저장했습니다.";
+      if (bookNote) bookNote.textContent = "실제 책장이 넘어가는 GIF 사진첩을 저장했습니다.";
     } catch (error) {
       if (bookNote) bookNote.textContent = error.message || "GIF 사진첩을 만들지 못했습니다.";
     } finally {
@@ -530,7 +548,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
   bookShareButton?.addEventListener("click", async () => {
     setGifBusy(true);
-    if (bookNote) bookNote.textContent = "공유할 GIF 사진첩을 만드는 중입니다…";
+    if (bookNote) bookNote.textContent = "공유할 GIF에 책장 넘김 프레임을 만드는 중입니다…";
     try {
       const blob = await createGifBlob();
       const file = new File([blob], safeFileName("gif"), { type: "image/gif" });
