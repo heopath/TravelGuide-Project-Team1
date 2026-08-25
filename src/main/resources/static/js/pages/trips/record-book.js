@@ -58,16 +58,16 @@
     ctx.save();
 
     /* 낱알. 종이 표면의 오돌토돌한 결이다. */
-    ctx.globalAlpha = 0.085;
-    ctx.fillStyle = "#8b7d63";
+    ctx.globalAlpha = 0.026;
+    ctx.fillStyle = "#6674a5";
     var count = Math.round((w * h) / 1400);
     for (var i = 0; i < count; i++) {
       ctx.fillRect(x + rand() * w, y + rand() * h, 2 + rand() * 2, 2);
     }
 
     /* 섬유. 낱알만으로는 모래처럼 보여서, 결을 따라 흐르는 실선을 섞는다. */
-    ctx.globalAlpha = 0.05;
-    ctx.strokeStyle = "#9c8d70";
+    ctx.globalAlpha = 0.018;
+    ctx.strokeStyle = "#7784b1";
     ctx.lineWidth = 1;
     var fibers = Math.round(w / 12);
     for (var f = 0; f < fibers; f++) {
@@ -91,8 +91,8 @@
         band[0] + (gx < 0 ? band[2] : 0), band[1] + (gy < 0 ? band[3] : 0),
         band[0] + (gx < 0 ? 0 : gx ? band[2] : 0), band[1] + (gy < 0 ? 0 : gy ? band[3] : 0)
       );
-      g.addColorStop(0, "rgba(120,105,80,0.09)");
-      g.addColorStop(1, "rgba(120,105,80,0)");
+      g.addColorStop(0, "rgba(72,84,138,0.045)");
+      g.addColorStop(1, "rgba(72,84,138,0)");
       ctx.fillStyle = g;
       ctx.fillRect(band[0], band[1], band[2], band[3]);
     });
@@ -480,6 +480,7 @@
       ctx.restore();
       if (img) drawCover(ctx, img, cx, cy, cw, ch);
       else emptyFrame(ctx, cx, cy, cw, ch, "사진을 불러오지 못했어요");
+      corners(ctx, cx, cy, cw, ch);
     });
 
     if (hidden > 0) {
@@ -552,11 +553,29 @@
 
   function drawSpread(ctx, data, loaded) {
     var backdrop = ctx.createLinearGradient(0, 0, W, H);
-    backdrop.addColorStop(0, "#eef3ff");
-    backdrop.addColorStop(0.52, "#f5f4ff");
-    backdrop.addColorStop(1, "#ecefff");
+    backdrop.addColorStop(0, "#152252");
+    backdrop.addColorStop(0.52, "#3349ad");
+    backdrop.addColorStop(1, "#6750c6");
     ctx.fillStyle = backdrop;
     ctx.fillRect(0, 0, W, H);
+
+    /* 종이보다 조금 크게 보이는 짙은 표지와 모서리로 한 권의 앨범 두께를 만든다. */
+    ctx.save();
+    ctx.shadowColor = "rgba(7,13,44,0.45)";
+    ctx.shadowBlur = 70;
+    ctx.shadowOffsetY = 30;
+    roundedPath(ctx, MARGIN - 42, MARGIN - 34, W - MARGIN * 2 + 84, H - MARGIN * 2 + 76, 54);
+    var cover = ctx.createLinearGradient(MARGIN, MARGIN, W - MARGIN, H - MARGIN);
+    cover.addColorStop(0, "#293779");
+    cover.addColorStop(1, "#4f3f9d");
+    ctx.fillStyle = cover;
+    ctx.fill();
+    ctx.restore();
+
+    roundedPath(ctx, MARGIN - 25, MARGIN - 17, W - MARGIN * 2 + 50, H - MARGIN * 2 + 48, 48);
+    ctx.strokeStyle = "rgba(220,225,255,0.34)";
+    ctx.lineWidth = 3;
+    ctx.stroke();
 
     ctx.save();
     ctx.shadowColor = "rgba(44,55,130,0.18)";
@@ -571,6 +590,7 @@
     ctx.strokeStyle = "#d9dfff";
     ctx.lineWidth = 2;
     ctx.stroke();
+    grain(ctx, MARGIN + 4, MARGIN + 20, W - MARGIN * 2 - 8, H - MARGIN * 2 - 24, 20260825);
 
     var accent = ctx.createLinearGradient(MARGIN, 0, W - MARGIN, 0);
     accent.addColorStop(0, "#4a73ff");
@@ -609,15 +629,15 @@
     var height = H - MARGIN * 2;
 
     var wide = ctx.createLinearGradient(center - 150, 0, center + 150, 0);
-    wide.addColorStop(0, "rgba(92,104,255,0)");
-    wide.addColorStop(0.32, "rgba(92,104,255,0.025)");
-    wide.addColorStop(0.5, "rgba(92,104,255,0.08)");
-    wide.addColorStop(0.68, "rgba(92,104,255,0.025)");
-    wide.addColorStop(1, "rgba(92,104,255,0)");
+    wide.addColorStop(0, "rgba(35,45,99,0)");
+    wide.addColorStop(0.32, "rgba(35,45,99,0.04)");
+    wide.addColorStop(0.5, "rgba(23,31,73,0.16)");
+    wide.addColorStop(0.68, "rgba(35,45,99,0.04)");
+    wide.addColorStop(1, "rgba(35,45,99,0)");
     ctx.fillStyle = wide;
     ctx.fillRect(center - 150, top, 300, height);
 
-    ctx.strokeStyle = "rgba(92,104,255,0.16)";
+    ctx.strokeStyle = "rgba(37,46,97,0.28)";
     ctx.lineWidth = 2;
     ctx.beginPath();
     ctx.moveTo(center, top);

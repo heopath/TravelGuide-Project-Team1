@@ -21,6 +21,11 @@ document.addEventListener("DOMContentLoaded", function () {
   const photoManager = document.querySelector("[data-record-photo-manager]");
   const imageListEl = document.querySelector("[data-record-image-list]");
   const imageCountEl = document.querySelector("[data-record-image-count]");
+  const stepPanels = Array.from(document.querySelectorAll("[data-record-step-panel]"));
+  const stepJumps = Array.from(document.querySelectorAll("[data-record-step-jump]"));
+  const stepPrev = document.querySelector("[data-record-step-prev]");
+  const stepNext = document.querySelector("[data-record-step-next]");
+  const stepLabel = document.querySelector("[data-record-step-label]");
 
   const visibilitySelect = document.querySelector("[data-record-visibility]");
   const deleteSection = document.querySelector("[data-record-delete-section]");
@@ -51,6 +56,7 @@ document.addEventListener("DOMContentLoaded", function () {
   let pageCount = 0;
   let drawing = false;
   let gifBlobCache = null;
+  let wizardStep = 1;
 
   backButton?.addEventListener("click", () => {
     if (window.history.length > 1 && document.referrer.startsWith(window.location.origin)) {
@@ -102,6 +108,63 @@ document.addEventListener("DOMContentLoaded", function () {
     if (errorMessageEl) errorMessageEl.textContent = message;
   }
 
+  function canOpenStep(step) {
+    return step === 1 || images.length > 0;
+  }
+
+  function updateWizardControls() {
+    stepJumps.forEach((button) => {
+      const step = Number(button.dataset.recordStepJump);
+      button.disabled = !canOpenStep(step);
+      button.classList.toggle("is-active", step === wizardStep);
+      button.classList.toggle("is-complete", step < wizardStep && canOpenStep(step));
+      if (step === wizardStep) button.setAttribute("aria-current", "step");
+      else button.removeAttribute("aria-current");
+    });
+    if (stepPrev) stepPrev.disabled = wizardStep <= 1;
+    if (stepNext) {
+      stepNext.disabled = wizardStep >= 3 || !canOpenStep(wizardStep + 1);
+      stepNext.textContent = wizardStep === 1 ? "사진 정리 →" : wizardStep === 2 ? "앨범 보기 →" : "완료";
+    }
+    if (stepLabel) stepLabel.textContent = `${wizardStep} / 3`;
+  }
+
+  function showWizardStep(nextStep, direction) {
+    const requested = Math.max(1, Math.min(3, Number(nextStep) || 1));
+    if (!canOpenStep(requested)) return;
+    const previous = wizardStep;
+    wizardStep = requested;
+    stepPanels.forEach((panel) => {
+      const active = Number(panel.dataset.recordStepPanel) === wizardStep;
+      panel.classList.remove("is-active", "is-enter-next", "is-enter-prev");
+      panel.setAttribute("aria-hidden", active ? "false" : "true");
+      if (active) {
+        panel.classList.add("is-active");
+        if (previous !== wizardStep) {
+          panel.classList.add(direction || (wizardStep > previous ? "is-enter-next" : "is-enter-prev"));
+        }
+      }
+    });
+    updateWizardControls();
+    if (wizardStep === 3 && images.length) {
+      window.requestAnimationFrame(() => void renderAlbumPage(currentPage));
+    }
+  }
+
+  function updateWizardState() {
+    if (!images.length && wizardStep > 1) wizardStep = 1;
+    showWizardStep(wizardStep);
+  }
+
+  stepPrev?.addEventListener("click", () => showWizardStep(wizardStep - 1, "is-enter-prev"));
+  stepNext?.addEventListener("click", () => showWizardStep(wizardStep + 1, "is-enter-next"));
+  stepJumps.forEach((button) => {
+    button.addEventListener("click", () => {
+      const step = Number(button.dataset.recordStepJump);
+      showWizardStep(step, step > wizardStep ? "is-enter-next" : "is-enter-prev");
+    });
+  });
+
   function formatPeriod(startDate, endDate) {
     if (!startDate) return "";
     const start = String(startDate).replaceAll("-", ".");
@@ -141,7 +204,6 @@ document.addEventListener("DOMContentLoaded", function () {
   function renderImages() {
     if (!imageListEl) return;
     imageListEl.replaceChildren();
-    if (photoManager) photoManager.hidden = images.length === 0;
     if (imageCountEl) imageCountEl.textContent = `사진 ${images.length}장`;
 
     images.forEach((image, index) => {
@@ -169,7 +231,7 @@ document.addEventListener("DOMContentLoaded", function () {
       imageListEl.appendChild(tile);
     });
 
-    if (bookSection) bookSection.hidden = images.length === 0;
+    updateWizardState();
   }
 
   async function persistImages(nextImages) {
@@ -316,6 +378,7 @@ document.addEventListener("DOMContentLoaded", function () {
       selectedFiles = [];
       renderFileSelection();
       await renderAlbumPage(0);
+      showWizardStep(3, "is-enter-next");
       const message = failed
         ? `${uploaded.length}장은 담았고 ${failed}장은 올리지 못했습니다.`
         : `사진 ${uploaded.length}장과 여행 정보를 자동으로 엮었습니다.`;
@@ -355,7 +418,6 @@ document.addEventListener("DOMContentLoaded", function () {
       if (pageIndicator) pageIndicator.textContent = `${currentPage + 1} / ${pageCount}`;
       if (pagePrev) pagePrev.disabled = currentPage <= 0;
       if (pageNext) pageNext.disabled = currentPage >= pageCount - 1;
-      if (bookSection) bookSection.hidden = false;
       if (bookNote && !bookNote.textContent) {
         bookNote.textContent = `사진 ${images.length}장, 일정 ${tripDays.length}일, 예약 ${bookingSummary?.items?.length || 0}건으로 자동 구성했습니다.`;
       }
@@ -366,8 +428,18 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   }
 
-  pagePrev?.addEventListener("click", () => void renderAlbumPage(currentPage - 1));
-  pageNext?.addEventListener("click", () => void renderAlbumPage(currentPage + 1));
+  async function turnAlbumPage(index, direction) {
+    if (drawing || !bookCanvas || index < 0 || index >= pageCount || index === currentPage) return;
+    const animationClass = direction === "prev" ? "is-turning-prev" : "is-turning-next";
+    bookCanvas.classList.remove("is-turning-prev", "is-turning-next");
+    void bookCanvas.offsetWidth;
+    bookCanvas.classList.add(animationClass);
+    window.setTimeout(() => void renderAlbumPage(index), 155);
+    window.setTimeout(() => bookCanvas.classList.remove(animationClass), 360);
+  }
+
+  pagePrev?.addEventListener("click", () => void turnAlbumPage(currentPage - 1, "prev"));
+  pageNext?.addEventListener("click", () => void turnAlbumPage(currentPage + 1, "next"));
 
   function safeFileName(extension) {
     const title = currentTrip?.title || "여행사진첩";
@@ -585,7 +657,12 @@ document.addEventListener("DOMContentLoaded", function () {
       if (deleteSection) deleteSection.hidden = !currentRecord;
       renderImages();
       showOnly(appEl);
-      if (images.length) await renderAlbumPage(0);
+      if (images.length) {
+        showWizardStep(3);
+        await renderAlbumPage(0);
+      } else {
+        showWizardStep(1);
+      }
     } catch (error) {
       showError(error.message || "여행 사진첩을 불러오지 못했습니다.");
     }
