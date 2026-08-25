@@ -106,6 +106,9 @@ assert.match(recordMarkup, /data-record-book-canvas/, "지면을 그릴 canvas�
 assert.match(recordMarkup, /data-record-book-save/, "저장 버튼이 있어야 한다");
 assert.match(recordMarkup, /data-record-book-gif/, "공유용 GIF 저장 버튼이 있어야 한다");
 assert.match(recordMarkup, /data-record-book-share/, "모바일 파일 공유 버튼이 있어야 한다");
+assert.match(recordMarkup, /data-record-back/, "사진첩에서 이전 화면으로 돌아갈 수 있어야 한다");
+assert.match(recordMarkup, />PNG 저장</, "PNG 저장 버튼 이름은 짧고 분명해야 한다");
+assert.match(recordMarkup, />GIF 저장</, "GIF 저장 버튼 이름은 짧고 분명해야 한다");
 assert.match(recordMarkup, /type="file"/, "사진은 URL 입력 대신 파일 업로드로 받아야 한다");
 assert.match(recordMarkup, /multiple/, "원하는 사진을 한 번에 여러 장 골라야 한다");
 assert.match(recordMarkup, /accept="image\/jpeg,image\/png,image\/webp,image\/gif"/,

@@ -282,7 +282,7 @@ Cookie: JSESSIONID=세션값
 
 ---
 
-## 8. 여행 사진 S3 업로드·조회
+## 8. 여행 사진 업로드·조회
 
 ```http
 POST /api/v1/travel-records/{travelRecordId}/images/upload
@@ -294,7 +294,8 @@ file=@photo.jpg
 - 허용 형식: JPEG, PNG, WEBP, GIF
 - 최대 크기: 10MB
 - 대상 기록의 작성자만 업로드할 수 있다.
-- S3 설정은 `TRAVEL_RECORD_S3_ENABLED=true`, `AWS_S3_BUCKET`, `AWS_REGION`으로 켠다. 운영은 IAM Role, 로컬은 AWS SDK 기본 자격 증명 환경 변수로 인증한다.
+- 운영은 `TRAVEL_RECORD_S3_ENABLED=true`, `AWS_S3_BUCKET`, `AWS_REGION`을 설정하고 EC2 IAM Role로 S3에 저장한다.
+- `local` 프로필에서는 `travel-record.local-storage.enabled=true`가 적용되어 별도 AWS 자격 증명 없이 OS 임시 디렉터리에 저장한다. 운영 프로필에서는 이 대체 저장소가 기본적으로 꺼져 있다.
 - 사진 조회는 PUBLIC 기록이면 누구나, PRIVATE 기록이면 작성자만 가능하다.
 
 ## 9. 여행 기록 삭제

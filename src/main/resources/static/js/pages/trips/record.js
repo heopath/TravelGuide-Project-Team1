@@ -9,6 +9,7 @@ document.addEventListener("DOMContentLoaded", function () {
   const appEl = document.querySelector("[data-record-app]");
   const titleEl = document.querySelector("[data-record-trip-title]");
   const periodEl = document.querySelector("[data-record-trip-period]");
+  const backButton = document.querySelector("[data-record-back]");
 
   const imageForm = document.querySelector("[data-record-image-form]");
   const fileInput = imageForm?.querySelector("input[type='file']");
@@ -50,6 +51,14 @@ document.addEventListener("DOMContentLoaded", function () {
   let pageCount = 0;
   let drawing = false;
   let gifBlobCache = null;
+
+  backButton?.addEventListener("click", () => {
+    if (window.history.length > 1 && document.referrer.startsWith(window.location.origin)) {
+      window.history.back();
+      return;
+    }
+    window.location.href = "/mypage?view=trips";
+  });
 
   function toast(message) {
     if (window.AllMyTripsModal?.showToast) {

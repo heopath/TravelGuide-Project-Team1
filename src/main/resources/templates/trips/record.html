@@ -9,7 +9,7 @@
     <link rel="stylesheet" th:href="@{/css/common/reset.css}" href="../../static/css/common/reset.css" />
     <link rel="stylesheet" th:href="@{/css/common/layout.css}" href="../../static/css/common/layout.css" />
     <link rel="stylesheet" th:href="@{/css/common/components.css}" href="../../static/css/common/components.css" />
-    <link rel="stylesheet" th:href="@{/css/pages/trips/record.css(v=20260825-auto-album)}" href="../../static/css/pages/trips/record.css?v=20260825-auto-album" />
+    <link rel="stylesheet" th:href="@{/css/pages/trips/record.css(v=20260825-modern-album)}" href="../../static/css/pages/trips/record.css?v=20260825-modern-album" />
     <link rel="stylesheet" th:href="@{/css/common/mighty.css}" href="../../static/css/common/mighty.css" />
   </head>
   <body class="page-record" data-route="/trips/1/record" th:attr="data-trip-id=${tripId}" data-trip-id="">
@@ -17,15 +17,19 @@
       <div th:replace="~{fragments/header :: header('trips')}"></div>
       <main id="page-content">
         <section class="page-shell album-shell">
+          <button type="button" class="album-back-button" data-record-back data-no-global-loading>
+            <span aria-hidden="true">←</span> 이전 페이지
+          </button>
           <header class="album-hero">
             <div>
-              <span class="album-eyebrow">TRAVEL PHOTO BOOK</span>
+              <span class="album-eyebrow">ALL MY TRIPS · PHOTO ALBUM</span>
               <h1 data-record-trip-title>여행 사진첩</h1>
               <p data-record-trip-period>여행 정보를 불러오는 중입니다…</p>
             </div>
-            <div class="album-hero-stamp" aria-hidden="true">
-              <span>ALL MY</span>
-              <strong>TRIPS</strong>
+            <div class="album-hero-visual" aria-hidden="true">
+              <span>사진</span>
+              <strong>일정</strong>
+              <b>예약</b>
             </div>
           </header>
 
@@ -108,8 +112,8 @@
               <div class="record-book-footer">
                 <p class="record-book-note" data-record-book-note role="status"></p>
                 <div class="record-book-actions">
-                  <button type="button" class="outline-button" data-record-book-save data-no-global-loading>현재 페이지 PNG</button>
-                  <button type="button" class="primary-button" data-record-book-gif data-no-global-loading>움직이는 GIF 저장</button>
+                  <button type="button" class="outline-button" data-record-book-save data-no-global-loading>PNG 저장</button>
+                  <button type="button" class="primary-button" data-record-book-gif data-no-global-loading>GIF 저장</button>
                   <button type="button" class="outline-button" data-record-book-share data-no-global-loading>GIF 공유</button>
                 </div>
               </div>
@@ -146,8 +150,8 @@
     </div>
     <div th:replace="~{fragments/scripts :: appScripts}"></div>
     <script src="https://cdn.jsdelivr.net/npm/gif.js.optimized@1.0.1/dist/gif.js"></script>
-    <script th:src="@{/js/pages/trips/record-book.js(v=20260825-auto-album)}" src="../../static/js/pages/trips/record-book.js?v=20260825-auto-album"></script>
-    <script th:src="@{/js/pages/trips/record.js(v=20260825-auto-album)}" src="../../static/js/pages/trips/record.js?v=20260825-auto-album"></script>
+    <script th:src="@{/js/pages/trips/record-book.js(v=20260825-modern-album)}" src="../../static/js/pages/trips/record-book.js?v=20260825-modern-album"></script>
+    <script th:src="@{/js/pages/trips/record.js(v=20260825-modern-album)}" src="../../static/js/pages/trips/record.js?v=20260825-modern-album"></script>
     <div th:replace="~{fragments/mighty :: mighty}"></div>
     <script th:src="@{/js/core/mighty.js}" src="../../static/js/core/mighty.js"></script>
   </body>

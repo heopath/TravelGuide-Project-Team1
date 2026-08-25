@@ -16,17 +16,32 @@
   var MARGIN = 120;
   var GAP = 24;
 
-  var PAPER = "#faf7f0";
-  var BOARD = "#efe9dc";
-  var INK = "#1c1917";
-  var BODY = "#44403c";
-  var MUTED = "#78716c";
-  var EDGE = "#e7e2d6";
-  var CORNER = "#d9cfb8";
-  var GOLD = "#c08a2e";
+  var PAPER = "#ffffff";
+  var BOARD = "#eef1ff";
+  var INK = "#1b2540";
+  var BODY = "#4f5b73";
+  var MUTED = "#778198";
+  var EDGE = "#e0e6f0";
+  var CORNER = "#dfe3ff";
+  var GOLD = "#5c68ff";
 
   function font(weight, size) {
     return weight + " " + size + "px Pretendard, -apple-system, BlinkMacSystemFont, system-ui, sans-serif";
+  }
+
+  function roundedPath(ctx, x, y, w, h, radius) {
+    var r = Math.min(radius, w / 2, h / 2);
+    ctx.beginPath();
+    if (typeof ctx.roundRect === "function") {
+      ctx.roundRect(x, y, w, h, r);
+      return;
+    }
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
   }
 
   /* 종이 결. 매번 달라지면 다시 그릴 때 지면이 흔들려 보이므로 씨앗을 고정한다. */
@@ -105,19 +120,19 @@
     var dw = img.naturalWidth * scale;
     var dh = img.naturalHeight * scale;
     ctx.save();
-    ctx.beginPath();
-    ctx.rect(x, y, w, h);
+    roundedPath(ctx, x, y, w, h, 22);
     ctx.clip();
     ctx.drawImage(img, x + (w - dw) / 2, y + (h - dh) / 2, dw, dh);
     ctx.restore();
   }
 
   function emptyFrame(ctx, x, y, w, h, message) {
-    ctx.fillStyle = "#f1ece0";
-    ctx.fillRect(x, y, w, h);
+    roundedPath(ctx, x, y, w, h, 22);
+    ctx.fillStyle = "#f3f5ff";
+    ctx.fill();
     ctx.strokeStyle = EDGE;
     ctx.lineWidth = 2;
-    ctx.strokeRect(x + 1, y + 1, w - 2, h - 2);
+    ctx.stroke();
     if (!message) return;
     ctx.fillStyle = MUTED;
     ctx.font = font(400, 30);
@@ -259,7 +274,7 @@
    */
   function drawMiniMap(ctx, x, y, w, h, points) {
     /* 종이와 같은 톤이면 묻힌다. 한 단계 짙게 깔고 테두리를 준다. */
-    ctx.fillStyle = "#ece3d1";
+    ctx.fillStyle = "#f1f3ff";
     ctx.fillRect(x, y, w, h);
 
     /* 옅은 모눈. 지도라는 것을 알려주는 최소한의 신호다. */
@@ -267,7 +282,7 @@
     ctx.beginPath();
     ctx.rect(x, y, w, h);
     ctx.clip();
-    ctx.strokeStyle = "rgba(160,140,105,0.22)";
+    ctx.strokeStyle = "rgba(92,104,255,0.14)";
     ctx.lineWidth = 1;
     for (var gx = x + 60; gx < x + w; gx += 60) {
       ctx.beginPath();
@@ -283,11 +298,11 @@
     }
     ctx.restore();
 
-    ctx.strokeStyle = "#c4b190";
+    ctx.strokeStyle = "#cfd5ff";
     ctx.lineWidth = 2;
     ctx.strokeRect(x + 1, y + 1, w - 2, h - 2);
 
-    ctx.fillStyle = "#6b5b3e";
+    ctx.fillStyle = "#5360c7";
     ctx.font = font(500, 24);
     ctx.fillText("다녀온 길", x + 20, y + 38);
 
@@ -334,7 +349,7 @@
     });
 
     if (placed.length > 1) {
-      ctx.strokeStyle = "#9a7433";
+      ctx.strokeStyle = "#5c68ff";
       ctx.lineWidth = 4;
       ctx.setLineDash([12, 9]);
       ctx.beginPath();
@@ -381,9 +396,9 @@
         if (collides(box)) continue;
 
         /* 이름 뒤에 옅은 판을 깔아야 모눈과 동선 위에서도 읽힌다. */
-        ctx.fillStyle = "rgba(236,227,209,0.88)";
+        ctx.fillStyle = "rgba(246,247,255,0.92)";
         ctx.fillRect(box.x, box.y, box.w, box.h);
-        ctx.fillStyle = "#5c4d33";
+        ctx.fillStyle = "#4b568e";
         ctx.fillText(name, o.x, o.y);
         taken.push(box);
         return;
@@ -395,11 +410,11 @@
       ctx.beginPath();
       ctx.arc(p.px, p.py, 19, 0, Math.PI * 2);
       ctx.fill();
-      ctx.strokeStyle = "#9a7433";
+      ctx.strokeStyle = "#5c68ff";
       ctx.lineWidth = 4;
       ctx.stroke();
 
-      ctx.fillStyle = "#6b4f14";
+      ctx.fillStyle = "#4654e8";
       ctx.font = font(500, 22);
       ctx.textAlign = "center";
       ctx.fillText(String(i + 1), p.px, p.py + 8);
@@ -455,9 +470,16 @@
       var cw = cell[2] * w - (cell[2] < 1 ? GAP / 2 : 0);
       var ch = cell[3] * boxH - (cell[3] < 1 ? GAP / 2 : 0);
       var img = loaded[index];
+      ctx.save();
+      ctx.shadowColor = "rgba(34,53,104,0.16)";
+      ctx.shadowBlur = 24;
+      ctx.shadowOffsetY = 10;
+      roundedPath(ctx, cx - 8, cy - 8, cw + 16, ch + 16, 26);
+      ctx.fillStyle = "#ffffff";
+      ctx.fill();
+      ctx.restore();
       if (img) drawCover(ctx, img, cx, cy, cw, ch);
       else emptyFrame(ctx, cx, cy, cw, ch, "사진을 불러오지 못했어요");
-      corners(ctx, cx, cy, cw, ch);
     });
 
     if (hidden > 0) {
@@ -502,10 +524,10 @@
     var textBottom = y + h - 90 - (mapH ? mapH + 40 : 0);
     var lineHeight = 60;
 
-    /* 첫 글자를 크게 놓고 본문이 그 옆을 감싸 흐르게 한다. */
+    /* 서비스의 다른 카드와 같은 본문 위계를 사용해 첫 글자를 과장하지 않는다. */
     ctx.font = font(400, 36);
-    var cap = data.content ? dropCap(ctx, data.content, x, cursor, lineHeight, 2) : null;
-    var rest = cap ? String(data.content).trim().slice(1) : data.content || "";
+    var cap = null;
+    var rest = data.content || "";
 
     ctx.fillStyle = BODY;
     ctx.font = font(400, 36);
@@ -529,14 +551,33 @@
   }
 
   function drawSpread(ctx, data, loaded) {
-    ctx.fillStyle = BOARD;
+    var backdrop = ctx.createLinearGradient(0, 0, W, H);
+    backdrop.addColorStop(0, "#eef3ff");
+    backdrop.addColorStop(0.52, "#f5f4ff");
+    backdrop.addColorStop(1, "#ecefff");
+    ctx.fillStyle = backdrop;
     ctx.fillRect(0, 0, W, H);
 
+    ctx.save();
+    ctx.shadowColor = "rgba(44,55,130,0.18)";
+    ctx.shadowBlur = 50;
+    ctx.shadowOffsetY = 22;
+    roundedPath(ctx, MARGIN, MARGIN, W - MARGIN * 2, H - MARGIN * 2, 42);
     ctx.fillStyle = PAPER;
-    ctx.fillRect(MARGIN, MARGIN, W - MARGIN * 2, H - MARGIN * 2);
-    ctx.strokeStyle = EDGE;
+    ctx.fill();
+    ctx.restore();
+
+    roundedPath(ctx, MARGIN, MARGIN, W - MARGIN * 2, H - MARGIN * 2, 42);
+    ctx.strokeStyle = "#d9dfff";
     ctx.lineWidth = 2;
-    ctx.strokeRect(MARGIN + 1, MARGIN + 1, W - MARGIN * 2 - 2, H - MARGIN * 2 - 2);
+    ctx.stroke();
+
+    var accent = ctx.createLinearGradient(MARGIN, 0, W - MARGIN, 0);
+    accent.addColorStop(0, "#4a73ff");
+    accent.addColorStop(1, "#7657ff");
+    roundedPath(ctx, MARGIN, MARGIN, W - MARGIN * 2, 18, 9);
+    ctx.fillStyle = accent;
+    ctx.fill();
 
     var pad = 90;
     var pageW = (W - MARGIN * 2) / 2;
@@ -556,8 +597,6 @@
       ctx.fillText("사진을 더하면 왼쪽 지면이 채워져요.", MARGIN + pageW + pad, top + 12);
     }
 
-    grain(ctx, MARGIN, MARGIN, W - MARGIN * 2, H - MARGIN * 2, 20260822);
-
     /*
      * 가운데 접힘. 두 쪽이 한 장에서 이어진다는 느낌을 만든다.
      *
@@ -570,15 +609,15 @@
     var height = H - MARGIN * 2;
 
     var wide = ctx.createLinearGradient(center - 150, 0, center + 150, 0);
-    wide.addColorStop(0, "rgba(120,105,80,0)");
-    wide.addColorStop(0.32, "rgba(120,105,80,0.12)");
-    wide.addColorStop(0.5, "rgba(105,90,68,0.4)");
-    wide.addColorStop(0.68, "rgba(120,105,80,0.12)");
-    wide.addColorStop(1, "rgba(120,105,80,0)");
+    wide.addColorStop(0, "rgba(92,104,255,0)");
+    wide.addColorStop(0.32, "rgba(92,104,255,0.025)");
+    wide.addColorStop(0.5, "rgba(92,104,255,0.08)");
+    wide.addColorStop(0.68, "rgba(92,104,255,0.025)");
+    wide.addColorStop(1, "rgba(92,104,255,0)");
     ctx.fillStyle = wide;
     ctx.fillRect(center - 150, top, 300, height);
 
-    ctx.strokeStyle = "rgba(92,78,58,0.55)";
+    ctx.strokeStyle = "rgba(92,104,255,0.16)";
     ctx.lineWidth = 2;
     ctx.beginPath();
     ctx.moveTo(center, top);
@@ -586,7 +625,7 @@
     ctx.stroke();
 
     /* 접힌 자국 바로 옆은 빛을 받아 살짝 밝다. */
-    ctx.strokeStyle = "rgba(255,252,244,0.5)";
+    ctx.strokeStyle = "rgba(255,255,255,0.72)";
     ctx.lineWidth = 3;
     [center - 7, center + 7].forEach(function (x) {
       ctx.beginPath();
