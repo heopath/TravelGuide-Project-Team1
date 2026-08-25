@@ -32,3 +32,15 @@ button:focus-visible, input:focus-visible, textarea:focus-visible {
 }
 .app { min-height: 100vh; }
 
+
+/*
+ * hidden 속성을 스타일보다 앞에 세운다.
+ *
+ * 브라우저 기본값은 [hidden]에 display:none을 주지만, 작성자 스타일이 그보다 세다.
+ * .notice처럼 display를 직접 정하는 규칙이 붙으면 hidden이 조용히 무시되고, 빈 상자가
+ * 자리만 차지한 채 남는다. 로그인·회원가입의 오류 자리가 늘 분홍 띠로 보이던 것이
+ * 이것이었다.
+ *
+ * 숨기라고 표시한 것은 무엇이든 숨긴다.
+ */
+[hidden] { display: none !important; }
