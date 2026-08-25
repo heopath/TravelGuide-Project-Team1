@@ -16,17 +16,32 @@
   var MARGIN = 120;
   var GAP = 24;
 
-  var PAPER = "#faf7f0";
-  var BOARD = "#efe9dc";
-  var INK = "#1c1917";
-  var BODY = "#44403c";
-  var MUTED = "#78716c";
-  var EDGE = "#e7e2d6";
-  var CORNER = "#d9cfb8";
-  var GOLD = "#c08a2e";
+  var PAPER = "#ffffff";
+  var BOARD = "#eef1ff";
+  var INK = "#1b2540";
+  var BODY = "#4f5b73";
+  var MUTED = "#778198";
+  var EDGE = "#e0e6f0";
+  var CORNER = "#dfe3ff";
+  var GOLD = "#5c68ff";
 
   function font(weight, size) {
     return weight + " " + size + "px Pretendard, -apple-system, BlinkMacSystemFont, system-ui, sans-serif";
+  }
+
+  function roundedPath(ctx, x, y, w, h, radius) {
+    var r = Math.min(radius, w / 2, h / 2);
+    ctx.beginPath();
+    if (typeof ctx.roundRect === "function") {
+      ctx.roundRect(x, y, w, h, r);
+      return;
+    }
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
   }
 
   /* 종이 결. 매번 달라지면 다시 그릴 때 지면이 흔들려 보이므로 씨앗을 고정한다. */
@@ -43,16 +58,16 @@
     ctx.save();
 
     /* 낱알. 종이 표면의 오돌토돌한 결이다. */
-    ctx.globalAlpha = 0.085;
-    ctx.fillStyle = "#8b7d63";
+    ctx.globalAlpha = 0.026;
+    ctx.fillStyle = "#6674a5";
     var count = Math.round((w * h) / 1400);
     for (var i = 0; i < count; i++) {
       ctx.fillRect(x + rand() * w, y + rand() * h, 2 + rand() * 2, 2);
     }
 
     /* 섬유. 낱알만으로는 모래처럼 보여서, 결을 따라 흐르는 실선을 섞는다. */
-    ctx.globalAlpha = 0.05;
-    ctx.strokeStyle = "#9c8d70";
+    ctx.globalAlpha = 0.018;
+    ctx.strokeStyle = "#7784b1";
     ctx.lineWidth = 1;
     var fibers = Math.round(w / 12);
     for (var f = 0; f < fibers; f++) {
@@ -76,8 +91,8 @@
         band[0] + (gx < 0 ? band[2] : 0), band[1] + (gy < 0 ? band[3] : 0),
         band[0] + (gx < 0 ? 0 : gx ? band[2] : 0), band[1] + (gy < 0 ? 0 : gy ? band[3] : 0)
       );
-      g.addColorStop(0, "rgba(120,105,80,0.09)");
-      g.addColorStop(1, "rgba(120,105,80,0)");
+      g.addColorStop(0, "rgba(72,84,138,0.045)");
+      g.addColorStop(1, "rgba(72,84,138,0)");
       ctx.fillStyle = g;
       ctx.fillRect(band[0], band[1], band[2], band[3]);
     });
@@ -105,19 +120,19 @@
     var dw = img.naturalWidth * scale;
     var dh = img.naturalHeight * scale;
     ctx.save();
-    ctx.beginPath();
-    ctx.rect(x, y, w, h);
+    roundedPath(ctx, x, y, w, h, 22);
     ctx.clip();
     ctx.drawImage(img, x + (w - dw) / 2, y + (h - dh) / 2, dw, dh);
     ctx.restore();
   }
 
   function emptyFrame(ctx, x, y, w, h, message) {
-    ctx.fillStyle = "#f1ece0";
-    ctx.fillRect(x, y, w, h);
+    roundedPath(ctx, x, y, w, h, 22);
+    ctx.fillStyle = "#f3f5ff";
+    ctx.fill();
     ctx.strokeStyle = EDGE;
     ctx.lineWidth = 2;
-    ctx.strokeRect(x + 1, y + 1, w - 2, h - 2);
+    ctx.stroke();
     if (!message) return;
     ctx.fillStyle = MUTED;
     ctx.font = font(400, 30);
@@ -259,7 +274,7 @@
    */
   function drawMiniMap(ctx, x, y, w, h, points) {
     /* 종이와 같은 톤이면 묻힌다. 한 단계 짙게 깔고 테두리를 준다. */
-    ctx.fillStyle = "#ece3d1";
+    ctx.fillStyle = "#f1f3ff";
     ctx.fillRect(x, y, w, h);
 
     /* 옅은 모눈. 지도라는 것을 알려주는 최소한의 신호다. */
@@ -267,7 +282,7 @@
     ctx.beginPath();
     ctx.rect(x, y, w, h);
     ctx.clip();
-    ctx.strokeStyle = "rgba(160,140,105,0.22)";
+    ctx.strokeStyle = "rgba(92,104,255,0.14)";
     ctx.lineWidth = 1;
     for (var gx = x + 60; gx < x + w; gx += 60) {
       ctx.beginPath();
@@ -283,11 +298,11 @@
     }
     ctx.restore();
 
-    ctx.strokeStyle = "#c4b190";
+    ctx.strokeStyle = "#cfd5ff";
     ctx.lineWidth = 2;
     ctx.strokeRect(x + 1, y + 1, w - 2, h - 2);
 
-    ctx.fillStyle = "#6b5b3e";
+    ctx.fillStyle = "#5360c7";
     ctx.font = font(500, 24);
     ctx.fillText("다녀온 길", x + 20, y + 38);
 
@@ -334,7 +349,7 @@
     });
 
     if (placed.length > 1) {
-      ctx.strokeStyle = "#9a7433";
+      ctx.strokeStyle = "#5c68ff";
       ctx.lineWidth = 4;
       ctx.setLineDash([12, 9]);
       ctx.beginPath();
@@ -381,9 +396,9 @@
         if (collides(box)) continue;
 
         /* 이름 뒤에 옅은 판을 깔아야 모눈과 동선 위에서도 읽힌다. */
-        ctx.fillStyle = "rgba(236,227,209,0.88)";
+        ctx.fillStyle = "rgba(246,247,255,0.92)";
         ctx.fillRect(box.x, box.y, box.w, box.h);
-        ctx.fillStyle = "#5c4d33";
+        ctx.fillStyle = "#4b568e";
         ctx.fillText(name, o.x, o.y);
         taken.push(box);
         return;
@@ -395,11 +410,11 @@
       ctx.beginPath();
       ctx.arc(p.px, p.py, 19, 0, Math.PI * 2);
       ctx.fill();
-      ctx.strokeStyle = "#9a7433";
+      ctx.strokeStyle = "#5c68ff";
       ctx.lineWidth = 4;
       ctx.stroke();
 
-      ctx.fillStyle = "#6b4f14";
+      ctx.fillStyle = "#4654e8";
       ctx.font = font(500, 22);
       ctx.textAlign = "center";
       ctx.fillText(String(i + 1), p.px, p.py + 8);
@@ -455,6 +470,14 @@
       var cw = cell[2] * w - (cell[2] < 1 ? GAP / 2 : 0);
       var ch = cell[3] * boxH - (cell[3] < 1 ? GAP / 2 : 0);
       var img = loaded[index];
+      ctx.save();
+      ctx.shadowColor = "rgba(34,53,104,0.16)";
+      ctx.shadowBlur = 24;
+      ctx.shadowOffsetY = 10;
+      roundedPath(ctx, cx - 8, cy - 8, cw + 16, ch + 16, 26);
+      ctx.fillStyle = "#ffffff";
+      ctx.fill();
+      ctx.restore();
       if (img) drawCover(ctx, img, cx, cy, cw, ch);
       else emptyFrame(ctx, cx, cy, cw, ch, "사진을 불러오지 못했어요");
       corners(ctx, cx, cy, cw, ch);
@@ -486,10 +509,13 @@
     ctx.font = font(500, 68);
     var used = flow(ctx, data.title || "제목 없는 기록", x, y + 140, w, 84, 2);
 
-    var cursor = y + 140 + used * 84 + 40;
-    stars(ctx, x, cursor, 40, 12, data.rating || 0);
-
-    cursor += 80;
+    var cursor = y + 140 + used * 84 + 34;
+    if (data.rating > 0) {
+      stars(ctx, x, cursor, 40, 12, data.rating);
+      cursor += 80;
+    } else {
+      cursor += 18;
+    }
 
     /*
      * 지도는 지면 아래를 차지한다. 글이 짧으면 오른쪽이 허전한데, 동선이 그
@@ -499,10 +525,10 @@
     var textBottom = y + h - 90 - (mapH ? mapH + 40 : 0);
     var lineHeight = 60;
 
-    /* 첫 글자를 크게 놓고 본문이 그 옆을 감싸 흐르게 한다. */
+    /* 서비스의 다른 카드와 같은 본문 위계를 사용해 첫 글자를 과장하지 않는다. */
     ctx.font = font(400, 36);
-    var cap = data.content ? dropCap(ctx, data.content, x, cursor, lineHeight, 2) : null;
-    var rest = cap ? String(data.content).trim().slice(1) : data.content || "";
+    var cap = null;
+    var rest = data.content || "";
 
     ctx.fillStyle = BODY;
     ctx.font = font(400, 36);
@@ -526,14 +552,52 @@
   }
 
   function drawSpread(ctx, data, loaded) {
-    ctx.fillStyle = BOARD;
+    var backdrop = ctx.createLinearGradient(0, 0, W, H);
+    backdrop.addColorStop(0, "#152252");
+    backdrop.addColorStop(0.52, "#3349ad");
+    backdrop.addColorStop(1, "#6750c6");
+    ctx.fillStyle = backdrop;
     ctx.fillRect(0, 0, W, H);
 
+    /* 종이보다 조금 크게 보이는 짙은 표지와 모서리로 한 권의 앨범 두께를 만든다. */
+    ctx.save();
+    ctx.shadowColor = "rgba(7,13,44,0.45)";
+    ctx.shadowBlur = 70;
+    ctx.shadowOffsetY = 30;
+    roundedPath(ctx, MARGIN - 42, MARGIN - 34, W - MARGIN * 2 + 84, H - MARGIN * 2 + 76, 54);
+    var cover = ctx.createLinearGradient(MARGIN, MARGIN, W - MARGIN, H - MARGIN);
+    cover.addColorStop(0, "#293779");
+    cover.addColorStop(1, "#4f3f9d");
+    ctx.fillStyle = cover;
+    ctx.fill();
+    ctx.restore();
+
+    roundedPath(ctx, MARGIN - 25, MARGIN - 17, W - MARGIN * 2 + 50, H - MARGIN * 2 + 48, 48);
+    ctx.strokeStyle = "rgba(220,225,255,0.34)";
+    ctx.lineWidth = 3;
+    ctx.stroke();
+
+    ctx.save();
+    ctx.shadowColor = "rgba(44,55,130,0.18)";
+    ctx.shadowBlur = 50;
+    ctx.shadowOffsetY = 22;
+    roundedPath(ctx, MARGIN, MARGIN, W - MARGIN * 2, H - MARGIN * 2, 42);
     ctx.fillStyle = PAPER;
-    ctx.fillRect(MARGIN, MARGIN, W - MARGIN * 2, H - MARGIN * 2);
-    ctx.strokeStyle = EDGE;
+    ctx.fill();
+    ctx.restore();
+
+    roundedPath(ctx, MARGIN, MARGIN, W - MARGIN * 2, H - MARGIN * 2, 42);
+    ctx.strokeStyle = "#d9dfff";
     ctx.lineWidth = 2;
-    ctx.strokeRect(MARGIN + 1, MARGIN + 1, W - MARGIN * 2 - 2, H - MARGIN * 2 - 2);
+    ctx.stroke();
+    grain(ctx, MARGIN + 4, MARGIN + 20, W - MARGIN * 2 - 8, H - MARGIN * 2 - 24, 20260825);
+
+    var accent = ctx.createLinearGradient(MARGIN, 0, W - MARGIN, 0);
+    accent.addColorStop(0, "#4a73ff");
+    accent.addColorStop(1, "#7657ff");
+    roundedPath(ctx, MARGIN, MARGIN, W - MARGIN * 2, 18, 9);
+    ctx.fillStyle = accent;
+    ctx.fill();
 
     var pad = 90;
     var pageW = (W - MARGIN * 2) / 2;
@@ -553,8 +617,6 @@
       ctx.fillText("사진을 더하면 왼쪽 지면이 채워져요.", MARGIN + pageW + pad, top + 12);
     }
 
-    grain(ctx, MARGIN, MARGIN, W - MARGIN * 2, H - MARGIN * 2, 20260822);
-
     /*
      * 가운데 접힘. 두 쪽이 한 장에서 이어진다는 느낌을 만든다.
      *
@@ -567,15 +629,15 @@
     var height = H - MARGIN * 2;
 
     var wide = ctx.createLinearGradient(center - 150, 0, center + 150, 0);
-    wide.addColorStop(0, "rgba(120,105,80,0)");
-    wide.addColorStop(0.32, "rgba(120,105,80,0.12)");
-    wide.addColorStop(0.5, "rgba(105,90,68,0.4)");
-    wide.addColorStop(0.68, "rgba(120,105,80,0.12)");
-    wide.addColorStop(1, "rgba(120,105,80,0)");
+    wide.addColorStop(0, "rgba(35,45,99,0)");
+    wide.addColorStop(0.32, "rgba(35,45,99,0.04)");
+    wide.addColorStop(0.5, "rgba(23,31,73,0.16)");
+    wide.addColorStop(0.68, "rgba(35,45,99,0.04)");
+    wide.addColorStop(1, "rgba(35,45,99,0)");
     ctx.fillStyle = wide;
     ctx.fillRect(center - 150, top, 300, height);
 
-    ctx.strokeStyle = "rgba(92,78,58,0.55)";
+    ctx.strokeStyle = "rgba(37,46,97,0.28)";
     ctx.lineWidth = 2;
     ctx.beginPath();
     ctx.moveTo(center, top);
@@ -583,7 +645,7 @@
     ctx.stroke();
 
     /* 접힌 자국 바로 옆은 빛을 받아 살짝 밝다. */
-    ctx.strokeStyle = "rgba(255,252,244,0.5)";
+    ctx.strokeStyle = "rgba(255,255,255,0.72)";
     ctx.lineWidth = 3;
     [center - 7, center + 7].forEach(function (x) {
       ctx.beginPath();
@@ -595,28 +657,160 @@
     return layoutName;
   }
 
-  function render(canvas, data) {
-    var all = data.images || [];
+  function dateLabel(value) {
+    if (!value) return "";
+    var parts = String(value).split("-");
+    return parts.length === 3 ? Number(parts[1]) + "월 " + Number(parts[2]) + "일" : String(value);
+  }
+
+  function timeLabel(value) {
+    return value ? String(value).slice(0, 5) : "";
+  }
+
+  function itineraryText(day) {
+    var items = (day && day.items) || [];
+    if (!items.length) return "이 날은 정해진 일정 없이 천천히 여행했습니다.";
+    return items.slice(0, 8).map(function (item) {
+      var time = timeLabel(item.startTime);
+      var label = item.title || item.placeName || "여행 일정";
+      return (time ? time + "  " : "") + label;
+    }).join("\n");
+  }
+
+  function bookingTypeLabel(type) {
+    if (type === "FLIGHT") return "✈ 항공";
+    if (type === "ACCOMMODATION") return "⌂ 숙소";
+    if (type === "TICKET") return "◇ 티켓";
+    return "예약";
+  }
+
+  function bookingText(items) {
+    return (items || []).slice(0, 9).map(function (item) {
+      var meta = [item.detail, item.usageDate, item.statusLabel].filter(Boolean).join(" · ");
+      return bookingTypeLabel(item.type) + "  " + (item.title || "예약") + (meta ? "\n   " + meta : "");
+    }).join("\n");
+  }
+
+  /*
+   * 사진을 고른 순서대로 여행 일자에 고르게 나눈다. 촬영 시각을 강제로 읽지
+   * 않으므로 메타데이터가 지워진 사진도 같은 결과를 얻는다. 한 일자에 사진이
+   * 많으면 여러 지면으로 나눠 모든 사진을 빠짐없이 쓴다.
+   */
+  function distributePhotos(images, days) {
+    var groups = (days || []).map(function () { return []; });
+    if (!groups.length) return [images.slice()];
+    (images || []).forEach(function (image, index) {
+      var dayIndex = Math.min(groups.length - 1, Math.floor(index * groups.length / Math.max(images.length, 1)));
+      groups[dayIndex].push(image);
+    });
+    return groups;
+  }
+
+  function chunks(list, size) {
+    var result = [];
+    for (var i = 0; i < list.length; i += size) result.push(list.slice(i, i + size));
+    return result.length ? result : [[]];
+  }
+
+  function buildPages(data) {
+    var images = (data.images || []).slice();
+    var days = (data.days || []).slice().sort(function (a, b) {
+      return Number(a.dayNumber || 0) - Number(b.dayNumber || 0);
+    });
+    var pages = [{
+      kind: "cover",
+      tripTitle: data.tripTitle,
+      title: data.tripTitle || "우리의 여행",
+      content: [
+        data.destination ? data.destination + "에서 보낸 시간" : "사진으로 다시 만나는 여행",
+        days.length ? days.length + "일의 일정" : null,
+        images.length + "장의 사진"
+      ].filter(Boolean).join("\n"),
+      rating: 0,
+      startDate: data.startDate,
+      endDate: data.endDate,
+      destination: data.destination,
+      route: data.route || [],
+      images: images.slice(0, 3)
+    }];
+
+    var groups = distributePhotos(images, days);
+    if (days.length) {
+      days.forEach(function (day, dayIndex) {
+        chunks(groups[dayIndex], 6).forEach(function (pageImages, chunkIndex) {
+          pages.push({
+            kind: "day",
+            tripTitle: data.tripTitle,
+            title: "DAY " + (day.dayNumber || dayIndex + 1)
+              + (day.tripDate ? " · " + dateLabel(day.tripDate) : "")
+              + (chunkIndex ? " · " + (chunkIndex + 1) : ""),
+            content: itineraryText(day),
+            rating: 0,
+            startDate: day.tripDate,
+            endDate: day.tripDate,
+            destination: day.title || data.destination,
+            route: [],
+            images: pageImages
+          });
+        });
+      });
+    } else {
+      chunks(images, 6).forEach(function (pageImages, index) {
+        pages.push({
+          kind: "gallery",
+          tripTitle: data.tripTitle,
+          title: "PHOTO STORY " + (index + 1),
+          content: "사진으로 남긴 여행의 순간들",
+          rating: 0,
+          startDate: data.startDate,
+          endDate: data.endDate,
+          destination: data.destination,
+          route: [],
+          images: pageImages
+        });
+      });
+    }
+
+    var bookings = (data.bookings && data.bookings.items) || [];
+    if (bookings.length) {
+      pages.push({
+        kind: "booking",
+        tripTitle: data.tripTitle,
+        title: "여행을 완성한 예약",
+        content: bookingText(bookings),
+        rating: 0,
+        startDate: data.startDate,
+        endDate: data.endDate,
+        destination: data.destination,
+        route: [],
+        images: images.slice(0, 2)
+      });
+    }
+    return pages;
+  }
+
+  function renderPageData(canvas, page, ratio) {
+    var all = page.images || [];
     var shown = all.slice(0, 9);
     return loadImages(shown).then(function (loaded) {
-      var ratio = window.devicePixelRatio || 1;
-      canvas.width = W * ratio;
-      canvas.height = H * ratio;
+      var drawRatio = ratio || window.devicePixelRatio || 1;
+      canvas.width = W * drawRatio;
+      canvas.height = H * drawRatio;
       var ctx = canvas.getContext("2d");
-      ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+      ctx.setTransform(drawRatio, 0, 0, drawRatio, 0, 0);
       ctx.textBaseline = "alphabetic";
 
       var ready = document.fonts && document.fonts.ready ? document.fonts.ready : Promise.resolve();
       return ready.then(function () {
         var payload = {
-          tripTitle: data.tripTitle,
-          title: data.title,
-          content: data.content,
-          rating: data.rating,
-          startDate: data.startDate,
-          endDate: data.endDate,
-          destination: data.destination,
-          route: data.route || [],
+          tripTitle: page.tripTitle,
+          title: page.title,
+          content: page.content,
+          rating: page.rating,
+          startDate: page.startDate,
+          endDate: page.endDate,
+          destination: page.destination,
+          route: page.route || [],
           totalImages: all.length
         };
         var name = drawSpread(ctx, payload, loaded);
@@ -625,6 +819,38 @@
         return { layout: name, missing: missing, shown: shown.length, total: all.length };
       });
     });
+  }
+
+  /* 이전 단일 지면 API는 테스트와 기존 호출 호환을 위해 유지한다. */
+  function render(canvas, data) {
+    return renderPageData(canvas, {
+      tripTitle: data.tripTitle,
+      title: data.title,
+      content: data.content,
+      rating: data.rating,
+      startDate: data.startDate,
+      endDate: data.endDate,
+      destination: data.destination,
+      route: data.route || [],
+      images: data.images || []
+    });
+  }
+
+  function renderAlbum(canvas, data, pageIndex) {
+    var pages = buildPages(data);
+    var index = Math.max(0, Math.min(Number(pageIndex) || 0, pages.length - 1));
+    return renderPageData(canvas, pages[index]).then(function (result) {
+      return Object.assign(result, { index: index, pageCount: pages.length, kind: pages[index].kind });
+    });
+  }
+
+  /* GIF는 실제 표지·날짜별 일정·예약 페이지를 각각 프레임으로 사용한다. */
+  function renderAll(data) {
+    var pages = buildPages(data);
+    return Promise.all(pages.map(function (page) {
+      var canvas = document.createElement("canvas");
+      return renderPageData(canvas, page, 0.5).then(function () { return canvas; });
+    }));
   }
 
   function toBlob(canvas) {
@@ -642,6 +868,9 @@
 
   window.AllMyTripsRecordBook = {
     render: render,
+    renderAlbum: renderAlbum,
+    renderAll: renderAll,
+    buildPages: buildPages,
     toBlob: toBlob,
     pickLayout: pickLayout,
     size: { width: W, height: H }

@@ -39,6 +39,20 @@ public enum ErrorCode {
             "새 비밀번호는 현재 비밀번호와 다르게 설정해주세요."
     ),
 
+    PASSWORD_TOO_SHORT(
+            HttpStatus.BAD_REQUEST,
+            "비밀번호는 8자 이상이어야 합니다."
+    ),
+
+    /*
+     * 만료·사용됨·없는 토큰을 하나로 묶는다. 왜 안 되는지 갈라 알려주면, 토큰을 넣어 보며
+     * 어떤 것이 존재하는지 떠볼 수 있다.
+     */
+    PASSWORD_RESET_TOKEN_INVALID(
+            HttpStatus.BAD_REQUEST,
+            "링크가 만료되었거나 이미 사용되었습니다. 비밀번호 찾기를 다시 시도해 주세요."
+    ),
+
     UNAUTHORIZED(
             HttpStatus.UNAUTHORIZED,
             "로그인이 필요합니다."

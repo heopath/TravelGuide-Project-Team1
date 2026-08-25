@@ -282,7 +282,7 @@ Cookie: JSESSIONID=세션값
 
 ---
 
-## 8. 여행 사진 S3 업로드·조회
+## 8. 여행 사진 업로드·조회
 
 ```http
 POST /api/v1/travel-records/{travelRecordId}/images/upload
@@ -294,7 +294,8 @@ file=@photo.jpg
 - 허용 형식: JPEG, PNG, WEBP, GIF
 - 최대 크기: 10MB
 - 대상 기록의 작성자만 업로드할 수 있다.
-- S3 설정은 `TRAVEL_RECORD_S3_ENABLED=true`, `AWS_S3_BUCKET`, `AWS_REGION`으로 켠다. 운영은 IAM Role, 로컬은 AWS SDK 기본 자격 증명 환경 변수로 인증한다.
+- 운영은 `TRAVEL_RECORD_S3_ENABLED=true`, `AWS_S3_BUCKET`, `AWS_REGION`을 설정하고 EC2 IAM Role로 S3에 저장한다.
+- `local` 프로필에서는 `travel-record.local-storage.enabled=true`가 적용되어 별도 AWS 자격 증명 없이 OS 임시 디렉터리에 저장한다. 운영 프로필에서는 이 대체 저장소가 기본적으로 꺼져 있다.
 - 사진 조회는 PUBLIC 기록이면 누구나, PRIVATE 기록이면 작성자만 가능하다.
 
 ## 9. 여행 기록 삭제
@@ -354,9 +355,10 @@ Cookie: JSESSIONID=세션값
 
 아래 항목은 이 문서를 쓰면서 발견했지만 기존 기획 문서([backend-service-role-plan.md](../backend-service-role-plan.md), [trip-service-structure.md](../trip-service-structure.md))에 명시적인 답이 없어 확정하지 않았다. `trips/record.js` 연동 전에 GitHub 이슈에서 논의해 확정한다.
 
-1. 사진 업로드는 완료 여행에서 만든 기록에만 가능하다. 업로드 버튼을 처음 누르면 비어 있는 기록도 기본 제목/메모/전체 공개로 생성된다.
-2. 마이페이지 사진첩은 내 기록 목록을 최신 작성일 순으로 보여 준다. 페이지네이션은 기록 수가 증가하면 별도 이슈로 추가한다.
-3. GIF 내보내기는 브라우저에서 생성하며, 업로드 사진 원본은 S3에 계속 보관된다.
+1. 사용자는 완료 여행에서 사진만 여러 장 고른다. 첫 업로드 때 제목·설명은 여행명·기간·목적지로 자동 생성하며 기본 공개 범위는 `PRIVATE`다. 제목·후기·별점 입력은 요구하지 않는다.
+2. 마이페이지 **여행 기록** 탭은 기록이 이미 있는 여행뿐 아니라 기록이 없는 완료 여행도 함께 보여 준다. 기록이 없으면 사진 선택 단계로 바로 연결한다.
+3. 화면은 여행의 날짜별 일정과 항공·숙소·티켓 예약 요약을 조회해 표지·날짜별 지면·예약 지면으로 자동 구성한다. 사진은 선택 순서대로 각 날짜에 고르게 배분한다.
+4. GIF 내보내기는 같은 캔버스를 반복하지 않고 표지와 모든 앨범 지면을 순서대로 프레임에 넣는다. Web Share API를 지원하는 기기에서는 GIF 파일을 바로 공유하고, 그렇지 않으면 다운로드한다.
 
 ## 13. 완료 기준
 
