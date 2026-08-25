@@ -57,9 +57,31 @@ document.addEventListener("DOMContentLoaded", function () {
   let planProgressTimer = null;
   let planProgressStartedAt = 0;
 
-  function paintPlanProgress(percent) {
+  /*
+   * 막대 폭을 바꾼다.
+   *
+   * 폭에는 0.25초 전환이 걸려 있어 앞으로 갈 때는 부드럽게 늘어난다. 그런데 0으로
+   * 되돌릴 때도 같은 전환이 걸려서, 실패 후 다시 시도하면 막대가 뒤로 미끄러진 뒤
+   * 다시 앞으로 갔다. 값은 줄지 않는데 화면만 되돌아가 보였다.
+   *
+   * 되돌릴 때는 instant로 전환을 끄고 즉시 옮긴다.
+   */
+  function paintBarWidth(fill, value, instant) {
+    if (!fill) return;
+    if (!instant) {
+      fill.style.width = value + "%";
+      return;
+    }
+    fill.classList.add("plan-progress-instant");
+    fill.style.width = value + "%";
+    /* 새 폭을 확정한 뒤에 전환을 되살린다. 안 그러면 다음 증가분까지 끊겨 보인다. */
+    void fill.offsetWidth;
+    fill.classList.remove("plan-progress-instant");
+  }
+
+  function paintPlanProgress(percent, instant) {
     const value = Math.max(0, Math.min(100, Math.round(percent)));
-    if (planProgressFill) planProgressFill.style.width = value + "%";
+    paintBarWidth(planProgressFill, value, instant);
     if (planProgressValue) planProgressValue.textContent = value + "%";
     if (planProgressBar) planProgressBar.setAttribute("aria-valuenow", String(value));
     const step = PLAN_PROGRESS_STEPS.find(function (candidate) { return value < candidate.until; })
@@ -68,9 +90,13 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   function startPlanProgress() {
-    stopPlanProgress();
+    /*
+     * 이미 돌고 있으면 그대로 둔다. 화면이 뜰 때 showPlanState("loading")이 초기화와
+     * generatePlan에서 두 번 불려, 시작하자마자 0으로 되돌리고 다시 세던 것을 막는다.
+     */
+    if (planProgressTimer) return;
     planProgressStartedAt = Date.now();
-    paintPlanProgress(0);
+    paintPlanProgress(0, true);
     planProgressTimer = window.setInterval(function () {
       const elapsed = Date.now() - planProgressStartedAt;
       /*
@@ -437,7 +463,8 @@ document.addEventListener("DOMContentLoaded", function () {
     saveProgressBox.hidden = total <= 0;
     if (total <= 0) return;
     const percent = Math.round((done / total) * 100);
-    if (saveProgressFill) saveProgressFill.style.width = percent + "%";
+    /* 시작(0/N)은 지난 저장의 폭에서 되돌아오는 것이라 즉시 옮긴다. */
+    paintBarWidth(saveProgressFill, percent, done === 0);
     if (saveProgressValue) saveProgressValue.textContent = done + " / " + total;
     if (saveProgressBar) saveProgressBar.setAttribute("aria-valuenow", String(percent));
   }

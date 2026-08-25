@@ -80,7 +80,28 @@ T("감춰졌을 때 자리를 차지하지 않는다",
   /\.plan-save-progress\[hidden\][^}]*display:\s*none/.test(CSS));
 
 /* =========================================================
-   3. 두 구간이 같은 모양을 쓴다
+   3. 되돌릴 때 뒤로 미끄러지지 않는다
+
+   폭에 0.25초 전환이 걸려 있어 앞으로는 부드럽게 늘어난다. 그런데 0으로 되돌릴 때도
+   같은 전환이 걸리면, 실패 후 다시 시도할 때 막대가 뒤로 미끄러진 뒤 다시 앞으로
+   간다. 값은 줄지 않는데 화면만 되감기는 것처럼 보였다.
+   ========================================================= */
+
+T("전환을 끄는 클래스가 있다",
+  /\.plan-progress-bar > span\.plan-progress-instant[^}]*transition:\s*none/.test(CSS));
+T("되돌릴 때 그 클래스를 쓴다",
+  /classList\.add\("plan-progress-instant"\)/.test(JS));
+T("폭을 확정한 뒤 전환을 되살린다",
+  /void fill\.offsetWidth;[\s\S]{0,120}classList\.remove\("plan-progress-instant"\)/.test(JS),
+  "reflow 없이 클래스를 빼면 다음 증가분까지 끊겨 보인다");
+T("0으로 되돌릴 때 즉시 옮긴다", /paintPlanProgress\(0, true\)/.test(JS));
+
+/* 화면이 뜰 때 showPlanState("loading")이 두 번 불린다. 두 번째가 진행률을 되돌리면 안 된다. */
+T("이미 돌고 있으면 다시 시작하지 않는다",
+  /function startPlanProgress\(\)[\s\S]{0,400}if \(planProgressTimer\) return;/.test(JS));
+
+/* =========================================================
+   4. 두 구간이 같은 모양을 쓴다
    ========================================================= */
 
 T("공용 막대 스타일이 있다", /\.plan-progress-bar\s*\{/.test(CSS));

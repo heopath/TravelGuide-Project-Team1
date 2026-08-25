@@ -73,6 +73,8 @@ body.page-ai-trip-plan .page-shell.ai-plan-shell { width: min(1480px, calc(100vw
 .plan-progress { width: min(280px, 100%); display: flex; align-items: center; gap: 10px; }
 .plan-progress-bar { flex: 1; height: 6px; border-radius: 999px; background: rgba(0, 0, 0, .08); overflow: hidden; }
 .plan-progress-bar > span { display: block; width: 0; height: 100%; border-radius: inherit; background: var(--primary); transition: width .25s ease; }
+/* 0으로 되돌릴 때는 전환을 끈다. 안 끄면 막대가 뒤로 미끄러져 되감기는 것처럼 보인다. */
+.plan-progress-bar > span.plan-progress-instant { transition: none; }
 .plan-progress > strong { min-width: 46px; color: var(--navy); font-size: 12px; font-variant-numeric: tabular-nums; text-align: right; }
 .plan-progress-note { color: var(--muted); font-size: 11px; }
 
