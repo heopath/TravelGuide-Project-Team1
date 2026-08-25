@@ -13,9 +13,10 @@ import org.example.all_my_trip_project.domain.route.dto.TransitRouteRequest;
 import org.example.all_my_trip_project.domain.route.dto.TransitRouteResponse;
 import org.example.all_my_trip_project.domain.trip.dto.ItineraryItemDTO;
 import org.example.all_my_trip_project.domain.trip.service.TripService;
+import org.example.all_my_trip_project.global.apikey.ApiKeyProvider;
+import org.example.all_my_trip_project.global.apikey.ManagedApiKey;
 import org.example.all_my_trip_project.global.exception.BusinessException;
 import org.example.all_my_trip_project.global.exception.ErrorCode;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
 import org.springframework.context.annotation.Profile;
@@ -43,8 +44,17 @@ public class RouteOptimizationService {
     private final RouteOrderOptimizer routeOrderOptimizer;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-    @Value("${kakao.rest-api-key:}")
-    private String restApiKey;
+    private final ApiKeyProvider apiKeyProvider;
+
+    /**
+     * 카카오 REST 키를 호출 시점에 꺼낸다.
+     *
+     * <p>예전에는 {@code @Value}로 필드에 한 번 받아 두었다. 그러면 관리자가 화면에서 키를
+     * 교체해도 재시작 전까지 옛 키로 호출한다. 값이 없으면 빈 문자열이라 null 검사는 필요 없다.
+     */
+    private String kakaoRestApiKey() {
+        return apiKeyProvider.resolve(ManagedApiKey.KAKAO_REST);
+    }
 
     public TransitRouteResponse searchTransitRoute(TransitRouteRequest request) {
         JsonNode response = requestKakaoMapRoute("publictraffic", request, null);
@@ -144,7 +154,7 @@ public class RouteOptimizationService {
     }
 
     public TransitRouteResponse searchDrivingRoute(TransitRouteRequest request) {
-        String kakaoKey = restApiKey == null ? "" : restApiKey.trim();
+        String kakaoKey = kakaoRestApiKey();
         if (kakaoKey.isBlank()) throw new BusinessException(ErrorCode.ROUTE_NOT_CONFIGURED);
 
         String url = UriComponentsBuilder
@@ -223,7 +233,7 @@ public class RouteOptimizationService {
             String routeType,
             TransitRouteRequest request,
             String routeMode) {
-        String kakaoKey = restApiKey == null ? "" : restApiKey.trim();
+        String kakaoKey = kakaoRestApiKey();
         if (kakaoKey.isBlank()) throw new BusinessException(ErrorCode.ROUTE_NOT_CONFIGURED);
 
         UriComponentsBuilder builder = UriComponentsBuilder
@@ -322,7 +332,7 @@ public class RouteOptimizationService {
         TransportMode mode = TransportMode.parse(modeValue);
         RouteModeOverride routeModeOverride = RouteModeOverride.parse(
                 overrideFromItemId, overrideToItemId, overrideModeValue);
-        if (restApiKey == null || restApiKey.isBlank()) {
+        if (kakaoRestApiKey().isBlank()) {
             throw new BusinessException(ErrorCode.ROUTE_NOT_CONFIGURED);
         }
         List<ItineraryItemDTO> allItems = applyRequestedOrder(
@@ -460,7 +470,7 @@ public class RouteOptimizationService {
                 || destination.getLatitude() == null || destination.getLongitude() == null) {
             throw new IllegalArgumentException("모든 일정 장소에 좌표가 필요합니다.");
         }
-        String kakaoKey = restApiKey == null ? "" : restApiKey.trim();
+        String kakaoKey = kakaoRestApiKey();
         if (kakaoKey.isBlank()) {
             throw new BusinessException(ErrorCode.ROUTE_NOT_CONFIGURED);
         }

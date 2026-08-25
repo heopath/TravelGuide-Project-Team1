@@ -1277,3 +1277,110 @@ body[data-slot-modal-open] { overflow: hidden; }
   .admin-slot-section { padding: 14px; }
   .admin-slot-filter [data-slot-count] { margin-left: 0; width: 100%; }
 }
+
+/* API 키 관리. 키마다 카드 하나를 두고, 카드 안에서 확인·저장이 끝나게 한다. */
+.page-admin .admin-apikey-panel { max-width: 760px; }
+.page-admin .admin-apikey-warning {
+  margin: 0 0 16px;
+  padding: 12px 14px;
+  border: 1px solid #f0c2c2;
+  border-radius: 10px;
+  background: #fff5f5;
+  color: #b42318;
+  font-size: 13px;
+  line-height: 1.6;
+}
+.page-admin .admin-apikey-warning code {
+  padding: 1px 5px;
+  border-radius: 5px;
+  background: #fee4e2;
+  font-size: 12px;
+}
+.page-admin .admin-apikey-list { display: grid; gap: 14px; }
+.page-admin .admin-apikey-card {
+  padding: 16px 18px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: #fff;
+}
+.page-admin .admin-apikey-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.page-admin .admin-apikey-head h3 {
+  margin: 0;
+  color: var(--navy);
+  font-size: 15px;
+}
+.page-admin .admin-apikey-source {
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+}
+.page-admin .admin-apikey-source.stored { background: #e7f4ec; color: #1a7f45; }
+.page-admin .admin-apikey-source.env { background: #eef2ff; color: #3538cd; }
+.page-admin .admin-apikey-source.none { background: #fef0c7; color: #b54708; }
+.page-admin .admin-apikey-desc {
+  margin: 6px 0 12px;
+  color: var(--muted);
+  font-size: 12px;
+}
+.page-admin .admin-apikey-current {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+  color: var(--muted);
+  font-size: 12px;
+}
+.page-admin .admin-apikey-current strong {
+  color: var(--navy);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 15px;
+  letter-spacing: 0.02em;
+}
+.page-admin .admin-apikey-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: end;
+  gap: 10px;
+}
+.page-admin .admin-apikey-form label {
+  display: grid;
+  gap: 6px;
+  color: #475467;
+  font-size: 12px;
+  font-weight: 700;
+}
+.page-admin .admin-apikey-form input {
+  min-height: 42px;
+  padding: 8px 11px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: #fff;
+  font-size: 14px;
+}
+.page-admin .admin-apikey-form button { min-height: 42px; }
+.page-admin .admin-apikey-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 10px;
+}
+.page-admin .admin-apikey-message {
+  min-height: 20px;
+  margin: 10px 0 0;
+  color: var(--primary);
+  font-size: 12px;
+  font-weight: 700;
+}
+.page-admin .admin-apikey-message.error { color: #b42318; }
+.page-admin .admin-apikey-message.ok { color: #1a7f45; }
+
+@media (max-width: 720px) {
+  .page-admin .admin-apikey-form { grid-template-columns: 1fr; }
+  .page-admin .admin-apikey-form button { width: 100%; }
+}
