@@ -3,6 +3,7 @@ package org.example.all_my_trip_project.domain.flight.dto;
 import org.example.all_my_trip_project.domain.flight.type.BookingStatus;
 
 import java.math.BigDecimal;
+import java.time.OffsetDateTime;
 
 /**
  * 구간 1개의 저장 상태.
@@ -24,10 +25,15 @@ public record FlightBookingLegResponse(
         BigDecimal totalPrice,
         String currency,
         String priceSource,
-        String bookingRef
+        String bookingRef,
+        String origin,
+        String destination,
+        OffsetDateTime departureAt,
+        OffsetDateTime arrivalAt
 ) {
     public static FlightBookingLegResponse empty(int leg) {
         return new FlightBookingLegResponse(
-                leg, BookingStatus.NONE, null, null, null, null, null, null, null, null, null, null);
+                leg, BookingStatus.NONE, null, null, null, null, null, null, null, null, null, null,
+                null, null, null, null);
     }
 }

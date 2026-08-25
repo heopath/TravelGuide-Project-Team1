@@ -1,6 +1,7 @@
 package org.example.all_my_trip_project.domain.booking.dto;
 
 import java.math.BigDecimal;
+import java.time.OffsetDateTime;
 import java.util.List;
 
 /**
@@ -30,7 +31,8 @@ public record MyBookingsResponse(
             /** 실습·샘플 금액이면 참. 화면에서 이 표시를 떼면 안 된다. */
             boolean practice,
             String usageDate,
-            Integer quantity
+            Integer quantity,
+            OffsetDateTime bookedAt
     ) {}
 
     /** 종류별 개수. 탭에 붙일 숫자를 화면에서 다시 세지 않게 한다. */

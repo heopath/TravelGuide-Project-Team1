@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -32,6 +33,19 @@ import java.util.Map;
 public class FlightBookingController {
 
     private final FlightBookingService flightBookingService;
+
+    /** 외부 예약 사이트로 이동하지 않아도 사용자가 고른 항공편을 즉시 저장한다. */
+    @PutMapping("/flights/{leg}")
+    public ApiResponse<TripFlightBookingsResponse> saveSelection(
+            @AuthenticationPrincipal AuthenticatedUser principal,
+            @PathVariable Long tripId,
+            @PathVariable int leg,
+            @Valid @RequestBody OutboundClickRequest request) {
+        Long userId = requireUserId(principal);
+        flightBookingService.saveSelection(userId, tripId, leg, request);
+        return ApiResponse.success("항공편을 선택했어요.",
+                flightBookingService.getBookings(userId, tripId));
+    }
 
     /** 딥링크 클릭 기록. 응답의 clickId를 들고 있다가 복귀 시 결과를 붙인다. */
     @PostMapping("/flights/{leg}/outbound-click")

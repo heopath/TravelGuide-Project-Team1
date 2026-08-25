@@ -72,6 +72,15 @@
     return match ? `${Number(match[2])}월 ${Number(match[3])}일` : String(iso || "");
   };
 
+  const PENDING_BOOKING_KEY = "allMyTrips.pendingBooking";
+  const BOOKING_RESUME_DRAFT_BACKUP_KEY = "allMyTrips.bookingResumeDraftBackup";
+  const AIRPORT_TRIP_DESTINATIONS = {
+    CJU: "제주특별자치도", PUS: "부산광역시", GMP: "서울특별시", ICN: "인천광역시",
+    TAE: "대구광역시", KWJ: "광주광역시", CJJ: "충청북도", USN: "울산광역시",
+    RSU: "여수", HIN: "경상남도", KUV: "전북특별자치도", WJU: "강원특별자치도",
+    YNY: "강원특별자치도", MWX: "전라남도", KPO: "경상북도"
+  };
+
   /* 외부 사이트에 이만큼도 머무르지 않았으면 복귀로 보지 않는다.
      오탐을 줄일 뿐 없애지는 못한다. 알림 확인·앱 전환에도 visibilitychange는 발생한다. */
   const MIN_AWAY_MS = 8000;
@@ -108,6 +117,9 @@
   let ticketReservation = null;
   let bookingSummary = null;
   let bookingSummaryError = null;
+  let bookingConfirmation = { confirmed: false, eligible: false, missingSteps: [] };
+  let bookingMutationPending = false;
+  let standaloneBookingBatchId = null;
   /*
    * 티켓은 여행에 묶이지 않는다(#255). 그래서 여행 기준 요약(booking-summary)이 아니라
    * 사용자 기준으로 따로 받는다. 여행을 안 고르고 담은 티켓도 이 탭에서 결제할 수 있어야
@@ -192,6 +204,30 @@
   };
   const ticketDone = () => !!ticketReservation;
   const ticketTotal = () => ticketDone() ? Number(ticketReservation.totalAmount || 0) : 0;
+
+  /* 서버 저장 DTO는 OffsetDateTime을 받는다. 국내선 검색 결과의 로컬 시각에는
+     오프셋이 없으므로 한국 표준시를 붙여 요청 본문 역직렬화 실패를 막는다. */
+  const koreaOffsetDateTime = (value) => {
+    const dateTime = String(value || "");
+    if (!dateTime || /(?:Z|[+-]\d{2}:\d{2})$/i.test(dateTime)) return dateTime;
+    return `${dateTime}+09:00`;
+  };
+
+  const offerSnapshot = (offer) => ({
+    offerId: offer.offerId,
+    provider: offer.provider,
+    origin: offer.origin,
+    destination: offer.destination,
+    carrierCode: offer.carrierCode,
+    carrierName: offer.carrierName,
+    flightNumber: offer.flightNumber,
+    departureAt: koreaOffsetDateTime(offer.departureAt),
+    arrivalAt: koreaOffsetDateTime(offer.arrivalAt),
+    totalPrice: hasPrice(offer) ? offer.totalPrice : null,
+    currency: offer.currency,
+    priceSource: offer.priceSource,
+    deeplinkUrl: offer.deeplinkUrl
+  });
 
   /* 목록에 출처가 섞이면 카드마다 개별 표시되고, 하단 문구가 그 사실을 알린다. */
   const sourceLabel = () => offers[state.leg][0]?.priceSourceLabel || "공시운임";
@@ -419,7 +455,7 @@
         ds: hotelDone() ? "선택됨" : "미선택",
         pv: hotelDone() ? hotelPriceLabel() : "", dim: !hotelHasDisplayPrice() },
       { tab: "ticket", done: ticketDone(), ic: icon("ticket"), nm: "티켓·액티비티 선택",
-        ds: ticketDone() ? "선택됨" : "미선택",
+        ds: ticketDone() ? "선택됨" : "선택 사항",
         pv: ticketDone() ? won(ticketTotal()) : "", dim: !ticketDone() }
     ];
 
@@ -492,22 +528,17 @@
     renderCostLines();
     renderNextStep();
 
-    /*
-     * 네 단계로 센다. 가는 편·오는 편·숙소·티켓. (#281 시안)
-     *
-     * 예전에는 왕복 항공을 한 칸으로 묶어 셋이었는데, 가는 편만 표시한 사람에게 0/3이
-     * 나왔다. 절반을 끝냈는데 아무것도 안 한 것처럼 보였다.
-     */
-    const steps = [
+    /* 티켓·액티비티는 선택 항목이므로 필수 진행률과 예약 확정 조건에서 제외한다. */
+    const requiredSteps = [
       Boolean(state.picked[OUTBOUND]),
       Boolean(state.picked[INBOUND]),
-      hotelDone(),
-      ticketDone()
+      hotelDone()
     ];
-    const done = steps.filter(Boolean).length;
-    text("dn", done);
-    text("tabCount", done);
-    $("fill").style.width = Math.round((done / steps.length) * 100) + "%";
+    const requiredDone = requiredSteps.filter(Boolean).length;
+    const selectedCount = requiredDone + (ticketDone() ? 1 : 0);
+    text("dn", requiredDone);
+    text("tabCount", selectedCount);
+    $("fill").style.width = Math.round((requiredDone / requiredSteps.length) * 100) + "%";
 
     renderMine();
   }
@@ -561,24 +592,235 @@
   /**
    * 다음에 할 일 하나만 띄운다.
    *
-   * <p>네 단계를 늘어놓고 무엇부터 할지는 안 알려주는 화면이 되지 않게 한다. 다 골랐으면
-   * 버튼을 감춘다 — 누를 것이 없는데 버튼이 남아 있으면 아직 할 일이 있는 줄 안다.
+   * <p>필수 단계인 왕복 항공과 숙소를 모두 골랐으면 티켓 선택 여부와 관계없이
+   * 실습 예약을 최종 확정하는 버튼으로 바꾼다.
    */
   function renderNextStep() {
-    const next = !state.picked[OUTBOUND] ? { label: "다음 단계: 가는 편 선택", tab: "flight", leg: OUTBOUND }
+    const selectionsComplete = !!state.picked[OUTBOUND]
+      && !!state.picked[INBOUND]
+      && hotelDone();
+    let next = !state.picked[OUTBOUND] ? { label: "다음 단계: 가는 편 선택", tab: "flight", leg: OUTBOUND }
       : !state.picked[INBOUND] ? { label: "다음 단계: 오는 편 선택", tab: "flight", leg: INBOUND }
       : !hotelDone() ? { label: "다음 단계: 숙소 선택", tab: "hotel" }
-      : !ticketDone() ? { label: "다음 단계: 티켓·액티비티 선택", tab: "ticket" }
-      : null;
+      : bookingConfirmation.confirmed
+        ? { label: "예약 관리 보기", action: "manage" }
+        : { label: "예약 확정", action: "confirm" };
+
+    if (selectionsComplete && !canPersist()) {
+      next = standaloneBookingBatchId
+        ? { label: "예약 관리 보기", action: "manage" }
+        : { label: "항공·숙소 예약 확정하기", action: "confirmPending" };
+    }
+    if (bookingMutationPending) {
+      next = { label: "선택 저장 중...", action: "pending" };
+    }
 
     const button = $("nextStep");
-    button.hidden = !next;
-    if (!next) return;
-
+    button.hidden = false;
+    button.disabled = next.action === "pending";
     button.textContent = next.label;
-    button.dataset.nextTab = next.tab;
+    button.dataset.nextAction = next.action || "navigate";
+    if (next.tab === undefined) delete button.dataset.nextTab;
+    else button.dataset.nextTab = next.tab;
     if (next.leg === undefined) delete button.dataset.nextLeg;
     else button.dataset.nextLeg = String(next.leg);
+  }
+
+  function createBookingBatchId() {
+    if (window.crypto?.randomUUID) return window.crypto.randomUUID();
+    const bytes = new Uint8Array(16);
+    window.crypto?.getRandomValues?.(bytes);
+    if (!bytes.some(Boolean)) {
+      for (let index = 0; index < bytes.length; index += 1) {
+        bytes[index] = Math.floor(Math.random() * 256);
+      }
+    }
+    bytes[6] = (bytes[6] & 0x0f) | 0x40;
+    bytes[8] = (bytes[8] & 0x3f) | 0x80;
+    const hex = Array.from(bytes, (value) => value.toString(16).padStart(2, "0")).join("");
+    return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+  }
+
+  function pendingBookingSnapshot() {
+    const flights = [OUTBOUND, INBOUND].map((leg) => offerOf(leg, state.picked[leg]));
+    if (flights.some((offer) => !offer) || !hotelSelection) return null;
+    return {
+      version: 2,
+      createdAt: Date.now(),
+      bookingBatchId: createBookingBatchId(),
+      search: { ...search },
+      ticketReservationId: ticketReservation?.reservationId || null,
+      flights: flights.map(offerSnapshot),
+      accommodation: {
+        checkIn: $("h-checkin")?.value || search.departureDate,
+        checkOut: $("h-checkout")?.value || search.returnDate,
+        offerId: hotelSelection.offerId,
+        provider: hotelSelection.provider,
+        name: hotelSelection.name,
+        accommodationType: hotelSelection.type,
+        areaLabel: hotelSelection.areaLabel,
+        address: hotelSelection.address,
+        rating: hotelSelection.rating,
+        latitude: hotelSelection.latitude,
+        longitude: hotelSelection.longitude,
+        nightlyPrice: hotelSelection.nightlyPrice,
+        totalPrice: hotelSelection.totalPrice,
+        currency: hotelSelection.currency,
+        priceSource: hotelSelection.priceSource,
+        rooms: Number($("h-rooms")?.value) || 1,
+        adults: Number($("h-adults")?.value) || search.adults || 1
+      }
+    };
+  }
+
+  function prepareNewTripForPendingBooking(pending) {
+    if (!pending) {
+      window.alert("항공편과 숙소 선택 정보를 찾지 못했습니다. 다시 선택해 주세요.");
+      return false;
+    }
+    sessionStorage.setItem(PENDING_BOOKING_KEY, JSON.stringify(pending));
+
+    /* 예약에서 새 여행을 시작하기 전의 초안은 따로 보관한다. 베이직 화면을 중간에
+       벗어나면 예약용 입력을 버리고 원래 초안을 복원할 수 있다. */
+    if (sessionStorage.getItem(BOOKING_RESUME_DRAFT_BACKUP_KEY) === null) {
+      sessionStorage.setItem(
+        BOOKING_RESUME_DRAFT_BACKUP_KEY,
+        sessionStorage.getItem("tripDraft") || ""
+      );
+    }
+
+    let draft = {};
+    try { draft = JSON.parse(sessionStorage.getItem("tripDraft") || "{}"); }
+    catch (error) { draft = {}; }
+    const destination = AIRPORT_TRIP_DESTINATIONS[search.destination] || airportName(search.destination);
+    draft.plan = { mode: "MANUAL", source: "MANUAL" };
+    draft.basic = {
+      ...(draft.basic || {}),
+      title: `${Number(search.departureDate.slice(5, 7))}월의 ${destination} 여행`,
+      titleAutoGenerated: true,
+      destination,
+      destinationLabel: destination,
+      countryCode: "KR",
+      startDate: search.departureDate,
+      endDate: search.returnDate,
+      travelerCount: search.adults,
+      /* 인원 수만으로 관계를 추측하지 않는다. 동행자 유형은 베이직 화면에서 직접 고른다. */
+      companion: ""
+    };
+    delete draft.trip;
+    delete draft.style;
+    sessionStorage.setItem("tripDraft", JSON.stringify(draft));
+    return true;
+  }
+
+  async function confirmPendingBooking() {
+    if (bookingMutationPending) return;
+    const pending = pendingBookingSnapshot();
+    if (!pending) {
+      window.alert("항공편과 숙소 선택 정보를 찾지 못했습니다. 다시 선택해 주세요.");
+      return;
+    }
+
+    const bookingConfirmed = window.AllMyTripsDialog?.confirm
+      ? await window.AllMyTripsDialog.confirm({
+        title: "확정하시겠습니까?",
+        message: "선택한 항공편과 숙소를 예약 확정 상태로 진행합니다.",
+        cancelLabel: "아니오",
+        confirmLabel: "예"
+      })
+      : window.confirm("선택한 항공편과 숙소를 확정하시겠습니까?");
+    if (!bookingConfirmed) return;
+
+    bookingMutationPending = true;
+    renderNextStep();
+    try {
+      await request(
+        "POST",
+        `/api/v1/booking-batches/${encodeURIComponent(pending.bookingBatchId)}/confirmation`,
+        { flights: pending.flights, accommodation: pending.accommodation }
+      );
+      pending.confirmedByUser = true;
+      standaloneBookingBatchId = pending.bookingBatchId;
+      sessionStorage.setItem(PENDING_BOOKING_KEY, JSON.stringify(pending));
+    } catch (error) {
+      window.alert(error.message || "항공·숙소 예약을 확정하지 못했습니다.");
+      return;
+    } finally {
+      bookingMutationPending = false;
+      renderNextStep();
+    }
+
+    const createSchedule = window.AllMyTripsDialog?.confirm
+      ? await window.AllMyTripsDialog.confirm({
+        title: "여행 일정을 생성할까요?",
+        cancelLabel: "아니오",
+        confirmLabel: "예"
+      })
+      : window.confirm("여행 일정을 생성할까요?");
+    if (!createSchedule) return;
+
+    if (!prepareNewTripForPendingBooking(pending)) return;
+    window.location.assign("/trips/new/basic?bookingResume=1");
+  }
+
+  function readPendingBooking() {
+    try {
+      const pending = JSON.parse(sessionStorage.getItem(PENDING_BOOKING_KEY) || "null");
+      if (!pending || ![1, 2].includes(pending.version)
+        || Date.now() - Number(pending.createdAt) > 2 * 60 * 60 * 1000) {
+        sessionStorage.removeItem(PENDING_BOOKING_KEY);
+        return null;
+      }
+      return pending;
+    } catch (error) {
+      sessionStorage.removeItem(PENDING_BOOKING_KEY);
+      return null;
+    }
+  }
+
+  async function resumePendingBooking() {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("resumePending") !== "1" || !canPersist()) return false;
+    const pending = readPendingBooking();
+    if (!pending) return false;
+
+    bookingMutationPending = true;
+    renderNextStep();
+    try {
+      if (pending.confirmedByUser !== true
+        || !Array.isArray(pending.flights)
+        || pending.flights.length !== 2
+        || !pending.accommodation) {
+        throw new Error("이전 예약 선택 정보가 올바르지 않습니다.");
+      }
+      if (!pending.bookingBatchId) {
+        /* V1 세션은 배치 API 도입 전에 만들어졌다. 진행 중이던 사용자는 기존 방식으로 마무리한다. */
+        await Promise.all(pending.flights.map((offer, leg) =>
+          request("PUT", `/api/v1/trips/${tripId}/flights/${leg}`, offer)));
+        await request("POST", `/api/v1/trips/${tripId}/accommodations`, pending.accommodation);
+        await request("POST", `/api/v1/trips/${tripId}/booking-confirmation`);
+      }
+      if (pending.ticketReservationId) {
+        await request(
+          "PATCH",
+          `/api/v1/ticket-reservations/${encodeURIComponent(pending.ticketReservationId)}/trip`,
+          { tripId: Number(tripId) }
+        );
+      }
+      /* V2 예약 묶음은 여기서 연결하거나 지우지 않는다. 스케줄 최종 저장이 성공한 뒤
+         schedule.js가 같은 행에 trip_id를 연결한다. */
+      if (!pending.bookingBatchId) {
+        sessionStorage.removeItem(PENDING_BOOKING_KEY);
+        sessionStorage.removeItem(BOOKING_RESUME_DRAFT_BACKUP_KEY);
+      }
+      window.location.replace(`/trips/${encodeURIComponent(tripId)}/schedule`);
+      return true;
+    } catch (error) {
+      window.alert(error.message || "새 여행에 예약을 연결하지 못했습니다. 예약 화면에서 다시 확인해 주세요.");
+      return false;
+    } finally {
+      bookingMutationPending = false;
+    }
   }
 
   function renderConditionBar() {
@@ -890,6 +1132,33 @@
     renderMine();
   }
 
+  async function loadBookingConfirmation() {
+    if (!canPersist()) return;
+    try {
+      const payload = await request("GET", `/api/v1/trips/${tripId}/booking-confirmation`);
+      bookingConfirmation = payload?.data || bookingConfirmation;
+    } catch (error) {
+      bookingConfirmation = { confirmed: false, eligible: false, missingSteps: [] };
+    }
+  }
+
+  async function confirmBooking() {
+    if (bookingMutationPending || !canPersist()) return;
+    const button = $("nextStep");
+    button.disabled = true;
+    try {
+      const payload = await request("POST", `/api/v1/trips/${tripId}/booking-confirmation`);
+      bookingConfirmation = payload?.data || bookingConfirmation;
+      window.location.assign(bookingConfirmation.redirectUrl || "/mypage?view=tickets");
+    } catch (error) {
+      window.alert(error.message || "예약을 확정하지 못했습니다. 선택 항목을 다시 확인해 주세요.");
+      await loadBookingConfirmation();
+      sync();
+    } finally {
+      button.disabled = false;
+    }
+  }
+
   /* ────────── 플로우 ────────── */
   function openOut(offerId) {
     const leg = state.leg;
@@ -938,19 +1207,7 @@
     /* 나가기 전에 선택을 저장한다. 복귀 감지를 놓쳐도 데이터가 사라지지 않아야 한다. */
     if (canPersist()) {
       try {
-        const payload = await request("POST", legUrl(leg, "/outbound-click"), {
-          offerId: offer.offerId,
-          provider: offer.provider,
-          carrierCode: offer.carrierCode,
-          carrierName: offer.carrierName,
-          flightNumber: offer.flightNumber,
-          departureAt: offer.departureAt,
-          arrivalAt: offer.arrivalAt,
-          totalPrice: hasPrice(offer) ? offer.totalPrice : null,
-          currency: offer.currency,
-          priceSource: offer.priceSource,
-          deeplinkUrl: offer.deeplinkUrl
-        });
+        const payload = await request("POST", legUrl(leg, "/outbound-click"), offerSnapshot(offer));
         clickId[leg] = payload.data?.clickId ?? null;
       } catch (e) {
         /* 기록에 실패해도 이동은 막지 않는다. 사용자의 목적은 예약이다. */
@@ -1299,6 +1556,18 @@
 
     $("nextStep").addEventListener("click", () => {
       const button = $("nextStep");
+      if (button.dataset.nextAction === "confirm") {
+        void confirmBooking();
+        return;
+      }
+      if (button.dataset.nextAction === "manage") {
+        window.location.assign(bookingConfirmation.redirectUrl || "/mypage?view=tickets");
+        return;
+      }
+      if (button.dataset.nextAction === "confirmPending") {
+        void confirmPendingBooking();
+        return;
+      }
       setTab(button.dataset.nextTab);
       if (button.dataset.nextLeg !== undefined) setLeg(Number(button.dataset.nextLeg));
     });
@@ -1325,13 +1594,30 @@
     });
 
     /* 카드는 다시 그려지므로 개별 버튼이 아니라 컨테이너에 한 번만 건다. */
-    $("list").addEventListener("click", (e) => {
+    $("list").addEventListener("click", async (e) => {
       /* 고르기: 이 편으로 정한다. 아직 아무 데도 가지 않는다. */
       const choose = e.target.closest("[data-choose]");
       if (choose) {
-        state.picked[state.leg] = choose.dataset.choose;
+        if (bookingMutationPending) return;
+        const leg = state.leg;
+        const previous = state.picked[leg];
+        const offer = offerOf(leg, choose.dataset.choose);
+        state.picked[leg] = choose.dataset.choose;
+        bookingMutationPending = canPersist() && !!offer;
         render();
         sync();
+        if (canPersist() && offer) {
+          try {
+            await request("PUT", legUrl(leg), offerSnapshot(offer));
+            bookingConfirmation.confirmed = false;
+          } catch (error) {
+            state.picked[leg] = previous;
+            window.alert(error.message || "항공편 선택을 저장하지 못했습니다.");
+          } finally {
+            bookingMutationPending = false;
+          }
+          sync();
+        }
         return;
       }
       /*
@@ -1340,9 +1626,25 @@
        */
       const unchoose = e.target.closest("[data-unchoose]");
       if (unchoose) {
-        state.picked[state.leg] = null;
+        if (bookingMutationPending) return;
+        const leg = state.leg;
+        const previous = state.picked[leg];
+        state.picked[leg] = null;
+        bookingMutationPending = canPersist();
         render();
         sync();
+        if (canPersist()) {
+          try {
+            await request("DELETE", legUrl(leg));
+            bookingConfirmation.confirmed = false;
+          } catch (error) {
+            state.picked[leg] = previous;
+            window.alert(error.message || "항공편 선택을 취소하지 못했습니다.");
+          } finally {
+            bookingMutationPending = false;
+          }
+          sync();
+        }
         return;
       }
       /* 예약: 여기서 외부 사이트로 넘어간다. */
@@ -1484,17 +1786,21 @@
     window.addEventListener("allmytrips:accommodation-selected", (event) => {
       hotelSelection = event.detail?.offer || null;
       bookingSummary = null;
-      sync();
+      void loadBookingConfirmation().then(sync);
     });
     window.addEventListener("allmytrips:ticket-reserved", (event) => {
       ticketReservation = event.detail?.reservation || null;
       bookingSummary = null;
-      sync();
+      void loadBookingConfirmation().then(sync);
     });
   }
 
   async function init() {
     readParams();
+    const pending = readPendingBooking();
+    if (pending?.confirmedByUser === true && pending.bookingBatchId) {
+      standaloneBookingBatchId = pending.bookingBatchId;
+    }
     bind();
     setTab(initialTab);
 
@@ -1504,9 +1810,12 @@
 
     // 검색 전에 끝나야 한다. 기준 시각 없이 조회하면 일정 점수가 평평한 결과가 나온다.
     await Promise.all([loadTripSummary(), loadItinerary()]);
+    if (await resumePendingBooking()) return;
     renderConditionBar();
     await runSearch();
     await restore();
+    await loadBookingConfirmation();
+    sync();
 
     document.body.dataset.pageReady = "true";
   }

@@ -34,9 +34,11 @@ class ItineraryItemService {
         // 생성 API에서 전달한 ID는 신뢰하지 않는다. MyBatis가 INSERT 후 생성된 키만 설정한다.
         item.setItineraryItemId(null);
         itineraryItemValidator.validate(item);
-        int existingCount = itemDAO.countByTripDayId(item.getTripDayId());
-        if (existingCount >= TripPolicy.MAX_ITINERARY_ITEMS_PER_DAY) {
-            throw new BusinessException(ErrorCode.ITINERARY_ITEM_LIMIT_EXCEEDED);
+        if (countsTowardPlaceLimit(item)) {
+            int existingPlaceCount = itemDAO.countPlaceItemsByTripDayId(item.getTripDayId());
+            if (existingPlaceCount >= TripPolicy.MAX_ITINERARY_ITEMS_PER_DAY) {
+                throw new BusinessException(ErrorCode.ITINERARY_ITEM_LIMIT_EXCEEDED);
+            }
         }
         if (item.getPlaceId() != null
                 && itemDAO.existsByTripDayIdAndPlaceId(item.getTripDayId(), item.getPlaceId())) {
@@ -61,6 +63,11 @@ class ItineraryItemService {
             throw exception;
         }
         return item.getItineraryItemId();
+    }
+
+    private boolean countsTowardPlaceLimit(ItineraryItemDTO item) {
+        String itemType = item.getItemType();
+        return itemType == null || itemType.isBlank() || "PLACE".equalsIgnoreCase(itemType);
     }
 
     public List<ItineraryItemDTO> getByTripDay(Long userId, Long tripDayId) {
