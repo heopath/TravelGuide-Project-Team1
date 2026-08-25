@@ -673,12 +673,27 @@
     };
   }
 
+  function pendingBookingResumeReference(pending) {
+    return {
+      version: 2,
+      createdAt: pending.createdAt,
+      bookingBatchId: pending.bookingBatchId,
+      ticketReservationId: pending.ticketReservationId || null,
+      confirmedByUser: pending.confirmedByUser === true
+    };
+  }
+
   function prepareNewTripForPendingBooking(pending) {
     if (!pending) {
       window.alert("항공편과 숙소 선택 정보를 찾지 못했습니다. 다시 선택해 주세요.");
       return false;
     }
-    sessionStorage.setItem(PENDING_BOOKING_KEY, JSON.stringify(pending));
+    /* 상세 예약 정보는 이미 서버에 저장됐다. 일정 이어가기에는 배치 식별자만 필요하므로
+       좌표·가격·항공 상세가 든 전체 객체를 브라우저 저장소에 남기지 않는다. */
+    sessionStorage.setItem(
+      PENDING_BOOKING_KEY,
+      JSON.stringify(pendingBookingResumeReference(pending))
+    );
 
     /* 예약에서 새 여행을 시작하기 전의 초안은 따로 보관한다. 베이직 화면을 중간에
        벗어나면 예약용 입력을 버리고 원래 초안을 복원할 수 있다. */
@@ -741,7 +756,6 @@
       );
       pending.confirmedByUser = true;
       standaloneBookingBatchId = pending.bookingBatchId;
-      sessionStorage.setItem(PENDING_BOOKING_KEY, JSON.stringify(pending));
     } catch (error) {
       window.alert(error.message || "항공·숙소 예약을 확정하지 못했습니다.");
       return;
@@ -787,10 +801,11 @@
     bookingMutationPending = true;
     renderNextStep();
     try {
+      const legacyBooking = !pending.bookingBatchId;
       if (pending.confirmedByUser !== true
-        || !Array.isArray(pending.flights)
-        || pending.flights.length !== 2
-        || !pending.accommodation) {
+        || (legacyBooking && (!Array.isArray(pending.flights)
+          || pending.flights.length !== 2
+          || !pending.accommodation))) {
         throw new Error("이전 예약 선택 정보가 올바르지 않습니다.");
       }
       if (!pending.bookingBatchId) {
@@ -1829,6 +1844,7 @@
     status, legPrice, airTotal, airDone, airIsEstimate, render, sync,
     getSearch: () => ({ ...search }),
     getHotelSelection: () => hotelSelection,
-    getTicketReservation: () => ticketReservation
+    getTicketReservation: () => ticketReservation,
+    pendingBookingResumeReference
   };
 })();

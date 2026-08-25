@@ -397,6 +397,27 @@ async function run() {
 
   /* ────────── 플로우: 예약함 → 확정 → 왕복 완료 ────────── */
   {
+    const { api } = await boot();
+    const reference = api.pendingBookingResumeReference({
+      version: 2,
+      createdAt: 1234,
+      bookingBatchId: "batch-1",
+      ticketReservationId: 30,
+      confirmedByUser: true,
+      accommodation: { latitude: 33.4, longitude: 126.5, totalPrice: 575240 },
+      flights: OFFERS.outbound
+    });
+    T("일정 이어가기 저장값에는 예약 상세와 위치 좌표를 남기지 않는다",
+      reference.bookingBatchId === "batch-1"
+        && reference.ticketReservationId === 30
+        && reference.confirmedByUser === true
+        && !("accommodation" in reference)
+        && !("flights" in reference)
+        && !JSON.stringify(reference).includes("latitude")
+        && !JSON.stringify(reference).includes("longitude"));
+  }
+
+  {
     const { w, d } = await boot();
     const $ = (id) => d.getElementById(id);
     const api = w.__flightBooking;
