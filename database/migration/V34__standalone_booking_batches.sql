@@ -3,29 +3,63 @@
 
 ALTER TABLE flight_bookings
     ALTER COLUMN trip_id DROP NOT NULL,
-    ADD COLUMN booking_batch_id UUID;
+    ADD COLUMN IF NOT EXISTS booking_batch_id UUID;
 
 ALTER TABLE accommodation_bookings
     ALTER COLUMN trip_id DROP NOT NULL,
-    ADD COLUMN booking_batch_id UUID;
+    ADD COLUMN IF NOT EXISTS booking_batch_id UUID;
 
-ALTER TABLE flight_bookings
-    ADD CONSTRAINT ck_flight_bookings_owner
-        CHECK (trip_id IS NOT NULL OR booking_batch_id IS NOT NULL),
-    ADD CONSTRAINT uk_flight_bookings_user_batch_leg
-        UNIQUE (user_id, booking_batch_id, leg);
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint
+        WHERE conname = 'ck_flight_bookings_owner'
+          AND conrelid = 'flight_bookings'::regclass
+    ) THEN
+        ALTER TABLE flight_bookings
+            ADD CONSTRAINT ck_flight_bookings_owner
+                CHECK (trip_id IS NOT NULL OR booking_batch_id IS NOT NULL);
+    END IF;
 
-ALTER TABLE accommodation_bookings
-    ADD CONSTRAINT ck_accommodation_bookings_owner
-        CHECK (trip_id IS NOT NULL OR booking_batch_id IS NOT NULL),
-    ADD CONSTRAINT uk_accommodation_bookings_user_batch_period
-        UNIQUE (user_id, booking_batch_id, check_in, check_out);
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint
+        WHERE conname = 'uk_flight_bookings_user_batch_leg'
+          AND conrelid = 'flight_bookings'::regclass
+    ) THEN
+        ALTER TABLE flight_bookings
+            ADD CONSTRAINT uk_flight_bookings_user_batch_leg
+                UNIQUE (user_id, booking_batch_id, leg);
+    END IF;
+END $$;
 
-CREATE INDEX idx_flight_bookings_unlinked_batch
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint
+        WHERE conname = 'ck_accommodation_bookings_owner'
+          AND conrelid = 'accommodation_bookings'::regclass
+    ) THEN
+        ALTER TABLE accommodation_bookings
+            ADD CONSTRAINT ck_accommodation_bookings_owner
+                CHECK (trip_id IS NOT NULL OR booking_batch_id IS NOT NULL);
+    END IF;
+
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint
+        WHERE conname = 'uk_accommodation_bookings_user_batch_period'
+          AND conrelid = 'accommodation_bookings'::regclass
+    ) THEN
+        ALTER TABLE accommodation_bookings
+            ADD CONSTRAINT uk_accommodation_bookings_user_batch_period
+                UNIQUE (user_id, booking_batch_id, check_in, check_out);
+    END IF;
+END $$;
+
+CREATE INDEX IF NOT EXISTS idx_flight_bookings_unlinked_batch
     ON flight_bookings(user_id, booking_batch_id)
     WHERE trip_id IS NULL;
 
-CREATE INDEX idx_accommodation_bookings_unlinked_batch
+CREATE INDEX IF NOT EXISTS idx_accommodation_bookings_unlinked_batch
     ON accommodation_bookings(user_id, booking_batch_id)
     WHERE trip_id IS NULL;
 
