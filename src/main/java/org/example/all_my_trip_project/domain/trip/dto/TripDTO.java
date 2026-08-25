@@ -6,7 +6,6 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 
@@ -25,7 +24,6 @@ public class TripDTO {
     private String companionType;
     private Integer companionCount;
     private String purpose;
-    private BigDecimal budgetAmount;
     private String currencyCode;
     private String transportPreference;
     private String foodPreference;

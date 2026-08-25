@@ -136,7 +136,7 @@ class AiTripPlanPersistenceServiceTest {
                 "여름 부산 여행",
                 new AiTripPlanRequest(
                         "부산", LocalDate.of(2026, 8, 10), LocalDate.of(2026, 8, 10), 2,
-                        "커플", "관광", "알찬", "대중교통", "로컬 맛집", "호텔", new BigDecimal("800000")
+                        "커플", "관광", "알찬", "대중교통", "로컬 맛집", "호텔"
                 ),
                 plan,
                 List.of()
@@ -161,8 +161,7 @@ class AiTripPlanPersistenceServiceTest {
     private AiTripPlanSaveRequest requestWithResolvedPlaces(List<AiTripPlanResolvedPlace> resolvedPlaces) {
         AiTripPlanRequest conditions = new AiTripPlanRequest(
                 "부산", LocalDate.of(2026, 8, 10), LocalDate.of(2026, 8, 11), 2,
-                "커플", "관광, 맛집", "알찬", "대중교통", "로컬 맛집", "호텔",
-                new BigDecimal("800000")
+                "커플", "관광, 맛집", "알찬", "대중교통", "로컬 맛집", "호텔"
         );
         List<AiTripPlanItemResponse> firstItems = List.of(
                 item("09:00", "오전 명소"), item("12:00", "점심"),

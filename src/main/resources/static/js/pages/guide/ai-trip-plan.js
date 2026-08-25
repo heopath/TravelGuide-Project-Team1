@@ -325,7 +325,6 @@ document.addEventListener("DOMContentLoaded", function () {
       transport_preference: style.transportPreference || "선호 없음",
       food_preference: style.foodPreference || "선호 없음",
       accommodation_style: style.accommodationStyle || "선호 없음",
-      budget_amount: Number(basic.totalBudget || 0),
     };
     currentConditions = request;
     showPlanState("loading");

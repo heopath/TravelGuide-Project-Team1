@@ -28,7 +28,6 @@ final class TripCreationFactory {
                 .endDate(request.endDate())
                 .companionType(request.companionType().name())
                 .companionCount(request.companionCount())
-                .budgetAmount(request.budgetAmount())
                 .currencyCode(TripPolicy.DEFAULT_CURRENCY_CODE)
                 .status(TripStatus.DRAFT.name())
                 .source(TripSource.MANUAL.name())

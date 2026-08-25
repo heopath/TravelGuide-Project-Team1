@@ -153,7 +153,7 @@ class OpenAiAiModelClientTest {
                 1, LocalDate.of(2026, 8, 14), "DAY 1", null, List.of(existingItem));
         AiGuideContext.Trip trip = new AiGuideContext.Trip(
                 1L, "부산 여행", "부산", LocalDate.of(2026, 8, 14), LocalDate.of(2026, 8, 15),
-                null, null, null, null, null, null, null, null, null, List.of(day));
+                null, null, null, null, null, null, null, null, List.of(day));
 
         String prompt = client.createPrompt(new AiGuideRequest("빈 시간대 카페 추천", 1L),
                 List.of(), new AiGuideContext(trip, List.of()), List.of());
@@ -182,7 +182,7 @@ class OpenAiAiModelClientTest {
                 List.of(new AiGuideContext.Item(2L, "DAY 2 기존 일정", LocalTime.of(12, 0), null, "PLACE", null)));
         AiGuideContext.Trip trip = new AiGuideContext.Trip(
                 1L, "부산 여행", "부산", LocalDate.of(2026, 8, 14), LocalDate.of(2026, 8, 15),
-                null, null, null, null, null, null, null, null, null, List.of(dayOne, dayTwo));
+                null, null, null, null, null, null, null, null, List.of(dayOne, dayTwo));
         AiGuideRequest request = new AiGuideRequest("둘째 날 오후 카페 추천", 1L, 2);
 
         String prompt = client.createPrompt(request, List.of(), new AiGuideContext(trip, List.of()), List.of());
@@ -222,7 +222,7 @@ class OpenAiAiModelClientTest {
                 1, LocalDate.of(2026, 8, 14), "DAY 1", null, List.of(existingItem));
         AiGuideContext.Trip trip = new AiGuideContext.Trip(
                 1L, "부산 여행", "부산", LocalDate.of(2026, 8, 14), LocalDate.of(2026, 8, 15),
-                null, null, null, null, null, null, null, null, null, List.of(day));
+                null, null, null, null, null, null, null, null, List.of(day));
 
         AiGuideResponse response = client.generate(new AiGuideRequest("오후 카페 추천", 1L),
                 List.of(), new AiGuideContext(trip, List.of()));
@@ -242,7 +242,7 @@ class OpenAiAiModelClientTest {
                 1, LocalDate.of(2026, 8, 14), "DAY 1", null, List.of(existingItem));
         AiGuideContext.Trip trip = new AiGuideContext.Trip(
                 1L, "부산 여행", "부산", LocalDate.of(2026, 8, 14), LocalDate.of(2026, 8, 15),
-                null, null, null, null, null, null, null, null, null, List.of(day));
+                null, null, null, null, null, null, null, null, List.of(day));
 
         AiGuideResponse response = client.generate(new AiGuideRequest("23시 카페 추천", 1L),
                 List.of(), new AiGuideContext(trip, List.of()));
@@ -260,7 +260,7 @@ class OpenAiAiModelClientTest {
                 1, LocalDate.of(2026, 8, 14), "DAY 1", null, List.of());
         AiGuideContext.Trip trip = new AiGuideContext.Trip(
                 1L, "부산 여행", "부산", LocalDate.of(2026, 8, 14), LocalDate.of(2026, 8, 14),
-                null, null, null, null, null, null, null, null, null, List.of(day));
+                null, null, null, null, null, null, null, null, List.of(day));
 
         AiGuideResponse response = client.generate(new AiGuideRequest("늦은 카페 추천", 1L),
                 List.of(), new AiGuideContext(trip, List.of()));

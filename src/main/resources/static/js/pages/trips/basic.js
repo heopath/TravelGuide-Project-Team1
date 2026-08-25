@@ -13,9 +13,6 @@ document.addEventListener("DOMContentLoaded", function () {
     destinationTrigger: document.querySelector("#destinationTrigger"),
     startDate: document.querySelector("#startDate"),
     endDate: document.querySelector("#endDate"),
-    totalBudget: document.querySelector("#totalBudget"),
-    budgetPerPerson: document.querySelector("#budgetPerPerson"),
-    budgetPerPersonHint: document.querySelector("#budgetPerPersonHint"),
     travelerCountValue: document.querySelector("#travelerCountValue"),
     travelerCountMinus: document.querySelector("#travelerCountMinus"),
     travelerCountPlus: document.querySelector("#travelerCountPlus"),
@@ -29,9 +26,6 @@ document.addEventListener("DOMContentLoaded", function () {
     fields.destinationTrigger,
     fields.startDate,
     fields.endDate,
-    fields.totalBudget,
-    fields.budgetPerPerson,
-    fields.budgetPerPersonHint,
     fields.travelerCountValue,
     fields.travelerCountMinus,
     fields.travelerCountPlus,
@@ -224,12 +218,8 @@ document.addEventListener("DOMContentLoaded", function () {
     fields.duration.textContent = nights + "박 " + (nights + 1) + "일";
   }
 
-  function updateBudgetSummary() {
-    const totalBudget = Number(fields.totalBudget.value) || 0;
-    const budgetPerPerson = Math.floor(totalBudget / travelerCount);
-    fields.budgetPerPerson.value = String(budgetPerPerson);
+  function updateTravelerCount() {
     fields.travelerCountValue.textContent = travelerCount + "명";
-    fields.budgetPerPersonHint.textContent = "1인당 약 " + budgetPerPerson.toLocaleString("ko-KR") + "원";
     fields.travelerCountMinus.disabled = travelerCount <= 1;
     fields.travelerCountPlus.disabled = selectedCompanion === "ALONE" || travelerCount >= MAX_TRAVELERS;
   }
@@ -325,7 +315,7 @@ document.addEventListener("DOMContentLoaded", function () {
       candidate.classList.toggle("selected", selected);
       candidate.setAttribute("aria-pressed", String(selected));
     });
-    updateBudgetSummary();
+    updateTravelerCount();
     setError("companionError", "");
   }
 
@@ -400,13 +390,11 @@ document.addEventListener("DOMContentLoaded", function () {
 
   function validate() {
     let valid = true;
-    ["destinationError", "startDateError", "endDateError", "companionError", "budgetError"].forEach(function (id) {
+    ["destinationError", "startDateError", "endDateError", "companionError"].forEach(function (id) {
       setError(id, "");
     });
     fields.message.textContent = "";
     fields.message.classList.remove("is-error", "is-success");
-    const budgetInput = document.querySelector(".budget-input");
-    if (budgetInput) budgetInput.classList.remove("is-error");
 
     if (!fields.destination.value.trim()) {
       setError("destinationError", "여행 목적지를 입력해주세요.");
@@ -441,13 +429,6 @@ document.addEventListener("DOMContentLoaded", function () {
       setError("companionError", "동행자 유형을 선택해주세요.");
       valid = false;
     }
-    const budgetValue = fields.totalBudget.value.trim();
-    const budget = Number(budgetValue);
-    if (!budgetValue || !Number.isFinite(budget) || budget < 0) {
-      if (budgetInput) budgetInput.classList.add("is-error");
-      setError("budgetError", "");
-      valid = false;
-    }
     if (!Number.isInteger(travelerCount) || travelerCount < 1 || travelerCount > MAX_TRAVELERS) {
       setError("companionError", "여행 인원은 1명부터 최대 20명까지 선택할 수 있습니다.");
       valid = false;
@@ -469,8 +450,6 @@ document.addEventListener("DOMContentLoaded", function () {
       endDate: fields.endDate.value,
       companion: selectedCompanion,
       travelerCount: travelerCount,
-      totalBudget: Number(fields.totalBudget.value),
-      budgetPerPerson: Number(fields.budgetPerPerson.value),
     };
   }
 
@@ -507,9 +486,6 @@ document.addEventListener("DOMContentLoaded", function () {
 
       // 직접 계획하기에서는 스타일 입력 단계를 거치지 않음
       purpose: null,
-
-      budgetAmount:
-          Number(basic.totalBudget || 0),
 
       currencyCode: "KRW",
 
@@ -609,7 +585,7 @@ document.addEventListener("DOMContentLoaded", function () {
           candidate.classList.remove("selected");
           candidate.setAttribute("aria-pressed", "false");
         });
-        updateBudgetSummary();
+        updateTravelerCount();
         return;
       }
       selectCompanion(button, true);
@@ -670,37 +646,18 @@ document.addEventListener("DOMContentLoaded", function () {
       if (fields.destinationTrigger) fields.destinationTrigger.setAttribute("aria-expanded", "false");
     }
   });
-  document.querySelectorAll("[data-budget]").forEach(function (button) {
-    button.addEventListener("click", function () {
-      fields.totalBudget.value = button.dataset.budget;
-      document.querySelectorAll("[data-budget]").forEach(function (candidate) {
-        candidate.classList.toggle("is-selected", candidate === button);
-      });
-      updateBudgetSummary();
-      setError("budgetError", "");
-      fields.totalBudget.closest(".budget-input").classList.remove("is-error");
-    });
-  });
-  fields.totalBudget.addEventListener("input", function () {
-    document.querySelectorAll("[data-budget]").forEach(function (candidate) {
-      candidate.classList.remove("is-selected");
-    });
-    updateBudgetSummary();
-    setError("budgetError", "");
-    fields.totalBudget.closest(".budget-input").classList.remove("is-error");
-  });
   fields.travelerCountMinus.addEventListener("click", function () {
     travelerCount = Math.max(1, travelerCount - 1);
-    updateBudgetSummary();
+    updateTravelerCount();
   });
   fields.travelerCountPlus.addEventListener("click", function () {
     if (selectedCompanion === "ALONE") {
       travelerCount = 1;
-      updateBudgetSummary();
+      updateTravelerCount();
       return;
     }
     travelerCount = Math.min(MAX_TRAVELERS, travelerCount + 1);
-    updateBudgetSummary();
+    updateTravelerCount();
   });
   const rangePrev = document.querySelector("#rangeCalendarPrev");
   const rangeNext = document.querySelector("#rangeCalendarNext");
@@ -840,13 +797,12 @@ document.addEventListener("DOMContentLoaded", function () {
   fields.startDate.value = saved.startDate || "";
   fields.endDate.value = saved.endDate || "";
   travelerCount = Math.min(MAX_TRAVELERS, Math.max(1, Number(saved.travelerCount) || 1));
-  fields.totalBudget.value = saved.totalBudget ?? "";
   if (saved.companion) {
     const savedButton = document.querySelector('[data-companion="' + saved.companion + '"]');
     if (savedButton) selectCompanion(savedButton, false);
   }
   updateDuration();
-  updateBudgetSummary();
+  updateTravelerCount();
   if (fields.startDate.value) {
     const savedStart = parseDate(fields.startDate.value);
     calendarViewDate = new Date(savedStart.getFullYear(), savedStart.getMonth(), 1);
