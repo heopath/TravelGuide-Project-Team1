@@ -56,6 +56,7 @@ document.addEventListener("DOMContentLoaded", function () {
   let pageCount = 0;
   let drawing = false;
   let gifBlobCache = null;
+  let gifWorkerUrlCache = null;
   let wizardStep = 1;
 
   backButton?.addEventListener("click", () => {
@@ -455,6 +456,18 @@ document.addEventListener("DOMContentLoaded", function () {
     window.setTimeout(() => URL.revokeObjectURL(url), 0);
   }
 
+  async function gifWorkerScriptUrl() {
+    if (gifWorkerUrlCache) return gifWorkerUrlCache;
+    const response = await fetch("https://cdn.jsdelivr.net/npm/gif.js.optimized@1.0.1/dist/gif.worker.js", {
+      mode: "cors",
+      credentials: "omit",
+    });
+    if (!response.ok) throw new Error("GIF 저장 도구를 불러오지 못했습니다.");
+    const source = await response.text();
+    gifWorkerUrlCache = URL.createObjectURL(new Blob([source], { type: "text/javascript" }));
+    return gifWorkerUrlCache;
+  }
+
   bookSaveButton?.addEventListener("click", async () => {
     if (!bookCanvas || !window.AllMyTripsRecordBook) return;
     bookSaveButton.disabled = true;
@@ -475,6 +488,7 @@ document.addEventListener("DOMContentLoaded", function () {
     }
     const frames = await window.AllMyTripsRecordBook.renderAll(collectAlbumData());
     if (!frames.length) throw new Error("GIF로 만들 앨범 페이지가 없습니다.");
+    const workerScript = await gifWorkerScriptUrl();
 
     gifBlobCache = await new Promise((resolve, reject) => {
       const gif = new window.GIF({
@@ -483,7 +497,7 @@ document.addEventListener("DOMContentLoaded", function () {
         repeat: 0,
         width: frames[0].width,
         height: frames[0].height,
-        workerScript: "https://cdn.jsdelivr.net/npm/gif.js.optimized@1.0.1/dist/gif.worker.js",
+        workerScript,
       });
       frames.forEach((frame, index) => {
         gif.addFrame(frame, { copy: true, delay: index === 0 ? 2100 : 1600 });
