@@ -61,17 +61,17 @@
 | 시각 | 챕터 | 시각 | 챕터 |
 |---:|---|---:|---|
 | [00:00](https://www.youtube.com/watch?v=VIDEO_ID&t=0s) | 여는 장 | [06:30](https://www.youtube.com/watch?v=VIDEO_ID&t=390s) | 입장 QR·현장 검표 |
-| [01:10](https://www.youtube.com/watch?v=VIDEO_ID&t=70s) | 여행 계획 만들기 | [07:20](https://www.youtube.com/watch?v=VIDEO_ID&t=440s) | 여행 기록·책 지면 |
+| [01:10](https://www.youtube.com/watch?v=VIDEO_ID&t=70s) | 여행 계획 만들기 | [07:20](https://www.youtube.com/watch?v=VIDEO_ID&t=440s) | 실시간 상담 |
 | [03:10](https://www.youtube.com/watch?v=VIDEO_ID&t=190s) | 일정 편집·경로 최적화 | [08:50](https://www.youtube.com/watch?v=VIDEO_ID&t=530s) | 관리자 운영 |
 | [04:00](https://www.youtube.com/watch?v=VIDEO_ID&t=240s) | 항공·숙소 예약 | [10:00](https://www.youtube.com/watch?v=VIDEO_ID&t=600s) | API 키 관리 |
 | [04:50](https://www.youtube.com/watch?v=VIDEO_ID&t=290s) | 티켓 예매·대기열 | [10:40](https://www.youtube.com/watch?v=VIDEO_ID&t=640s) | 기술 판단과 검증 |
 
 <div align="center">
 
-| 예약부터 현장 입장까지 | 여행 기록을 책 지면으로 |
-|:---:|:---:|
-| <img src="docs/video/gif/booking-to-checkin.gif" width="420" /> | <img src="docs/video/gif/record-book.gif" width="420" /> |
-| 예약 → 결제 → 티켓 발급 → 알림 → QR 검표 | 사진 개수에 따라 지면 배치가 바뀝니다 |
+| 예약부터 현장 입장까지 |
+|:---:|
+| <img src="docs/video/gif/booking-to-checkin.gif" width="640" /> |
+| 예약 → 결제 → 티켓 발급 → 알림 → QR 검표 |
 
 </div>
 
@@ -106,7 +106,6 @@
 | 🤖 | **AI 일정 추천** | 취향과 일정을 보고 다음에 갈 곳을 제안합니다 |
 | 🎫 | **티켓 예약·결제** | 대기열을 거쳐 예약하고 결제하면 QR 티켓이 발급됩니다 |
 | 📱 | **현장 검표** | 관리자가 QR을 찍어 입장을 확인합니다 |
-| 📖 | **여행 기록** | 다녀온 뒤 사진과 글을 남기고 책 지면 이미지로 뽑습니다 |
 | 💬 | **실시간 상담** | 봇이 먼저 받고, 필요하면 상담원이 이어받습니다 |
 | ⚙️ | **관리자 운영** | 신고·문의·회원·재고·검표 이력을 한 곳에서 처리합니다 |
 | 🔑 | **외부 API 키 교체** | 사용량 한도에 걸리면 재배포 없이 화면에서 키를 바꿉니다 |
@@ -145,22 +144,24 @@ QR을 캡처해 남에게 넘기면 검표가 무의미해집니다.
 <tr>
 <td width="50%" valign="top">
 
-### 사진 개수를 모른 채 지면 짜기
+### 배포해도 로그인 유지하기
 
-자리를 좌표로 박아두면 3장일 때와 7장일 때 같은 지면이 나옵니다.
+애플리케이션을 재배포할 때 서버 메모리에 둔 세션은 함께 사라져 사용자가 로그아웃됩니다.
 
-**장수와 사진 비율을 보고 배치를 고르게** 만들었습니다. 첫 글자를 크게 놓고 본문이 그 옆을 감싸 흐르는 조판도 직접 구현했습니다.
+세션을 **Redis에 저장**해 새 버전으로 교체해도 로그인 상태가 이어지도록 구성했습니다.
 
-`record-book.js`
+`spring-session-data-redis` · `RedisSessionConfig`
 
 </td>
 <td width="50%" valign="top">
 
-### 사진 한 장 때문에 저장이 막히던 것
+### 봇에서 상담원으로 끊김 없이 넘기기
 
-다른 도메인 사진을 canvas에 그리면 브라우저가 **이미지 내보내기를 통째로 막습니다.**
+단순 문의는 봇이 먼저 처리하고, 답하지 못하거나 사용자가 요청하면 상담원이 같은 대화를 이어받습니다.
 
-허락받은 사진만 그리고 실패한 자리는 비워, 한 장 때문에 지면 전체를 잃지 않게 했습니다.
+상태 전환은 서버가 관리하고 메시지는 **WebSocket(STOMP)** 으로 전달해 새로고침 없이 바로 반영됩니다.
+
+`SupportChatService` · `WebSocketConfig`
 
 </td>
 </tr>
@@ -795,7 +796,7 @@ Milvus
 
 ## 👤 사용자 맞춤형 추천
 
-사용자의 기존 여행 기록과 선호도를 분석하여
+사용자의 여행 선호도와 계획 이력을 분석하여
 향후 여행 일정 생성 시 개인화된 추천을 제공합니다.
 
 ```text

@@ -36,19 +36,21 @@ assert.equal(isTripFinished({ status: "CONFIRMED", endDate: null }, TODAY), fals
 assert.equal(isTripFinished(null, TODAY), false, "여행이 없으면 끝난 여행이 아니다");
 
 /* =========================================================
-   2. 여행 기록으로 가는 입구
+   2. 여행 기록으로 가는 입구 비노출
 
-   기록 화면은 만들어져 있었지만 어느 화면에서도 링크하지 않아 갈 수 없었다.
+   화면과 API는 보존하되 기능을 보완할 때까지 일반 사용자에게 진입점을 노출하지 않는다.
    ========================================================= */
 
 const tripsSource = read("../../main/resources/static/js/pages/mypage/mypage-trips.js");
 
+assert.match(tripsSource, /const SHOW_TRAVEL_RECORD_ENTRY = false/,
+  "여행 기록 진입점은 비노출 상태여야 한다");
 assert.match(tripsSource, /trip-full-card-record/,
-  "내 여행 카드에 기록 버튼이 있어야 한다");
+  "다시 공개할 수 있도록 기록 버튼 구현은 보존해야 한다");
 assert.match(tripsSource, /\/trips\/\$\{trip\.tripId\}\/record/,
   "기록 버튼은 그 여행의 기록 화면으로 가야 한다");
-assert.match(tripsSource, /if \(finished\) \{/,
-  "다녀온 여행에서만 기록 버튼을 보여야 한다");
+assert.match(tripsSource, /if \(SHOW_TRAVEL_RECORD_ENTRY && finished\) \{/,
+  "공개 플래그를 켜더라도 다녀온 여행에서만 기록 버튼을 보여야 한다");
 assert.match(tripsSource, /event\.stopPropagation\(\);\s*\n\s*window\.location\.href/,
   "카드 전체가 일정 링크이므로 기록 버튼은 전파를 막아야 한다");
 assert.match(tripsSource, /isTripFinished/,

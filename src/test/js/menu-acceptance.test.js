@@ -8,8 +8,7 @@
  *      없어서 여기가 막히면 로그인할 방법이 사라진다.
  *   2. 로그인하면 마이 페이지에 닿아야 한다. 아바타도 모바일에서는 숨는다.
  *   3. 관리자 항목은 관리자에게만 보인다.
- *   4. 열어서 오류가 나는 주소를 넣지 않는다. 예전 화면 목록에는 /trips/1/record처럼
- *      고정 번호가 있어, 그 여행이 없는 손님은 안내 문구를 봤다.
+ *   4. 열어서 오류가 나는 주소를 넣지 않는다. 비노출 기능도 화면 목록에 넣지 않는다.
  *
  * 화면 목록(?screens=1)은 검수·시연용으로 남겨 두었고 여기서 함께 검사한다.
  *
@@ -96,7 +95,7 @@ T("관리 그룹이 생긴다", admin.groups.includes("관리"), admin.groups.jo
 /* =========================================================
    4. 항상 있는 길과, 넣지 않는 길
 
-   예전 화면 목록에는 고정 번호(/trips/1/record, /booking/tickets/1)와 쿼리 변형
+   전체 화면 목록에는 고정 번호(/booking/tickets/1)와 쿼리 변형
    (?panel=, ?view=, ?tab=)이 섞여 있었다. 손님 메뉴에는 넣지 않는다.
    ========================================================= */
 
@@ -134,8 +133,8 @@ T("메인에서는 '메인'만 켜진다",
 
 const screens = openMenu({ authenticated: true, role: "ADMIN", search: "?screens=1" });
 T("?screens=1이면 화면 목록이 열린다", screens.title.startsWith("전체 화면"), screens.title);
-T("화면 목록에는 예전 항목이 그대로 있다",
-  screens.routes.includes("/trips/1/record") && screens.routes.some((r) => r.includes("?panel=")),
+T("비노출한 여행 기록은 화면 목록에서도 빠져 있다",
+  !screens.routes.includes("/trips/1/record") && screens.routes.some((r) => r.includes("?panel=")),
   "항목 " + screens.routes.length + "개");
 T("평소 메뉴보다 훨씬 많다", screens.routes.length > admin.routes.length * 3,
   screens.routes.length + " vs " + admin.routes.length);
