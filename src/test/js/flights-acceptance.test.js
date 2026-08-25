@@ -328,14 +328,15 @@ async function run() {
     w.dispatchEvent(new w.CustomEvent("allmytrips:ticket-reserved", { detail: { reservation: {
       productName: "제주 아쿠아리움 입장권", totalAmount: 40000, status: "PENDING"
     } } }));
+    await until(() => $("cTot").textContent === won(76000 * PAX + 40000));
     T("티켓 모의 예약 금액이 예상 총액에 반영된다",
       $("cTot").textContent === won(76000 * PAX + 40000));
     /*
-     * 앞에서 가는 편을 골랐고 여기서 티켓까지 잡았으니 네 칸 중 둘이다. 단계는 `골랐는가`로
-     * 센다 — 예약 확정은 외부 사이트 일이라 우리가 확인할 수 없다. (#281 시안)
+     * 티켓은 선택 항목이므로 필수 진행률에서는 제외한다. 가는 편만 골랐으므로
+     * 항공 2편·숙소 3단계 중 하나를 마친 상태다.
      */
     T("티켓 모의 예약이 진행률과 출처 안내에 반영된다",
-      $("dn").textContent === "2" && $("fill").style.width === "50%"
+      $("dn").textContent === "1" && $("fill").style.width === "33%"
         && $("costNote").textContent.includes("티켓 모의 예약가")
         && $("costLines").textContent.includes("실제 결제 아님"));
 
@@ -419,9 +420,9 @@ async function run() {
     T("예약번호 입력 후 진행 → 구간 라벨에 `확정` 표시", $("lp0").textContent.includes("확정"));
     T("오는 편으로 이동한다", d.querySelectorAll(".leg")[1].classList.contains("on"));
 
-    /* 절반을 끝낸 상태가 진행률에 나타나야 한다. 이것이 4칸으로 쪼갠 이유다. (#281) */
+    /* 항공 2편·숙소 3단계 중 가는 편 하나를 끝낸 상태가 진행률에 나타나야 한다. */
     T("가는 편만 마쳐도 진행률이 오른다",
-      $("dn").textContent === "1" && $("fill").style.width === "25%");
+      $("dn").textContent === "1" && $("fill").style.width === "33%");
     T("진행 현황이 가는 편·오는 편을 따로 센다",
       d.querySelectorAll("#rows [data-side-leg]").length === 2
       && $("rows").textContent.includes("가는 편 선택")
@@ -442,7 +443,7 @@ async function run() {
      * 표시한 사람에게 0/3이 나왔다 — 절반을 끝냈는데 아무것도 안 한 것처럼 보였다.
      */
     T("왕복을 마치면 항공 두 칸이 함께 찬다", $("dn").textContent === "2");
-    T("진행바 50%", $("fill").style.width === "50%");
+    T("진행바 67%", $("fill").style.width === "67%");
     T("탭 카운트 2", $("tabCount").textContent === "2");
     // 숙소·티켓 행은 계속 `예상`이므로 항공 행(첫 행)만 본다.
     T("우측 항공 행에서 `예상` 라벨이 사라진다",
