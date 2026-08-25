@@ -32,10 +32,19 @@ class TravelRecordResponseMapper {
     private TravelRecordImageResponse toImageResponse(TravelRecordImageEntity image) {
         return new TravelRecordImageResponse(
                 image.getTravelRecordImageId(),
-                image.getImageUrl(),
+                resolveImageUrl(image),
                 image.getAltText(),
                 image.getSortOrder(),
                 image.getCover()
         );
+    }
+
+    /* S3 객체 키를 화면에 직접 노출하지 않는다. 공개 기록은 누구나, 비공개 기록은 소유자만
+       아래 이미지 API를 통과하므로 버킷을 public으로 열 필요가 없다. 기존 외부 URL은 호환을 위해 유지한다. */
+    private String resolveImageUrl(TravelRecordImageEntity image) {
+        if (image.getImageUrl().startsWith("s3://")) {
+            return "/api/v1/travel-records/images/" + image.getTravelRecordImageId() + "/content";
+        }
+        return image.getImageUrl();
     }
 }

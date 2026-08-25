@@ -13,6 +13,7 @@ import org.example.all_my_trip_project.global.exception.BusinessException;
 import org.example.all_my_trip_project.global.exception.ErrorCode;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
@@ -37,6 +38,7 @@ public class TravelRecordService implements TravelRecordAccessGuard {
     private final TravelRecordRemover remover;
     private final TravelRecordImageReplacer imageReplacer;
     private final TravelRecordResponseMapper responseMapper;
+    private final TravelRecordS3StorageService storageService;
 
     @Transactional
     public TravelRecordResponse create(Long userId, CreateTravelRecordRequest request) {
@@ -78,6 +80,17 @@ public class TravelRecordService implements TravelRecordAccessGuard {
     public void delete(Long userId, Long travelRecordId) {
         TravelRecordEntity record = reader.findOwned(userId, travelRecordId);
         remover.remove(record);
+    }
+
+    @Transactional
+    public String uploadImage(Long userId, Long travelRecordId, MultipartFile file) {
+        reader.findOwned(userId, travelRecordId);
+        return storageService.upload(userId, travelRecordId, file);
+    }
+
+    public StoredTravelRecordImage loadImage(Long viewerUserId, Long travelRecordImageId) {
+        TravelRecordImageEntity image = reader.findAccessibleImage(viewerUserId, travelRecordImageId);
+        return storageService.load(image.getImageUrl());
     }
 
     @Override

@@ -3138,3 +3138,51 @@ body.page-mypage main#page-content > .page-shell {
     padding-top: 10px;
   }
 }
+/* 완료 여행 사진첩은 카드만 봐도 사진 앨범이라는 인상이 나도록 여백과 종이 톤을 준다. */
+.travel-record-album-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 18px;
+}
+
+.travel-record-album-card {
+  overflow: hidden;
+  border: 1px solid #e5e8f4;
+  border-radius: 18px;
+  background: #fffdf8;
+  color: inherit;
+  box-shadow: 0 12px 30px rgba(37, 43, 77, 0.08);
+  text-decoration: none;
+  transition: transform 160ms ease, box-shadow 160ms ease;
+}
+
+.travel-record-album-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 18px 36px rgba(37, 43, 77, 0.14);
+}
+
+.travel-record-album-card img,
+.travel-record-album-placeholder {
+  display: block;
+  width: 100%;
+  height: 164px;
+  object-fit: cover;
+}
+
+.travel-record-album-placeholder {
+  display: grid;
+  place-items: center;
+  background: linear-gradient(135deg, #e9e4ff, #ffdcca);
+  color: #6657df;
+  font-size: 52px;
+}
+
+.travel-record-album-copy {
+  display: grid;
+  gap: 8px;
+  padding: 18px;
+}
+
+.travel-record-album-copy strong { color: #151b3d; font-size: 17px; }
+.travel-record-album-copy span { min-height: 40px; color: #667085; font-size: 13px; line-height: 1.55; }
+.travel-record-album-copy small { color: #6557ed; font-weight: 700; }

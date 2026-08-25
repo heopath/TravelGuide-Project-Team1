@@ -103,6 +103,14 @@ public class ApiSecurityConfig {
                         )
                         .authenticated()
 
+                        // 사진 업로드는 기록 소유자만 할 수 있다. 이미지를 읽는 GET은 공개 기록도
+                        // 보여야 하므로 컨트롤러에서 공개 범위/소유권을 구분해 검사한다.
+                        .requestMatchers(
+                                HttpMethod.POST,
+                                "/api/v1/travel-records/*/images/upload"
+                        )
+                        .authenticated()
+
                         .requestMatchers(
                                 HttpMethod.POST,
                                 "/api/v1/ai-trip-plans/save"
