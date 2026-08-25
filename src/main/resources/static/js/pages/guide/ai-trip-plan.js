@@ -31,7 +31,97 @@ document.addEventListener("DOMContentLoaded", function () {
     panel.style.display = visible ? "" : "none";
   }
 
+  /* =========================================================
+     초안 만들기 진행률 (예상)
+
+     기다리는 5초 남짓은 거의 전부 서버가 외부 AI를 부르는 시간이다
+     (AiTripPlanService.generateWithGemini). 그 안에서 알려줄 중간 단계가 없어
+     서버가 진행률을 흘려보내도 "호출 중"만 반복하게 된다. 그래서 지나간 시간으로
+     가늠하고, 화면에도 예상이라고 적는다.
+
+     끝을 90%로 막아 둔다. 100%까지 채워 놓고 기다리게 하면 멈춘 것처럼 보인다.
+     실제 응답이 오면 그때 100%로 채운다.
+     ========================================================= */
+  const PLAN_PROGRESS_EXPECTED_MS = 5500;
+  const PLAN_PROGRESS_CAP = 90;
+  const PLAN_PROGRESS_STEPS = [
+    { until: 20, text: "여행 조건을 정리하고 있어요." },
+    { until: 85, text: "AI가 일정 초안을 쓰고 있어요." },
+    { until: 100, text: "거의 다 됐어요." },
+  ];
+
+  const planStepText = document.querySelector("[data-plan-loading-step]");
+  const planProgressBar = document.querySelector("[data-plan-progress-bar]");
+  const planProgressFill = document.querySelector("[data-plan-progress-fill]");
+  const planProgressValue = document.querySelector("[data-plan-progress-value]");
+  let planProgressTimer = null;
+  let planProgressStartedAt = 0;
+
+  /*
+   * 막대 폭을 바꾼다.
+   *
+   * 폭에는 0.25초 전환이 걸려 있어 앞으로 갈 때는 부드럽게 늘어난다. 그런데 0으로
+   * 되돌릴 때도 같은 전환이 걸려서, 실패 후 다시 시도하면 막대가 뒤로 미끄러진 뒤
+   * 다시 앞으로 갔다. 값은 줄지 않는데 화면만 되돌아가 보였다.
+   *
+   * 되돌릴 때는 instant로 전환을 끄고 즉시 옮긴다.
+   */
+  function paintBarWidth(fill, value, instant) {
+    if (!fill) return;
+    if (!instant) {
+      fill.style.width = value + "%";
+      return;
+    }
+    fill.classList.add("plan-progress-instant");
+    fill.style.width = value + "%";
+    /* 새 폭을 확정한 뒤에 전환을 되살린다. 안 그러면 다음 증가분까지 끊겨 보인다. */
+    void fill.offsetWidth;
+    fill.classList.remove("plan-progress-instant");
+  }
+
+  function paintPlanProgress(percent, instant) {
+    const value = Math.max(0, Math.min(100, Math.round(percent)));
+    paintBarWidth(planProgressFill, value, instant);
+    if (planProgressValue) planProgressValue.textContent = value + "%";
+    if (planProgressBar) planProgressBar.setAttribute("aria-valuenow", String(value));
+    const step = PLAN_PROGRESS_STEPS.find(function (candidate) { return value < candidate.until; })
+        || PLAN_PROGRESS_STEPS[PLAN_PROGRESS_STEPS.length - 1];
+    if (planStepText && planStepText.textContent !== step.text) planStepText.textContent = step.text;
+  }
+
+  function startPlanProgress() {
+    /*
+     * 이미 돌고 있으면 그대로 둔다. 화면이 뜰 때 showPlanState("loading")이 초기화와
+     * generatePlan에서 두 번 불려, 시작하자마자 0으로 되돌리고 다시 세던 것을 막는다.
+     */
+    if (planProgressTimer) return;
+    planProgressStartedAt = Date.now();
+    paintPlanProgress(0, true);
+    planProgressTimer = window.setInterval(function () {
+      const elapsed = Date.now() - planProgressStartedAt;
+      /*
+       * 뒤로 갈수록 느려지게 한다. 예상보다 오래 걸려도 막대가 끝에 붙어 천천히
+       * 기어가므로 멈춘 것처럼 보이지 않는다.
+       */
+      const ratio = 1 - Math.exp(-elapsed / PLAN_PROGRESS_EXPECTED_MS);
+      paintPlanProgress(PLAN_PROGRESS_CAP * ratio);
+    }, 120);
+  }
+
+  function stopPlanProgress() {
+    if (planProgressTimer) window.clearInterval(planProgressTimer);
+    planProgressTimer = null;
+  }
+
+  /** 응답이 온 뒤. 100%를 잠깐 보여주고 결과로 넘어간다. */
+  function finishPlanProgress() {
+    stopPlanProgress();
+    paintPlanProgress(100);
+  }
+
   function showPlanState(state) {
+    if (state === "loading") startPlanProgress();
+    else stopPlanProgress();
     setPanelVisible(loading, state === "loading");
     setPanelVisible(error, state === "error");
     setPanelVisible(result, state === "result");
@@ -336,6 +426,9 @@ document.addEventListener("DOMContentLoaded", function () {
       });
       const payload = await response.json().catch(function () { return null; });
       if (!response.ok || !payload || !payload.success) throw new Error("AI_TRIP_PLAN_REQUEST_FAILED");
+      /* 막대를 100%까지 채운 뒤 결과로 넘긴다. 90%에서 화면이 바뀌면 덜 끝난 것처럼 보인다. */
+      finishPlanProgress();
+      await new Promise(function (resolve) { window.setTimeout(resolve, 260); });
       renderPlan(payload.data);
       showPlanState("result");
       window.requestAnimationFrame(function () { selectPlanDay(activeDayIndex); });
@@ -354,11 +447,50 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   }
 
+  /* =========================================================
+     장소 확인 진행률 (실제)
+
+     저장할 때는 일정에 든 장소를 하나씩 카카오에서 찾는다. 전체 개수를 알고 하나씩
+     끝나므로 여기 숫자는 가늠이 아니라 실제로 끝난 개수다.
+     ========================================================= */
+  const saveProgressBox = document.querySelector("[data-plan-save-progress]");
+  const saveProgressBar = document.querySelector("[data-plan-save-bar]");
+  const saveProgressFill = document.querySelector("[data-plan-save-fill]");
+  const saveProgressValue = document.querySelector("[data-plan-save-value]");
+
+  function showSaveProgress(done, total) {
+    if (!saveProgressBox) return;
+    saveProgressBox.hidden = total <= 0;
+    if (total <= 0) return;
+    const percent = Math.round((done / total) * 100);
+    /* 시작(0/N)은 지난 저장의 폭에서 되돌아오는 것이라 즉시 옮긴다. */
+    paintBarWidth(saveProgressFill, percent, done === 0);
+    if (saveProgressValue) saveProgressValue.textContent = done + " / " + total;
+    if (saveProgressBar) saveProgressBar.setAttribute("aria-valuenow", String(percent));
+  }
+
+  function hideSaveProgress() {
+    if (saveProgressBox) saveProgressBox.hidden = true;
+  }
+
   async function resolveAllPlanPlaces() {
     if (!await ensureKakaoPlaces()) return [];
+    const totalPlaces = (currentPlan?.days || [])
+        .reduce(function (sum, day) { return sum + (day.places || []).length; }, 0);
+    let donePlaces = 0;
+    showSaveProgress(0, totalPlaces);
+    /* 하나 끝날 때마다 센다. Promise.all은 전부 끝나야 돌아오므로 각 건에 매단다. */
+    const countOne = function (promise) {
+      return promise.then(function (found) {
+        donePlaces += 1;
+        showSaveProgress(donePlaces, totalPlaces);
+        return found;
+      });
+    };
     const resolvedPlaces = [];
     for (const day of currentPlan?.days || []) {
-      const foundPlaces = await Promise.all((day.places || []).map(findRecommendedPlace));
+      const foundPlaces = await Promise.all(
+          (day.places || []).map(function (place) { return countOne(findRecommendedPlace(place)); }));
       foundPlaces.filter(Boolean).forEach(function (found) {
         const kakaoPlace = found.kakaoPlace;
         resolvedPlaces.push({
@@ -397,6 +529,8 @@ document.addEventListener("DOMContentLoaded", function () {
     saveButton.textContent = "장소 확인 중...";
     try {
       const resolvedPlaces = await resolveAllPlanPlaces();
+      /* 장소 확인이 끝나면 막대는 할 일이 없다. 남겨 두면 다음 단계에서 멈춘 것처럼 보인다. */
+      hideSaveProgress();
       saveButton.textContent = "일정 준비 중...";
       const response = await fetch("/api/v1/ai-trip-plans/save", {
         method: "POST",
@@ -441,6 +575,8 @@ document.addEventListener("DOMContentLoaded", function () {
       window.alert(saveError.message || "AI 여행을 저장하지 못했습니다.");
     } finally {
       savingPlan = false;
+      /* 401로 일찍 빠져나가거나 저장이 실패한 경우에도 막대가 남지 않게 한다. */
+      hideSaveProgress();
     }
   }
 
