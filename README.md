@@ -7,11 +7,11 @@
 
 <br />
 
+[![Demo](https://img.shields.io/badge/🌐_바로_써보기-4FACFE?style=for-the-badge)](https://www.allmytrip.click)
 <!--
-  배포 주소와 영상이 준비되면 아래 두 줄의 주석을 풀고 링크를 채웁니다.
-  주소가 빈 채로 두면 눌렀을 때 아무 데도 가지 않아 미완성으로 보입니다.
+  영상을 올린 뒤 아래 주석을 풀고 주소를 채웁니다. 주소가 빈 채로 두면 눌렀을 때
+  아무 데도 가지 않아 미완성으로 보입니다.
 
-[![Demo](https://img.shields.io/badge/🌐_바로_써보기-4FACFE?style=for-the-badge)](배포-주소)
 [![Video](https://img.shields.io/badge/🎬_시연_영상-FF0000?style=for-the-badge&logo=youtube&logoColor=white)](영상-주소)
 -->
 [![Wiki](https://img.shields.io/badge/📖_문서-181717?style=for-the-badge&logo=github&logoColor=white)](https://github.com/heopath/TravelGuide-Project-Team1/wiki)
@@ -22,22 +22,49 @@
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-4169E1?style=flat-square&logo=postgresql&logoColor=white)
 ![Redis](https://img.shields.io/badge/Redis-DC382D?style=flat-square&logo=redis&logoColor=white)
 ![AWS](https://img.shields.io/badge/AWS_EC2-FF9900?style=flat-square&logo=amazonec2&logoColor=white)
-![Version](https://img.shields.io/badge/version-v0.12.0-00C9A7?style=flat-square)
+![Version](https://img.shields.io/badge/version-v0.0.7-00C9A7?style=flat-square)
 
 </div>
 
 ---
 
 <!--
-  화면 GIF와 데모 계정.
+  시연 영상과 화면 GIF. 준비되면 이 주석을 풀어 아래 `🔑 둘러보기` 위에 둡니다.
 
-  docs/video/gif/ 에 파일을 넣고 아래 주석을 풀면 됩니다. 파일이 없는 채로 두면
-  깨진 이미지가 보이므로 지금은 감춰 둡니다. 만드는 방법은 그 폴더의 README를 보세요.
+  ─ 영상을 올린 뒤
 
-  데모 계정은 실제로 로그인되는 것을 적습니다. 조사해보니 채용 담당자 상당수가
-  동작하는 데모를 보고 싶어 하고, 로그인이 필요하면 계정을 적어 두라고 합니다.
+  GitHub README에는 YouTube 플레이어가 박히지 않습니다. 썸네일 이미지에 링크를 거는 것이
+  유일한 방법입니다. 아래 VIDEO_ID 두 자리를 실제 값으로 바꾸면 됩니다.
+
+  챕터 목록을 함께 두는 이유는, 보는 사람이 12분을 다 볼지 결정하기 전에 무엇이 들어
+  있는지 알 수 있어서입니다. 각 줄의 `&t=` 초를 실제 시각으로 맞추면 눌러서 바로 갑니다.
+  챕터 구성은 위키의 [기능별 챕터 영상 촬영 계획]을 보세요.
+
+  ─ GIF
+
+  docs/video/gif/ 에 파일을 넣어야 표시됩니다. 없는 채로 주석을 풀면 깨진 이미지가
+  보입니다. 만드는 방법은 그 폴더의 README에 있습니다.
+
+  영상과 GIF는 역할이 다릅니다. GIF는 스크롤하다 눈에 걸리는 것이고, 영상은 마음먹고
+  보는 것입니다. 둘 다 두는 편이 낫습니다.
 
 ## 🎬 이렇게 동작합니다
+
+<div align="center">
+
+[<img src="https://img.youtube.com/vi/VIDEO_ID/maxresdefault.jpg" width="640" />](https://www.youtube.com/watch?v=VIDEO_ID)
+
+**기능 시연 영상 (12분)** — 눌러서 봅니다
+
+</div>
+
+| 시각 | 챕터 | 시각 | 챕터 |
+|---:|---|---:|---|
+| [00:00](https://www.youtube.com/watch?v=VIDEO_ID&t=0s) | 여는 장 | [06:30](https://www.youtube.com/watch?v=VIDEO_ID&t=390s) | 입장 QR·현장 검표 |
+| [01:10](https://www.youtube.com/watch?v=VIDEO_ID&t=70s) | 여행 계획 만들기 | [07:20](https://www.youtube.com/watch?v=VIDEO_ID&t=440s) | 여행 기록·책 지면 |
+| [03:10](https://www.youtube.com/watch?v=VIDEO_ID&t=190s) | 일정 편집·경로 최적화 | [08:50](https://www.youtube.com/watch?v=VIDEO_ID&t=530s) | 관리자 운영 |
+| [04:00](https://www.youtube.com/watch?v=VIDEO_ID&t=240s) | 항공·숙소 예약 | [10:00](https://www.youtube.com/watch?v=VIDEO_ID&t=600s) | API 키 관리 |
+| [04:50](https://www.youtube.com/watch?v=VIDEO_ID&t=290s) | 티켓 예매·대기열 | [10:40](https://www.youtube.com/watch?v=VIDEO_ID&t=640s) | 기술 판단과 검증 |
 
 <div align="center">
 
@@ -48,11 +75,28 @@
 
 </div>
 
-> **데모 계정** — 아이디 `계정` / 비밀번호 `비밀번호`
-> 관리자 화면을 보려면 `관리자 계정`으로 로그인하세요.
-
 ---
 -->
+
+## 🔑 둘러보기
+
+**[www.allmytrip.click](https://www.allmytrip.click)** 에서 바로 써볼 수 있습니다. 아래 계정으로 로그인하세요.
+
+<div align="center">
+
+| 이메일 | 비밀번호 |
+|---|---|
+| `demo@allmytrip.click` | `AllMyTrips2026!` |
+
+</div>
+
+이 계정은 **둘러보라고 공개해 둔 것**이라 비밀번호를 가리지 않았습니다. 대신 일반 사용자 권한만 있고, 다른 사람이 만든 여행이나 예약은 보이지 않습니다.
+
+**관리자 화면은 이 계정으로 열리지 않습니다.** `/admin` 앞에 Cloudflare Access가 한 단계 더 있고, 통과하더라도 관리자 권한이 따로 필요합니다. 엣지와 애플리케이션 권한을 나눠 둔 구조라, 계정 하나가 새어도 운영 화면까지 열리지 않습니다.
+
+> 처음이라면 **여행 계획 만들기 → 예약하러 가기 → 티켓 예매**를 순서대로 눌러보세요. 계획에 넣은 목적지와 날짜가 예약 화면으로 그대로 이어집니다.
+
+---
 
 ## ✨ 만든 것
 
@@ -65,6 +109,7 @@
 | 📖 | **여행 기록** | 다녀온 뒤 사진과 글을 남기고 책 지면 이미지로 뽑습니다 |
 | 💬 | **실시간 상담** | 봇이 먼저 받고, 필요하면 상담원이 이어받습니다 |
 | ⚙️ | **관리자 운영** | 신고·문의·회원·재고·검표 이력을 한 곳에서 처리합니다 |
+| 🔑 | **외부 API 키 교체** | 사용량 한도에 걸리면 재배포 없이 화면에서 키를 바꿉니다 |
 
 ---
 
@@ -85,13 +130,15 @@ Redis Lua 스크립트로 **한 덩어리로 실행**해 틈을 없앴습니다.
 </td>
 <td width="50%" valign="top">
 
-### 입장 코드 위조 막기
+### 입장 코드 재사용 막기
 
 QR을 캡처해 남에게 넘기면 검표가 무의미해집니다.
 
-**HMAC-SHA256으로 서명**하고 **5분 뒤 만료**시킵니다. 값을 고치면 서명이 깨지고, 서버는 코드만 보고 진짜인지 판단합니다.
+서버는 **SHA-256 해시만 저장**합니다. 원문은 발급 응답에만 실려 나가고 DB에 남지 않습니다. 유효기간이 지나거나 다시 발급하면 앞선 코드는 즉시 무효가 되고, 검표할 때 티켓 행을 잠그고 한 번만 사용 처리해 **같은 코드로 두 번 들어갈 수 없습니다.**
 
-`PaymentQrSigner`
+`TicketValidationService` · `V21__issued_ticket_qr_token.sql`
+
+> 결제 QR은 다른 구현입니다. 5분만 사는 값이라 저장하지 않고 **HMAC-SHA256 서명**만 붙입니다. (`PaymentQrSigner`)
 
 </td>
 </tr>
@@ -114,6 +161,30 @@ QR을 캡처해 남에게 넘기면 검표가 무의미해집니다.
 다른 도메인 사진을 canvas에 그리면 브라우저가 **이미지 내보내기를 통째로 막습니다.**
 
 허락받은 사진만 그리고 실패한 자리는 비워, 한 장 때문에 지면 전체를 잃지 않게 했습니다.
+
+</td>
+</tr>
+<tr>
+<td width="50%" valign="top">
+
+### 재배포 없이 API 키 갈아끼우기
+
+키를 `@Value`로 받으면 앱이 뜰 때 한 번 정해지고 끝입니다. **사용량 한도에 걸려 급히 바꿔야 하는 그 순간에** 재배포 없이는 안 바뀝니다.
+
+호출할 때마다 꺼내 쓰도록 바꾸고, DB에는 **AES-256-GCM으로 암호화**해 넣습니다. 마스터 키는 DB가 아니라 환경변수에 둬서 덤프만으로는 못 읽습니다. 저장 전에 서버가 실제로 연결해 보고, 통과한 키만 저장합니다.
+
+`ApiKeyProvider` · `ApiKeyCipher`
+
+</td>
+<td width="50%" valign="top">
+
+### 악용 요청은 엣지에서 걸러내기
+
+로그인·회원가입과 비용이 큰 AI API는 서버까지 오기 전에 막는 편이 낫습니다.
+
+Cloudflare에서 **IP별 요청 횟수를 제한**하고, 사람 확인 토큰은 화면에 위젯만 붙이지 않고 **서버가 Cloudflare에 다시 검증**합니다. 관리자 경로는 엣지 인증을 한 단계 더 두어, 통과해도 관리자 권한이 없으면 아무것도 못 합니다.
+
+정적 파일만 Edge에 캐시하고 HTML·API는 제외했습니다.
 
 </td>
 </tr>
@@ -149,7 +220,7 @@ Redis는 캐시만이 아니라 **세션 저장소**와 **예약 대기열**로�
 
 | DB 마이그레이션 | 서버 테스트 | 화면 테스트 | 화면 |
 |:---:|:---:|:---:|:---:|
-| **31** | **728개** | **38개 파일** | **26** |
+| **35** | **750개** | **40개 파일** | **26** |
 
 </div>
 
@@ -168,6 +239,13 @@ docker compose up -d          # PostgreSQL + Redis
 ```
 
 http://localhost:8080 으로 접속합니다. 자세한 준비 과정은 [실행 시나리오](https://github.com/heopath/TravelGuide-Project-Team1/wiki/프로젝트-실행-시나리오)를 보세요.
+
+로그인해서 볼 계정이 필요하면 위 `🔑 둘러보기`의 체험 계정을 로컬에도 만들 수 있습니다.
+
+```bash
+docker compose exec -T postgres psql -U allmytrips -d all_my_trips \
+  -f - < database/seed/demo_account.sql
+```
 
 > 지도·결제·AI 기능은 외부 API 키가 필요합니다. 키 없이도 앱은 뜨고, 해당 기능은 안내 문구가 나옵니다.
 
@@ -882,8 +960,8 @@ AllMyTrips/
 
 | 구분 | 링크 |
 |:---:|---|
-| 🌐 배포 | _배포 후 추가_ |
-| 🎬 시연 영상 | _촬영 후 추가_ |
+| 🌐 배포 | [www.allmytrip.click](https://www.allmytrip.click) |
+| 🎬 시연 영상 | _촬영 후 추가_ ([촬영 계획](https://github.com/heopath/TravelGuide-Project-Team1/wiki/기능별-챕터-영상-촬영-계획)) |
 | 📖 위키 | [바로가기](https://github.com/heopath/TravelGuide-Project-Team1/wiki) |
 | 🎨 Figma | [바로가기](https://www.figma.com/design/byqjrBMhrQzNsuE7AWJCfd/All-My-Trips-%E2%80%94-AI-%EB%A7%9E%EC%B6%A4-%EC%97%AC%ED%96%89-%ED%94%8C%EB%9E%AB%ED%8F%BC-%EC%A0%84%EC%B2%B4-%ED%99%94%EB%A9%B4--%ED%97%88%EB%AF%BC%EC%9E%AC-%ED%8C%80-?node-id=3-4310) |
 | 📝 Notion | [바로가기](https://app.notion.com/p/chhak0503/1-3b17537e85eb80d09a97df02653cc676) |

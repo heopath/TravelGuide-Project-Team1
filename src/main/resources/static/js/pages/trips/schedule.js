@@ -3322,7 +3322,6 @@ document.addEventListener("DOMContentLoaded", function () {
     }));
     clearBookingMatchScheduleTimeDraft(targetDay, targetItems);
   }
-
   function bookingMatchDateLabel(value) {
     return value ? formatDate(value) : "날짜 미정";
   }
@@ -3344,7 +3343,6 @@ document.addEventListener("DOMContentLoaded", function () {
       bookingMatchToggleIcon.textContent = expanded ? "−" : "+";
     }
   }
-
   function renderBookingMatches() {
     if (!bookingMatchPanel || !bookingMatchList) return;
     const candidates = bookingMatchCandidates(bookingMatchData);
@@ -3442,7 +3440,6 @@ document.addEventListener("DOMContentLoaded", function () {
   bookingMatchToggle?.addEventListener("click", function () {
     setBookingMatchExpanded(bookingMatchToggle.getAttribute("aria-expanded") !== "true");
   });
-
   async function addBookingMatchToSchedule(candidate, button) {
     if (!activeTripId) return;
     const targetDay = bookingMatchDay(candidate);

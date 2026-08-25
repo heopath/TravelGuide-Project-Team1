@@ -368,22 +368,6 @@ body.page-style .style-board {
   }
 }
 
-/* 일정·예산 hover: 카드 전체가 아닌 원형 포인트만 강조 */
-body.page-style .schedule-scale button:not(.selected):hover,
-body.page-style .budget-scale button:not(.selected):hover {
-  border-color: transparent !important;
-  background: transparent !important;
-  box-shadow: none !important;
-  transform: none !important;
-}
-
-body.page-style .schedule-scale button:not(.selected):hover::before,
-body.page-style .budget-scale button:not(.selected):hover::before {
-  background: #6075f2 !important;
-  box-shadow: 0 0 0 1px #6075f2, 0 0 0 4px #e5eaff !important;
-  transform: scale(1.05);
-}
-
 body.page-style .style-section h2::before,
 body.page-style .pill-grid button::before,
 body.page-style .selected-summary strong::before {
@@ -481,115 +465,6 @@ body.page-style .pill-grid button:focus-visible,
 body.page-style .segmented button:focus-visible {
   outline: 3px solid rgba(83, 103, 232, .28);
   outline-offset: 3px;
-}
-
-/* 예산 5단계 스케일 */
-body.page-style .budget-scale {
-  position: relative;
-  display: grid;
-  grid-template-columns: repeat(4, minmax(112px, 1fr));
-  gap: 10px;
-  min-width: 0;
-  padding: 10px 0 0;
-}
-
-body.page-style .budget-scale-track {
-  position: absolute;
-  top: 27px;
-  left: 12%;
-  right: 12%;
-  height: 2px;
-  background: #dfe4f2;
-  pointer-events: none;
-}
-
-body.page-style .budget-scale button {
-  position: relative;
-  z-index: 1;
-  display: flex;
-  min-width: 0;
-  min-height: 94px;
-  flex-direction: column;
-  align-items: center;
-  justify-content: flex-start;
-  gap: 4px;
-  padding: 0 8px 12px;
-  border: 0;
-  border-radius: 14px;
-  background: transparent;
-  color: #53617f;
-  text-align: center;
-  transition: background 160ms ease, color 160ms ease, transform 160ms ease;
-}
-
-body.page-style .budget-scale button::before {
-  content: "";
-  display: block;
-  width: 14px;
-  height: 14px;
-  margin-bottom: 7px;
-  border: 3px solid #ffffff;
-  border-radius: 50%;
-  background: #c7cee1;
-  box-shadow: 0 0 0 1px #c7cee1;
-  transition: background 160ms ease, box-shadow 160ms ease, transform 160ms ease;
-}
-
-body.page-style .budget-scale button:hover {
-  color: #3e4a78;
-  background: #f7f8ff;
-}
-
-body.page-style .budget-scale button.selected {
-  border: 1px solid #c8d0f0;
-  background: #f1f3ff;
-  color: #3e4a78;
-  box-shadow: 0 4px 10px rgba(67, 79, 133, .09);
-  transform: translateY(-2px);
-}
-
-body.page-style .budget-scale button.selected::before {
-  background: #6675b5;
-  box-shadow: 0 0 0 1px #6675b5, 0 0 0 4px #e5e9ff;
-  transform: scale(1.05);
-}
-
-body.page-style .budget-scale .budget-step {
-  color: #8994ae;
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: .08em;
-}
-
-body.page-style .budget-scale strong {
-  font-size: 14px;
-  font-weight: 800;
-  line-height: 1.3;
-  white-space: nowrap;
-}
-
-body.page-style .budget-scale small {
-  color: #8994ae;
-  font-size: 11px;
-  line-height: 1.3;
-  white-space: nowrap;
-}
-
-@media (max-width: 760px) {
-  body.page-style .budget-scale {
-    grid-template-columns: repeat(4, minmax(84px, 1fr));
-    gap: 5px;
-    overflow-x: auto;
-    padding-bottom: 4px;
-  }
-
-  body.page-style .budget-scale button {
-    min-height: 86px;
-    padding-inline: 4px;
-  }
-
-  body.page-style .budget-scale strong { font-size: 12px; }
-  body.page-style .budget-scale small { font-size: 10px; }
 }
 
 /* 일정 속도 5단계 스케일 */
@@ -1128,13 +1003,6 @@ body.page-style .pill-grid button.selected::after {
   transform: translateY(-50%);
 }
 
-body.page-style .pill-grid button:focus-visible,
-body.page-style .schedule-scale button:focus-visible,
-body.page-style .budget-scale button:focus-visible {
-  outline: 3px solid rgba(54, 93, 245, .22);
-  outline-offset: 3px;
-}
-
 /* 목적 아이콘 */
 body.page-style .pill-grid button[data-style-value="SIGHTSEEING"]::before { content: "▣"; }
 body.page-style .pill-grid button[data-style-value="FOOD"]::before { content: "♨"; }
@@ -1149,116 +1017,8 @@ body.page-style .pill-grid button[data-style-value="NIGHT"]::before { content: "
 body.page-style .pill-grid button[data-style-value="LOCAL"]::before { content: "▤"; }
 body.page-style .pill-grid button[data-style-value="FAMILY"]::before { content: "♟"; }
 
-/* 일정 / 예산 공통 스케일 */
-body.page-style .schedule-scale,
-body.page-style .budget-scale {
-  position: relative;
-  display: grid;
-  gap: 10px;
-  min-width: 0;
-  padding-top: 10px;
-}
-
 body.page-style .schedule-scale {
   grid-template-columns: repeat(5, minmax(0, 1fr));
-}
-
-body.page-style .budget-scale {
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-}
-
-body.page-style .schedule-scale-track,
-body.page-style .budget-scale-track {
-  position: absolute;
-  top: 30px;
-  left: 9.5%;
-  right: 9.5%;
-  height: 2px;
-  border-radius: 99px;
-  background: #dde4f1;
-  pointer-events: none;
-}
-
-body.page-style .schedule-scale button,
-body.page-style .budget-scale button {
-  position: relative;
-  z-index: 1;
-  display: flex;
-  min-width: 0;
-  min-height: 100px;
-  flex-direction: column;
-  align-items: center;
-  justify-content: flex-start;
-  gap: 4px;
-  padding: 0 8px 13px;
-  border: 1px solid transparent;
-  border-radius: 16px;
-  background: transparent;
-  color: #596581;
-  text-align: center;
-  transition: transform 160ms ease, border-color 160ms ease,
-              background 160ms ease, box-shadow 160ms ease;
-}
-
-body.page-style .schedule-scale button::before,
-body.page-style .budget-scale button::before {
-  content: "";
-  display: block;
-  width: 15px;
-  height: 15px;
-  margin: 11px 0 7px;
-  border: 4px solid #fff;
-  border-radius: 50%;
-  background: #cbd3e4;
-  box-shadow: 0 0 0 1px #bfc8dc;
-  transition: transform 160ms ease, background 160ms ease, box-shadow 160ms ease;
-}
-
-body.page-style .schedule-scale button:hover,
-body.page-style .budget-scale button:hover {
-  transform: translateY(-1px);
-  background: #fafbff;
-}
-
-body.page-style .schedule-scale button.selected,
-body.page-style .budget-scale button.selected {
-  transform: translateY(-3px);
-  border-color: #b9c7ff !important;
-  background: linear-gradient(180deg, #f5f7ff, #edf2ff) !important;
-  color: #153ebf !important;
-  box-shadow: 0 10px 20px rgba(54, 93, 245, .10) !important;
-}
-
-body.page-style .schedule-scale button.selected::before,
-body.page-style .budget-scale button.selected::before {
-  background: var(--style-primary);
-  box-shadow: 0 0 0 1px var(--style-primary), 0 0 0 5px #e7edff;
-  transform: scale(1.05);
-}
-
-body.page-style .schedule-step,
-body.page-style .budget-step {
-  color: #919bb3 !important;
-  font-size: 10px !important;
-  font-weight: 850 !important;
-  letter-spacing: .08em !important;
-}
-
-body.page-style .schedule-scale strong,
-body.page-style .budget-scale strong {
-  color: inherit;
-  font-size: 14px;
-  font-weight: 850;
-  line-height: 1.35;
-  white-space: nowrap;
-}
-
-body.page-style .schedule-scale small,
-body.page-style .budget-scale small {
-  color: #9aa4ba;
-  font-size: 11px;
-  line-height: 1.35;
-  white-space: nowrap;
 }
 
 /* 우측 취향 요약 카드 */
@@ -1484,7 +1244,6 @@ body.page-style .selected-summary strong::before {
 body.page-style .selected-summary #basicSummary::before { content: "●"; }
 body.page-style .selected-summary #purposeSummary::before { content: "♥"; }
 body.page-style .selected-summary #styleSummary::before { content: "◷"; }
-body.page-style .selected-summary #budgetSummary::before { content: "₩"; }
 
 body.page-style .selected-summary strong:empty {
   display: none;
@@ -1705,30 +1464,6 @@ body.page-style .field-error {
     min-height: 50px;
     padding-left: 13px;
     font-size: 13px;
-  }
-
-  body.page-style .schedule-scale,
-  body.page-style .budget-scale {
-    grid-template-columns: repeat(5, minmax(90px, 1fr));
-    gap: 6px;
-    overflow-x: auto;
-    padding-bottom: 6px;
-  }
-
-  body.page-style .schedule-scale button,
-  body.page-style .budget-scale button {
-    min-height: 92px;
-    padding-inline: 4px;
-  }
-
-  body.page-style .schedule-scale strong,
-  body.page-style .budget-scale strong {
-    font-size: 12px;
-  }
-
-  body.page-style .schedule-scale small,
-  body.page-style .budget-scale small {
-    font-size: 10px;
   }
 
   body.page-style .selected-summary {

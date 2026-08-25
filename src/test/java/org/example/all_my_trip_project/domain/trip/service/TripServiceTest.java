@@ -256,8 +256,7 @@ class TripServiceTest {
                 startDate,
                 endDate,
                 companionType,
-                companionCount,
-                BigDecimal.valueOf(300_000)
+                companionCount
         );
     }
 

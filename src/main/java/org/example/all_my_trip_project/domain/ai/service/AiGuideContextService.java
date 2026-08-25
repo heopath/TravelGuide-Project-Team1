@@ -43,7 +43,7 @@ public class AiGuideContextService {
                                        TripService tripService) {
         return new AiGuideContext.Trip(trip.getTripId(), trip.getTitle(), trip.getDestinationName(),
                 trip.getStartDate(), trip.getEndDate(), trip.getCompanionType(), trip.getCompanionCount(),
-                trip.getPurpose(), trip.getBudgetAmount(), trip.getCurrencyCode(), trip.getTransportPreference(),
+                trip.getPurpose(), trip.getCurrencyCode(), trip.getTransportPreference(),
                 trip.getFoodPreference(), trip.getPace(), trip.getAccommodationStyle(),
                 days.stream().map(day -> new AiGuideContext.Day(day.getDayNumber(), day.getTripDate(),
                         day.getTitle(), day.getMemo(), tripService.getItems(userId, day.getTripDayId())
