@@ -575,10 +575,16 @@ body.page-mypage main#page-content > .page-shell {
    FULL VIEW
    ========================================================= */
 
+/*
+ * 알림도 같은 전체 화면 뷰다. 여기 빠져 있어서 혼자만 패딩이 0이었고, 제목은
+ * 뒤로 가기 버튼에 밀려 들어가 있는데 목록은 패널 가장자리에 붙어 좌측 정렬선이
+ * 서로 어긋나 보였다.
+ */
 .page-mypage .mypage-trips-view,
 .page-mypage .mypage-favorites-view,
 .page-mypage .mypage-reviews-view,
 .page-mypage .mypage-support-view,
+.page-mypage .mypage-notifications-view,
 .page-mypage .mypage-settings-view {
   width: 100%;
   min-height: 690px;
@@ -2896,14 +2902,51 @@ body.page-mypage main#page-content > .page-shell {
   text-align: center;
 }
 
-.page-mypage .notification-text { display: grid; gap: 4px; }
-.page-mypage .notification-text strong { font-size: 14.5px; }
-.page-mypage .notification-text p { margin: 0; color: #6b7280; font-size: 13px; line-height: 1.5; }
-.page-mypage .notification-text small { color: #98a2b3; font-size: 11.5px; }
+/*
+ * 한 항목의 짜임
+ *
+ *   [아이콘]  제목                                    1시간 전
+ *             본문
+ *             보러 가기 →
+ *
+ * 시각을 제목 줄 오른쪽으로 올린다. 본문과 링크 사이에 끼어 있으면 읽는 흐름이
+ * 끊기고, 남는 오른쪽 폭도 그대로 빈다.
+ */
+.page-mypage .notification-item { align-items: flex-start; }
+
+.page-mypage .notification-text {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 4px 12px;
+}
+
+.page-mypage .notification-text strong { grid-column: 1; grid-row: 1; font-size: 14.5px; }
+
+/* 시각은 제목과 같은 줄 오른쪽 끝. 폭이 흔들리지 않게 줄바꿈을 막는다. */
+.page-mypage .notification-text small {
+  grid-column: 2;
+  grid-row: 1;
+  justify-self: end;
+  color: #98a2b3;
+  font-size: 11.5px;
+  white-space: nowrap;
+}
+
+.page-mypage .notification-text p {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: #6b7280;
+  font-size: 13px;
+  line-height: 1.5;
+}
 
 .page-mypage .notification-go {
+  grid-column: 1 / -1;
   justify-self: start;
   margin-top: 2px;
+  text-decoration: none;
   color: #5b6bff;
   font-size: 12.5px;
   font-weight: 700;
