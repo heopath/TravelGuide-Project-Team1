@@ -63,7 +63,7 @@ assert.match(recordSource, /AllMyTripsTripStatus\.isTripFinished/,
 assert.doesNotMatch(recordSource, /status !== "COMPLETED"/,
   "기록 화면이 상태만으로 판단하면 안 된다");
 
-/* 마이페이지 사진첩 탭은 완료된 여행에서 생성된 기록만 모아 편집 화면으로 보낸다. */
+/* 마이페이지 사진첩 탭은 기록이 아직 없는 완료 여행도 사진 선택 화면으로 보낸다. */
 const mypageMarkup = read("../../main/resources/templates/mypage/mypage.html");
 const mypageSource = read("../../main/resources/static/js/pages/mypage/mypage.js");
 const albumSource = read("../../main/resources/static/js/pages/mypage/mypage-records.js");
@@ -71,7 +71,10 @@ assert.match(mypageMarkup, /data-open-records/, "마이페이지에 여행 기�
 assert.match(mypageMarkup, /data-records-view/, "여행 기록 목록 화면이 있어야 한다");
 assert.match(mypageSource, /initTravelRecords/, "여행 기록 탭을 열 때 목록을 불러와야 한다");
 assert.match(albumSource, /\/api\/v1\/travel-records\/me/, "내 기록만 조회해야 한다");
-assert.match(albumSource, /\/trips\/\$\{record\.tripId\}\/record/, "사진첩 카드는 해당 여행 기록 화면으로 이동해야 한다");
+assert.match(albumSource, /\/api\/v1\/trips/, "기록이 없는 완료 여행도 찾기 위해 내 여행을 조회해야 한다");
+assert.match(albumSource, /isTripFinished/, "마이페이지에서도 완료 여행만 사진첩 후보로 보여야 한다");
+assert.match(albumSource, /\/trips\/\$\{trip\.tripId\}\/record/, "완료 여행 카드는 해당 자동 사진첩 화면으로 이동해야 한다");
+assert.match(albumSource, /사진 선택하기/, "기록이 없는 완료 여행은 사진 선택 동작을 안내해야 한다");
 
 /* 공용 규칙 파일이 모든 화면에 실려야 한다. */
 const scriptsFragment = read("../../main/resources/templates/fragments/scripts.html");
