@@ -568,6 +568,18 @@ async function run() {
     T("tripId가 없으면 일정을 조회하지 않는다", !urls.some((u) => u.includes("/days") || u.includes("/items")));
   }
 
+  {
+    const { api } = await boot({ query: "?tripId=323" });
+    T("스케줄에서 시작한 예약은 확정 후 기존 일정으로 돌아간다",
+      api.bookingCompletionUrl() === "/trips/323/schedule");
+  }
+
+  {
+    const { api } = await boot();
+    T("독립 예약은 기존 예약 관리 화면으로 이동한다",
+      api.bookingCompletionUrl() === "/mypage?view=tickets");
+  }
+
   /* ── 모의 결제와 발권 (#241) ── */
   {
     const { d } = await boot({ query: "?tripId=10&tab=mine", summary: ticketSummary("PENDING", "결제 대기") });

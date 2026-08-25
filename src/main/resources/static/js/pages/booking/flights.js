@@ -299,6 +299,9 @@
   /* tripId가 없으면 비교까지만 하고 저장은 하지 않는다. 화면은 그대로 동작한다. */
   const canPersist = () => tripId !== null;
   const legUrl = (leg, suffix) => `/api/v1/trips/${tripId}/flights/${leg}${suffix || ""}`;
+  const bookingCompletionUrl = () => canPersist()
+    ? `/trips/${encodeURIComponent(tripId)}/schedule`
+    : bookingConfirmation.redirectUrl || "/mypage?view=tickets";
 
   /* ────────── 검색 ────────── */
   async function loadOffers(leg) {
@@ -603,7 +606,7 @@
       : !state.picked[INBOUND] ? { label: "다음 단계: 오는 편 선택", tab: "flight", leg: INBOUND }
       : !hotelDone() ? { label: "다음 단계: 숙소 선택", tab: "hotel" }
       : bookingConfirmation.confirmed
-        ? { label: "예약 관리 보기", action: "manage" }
+        ? { label: canPersist() ? "일정으로 돌아가기" : "예약 관리 보기", action: "manage" }
         : { label: "예약 확정", action: "confirm" };
 
     if (selectionsComplete && !canPersist()) {
@@ -1164,7 +1167,7 @@
     try {
       const payload = await request("POST", `/api/v1/trips/${tripId}/booking-confirmation`);
       bookingConfirmation = payload?.data || bookingConfirmation;
-      window.location.assign(bookingConfirmation.redirectUrl || "/mypage?view=tickets");
+      window.location.assign(bookingCompletionUrl());
     } catch (error) {
       window.alert(error.message || "예약을 확정하지 못했습니다. 선택 항목을 다시 확인해 주세요.");
       await loadBookingConfirmation();
@@ -1576,7 +1579,7 @@
         return;
       }
       if (button.dataset.nextAction === "manage") {
-        window.location.assign(bookingConfirmation.redirectUrl || "/mypage?view=tickets");
+        window.location.assign(bookingCompletionUrl());
         return;
       }
       if (button.dataset.nextAction === "confirmPending") {
@@ -1845,6 +1848,7 @@
     getSearch: () => ({ ...search }),
     getHotelSelection: () => hotelSelection,
     getTicketReservation: () => ticketReservation,
-    pendingBookingResumeReference
+    pendingBookingResumeReference,
+    bookingCompletionUrl
   };
 })();

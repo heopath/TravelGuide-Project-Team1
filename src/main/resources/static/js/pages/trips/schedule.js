@@ -244,6 +244,9 @@ document.addEventListener("DOMContentLoaded", function () {
   const placeAddClose = document.querySelector("[data-place-add-close]");
   const placeAddTitle = document.querySelector("[data-place-add-title]");
   const bookingMatchPanel = document.querySelector("[data-booking-match-panel]");
+  const bookingMatchToggle = document.querySelector("[data-booking-match-toggle]");
+  const bookingMatchToggleIcon = document.querySelector("[data-booking-match-toggle-icon]");
+  const bookingMatchContent = document.querySelector("[data-booking-match-content]");
   const bookingMatchCriteria = document.querySelector("[data-booking-match-criteria]");
   const bookingMatchCount = document.querySelector("[data-booking-match-count]");
   const bookingMatchStatus = document.querySelector("[data-booking-match-status]");
@@ -305,7 +308,14 @@ document.addEventListener("DOMContentLoaded", function () {
     }
     const bodyTop = workspaceBody.getBoundingClientRect().top;
     const itemTop = firstItem.getBoundingClientRect().top;
-    const offset = Math.max(0, Math.round(itemTop - bodyTop));
+    let bookingPanelOuterHeight = 0;
+    if (bookingMatchPanel && !bookingMatchPanel.hidden) {
+      const bookingPanelStyle = window.getComputedStyle(bookingMatchPanel);
+      bookingPanelOuterHeight = bookingMatchPanel.getBoundingClientRect().height
+        + (Number.parseFloat(bookingPanelStyle.marginTop) || 0)
+        + (Number.parseFloat(bookingPanelStyle.marginBottom) || 0);
+    }
+    const offset = Math.max(0, Math.round(itemTop - bodyTop - bookingPanelOuterHeight));
     scheduleMapPanel.style.setProperty("--schedule-map-top-offset", offset + "px");
   }
 
@@ -1429,7 +1439,19 @@ document.addEventListener("DOMContentLoaded", function () {
     return override?.startTime || item.startTime || "";
   }
 
+  function isBookingScheduleItem(item) {
+    return String(item?.memo || "").startsWith("booking-match:");
+  }
+
+  function isArrivalOnlyAccommodation(item) {
+    return isBookingScheduleItem(item) && item?.itemType === "ACCOMMODATION";
+  }
+
   function getItemDurationMinutes(item, fallbackMinutes) {
+    // 예약 숙소는 방문 장소가 아니라 도착 지점이다. 다음 일정 계산에는 포함하되
+    // 숙소 자체의 체류시간은 배정하지 않는다.
+    if (isArrivalOnlyAccommodation(item)) return 0;
+
     const override = getScheduleTimeOverride(item);
     const overrideDuration = Number(override?.durationMinutes);
     if (Number.isFinite(overrideDuration) && overrideDuration > 0) {
@@ -1643,6 +1665,11 @@ document.addEventListener("DOMContentLoaded", function () {
     // 순번은 DAY 안에서의 순서다. 전체 보기에서는 activeItems가 여러 DAY를 합친 배열이라
     // 거기서 찾으면 DAY 2의 첫 일정이 첫 번째가 아니게 된다. 그려질 때의 순번을 그대로 쓴다.
     const index = Number(timeButton.dataset.itemIndex || 0);
+    const arrivalOnly = isArrivalOnlyAccommodation(item);
+    if (arrivalOnly && index > 0) {
+      toast("숙소 도착시간은 앞 일정과 이동시간을 기준으로 자동 계산됩니다.");
+      return;
+    }
     // 교통수단을 먼저 선택해야 시간 설정 가능
     if (!globalTransportMode) {
       toast("교통수단을 먼저 설정해 주세요.");
@@ -1669,12 +1696,13 @@ document.addEventListener("DOMContentLoaded", function () {
 
     editor.className = "schedule-time-editor";
     if (autoStart) editor.classList.add("is-auto-start");
+    if (arrivalOnly) editor.classList.add("is-arrival-only");
     editor.setAttribute("role", "dialog");
-    editor.setAttribute("aria-label", "방문 시간 설정");
+    editor.setAttribute("aria-label", arrivalOnly ? "숙소 도착 시간 설정" : "방문 시간 설정");
     editor.innerHTML = `
       <div class="schedule-time-editor-header">
         <div class="schedule-time-editor-title">
-          <strong>방문 시간 설정</strong>
+          <strong>${arrivalOnly ? "숙소 도착 시간 설정" : "방문 시간 설정"}</strong>
           ${autoStart ? "" : '<span class="schedule-time-format">24시간</span>'}
         </div>
         <button type="button" class="schedule-time-close" aria-label="시간 설정 닫기">×</button>
@@ -1916,12 +1944,12 @@ document.addEventListener("DOMContentLoaded", function () {
       normalizeDurationHour();
       normalizeDurationMinute();
 
-      const durationMinutes = durationSelect
+      const durationMinutes = arrivalOnly ? 0 : durationSelect
           ? Number(durationSelect.value)
           : Number(durationHourInput.value || 0) * 60 + Number(durationMinuteInput.value || 0);
 
       // 체류시간 자체가 올바른지 먼저 검사
-      if (!Number.isFinite(durationMinutes) || durationMinutes <= 0) {
+      if (!arrivalOnly && (!Number.isFinite(durationMinutes) || durationMinutes <= 0)) {
         toast("체류시간을 선택해 주세요.");
         return;
       }
@@ -2072,7 +2100,7 @@ document.addEventListener("DOMContentLoaded", function () {
         closeTimeEditor();
         refreshScheduleTimeDisplay();
 
-        toast("방문 시간이 저장되었습니다.");
+        toast(arrivalOnly ? "숙소 도착 시간이 저장되었습니다." : "방문 시간이 저장되었습니다.");
       } catch (error) {
         restoreScheduleTimeState(snapshot);
 
@@ -2497,11 +2525,13 @@ document.addEventListener("DOMContentLoaded", function () {
     const durationMinutes = calculated?.durationMinutes ?? getItemDurationMinutes(item);
     const endTime = calculated?.endTime || getItemEndTime(item) || addMinutesToTime(startTime, durationMinutes);
     const autoStart = Boolean(calculated?.autoStart);
-    const hasCompleteTime = Boolean(startTime && endTime);
+    const arrivalOnly = isArrivalOnlyAccommodation(item);
+    const hasCompleteTime = arrivalOnly ? Boolean(startTime) : Boolean(startTime && endTime);
 
     timeButton.replaceChildren();
     timeButton.classList.toggle("is-complete", hasCompleteTime);
     timeButton.classList.toggle("is-auto", autoStart);
+    timeButton.classList.toggle("is-arrival-only", arrivalOnly);
     timeControl.classList.toggle("is-complete", hasCompleteTime);
     if (hasCompleteTime) {
       const startLabel = document.createElement("span");
@@ -2509,14 +2539,16 @@ document.addEventListener("DOMContentLoaded", function () {
       startLabel.className = "schedule-time-start";
       endLabel.className = "schedule-time-end";
       startLabel.textContent = formatTime(startTime);
-      endLabel.textContent = "~ " + formatTime(endTime);
+      endLabel.textContent = arrivalOnly ? "도착" : "~ " + formatTime(endTime);
       timeButton.append(startLabel, endLabel);
     } else {
-      timeButton.textContent = index > 0 ? "자동 계산" : "시간 설정";
+      timeButton.textContent = arrivalOnly
+        ? (index > 0 ? "도착시간 자동 계산" : "도착시간 설정")
+        : (index > 0 ? "자동 계산" : "시간 설정");
     }
-    timeButton.title = autoStart
-      ? "첫 장소 시작시간과 체류시간으로 자동 계산됩니다."
-      : "방문 시간과 체류시간 설정";
+    timeButton.title = arrivalOnly
+      ? (index > 0 ? "앞 일정과 이동시간으로 숙소 도착시간이 자동 계산됩니다." : "숙소 도착시간 설정")
+      : (autoStart ? "첫 장소 시작시간과 체류시간으로 자동 계산됩니다." : "방문 시간과 체류시간 설정");
   }
 
   function refreshScheduleTimeDisplay(options = {}) {
@@ -2549,7 +2581,7 @@ document.addEventListener("DOMContentLoaded", function () {
     const addressPopover = document.createElement("span");
     const titleLine = document.createElement("div");
     const timeControl = document.createElement("div");
-    const isBookingItem = String(item.memo || "").startsWith(bookingMatchMemoPrefix);
+    const isBookingItem = isBookingScheduleItem(item);
     dragHandle.type = "button";
     dragHandle.className = "schedule-drag-handle";
     dragHandle.textContent = "⠿";
@@ -3183,7 +3215,7 @@ document.addEventListener("DOMContentLoaded", function () {
   function searchKakaoPlace(keyword) {
     return new Promise(function (resolve, reject) {
       if (!placesService || !window.kakao?.maps?.services) {
-        reject(new Error("카카오 지도에서 공항 위치를 찾을 수 없습니다."));
+        reject(new Error("카카오 지도에서 장소 위치를 찾을 수 없습니다."));
         return;
       }
       placesService.keywordSearch(keyword, function (places, status) {
@@ -3212,6 +3244,85 @@ document.addEventListener("DOMContentLoaded", function () {
     return findOrCreatePlace(kakaoPlace);
   }
 
+  async function resolveBookingAccommodation(candidate) {
+    const keywords = [candidate.address, candidate.name, candidate.title]
+      .map(function (value) { return String(value || "").trim(); })
+      .filter(function (value, index, values) { return value && values.indexOf(value) === index; });
+    let lastError = null;
+
+    for (const keyword of keywords) {
+      try {
+        const kakaoPlace = await searchKakaoPlace(keyword);
+        return await findOrCreatePlace(kakaoPlace);
+      } catch (error) {
+        lastError = error;
+      }
+    }
+
+    throw lastError || new Error("예약 숙소의 지도 위치를 확인할 수 없습니다.");
+  }
+
+  function bookingMatchInsertionIndex(candidate, items) {
+    if (candidate.type === "flight") return 0;
+    if (candidate.type === "accommodation") return items.length;
+
+    const bookingMinutes = toMinutes(bookingMatchTime(candidate));
+    if (bookingMinutes === null) return candidate.leg === 0 ? 0 : items.length;
+
+    const index = items.findIndex(function (item) {
+      const itemMinutes = toMinutes(getItemStartTime(item));
+      return itemMinutes !== null && itemMinutes >= bookingMinutes;
+    });
+    if (index >= 0) return index;
+    return candidate.leg === 0 ? 0 : items.length;
+  }
+
+  async function persistBookingMatchOrder(targetDay, targetItems, createdItem, candidate) {
+    if (!createdItem?.itineraryItemId) {
+      throw new Error("추가한 예약 일정 정보를 확인할 수 없습니다.");
+    }
+    const orderedItems = targetItems.slice().sort(function (left, right) {
+      return Number(left.sortOrder) - Number(right.sortOrder);
+    });
+    const orderedIds = orderedItems.map(function (item) { return item.itineraryItemId; });
+    orderedIds.splice(bookingMatchInsertionIndex(candidate, orderedItems), 0, createdItem.itineraryItemId);
+
+    await api("/api/v1/trip-days/" + targetDay.tripDayId + "/items/reorder", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify(orderedIds),
+    });
+    pendingReorders.delete(String(targetDay.tripDayId));
+  }
+
+  function clearBookingMatchScheduleTimeDraft(targetDay, targetItems) {
+    const overrides = readScheduleTimeOverrides();
+    (targetItems || []).forEach(function (item) {
+      delete overrides[getScheduleTimeKey(item)];
+      item.startTime = null;
+      item.endTime = null;
+    });
+    sessionStorage.setItem(scheduleTimeStorageKey, JSON.stringify(overrides));
+
+    const dayStarts = readScheduleDayStartTimes();
+    delete dayStarts[getScheduleDayStartKey(targetDay)];
+    sessionStorage.setItem(scheduleDayStartStorageKey, JSON.stringify(dayStarts));
+  }
+
+  async function resetExistingScheduleTimesForFlight(targetDay, targetItems) {
+    const persistedItems = (targetItems || []).filter(function (item) {
+      return Boolean(item?.itineraryItemId);
+    });
+    await Promise.all(persistedItems.map(function (item) {
+      return api("/api/v1/trip-days/" + targetDay.tripDayId + "/items/" + item.itineraryItemId, {
+        method: "PUT",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify(scheduleItemUpdatePayload(item, targetDay, null, null)),
+      });
+    }));
+    clearBookingMatchScheduleTimeDraft(targetDay, targetItems);
+  }
+
   function bookingMatchDateLabel(value) {
     return value ? formatDate(value) : "날짜 미정";
   }
@@ -3224,6 +3335,16 @@ document.addEventListener("DOMContentLoaded", function () {
     }).filter(Boolean));
   }
 
+  function setBookingMatchExpanded(expanded) {
+    if (!bookingMatchToggle || !bookingMatchContent) return;
+    bookingMatchContent.hidden = !expanded;
+    bookingMatchToggle.setAttribute("aria-expanded", String(expanded));
+    bookingMatchToggle.setAttribute("aria-label", expanded ? "예약 내역 접기" : "예약 내역 펼치기");
+    if (bookingMatchToggleIcon) {
+      bookingMatchToggleIcon.textContent = expanded ? "−" : "+";
+    }
+  }
+
   function renderBookingMatches() {
     if (!bookingMatchPanel || !bookingMatchList) return;
     const candidates = bookingMatchCandidates(bookingMatchData);
@@ -3233,6 +3354,7 @@ document.addEventListener("DOMContentLoaded", function () {
     });
     if (!candidates.length || allAdded) {
       bookingMatchPanel.hidden = true;
+      setBookingMatchExpanded(false);
       if (bookingMatchStatus) bookingMatchStatus.hidden = true;
       bookingMatchList.replaceChildren();
       return;
@@ -3302,6 +3424,7 @@ document.addEventListener("DOMContentLoaded", function () {
       bookingMatchData = null;
       bookingMatchScheduleItems = [];
       bookingMatchPanel.hidden = false;
+      setBookingMatchExpanded(true);
       bookingMatchCriteria.textContent = "예약 정보를 불러오지 못했습니다.";
       bookingMatchCount.textContent = "";
       bookingMatchList.replaceChildren();
@@ -3314,6 +3437,10 @@ document.addEventListener("DOMContentLoaded", function () {
 
   bookingMatchRetry?.addEventListener("click", function () {
     loadBookingMatches(scheduleDays);
+  });
+
+  bookingMatchToggle?.addEventListener("click", function () {
+    setBookingMatchExpanded(bookingMatchToggle.getAttribute("aria-expanded") !== "true");
   });
 
   async function addBookingMatchToSchedule(candidate, button) {
@@ -3338,18 +3465,23 @@ document.addEventListener("DOMContentLoaded", function () {
         return Math.max(max, Number(item.sortOrder) || 0);
       }, 0) + 1;
       const isAccommodation = candidate.type === "accommodation";
-      const airportPlace = isAccommodation ? null : await resolveBookingAirport(candidate);
+      const bookingPlace = isAccommodation
+        ? await resolveBookingAccommodation(candidate)
+        : await resolveBookingAirport(candidate);
       const flightEvent = candidate.leg === 0 ? "도착" : "출발";
-      await api("/api/v1/trip-days/" + targetDay.tripDayId + "/items", {
+      // 숙소는 마지막 일정까지의 체류시간과 이동시간이 준비된 뒤 도착시각을 계산한다.
+      // 임시 09:00을 저장하면 경로 응답 전 잘못된 도착시각이 노출되므로 비워 둔다.
+      const bookingStartTime = isAccommodation ? null : bookingMatchTime(candidate);
+      const createdItem = await api("/api/v1/trip-days/" + targetDay.tripDayId + "/items", {
         method: "POST",
         headers: {"Content-Type": "application/json"},
         body: JSON.stringify({
-          placeId: airportPlace?.placeId || null,
+          placeId: bookingPlace?.placeId || null,
           itemType: isAccommodation ? "ACCOMMODATION" : "TRANSPORT",
           title: isAccommodation
             ? (candidate.name || candidate.title || "예약 숙소")
-            : ((airportPlace?.name || domesticAirportNames[bookingMatchAirportCode(candidate)] || "공항") + " " + flightEvent),
-          startTime: bookingMatchTime(candidate),
+            : ((bookingPlace?.name || domesticAirportNames[bookingMatchAirportCode(candidate)] || "공항") + " " + flightEvent),
+          startTime: bookingStartTime,
           endTime: null,
           sortOrder: nextSortOrder,
           memo: bookingMatchMemo(candidate) + "\n" + [candidate.title, candidate.detail || candidate.areaLabel]
@@ -3359,6 +3491,10 @@ document.addEventListener("DOMContentLoaded", function () {
           source: "MANUAL",
         }),
       });
+      await persistBookingMatchOrder(targetDay, targetItems, createdItem, candidate);
+      if (candidate.type === "flight") {
+        await resetExistingScheduleTimesForFlight(targetDay, targetItems);
+      }
       toast("DAY " + targetDay.dayNumber + " 일정에 예약을 추가했습니다.");
       await loadBookingMatches(scheduleDays);
       const selectedButton = Array.from(dayTabs.querySelectorAll("button")).find(function (item) {
@@ -4259,6 +4395,7 @@ document.addEventListener("DOMContentLoaded", function () {
   async function deleteItem(item, itemDay) {
     const targetDay = itemDay || activeDay;
     if (!targetDay) return;
+    const deletedBookingMatch = isBookingScheduleItem(item);
     try {
       if (targetDay.tripDayId && item.itineraryItemId) {
         await api("/api/v1/trip-days/" + targetDay.tripDayId + "/items/" + item.itineraryItemId, { method: "DELETE" });
@@ -4279,6 +4416,11 @@ document.addEventListener("DOMContentLoaded", function () {
         await selectDay(targetDay, selectedButton);
       } else {
         renderDraftDay(targetDay);
+      }
+      if (deletedBookingMatch) {
+        // 예약 항목 삭제 후 서버의 최신 일정 목록으로 추가 여부를 다시 판정한다.
+        // 항공·숙소 카드가 다시 노출되며 '일정에 추가' 버튼도 활성화된다.
+        await loadBookingMatches(scheduleDays);
       }
     } catch (error) {
       toast(error.message || "일정 삭제에 실패했습니다.");
