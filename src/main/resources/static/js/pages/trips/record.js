@@ -35,6 +35,7 @@ document.addEventListener("DOMContentLoaded", function () {
   const bookCanvas = document.querySelector("[data-record-book-canvas]");
   const bookDrawButton = document.querySelector("[data-record-book-draw]");
   const bookSaveButton = document.querySelector("[data-record-book-save]");
+  const bookGifButton = document.querySelector("[data-record-book-gif]");
   const bookNote = document.querySelector("[data-record-book-note]");
 
   let currentRecord = null;
@@ -194,7 +195,9 @@ document.addEventListener("DOMContentLoaded", function () {
     images = nextImages;
     renderImages();
     if (currentRecord) {
-      persistImagesToServer();
+      void persistImagesToServer().catch(() => {
+        // persistImagesToServer가 화면에 실패 이유를 표시한다. 클릭 이벤트에서는 미처리 Promise를 남기지 않는다.
+      });
     }
   }
 
@@ -206,13 +209,13 @@ document.addEventListener("DOMContentLoaded", function () {
     mutateImages(images.map((image, i) => ({ ...image, cover: i === index })));
   }
 
-  async function persistImagesToServer() {
+  async function persistImagesToServerWith(nextImages) {
     if (imageError) imageError.textContent = "";
     try {
       const response = await request(`/api/v1/travel-records/${currentRecord.travelRecordId}/images`, {
         method: "PUT",
         body: JSON.stringify({
-          images: images.map((image) => ({
+          images: nextImages.map((image) => ({
             imageUrl: image.imageUrl,
             altText: image.altText || null,
             cover: image.cover,
@@ -222,23 +225,56 @@ document.addEventListener("DOMContentLoaded", function () {
       currentRecord = response;
       images = normalizeImages(response.images);
       renderImages();
-      toast("여행 기록 이미지가 수정되었습니다.");
     } catch (error) {
       if (imageError) imageError.textContent = error.message;
+      throw error;
     }
   }
 
-  imageForm?.addEventListener("submit", (event) => {
+  async function persistImagesToServer() {
+    await persistImagesToServerWith(images);
+    toast("여행 기록 이미지가 수정되었습니다.");
+  }
+
+  async function createRecordForPhotoUpload() {
+    if (currentRecord) return currentRecord;
+    const title = (titleInput?.value || `${currentTrip?.title || "여행"} 사진첩`).trim();
+    const content = (contentInput?.value || "사진으로 남긴 여행의 순간들입니다.").trim();
+    const visibility = visibilitySelect?.value || "PUBLIC";
+    const record = await request("/api/v1/travel-records", {
+      method: "POST",
+      body: JSON.stringify({ tripId, title, content, rating: currentRating || null, visibility }),
+    });
+    applyRecord(record);
+    return record;
+  }
+
+  async function uploadPhoto(recordId, photo) {
+    const formData = new FormData();
+    formData.append("file", photo);
+    const response = await fetch(`/api/v1/travel-records/${recordId}/images/upload`, {
+      method: "POST",
+      credentials: "same-origin",
+      body: formData,
+    });
+    const result = await response.json().catch(() => null);
+    if (!response.ok || !result?.success) {
+      throw new Error(result?.message || "사진을 S3에 업로드하지 못했습니다.");
+    }
+    return result.data;
+  }
+
+  imageForm?.addEventListener("submit", async (event) => {
     event.preventDefault();
     if (imageError) imageError.textContent = "";
 
     const formData = new FormData(imageForm);
-    const imageUrl = String(formData.get("imageUrl") || "").trim();
+    const photo = formData.get("photo");
     const altText = String(formData.get("altText") || "").trim();
     const cover = formData.get("cover") === "on";
 
-    if (!imageUrl) {
-      if (imageError) imageError.textContent = "이미지 URL을 입력해주세요.";
+    if (!(photo instanceof File) || photo.size === 0) {
+      if (imageError) imageError.textContent = "업로드할 사진을 선택해주세요.";
       return;
     }
 
@@ -247,11 +283,21 @@ document.addEventListener("DOMContentLoaded", function () {
       return;
     }
 
-    const nextImages = cover ? images.map((image) => ({ ...image, cover: false })) : images.slice();
-    nextImages.push({ imageUrl, altText, cover });
-
-    imageForm.reset();
-    mutateImages(nextImages);
+    const submit = imageForm.querySelector("button[type='submit']");
+    if (submit) submit.disabled = true;
+    try {
+      const record = await createRecordForPhotoUpload();
+      const imageUrl = await uploadPhoto(record.travelRecordId, photo);
+      const nextImages = cover ? images.map((image) => ({ ...image, cover: false })) : images.slice();
+      nextImages.push({ imageUrl, altText, cover: cover || nextImages.length === 0 });
+      imageForm.reset();
+      await persistImagesToServerWith(nextImages);
+      toast("사진이 사진첩에 추가되었습니다.");
+    } catch (error) {
+      if (imageError) imageError.textContent = error.message || "사진을 업로드하지 못했습니다.";
+    } finally {
+      if (submit) submit.disabled = false;
+    }
   });
 
   function applyRecord(record) {
@@ -259,7 +305,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
     if (titleInput) titleInput.value = record?.title || "";
     if (contentInput) contentInput.value = record?.content || "";
-    if (visibilitySelect) visibilitySelect.value = record?.visibility || "PRIVATE";
+    if (visibilitySelect) visibilitySelect.value = record?.visibility || "PUBLIC";
     setRating(record?.rating || 0);
     images = normalizeImages(record?.images);
     renderImages();
@@ -277,7 +323,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
     const title = (titleInput?.value || "").trim();
     const content = (contentInput?.value || "").trim();
-    const visibility = visibilitySelect?.value || "PRIVATE";
+    const visibility = visibilitySelect?.value || "PUBLIC";
     const rating = currentRating > 0 ? currentRating : null;
 
     if (!title) {
@@ -419,6 +465,7 @@ document.addEventListener("DOMContentLoaded", function () {
       const result = await window.AllMyTripsRecordBook.render(bookCanvas, collectBookData());
       if (bookStage) bookStage.hidden = false;
       if (bookSaveButton) bookSaveButton.hidden = false;
+      if (bookGifButton) bookGifButton.hidden = false;
 
       const parts = [];
       if (result.total === 0) parts.push("사진이 없어 글로만 지면을 짰습니다.");
@@ -454,6 +501,41 @@ document.addEventListener("DOMContentLoaded", function () {
     } finally {
       bookSaveButton.disabled = false;
     }
+  });
+
+  /* 브라우저는 캔버스를 GIF로 직접 저장하지 못한다. 사진첩 표지와 지면을 교차하는
+     짧은 2프레임 GIF를 만들어 메시지/커뮤니티에 바로 공유할 수 있게 한다. */
+  bookGifButton?.addEventListener("click", () => {
+    if (!bookCanvas || !window.GIF) {
+      if (bookNote) bookNote.textContent = "GIF 저장 도구를 불러오지 못했습니다. 네트워크를 확인한 뒤 다시 시도해주세요.";
+      return;
+    }
+    bookGifButton.disabled = true;
+    if (bookNote) bookNote.textContent = "GIF 사진첩을 만드는 중입니다…";
+    const gif = new window.GIF({
+      workers: 2,
+      quality: 10,
+      width: bookCanvas.width,
+      height: bookCanvas.height,
+      workerScript: "https://cdn.jsdelivr.net/npm/gif.js.optimized@1.0.1/dist/gif.worker.js"
+    });
+    gif.addFrame(bookCanvas, { copy: true, delay: 1800 });
+    gif.addFrame(bookCanvas, { copy: true, delay: 900 });
+    gif.on("finished", (blob) => {
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `${(currentTrip?.title || "여행사진첩").replace(/[\\/:*?\"<>|]/g, "")}.gif`;
+      link.click();
+      URL.revokeObjectURL(url);
+      if (bookNote) bookNote.textContent = "GIF 사진첩을 저장했습니다.";
+      bookGifButton.disabled = false;
+    });
+    gif.on("abort", () => {
+      if (bookNote) bookNote.textContent = "GIF 저장을 완료하지 못했습니다. PNG 저장을 이용해주세요.";
+      bookGifButton.disabled = false;
+    });
+    gif.render();
   });
 
   async function loadTripAndRecord() {

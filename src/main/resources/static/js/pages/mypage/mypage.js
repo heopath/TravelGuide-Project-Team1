@@ -38,6 +38,7 @@ import {
     initNotifications,
     initNotificationBadge,
 } from "./mypage-notifications.js";
+import { initTravelRecords } from "./mypage-records.js";
 
 document.addEventListener(
     "DOMContentLoaded",
@@ -56,6 +57,8 @@ document.addEventListener(
             document.querySelector(
                 "[data-favorites-view]",
             );
+
+        const recordsView = document.querySelector("[data-records-view]");
 
         const reviewsView =
             document.querySelector(
@@ -86,6 +89,9 @@ document.addEventListener(
             document.querySelectorAll(
                 "[data-open-favorites]",
             );
+
+        const openRecordButtons = document.querySelectorAll("[data-open-records]");
+        const closeRecordsButton = document.querySelector("[data-close-records]");
 
         const openReviewButtons =
             document.querySelectorAll(
@@ -215,6 +221,8 @@ document.addEventListener(
                     },
                 );
 
+            openRecordButtons.forEach((button) => setCurrent(button, view === "records"));
+
             openReviewButtons
                 .forEach(
                     (button) => {
@@ -321,6 +329,11 @@ document.addEventListener(
                     "favorites";
             }
 
+            if (recordsView) {
+                recordsView.hidden = view !== "records";
+                if (view === "records") initTravelRecords();
+            }
+
             if (reviewsView) {
                 reviewsView.hidden =
                     view !== "reviews";
@@ -381,6 +394,8 @@ document.addEventListener(
                     : view ===
                     "favorites"
                         ? favoritesView
+                        : view === "records"
+                            ? recordsView
                         : view === "reviews"
                             ? reviewsView
                         : view === "support"
@@ -415,6 +430,7 @@ document.addEventListener(
                 [
                     "trips",
                     "favorites",
+                    "records",
                     "reviews",
                     "support",
                     "settings",
@@ -473,6 +489,12 @@ document.addEventListener(
                         );
                 },
             );
+
+        openRecordButtons.forEach((button) => {
+            button.addEventListener("click", () => applyView("records"));
+        });
+
+        closeRecordsButton?.addEventListener("click", () => applyView("dashboard"));
 
         openReviewButtons
             .forEach(

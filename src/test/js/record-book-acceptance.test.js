@@ -81,6 +81,10 @@ const recordMarkup = read("../../main/resources/templates/trips/record.html");
 assert.match(recordMarkup, /data-record-book-canvas/, "지면을 그릴 canvas가 있어야 한다");
 assert.match(recordMarkup, /data-record-book-draw/, "지면 만들기 버튼이 있어야 한다");
 assert.match(recordMarkup, /data-record-book-save/, "저장 버튼이 있어야 한다");
+assert.match(recordMarkup, /data-record-book-gif/, "공유용 GIF 저장 버튼이 있어야 한다");
+assert.match(recordMarkup, /type="file"/, "사진은 URL 입력 대신 파일 업로드로 받아야 한다");
+assert.match(recordMarkup, /accept="image\/jpeg,image\/png,image\/webp,image\/gif"/,
+  "허용할 사진 형식을 화면에서 안내해야 한다");
 assert.match(recordMarkup, /record-book\.js/, "지면 그리는 파일이 실려야 한다");
 assert.ok(
   recordMarkup.indexOf("record-book.js") < recordMarkup.indexOf("pages/trips/record.js"),
@@ -89,6 +93,8 @@ assert.ok(
 
 assert.match(recordSource, /AllMyTripsRecordBook\.render/, "그리기를 연결해야 한다");
 assert.match(recordSource, /AllMyTripsRecordBook\.toBlob/, "저장을 연결해야 한다");
+assert.match(recordSource, /new window\.GIF/, "GIF 렌더링을 연결해야 한다");
+assert.match(recordSource, /images\/upload/, "사진 파일을 S3 업로드 API로 보내야 한다");
 assert.match(recordSource, /titleInput\?\.value/, "저장 전 입력값으로 그려야 미리보기가 쓸모 있다");
 
 console.log("record book acceptance checks passed");

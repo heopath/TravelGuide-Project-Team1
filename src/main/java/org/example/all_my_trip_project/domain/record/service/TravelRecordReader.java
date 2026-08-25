@@ -78,4 +78,11 @@ class TravelRecordReader {
     List<TravelRecordImageEntity> findImages(Long travelRecordId) {
         return travelRecordImageRepository.findByTravelRecordIdOrderBySortOrderAsc(travelRecordId);
     }
+
+    TravelRecordImageEntity findAccessibleImage(Long viewerUserId, Long travelRecordImageId) {
+        TravelRecordImageEntity image = travelRecordImageRepository.findById(travelRecordImageId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.RECORD_NOT_FOUND));
+        findAccessible(viewerUserId, image.getTravelRecordId());
+        return image;
+    }
 }

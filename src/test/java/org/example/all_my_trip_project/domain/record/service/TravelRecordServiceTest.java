@@ -55,13 +55,16 @@ class TravelRecordServiceTest {
     private TravelRecordImageReplacer imageReplacer;
     @Mock
     private TravelRecordResponseMapper responseMapper;
+    @Mock
+    private TravelRecordS3StorageService storageService;
 
     private TravelRecordService travelRecordService;
 
     @BeforeEach
     void setUp() {
         travelRecordService = new TravelRecordService(
-                activeMemberGuard, validator, creator, reader, modifier, remover, imageReplacer, responseMapper);
+                activeMemberGuard, validator, creator, reader, modifier, remover, imageReplacer, responseMapper,
+                storageService);
     }
 
     @Test

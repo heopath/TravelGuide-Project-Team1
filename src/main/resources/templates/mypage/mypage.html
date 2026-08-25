@@ -118,6 +118,14 @@
 
             <button
                     type="button"
+                    data-open-records
+            >
+              <span aria-hidden="true">▧</span>
+              <span>여행 기록</span>
+            </button>
+
+            <button
+                    type="button"
                     data-open-tickets
             >
               <span aria-hidden="true">▦</span>
@@ -453,6 +461,22 @@
                     aria-label="내 여행 페이지 이동"
                     hidden
             ></nav>
+          </section>
+
+          <!-- 완료 여행으로 만든 사진첩. 기록이 없는 완료 여행은 내 여행 화면에서 먼저 기록을 만들 수 있다. -->
+          <section class="white-panel mypage-records-view" data-records-view hidden>
+            <div class="mypage-view-head">
+              <div class="mypage-view-title">
+                <button type="button" class="mypage-back-button" data-close-records>← 이전 화면</button>
+                <div>
+                  <h2>여행 기록 사진첩</h2>
+                  <p>완료된 여행의 사진과 추억을 한 권의 앨범으로 모아보세요.</p>
+                </div>
+              </div>
+            </div>
+            <div class="travel-record-album-list" data-records-list aria-live="polite">
+              <p class="mypage-state">여행 기록을 불러오는 중입니다.</p>
+            </div>
           </section>
 
           <!-- =================================================
