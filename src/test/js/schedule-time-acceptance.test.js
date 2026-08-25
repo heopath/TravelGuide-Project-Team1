@@ -68,8 +68,6 @@ assert.match(guideSource, /entry\.adjustButton\.hidden = added \|\| \(!timeConfl
 assert.match(scheduleSource, /getActiveDayNumber: function \(\)/);
 assert.match(guideSource, /selectedDayNumber: window\.AllMyTripsSchedule\?\.getActiveDayNumber\?\.\(\) \|\| null/);
 
-console.log("schedule time acceptance checks passed");
-
 // 일정을 다 짜면 예약으로 넘어갈 수 있어야 한다. tripId를 안 달고 가면 예약 화면이
 // 목적지·날짜·인원을 채우지 못하고, 고른 항공편도 그 여행에 붙지 않는다.
 const scheduleMarkup = fs.readFileSync(
@@ -79,9 +77,76 @@ assert.match(scheduleMarkup, /data-schedule-booking/);
 assert.match(scheduleSource, /"\/booking\/flights\?tripId=" \+ encodeURIComponent\(activeTripId\)/);
 assert.match(scheduleSource, /먼저 여행을 저장해 주세요\./);
 
+// 일치하는 예약 패널은 제목 행만 기본 노출하고, 건수 옆 +/- 버튼으로 상세를 접고 펼친다.
+assert.match(scheduleMarkup, /data-booking-match-toggle/);
+assert.match(scheduleMarkup, /data-booking-match-content[\s\S]*?hidden/);
+assert.match(scheduleSource, /function setBookingMatchExpanded\(expanded\)/);
+assert.match(scheduleSource, /bookingMatchToggleIcon\.textContent = expanded \? "−" : "\+";/);
+assert.match(scheduleSource, /function alignScheduleMapToFirstItem\(\)/);
+assert.match(scheduleSource, /bookingPanelOuterHeight = bookingMatchPanel\.getBoundingClientRect\(\)\.height/);
+assert.match(scheduleSource, /itemTop - bodyTop - bookingPanelOuterHeight/);
+
 // 방문 시각은 HTML 문자열에 끼워 넣지 않는다. 저장해 둔 값에 따옴표가 섞이면
 // 속성을 빠져나와 태그로 읽히기 때문에, 칸을 만든 뒤 값으로만 채운다.
 assert.doesNotMatch(scheduleSource, /value="\$\{currentHour\}"/);
 assert.doesNotMatch(scheduleSource, /value="\$\{currentMinute\}"/);
 assert.match(scheduleSource, /hourInput\.value = currentHour;/);
 assert.match(scheduleSource, /minuteInput\.value = currentMinute;/);
+
+// 예약 숙소는 일정 마지막에 기본 배치하되 기존 드래그 재정렬 흐름을 그대로 사용한다.
+// 숙소가 마지막 목적지가 되더라도 체류시간을 만들지 않고 도착시간만 표시한다.
+assert.match(scheduleSource, /function isArrivalOnlyAccommodation\(item\)/);
+assert.match(scheduleSource, /if \(isArrivalOnlyAccommodation\(item\)\) return 0;/);
+assert.match(scheduleSource, /endLabel\.textContent = arrivalOnly \? "도착"/);
+assert.match(scheduleSource, /if \(candidate\.type === "flight"\) return 0;/);
+assert.match(scheduleSource, /if \(candidate\.type === "accommodation"\) return items\.length;/);
+assert.match(scheduleSource, /resolveBookingAccommodation\(candidate\)/);
+assert.match(scheduleSource, /const bookingStartTime = isAccommodation \? null : bookingMatchTime\(candidate\);/);
+assert.match(scheduleSource, /cursor \+= previousDuration \+ travelMinutes;/);
+assert.match(scheduleSource, /\/items\/reorder/);
+assert.match(scheduleSource, /추가한 예약 일정 정보를 확인할 수 없습니다\./);
+
+const scheduleStyle = fs.readFileSync(
+  path.resolve(__dirname, "../../main/resources/static/css/pages/trips/schedule.css"), "utf8"
+);
+assert.match(scheduleStyle, /\.schedule-booking-match-content\[hidden\]/);
+assert.match(scheduleStyle, /\.schedule-time-editor\.is-arrival-only \.schedule-time-options/);
+assert.match(scheduleStyle, /\.schedule-workspace-footer > \.schedule-back-button,[\s\S]*?\.schedule-workspace-footer > \.schedule-save-button,[\s\S]*?\.schedule-workspace-footer > \.schedule-booking-button \{[\s\S]*?height: 48px;[\s\S]*?font-size: 13px;/);
+
+const insertionFunction = scheduleSource.match(
+  /function bookingMatchInsertionIndex\(candidate, items\) \{[\s\S]*?\n  \}/
+)?.[0];
+assert.ok(insertionFunction, "예약 일정 삽입 위치 계산 함수가 있어야 한다");
+const bookingMatchInsertionIndex = Function(
+  "toMinutes",
+  "bookingMatchTime",
+  "getItemStartTime",
+  insertionFunction + "; return bookingMatchInsertionIndex;"
+)(
+  function (value) {
+    if (!value) return null;
+    const [hour, minute] = String(value).split(":").map(Number);
+    return hour * 60 + minute;
+  },
+  function (candidate) { return candidate.time || null; },
+  function (item) { return item.startTime || ""; }
+);
+assert.equal(bookingMatchInsertionIndex({type: "accommodation"}, [{startTime: "09:00"}]), 1);
+assert.equal(bookingMatchInsertionIndex(
+  {type: "flight", leg: 0, time: "11:00"},
+  [{startTime: "09:00"}, {startTime: "12:00"}]
+), 0);
+assert.equal(bookingMatchInsertionIndex(
+  {type: "flight", leg: 1, time: null},
+  [{startTime: "09:00"}, {startTime: "12:00"}]
+), 0);
+assert.match(scheduleSource, /function resetExistingScheduleTimesForFlight/);
+assert.match(scheduleSource, /scheduleItemUpdatePayload\(item, targetDay, null, null\)/);
+assert.match(scheduleSource, /delete overrides\[getScheduleTimeKey\(item\)\]/);
+assert.match(scheduleSource, /delete dayStarts\[getScheduleDayStartKey\(targetDay\)\]/);
+
+// 예약에서 추가한 항공·숙소를 삭제하면 예약 목록을 다시 읽어 추가 버튼을 복구한다.
+assert.match(scheduleSource, /const deletedBookingMatch = isBookingScheduleItem\(item\);/);
+assert.match(scheduleSource, /if \(deletedBookingMatch\) \{[\s\S]*?await loadBookingMatches\(scheduleDays\);[\s\S]*?\}/);
+
+console.log("schedule time acceptance checks passed");
