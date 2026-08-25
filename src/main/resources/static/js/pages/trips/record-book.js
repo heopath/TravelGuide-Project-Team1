@@ -486,10 +486,13 @@
     ctx.font = font(500, 68);
     var used = flow(ctx, data.title || "제목 없는 기록", x, y + 140, w, 84, 2);
 
-    var cursor = y + 140 + used * 84 + 40;
-    stars(ctx, x, cursor, 40, 12, data.rating || 0);
-
-    cursor += 80;
+    var cursor = y + 140 + used * 84 + 34;
+    if (data.rating > 0) {
+      stars(ctx, x, cursor, 40, 12, data.rating);
+      cursor += 80;
+    } else {
+      cursor += 18;
+    }
 
     /*
      * 지도는 지면 아래를 차지한다. 글이 짧으면 오른쪽이 허전한데, 동선이 그
@@ -595,28 +598,160 @@
     return layoutName;
   }
 
-  function render(canvas, data) {
-    var all = data.images || [];
+  function dateLabel(value) {
+    if (!value) return "";
+    var parts = String(value).split("-");
+    return parts.length === 3 ? Number(parts[1]) + "월 " + Number(parts[2]) + "일" : String(value);
+  }
+
+  function timeLabel(value) {
+    return value ? String(value).slice(0, 5) : "";
+  }
+
+  function itineraryText(day) {
+    var items = (day && day.items) || [];
+    if (!items.length) return "이 날은 정해진 일정 없이 천천히 여행했습니다.";
+    return items.slice(0, 8).map(function (item) {
+      var time = timeLabel(item.startTime);
+      var label = item.title || item.placeName || "여행 일정";
+      return (time ? time + "  " : "") + label;
+    }).join("\n");
+  }
+
+  function bookingTypeLabel(type) {
+    if (type === "FLIGHT") return "✈ 항공";
+    if (type === "ACCOMMODATION") return "⌂ 숙소";
+    if (type === "TICKET") return "◇ 티켓";
+    return "예약";
+  }
+
+  function bookingText(items) {
+    return (items || []).slice(0, 9).map(function (item) {
+      var meta = [item.detail, item.usageDate, item.statusLabel].filter(Boolean).join(" · ");
+      return bookingTypeLabel(item.type) + "  " + (item.title || "예약") + (meta ? "\n   " + meta : "");
+    }).join("\n");
+  }
+
+  /*
+   * 사진을 고른 순서대로 여행 일자에 고르게 나눈다. 촬영 시각을 강제로 읽지
+   * 않으므로 메타데이터가 지워진 사진도 같은 결과를 얻는다. 한 일자에 사진이
+   * 많으면 여러 지면으로 나눠 모든 사진을 빠짐없이 쓴다.
+   */
+  function distributePhotos(images, days) {
+    var groups = (days || []).map(function () { return []; });
+    if (!groups.length) return [images.slice()];
+    (images || []).forEach(function (image, index) {
+      var dayIndex = Math.min(groups.length - 1, Math.floor(index * groups.length / Math.max(images.length, 1)));
+      groups[dayIndex].push(image);
+    });
+    return groups;
+  }
+
+  function chunks(list, size) {
+    var result = [];
+    for (var i = 0; i < list.length; i += size) result.push(list.slice(i, i + size));
+    return result.length ? result : [[]];
+  }
+
+  function buildPages(data) {
+    var images = (data.images || []).slice();
+    var days = (data.days || []).slice().sort(function (a, b) {
+      return Number(a.dayNumber || 0) - Number(b.dayNumber || 0);
+    });
+    var pages = [{
+      kind: "cover",
+      tripTitle: data.tripTitle,
+      title: data.tripTitle || "우리의 여행",
+      content: [
+        data.destination ? data.destination + "에서 보낸 시간" : "사진으로 다시 만나는 여행",
+        days.length ? days.length + "일의 일정" : null,
+        images.length + "장의 사진"
+      ].filter(Boolean).join("\n"),
+      rating: 0,
+      startDate: data.startDate,
+      endDate: data.endDate,
+      destination: data.destination,
+      route: data.route || [],
+      images: images.slice(0, 3)
+    }];
+
+    var groups = distributePhotos(images, days);
+    if (days.length) {
+      days.forEach(function (day, dayIndex) {
+        chunks(groups[dayIndex], 6).forEach(function (pageImages, chunkIndex) {
+          pages.push({
+            kind: "day",
+            tripTitle: data.tripTitle,
+            title: "DAY " + (day.dayNumber || dayIndex + 1)
+              + (day.tripDate ? " · " + dateLabel(day.tripDate) : "")
+              + (chunkIndex ? " · " + (chunkIndex + 1) : ""),
+            content: itineraryText(day),
+            rating: 0,
+            startDate: day.tripDate,
+            endDate: day.tripDate,
+            destination: day.title || data.destination,
+            route: [],
+            images: pageImages
+          });
+        });
+      });
+    } else {
+      chunks(images, 6).forEach(function (pageImages, index) {
+        pages.push({
+          kind: "gallery",
+          tripTitle: data.tripTitle,
+          title: "PHOTO STORY " + (index + 1),
+          content: "사진으로 남긴 여행의 순간들",
+          rating: 0,
+          startDate: data.startDate,
+          endDate: data.endDate,
+          destination: data.destination,
+          route: [],
+          images: pageImages
+        });
+      });
+    }
+
+    var bookings = (data.bookings && data.bookings.items) || [];
+    if (bookings.length) {
+      pages.push({
+        kind: "booking",
+        tripTitle: data.tripTitle,
+        title: "여행을 완성한 예약",
+        content: bookingText(bookings),
+        rating: 0,
+        startDate: data.startDate,
+        endDate: data.endDate,
+        destination: data.destination,
+        route: [],
+        images: images.slice(0, 2)
+      });
+    }
+    return pages;
+  }
+
+  function renderPageData(canvas, page, ratio) {
+    var all = page.images || [];
     var shown = all.slice(0, 9);
     return loadImages(shown).then(function (loaded) {
-      var ratio = window.devicePixelRatio || 1;
-      canvas.width = W * ratio;
-      canvas.height = H * ratio;
+      var drawRatio = ratio || window.devicePixelRatio || 1;
+      canvas.width = W * drawRatio;
+      canvas.height = H * drawRatio;
       var ctx = canvas.getContext("2d");
-      ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+      ctx.setTransform(drawRatio, 0, 0, drawRatio, 0, 0);
       ctx.textBaseline = "alphabetic";
 
       var ready = document.fonts && document.fonts.ready ? document.fonts.ready : Promise.resolve();
       return ready.then(function () {
         var payload = {
-          tripTitle: data.tripTitle,
-          title: data.title,
-          content: data.content,
-          rating: data.rating,
-          startDate: data.startDate,
-          endDate: data.endDate,
-          destination: data.destination,
-          route: data.route || [],
+          tripTitle: page.tripTitle,
+          title: page.title,
+          content: page.content,
+          rating: page.rating,
+          startDate: page.startDate,
+          endDate: page.endDate,
+          destination: page.destination,
+          route: page.route || [],
           totalImages: all.length
         };
         var name = drawSpread(ctx, payload, loaded);
@@ -625,6 +760,38 @@
         return { layout: name, missing: missing, shown: shown.length, total: all.length };
       });
     });
+  }
+
+  /* 이전 단일 지면 API는 테스트와 기존 호출 호환을 위해 유지한다. */
+  function render(canvas, data) {
+    return renderPageData(canvas, {
+      tripTitle: data.tripTitle,
+      title: data.title,
+      content: data.content,
+      rating: data.rating,
+      startDate: data.startDate,
+      endDate: data.endDate,
+      destination: data.destination,
+      route: data.route || [],
+      images: data.images || []
+    });
+  }
+
+  function renderAlbum(canvas, data, pageIndex) {
+    var pages = buildPages(data);
+    var index = Math.max(0, Math.min(Number(pageIndex) || 0, pages.length - 1));
+    return renderPageData(canvas, pages[index]).then(function (result) {
+      return Object.assign(result, { index: index, pageCount: pages.length, kind: pages[index].kind });
+    });
+  }
+
+  /* GIF는 실제 표지·날짜별 일정·예약 페이지를 각각 프레임으로 사용한다. */
+  function renderAll(data) {
+    var pages = buildPages(data);
+    return Promise.all(pages.map(function (page) {
+      var canvas = document.createElement("canvas");
+      return renderPageData(canvas, page, 0.5).then(function () { return canvas; });
+    }));
   }
 
   function toBlob(canvas) {
@@ -642,6 +809,9 @@
 
   window.AllMyTripsRecordBook = {
     render: render,
+    renderAlbum: renderAlbum,
+    renderAll: renderAll,
+    buildPages: buildPages,
     toBlob: toBlob,
     pickLayout: pickLayout,
     size: { width: W, height: H }
