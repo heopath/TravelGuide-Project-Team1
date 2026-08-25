@@ -45,16 +45,22 @@ function createAlbumCard(trip, record) {
 
   const state = document.createElement("small");
   state.className = "travel-record-album-state";
-  state.textContent = record ? `사진 ${record.images?.length || 0}장 · 자동 사진첩` : "완료 여행 · 사진첩 만들기";
+  state.textContent = record ? `완성된 앨범 · 사진 ${record.images?.length || 0}장` : "새 앨범 만들기";
 
   const title = document.createElement("strong");
   title.textContent = trip.title || trip.destinationName || "이름 없는 여행";
 
   const meta = document.createElement("span");
+  meta.className = "travel-record-album-meta";
   meta.textContent = [trip.destinationName, periodLabel(trip)].filter(Boolean).join(" · ");
 
   const action = document.createElement("b");
-  action.textContent = record ? "사진첩 열기 →" : "사진 선택하기 →";
+  action.className = "travel-record-album-action";
+  action.textContent = record ? "사진첩 열기" : "사진 선택하기";
+  const arrow = document.createElement("i");
+  arrow.setAttribute("aria-hidden", "true");
+  arrow.textContent = "→";
+  action.appendChild(arrow);
 
   body.append(state, title, meta, action);
   card.append(visual, body);
@@ -63,6 +69,7 @@ function createAlbumCard(trip, record) {
 
 export async function initTravelRecords() {
   const list = document.querySelector("[data-records-list]");
+  const count = document.querySelector("[data-records-count]");
   if (!list || list.dataset.recordsReady) return;
   list.dataset.recordsReady = "1";
 
@@ -75,6 +82,7 @@ export async function initTravelRecords() {
     const finishedTrips = (trips || [])
       .filter((trip) => window.AllMyTripsTripStatus?.isTripFinished(trip) === true)
       .sort((left, right) => String(right.endDate || "").localeCompare(String(left.endDate || "")));
+    if (count) count.textContent = String(finishedTrips.length);
 
     list.replaceChildren();
     if (!finishedTrips.length) {
@@ -89,6 +97,7 @@ export async function initTravelRecords() {
       list.appendChild(createAlbumCard(trip, recordByTrip.get(Number(trip.tripId))));
     });
   } catch (error) {
+    if (count) count.textContent = "–";
     const message = document.createElement("p");
     message.className = "mypage-state error";
     message.textContent = error.message || "여행 사진첩을 불러오지 못했습니다.";

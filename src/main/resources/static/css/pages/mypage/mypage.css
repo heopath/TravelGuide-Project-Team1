@@ -3138,94 +3138,151 @@ body.page-mypage main#page-content > .page-shell {
     padding-top: 10px;
   }
 }
-/* 완료 여행 사진첩은 카드만 봐도 사진 앨범이라는 인상이 나도록 여백과 종이 톤을 준다. */
-.travel-record-album-list {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  gap: 18px;
-}
-
-.travel-record-album-card {
+/* 자동 사진첩 목록도 제작 화면과 같은 파랑·보라 계열의 현대적인 앨범으로 보이게 한다. */
+.page-mypage .mypage-records-view {
+  min-height: 570px;
+  padding: 28px;
   overflow: hidden;
-  border: 1px solid #e5e8f4;
-  border-radius: 18px;
-  background: #fffdf8;
-  color: inherit;
-  box-shadow: 0 12px 30px rgba(37, 43, 77, 0.08);
-  text-decoration: none;
-  transition: transform 160ms ease, box-shadow 160ms ease;
+  background:
+    radial-gradient(circle at 92% 4%, rgba(112, 85, 255, 0.10), transparent 26%),
+    radial-gradient(circle at 5% 96%, rgba(63, 144, 255, 0.08), transparent 30%),
+    #ffffff;
 }
 
-.travel-record-album-card:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 18px 36px rgba(37, 43, 77, 0.14);
+.page-mypage .mypage-records-head {
+  align-items: center;
 }
 
-.travel-record-album-card img,
-.travel-record-album-placeholder {
+.page-mypage .mypage-records-kicker {
   display: block;
-  width: 100%;
-  height: 164px;
-  object-fit: cover;
+  margin-bottom: 6px;
+  color: #5969ef;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.16em;
 }
 
-.travel-record-album-placeholder {
+.page-mypage .mypage-records-count {
+  min-width: 84px;
+  padding: 11px 14px;
   display: grid;
   place-items: center;
-  background: linear-gradient(135deg, #e9e4ff, #ffdcca);
-  color: #6657df;
-  font-size: 52px;
+  gap: 1px;
+  border: 1px solid #dde2ff;
+  border-radius: 16px;
+  background: linear-gradient(145deg, #f8f9ff, #eef1ff);
 }
 
-.travel-record-album-copy {
+.page-mypage .mypage-records-count strong {
+  color: #5365ff;
+  font-size: 21px;
+  line-height: 1;
+}
+
+.page-mypage .mypage-records-count span {
+  color: #7b849b;
+  font-size: 10px;
+  font-weight: 750;
+}
+
+.page-mypage .mypage-records-guide {
+  margin: 22px 0 26px;
+  padding: 18px 20px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  border: 1px solid #dfe4ff;
+  border-radius: 18px;
+  background: linear-gradient(120deg, rgba(239, 243, 255, 0.96), rgba(247, 245, 255, 0.96));
+}
+
+.page-mypage .mypage-records-guide-icon {
+  width: 42px;
+  height: 42px;
   display: grid;
-  gap: 8px;
-  padding: 18px;
+  flex: 0 0 42px;
+  place-items: center;
+  border-radius: 13px;
+  color: #fff;
+  background: linear-gradient(135deg, #4a73ff, #7657ff);
+  box-shadow: 0 9px 20px rgba(83, 101, 255, 0.24);
+  font-size: 18px;
 }
 
-.travel-record-album-copy strong { color: #151b3d; font-size: 17px; }
-.travel-record-album-copy span { min-height: 40px; color: #667085; font-size: 13px; line-height: 1.55; }
-.travel-record-album-copy small { color: #6557ed; font-weight: 700; }
+.page-mypage .mypage-records-guide > div { min-width: 0; }
+.page-mypage .mypage-records-guide strong { color: #26324d; font-size: 13px; }
+.page-mypage .mypage-records-guide p { margin: 4px 0 0; color: #6f7a92; font-size: 11px; line-height: 1.55; }
 
-/* 자동 사진첩: 완료 여행은 기록 유무와 상관없이 한 권의 앨범 후보로 보인다. */
-.page-mypage .mypage-records-view {
-  background:
-    repeating-linear-gradient(0deg, rgba(119, 91, 57, 0.024) 0 1px, transparent 1px 5px),
-    #fffdf8;
+.page-mypage .mypage-records-guide-tags {
+  margin-left: auto;
+  padding: 8px 11px;
+  flex: 0 0 auto;
+  border-radius: 999px;
+  color: #5969ef;
+  background: rgba(255, 255, 255, 0.78);
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.travel-record-album-list {
+  display: grid;
 }
 
 .page-mypage .travel-record-album-list {
-  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-  gap: 24px;
+  grid-template-columns: repeat(auto-fill, minmax(285px, 340px));
+  gap: 22px;
 }
 
 .page-mypage .travel-record-album-card {
   position: relative;
-  overflow: visible;
-  padding: 13px 13px 0;
-  border-color: #d8ccb8;
-  border-radius: 6px;
-  background: #f7f0e3;
-  box-shadow: 0 14px 28px rgba(73, 58, 41, 0.14);
-  transform: rotate(-0.35deg);
-}
-
-.page-mypage .travel-record-album-card:nth-child(2n) {
-  transform: rotate(0.45deg);
+  min-width: 0;
+  padding: 12px 12px 0 19px;
+  overflow: hidden;
+  border: 1px solid #dce2f5;
+  border-radius: 22px;
+  background: linear-gradient(145deg, #f2f5ff 0%, #ebeaff 100%);
+  color: inherit;
+  box-shadow: 0 16px 38px rgba(48, 62, 124, 0.12);
+  text-decoration: none;
+  transform: translateY(0);
+  transition: transform 190ms ease, border-color 190ms ease, box-shadow 190ms ease;
 }
 
 .page-mypage .travel-record-album-card:hover {
-  transform: rotate(0) translateY(-5px);
+  border-color: #bac4ff;
+  box-shadow: 0 22px 46px rgba(48, 62, 124, 0.19);
+  transform: translateY(-6px);
+}
+
+.page-mypage .travel-record-album-card::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 8px;
+  background: linear-gradient(180deg, #4a73ff, #7657ff);
+  box-shadow: 3px 0 8px rgba(63, 75, 160, 0.18);
+}
+
+.page-mypage .travel-record-album-card::after {
+  content: "";
+  position: absolute;
+  top: -65px;
+  right: -55px;
+  width: 150px;
+  height: 150px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.32);
+  pointer-events: none;
 }
 
 .page-mypage .travel-record-album-visual {
   position: relative;
-  height: 178px;
+  height: 190px;
   overflow: hidden;
-  border: 7px solid #fff;
-  border-bottom-width: 24px;
-  background: #e7dfd2;
-  box-shadow: 0 5px 12px rgba(56, 45, 32, 0.16);
+  border: 5px solid rgba(255, 255, 255, 0.96);
+  border-radius: 16px;
+  background: #e7ebf7;
+  box-shadow: 0 10px 24px rgba(39, 52, 112, 0.16);
 }
 
 .page-mypage .travel-record-album-visual img,
@@ -3238,11 +3295,11 @@ body.page-mypage main#page-content > .page-shell {
 .page-mypage .travel-record-album-placeholder {
   display: grid;
   place-content: center;
-  gap: 8px;
+  gap: 7px;
   background:
-    linear-gradient(135deg, rgba(255,255,255,0.52), transparent),
-    #d8c8af;
-  color: #675744;
+    radial-gradient(circle at 70% 20%, rgba(255,255,255,0.65), transparent 32%),
+    linear-gradient(135deg, #dce7ff, #e8e0ff);
+  color: #5969ef;
   text-align: center;
 }
 
@@ -3258,42 +3315,67 @@ body.page-mypage main#page-content > .page-shell {
 
 .page-mypage .travel-record-album-tape {
   position: absolute;
-  top: -14px;
-  left: 50%;
-  width: 72px;
-  height: 25px;
-  background: rgba(218, 194, 145, 0.72);
-  transform: translateX(-50%) rotate(-2deg);
-  box-shadow: inset 0 0 0 1px rgba(134, 105, 66, 0.08);
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 50%;
+  background: linear-gradient(115deg, rgba(255,255,255,0.28), transparent 42%);
+  pointer-events: none;
 }
 
 .page-mypage .travel-record-album-copy {
+  padding: 18px 8px 19px;
+  display: grid;
   gap: 7px;
-  padding: 17px 7px 20px;
 }
 
 .page-mypage .travel-record-album-copy .travel-record-album-state {
   min-height: auto;
-  color: #a35e40;
+  color: #5969ef;
   font-size: 10px;
   font-weight: 850;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.06em;
 }
 
 .page-mypage .travel-record-album-copy strong {
-  color: #302a24;
-  font: 700 20px Georgia, "Times New Roman", serif;
+  color: #202b45;
+  font-size: 19px;
+  font-weight: 850;
+  letter-spacing: -0.03em;
 }
 
-.page-mypage .travel-record-album-copy span {
+.page-mypage .travel-record-album-copy .travel-record-album-meta {
   min-height: 0;
-  color: #756c61;
+  color: #727d94;
+  font-size: 12px;
+  line-height: 1.55;
 }
 
-.page-mypage .travel-record-album-copy b {
-  margin-top: 5px;
-  color: #8d563f;
+.page-mypage .travel-record-album-action {
+  margin-top: 7px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: #4055d5;
   font-size: 12px;
+  font-weight: 800;
+}
+
+.page-mypage .travel-record-album-action i {
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  border-radius: 10px;
+  color: #fff;
+  background: linear-gradient(135deg, #4a73ff, #7657ff);
+  box-shadow: 0 7px 15px rgba(83, 101, 255, 0.23);
+  font-style: normal;
+  transition: transform 180ms ease;
+}
+
+.page-mypage .travel-record-album-card:hover .travel-record-album-action i {
+  transform: translateX(3px);
 }
 
 .page-mypage .travel-record-empty {
@@ -3302,9 +3384,10 @@ body.page-mypage main#page-content > .page-shell {
   display: grid;
   place-items: center;
   gap: 8px;
-  border: 1px dashed #cfc1aa;
-  border-radius: 14px;
-  color: #766b5d;
+  border: 1px dashed #c9d1ff;
+  border-radius: 18px;
+  color: #6f7a92;
+  background: rgba(246, 248, 255, 0.7);
   text-align: center;
 }
 
@@ -3315,4 +3398,13 @@ body.page-mypage main#page-content > .page-shell {
 .page-mypage .travel-record-empty p {
   margin: 0;
   font-size: 13px;
+}
+
+@media (max-width: 760px) {
+  .page-mypage .mypage-records-view { padding: 22px 16px; }
+  .page-mypage .mypage-records-head { align-items: flex-start; }
+  .page-mypage .mypage-records-count { display: none; }
+  .page-mypage .mypage-records-guide { align-items: flex-start; }
+  .page-mypage .mypage-records-guide-tags { display: none; }
+  .page-mypage .travel-record-album-list { grid-template-columns: 1fr; }
 }
