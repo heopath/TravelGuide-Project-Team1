@@ -57,8 +57,21 @@
 
     <p class="mighty-empty" data-mighty-empty hidden></p>
 
+    <!-- BOT에서는 직접 상담원을 요청하고, 사람 상담 상태에서는 대화 탈출구를 제공한다. -->
+    <div class="mighty-actions" id="mightyActions" data-mighty-actions hidden>
+      <button type="button" class="mighty-action primary"
+              data-mighty-agent hidden>상담원 연결</button>
+      <button type="button" class="mighty-action primary"
+              data-mighty-return hidden>마이티에게 다시 물어보기</button>
+      <button type="button" class="mighty-action"
+              data-mighty-restart hidden>새 상담 시작</button>
+    </div>
+
     <form class="mighty-form" data-mighty-form data-no-global-loading>
       <label class="sr-only" for="mightyInput">보낼 말</label>
+      <button type="button" class="mighty-tools" data-mighty-tools
+              aria-label="상담 옵션 열기" aria-controls="mightyActions"
+              aria-expanded="false" hidden>+</button>
       <input id="mightyInput" data-mighty-input autocomplete="off"
              maxlength="500" placeholder="무엇을 도와드릴까요?" />
       <button type="submit" class="mighty-send" data-mighty-send>보내기</button>

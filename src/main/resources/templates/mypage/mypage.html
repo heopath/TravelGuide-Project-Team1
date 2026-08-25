@@ -744,7 +744,16 @@
               <div class="support-chat" data-support-chat hidden>
                 <p class="support-chat-status" data-support-chat-status role="status"></p>
                 <div class="support-chat-messages" data-support-chat-messages></div>
-                <form class="support-chat-composer" data-support-chat-form>
+                <!-- BOT에서는 직접 상담원을 요청하고, 사람 상담 상태에서는 대화 탈출구를 제공한다. -->
+                <div class="support-chat-actions" data-support-chat-actions hidden>
+                  <button type="button" class="support-chat-action primary"
+                          data-support-chat-agent hidden>상담원 연결</button>
+                  <button type="button" class="support-chat-action primary"
+                          data-support-chat-return hidden>봇에게 다시 물어보기</button>
+                  <button type="button" class="support-chat-action"
+                          data-support-chat-restart hidden>새 상담 시작</button>
+                </div>
+                <form class="support-chat-composer" data-support-chat-form data-no-global-loading>
                   <label class="visually-hidden" for="supportChatInput">보낼 내용</label>
                   <input id="supportChatInput" data-support-chat-input autocomplete="off"
                          maxlength="2000" placeholder="궁금한 내용을 입력하세요" />

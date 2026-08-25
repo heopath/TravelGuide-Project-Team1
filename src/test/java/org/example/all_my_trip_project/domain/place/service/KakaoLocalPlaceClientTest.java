@@ -17,6 +17,7 @@ class KakaoLocalPlaceClientTest {
         String response = """
                 {"documents":[{
                   "id":"12345", "place_name":"Real Seongsu Cafe", "category_group_code":"CE7",
+                  "category_name":"음식점 > 카페",
                   "road_address_name":"서울특별시 성동구 성수동1가 10",
                   "address_name":"서울특별시 성동구 성수동1가 10",
                   "x":"127.054", "y":"37.544", "phone":"02-123-4567",
@@ -31,10 +32,41 @@ class KakaoLocalPlaceClientTest {
             assertThat(place.getExternalPlaceId()).isEqualTo("12345");
             assertThat(place.getName()).isEqualTo("Real Seongsu Cafe");
             assertThat(place.getCategory()).isEqualTo("CAFE");
+            assertThat(place.getDescription()).isEqualTo("카카오 세부업종: 음식점 > 카페");
             assertThat(place.getRegion()).isEqualTo("서울특별시");
+            assertThat(place.getCity()).isEqualTo("성동구");
             assertThat(place.getLatitude()).hasToString("37.544");
             assertThat(place.getLongitude()).hasToString("127.054");
         });
+    }
+
+    @Test
+    void leavesCityEmptyWhenAddressHasNoDistrict() throws Exception {
+        // 세종특별자치시는 시·군·구가 없어 둘째 토큰이 도로명이다. 그대로 넣으면 city에 도로가 들어간다.
+        String response = """
+                {"documents":[{
+                  "id":"777", "place_name":"Sejong Hall", "category_group_code":"AT4",
+                  "road_address_name":"세종특별자치시 한누리대로 2130",
+                  "address_name":"세종특별자치시 보람동 700"
+                }]}
+                """;
+
+        assertThat(KakaoLocalPlaceClient.parsePlaces(objectMapper.readTree(response))).singleElement()
+                .satisfies(place -> {
+                    assertThat(place.getRegion()).isEqualTo("세종특별자치시");
+                    assertThat(place.getCity()).isNull();
+                });
+    }
+
+    @Test
+    void leavesRegionAndCityEmptyWhenKakaoGivesNoAddress() throws Exception {
+        String response = "{\"documents\":[{\"id\":\"8\",\"place_name\":\"No address\",\"category_group_code\":\"CE7\"}]}";
+
+        assertThat(KakaoLocalPlaceClient.parsePlaces(objectMapper.readTree(response))).singleElement()
+                .satisfies(place -> {
+                    assertThat(place.getRegion()).isNull();
+                    assertThat(place.getCity()).isNull();
+                });
     }
 
     @Test

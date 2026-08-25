@@ -42,6 +42,30 @@ public class SupportChatController {
         return ApiResponse.success(supportChatService.myRoom(requireUserId(principal)));
     }
 
+    /** 상담원 대기를 그만두고 봇에게 돌아간다. 대화 내역은 그대로 이어진다. */
+    @PostMapping("/return-to-bot")
+    public ApiResponse<SupportChatViewResponse> returnToBot(
+            @AuthenticationPrincipal AuthenticatedUser principal) {
+        return ApiResponse.success("봇 상담으로 돌아갔습니다.",
+                supportChatService.returnToBot(requireUserId(principal)));
+    }
+
+    /** 사용자가 버튼으로 상담원 연결을 명시적으로 요청한다. AI 판단을 거치지 않는다. */
+    @PostMapping("/request-agent")
+    public ApiResponse<SupportChatViewResponse> requestAgent(
+            @AuthenticationPrincipal AuthenticatedUser principal) {
+        return ApiResponse.success("상담원 연결을 요청했습니다.",
+                supportChatService.requestAgent(requireUserId(principal)));
+    }
+
+    /** 지금 상담을 접고 새로 시작한다. 상담원이 응대 중이어도 쓸 수 있다. */
+    @PostMapping("/restart")
+    public ApiResponse<SupportChatViewResponse> restart(
+            @AuthenticationPrincipal AuthenticatedUser principal) {
+        return ApiResponse.success("새 상담을 시작했습니다.",
+                supportChatService.restartMyRoom(requireUserId(principal)));
+    }
+
     @PostMapping("/messages")
     public ApiResponse<SupportChatViewResponse> send(
             @AuthenticationPrincipal AuthenticatedUser principal,

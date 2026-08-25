@@ -10,6 +10,7 @@
     <link rel="stylesheet" th:href="@{/css/common/layout.css}" href="../../static/css/common/layout.css" />
     <link rel="stylesheet" th:href="@{/css/common/components.css}" href="../../static/css/common/components.css" />
     <link rel="stylesheet" th:href="@{/css/pages/auth/signup.css}" href="../../static/css/pages/auth/signup.css" />
+    <script th:if="${turnstileEnabled}" src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
   </head>
   <body class="page-signup" data-route="/auth/signup">
     <div class="app">
@@ -66,6 +67,12 @@
                     required
             />
           </label>
+
+          <div th:if="${turnstileEnabled}"
+               class="cf-turnstile"
+               th:attr="data-sitekey=${turnstileSiteKey}"
+               data-action="signup"
+               data-theme="light"></div>
 
           <label class="check-line">
             <input type="checkbox" required />

@@ -24,12 +24,13 @@
   border-radius: 50%;
   background: linear-gradient(160deg, #eef1ff, #dfe4ff);
   box-shadow: 0 12px 30px rgba(11, 21, 51, 0.18);
-  cursor: pointer;
+  /* 눌러서 열 수도, 끌어서 옮길 수도 있다는 걸 커서로 알린다. */
+  cursor: grab;
   /* 누르면 살짝 눌리는 느낌만 준다. 크게 튀면 장난스러워 보인다. */
   transition: transform 0.16s ease, box-shadow 0.16s ease;
 }
 .mighty-button:hover { transform: translateY(-2px); box-shadow: 0 16px 34px rgba(11, 21, 51, 0.22); }
-.mighty-button:active { transform: translateY(0); }
+.mighty-button:active { transform: translateY(0); cursor: grabbing; }
 .mighty-button:focus-visible { outline: 3px solid var(--primary, #5c68ff); outline-offset: 3px; }
 
 .mighty-figure { display: block; width: 100%; height: 100%; }
@@ -92,13 +93,18 @@
   gap: 10px;
   padding: 14px 14px 12px 16px;
   border-bottom: 1px solid #eceef4;
+  /* 대화창이 열려 있을 때는 머리글을 끌어서 옮긴다. */
+  cursor: grab;
 }
+.mighty-head:active { cursor: grabbing; }
 .mighty-head strong { display: block; font-size: 14.5px; }
 .mighty-head small { display: block; margin-top: 2px; color: #7b8194; font-size: 11.5px; }
 
 .mighty-close {
   width: 30px;
   height: 30px;
+  /* 머리글의 grab 커서를 물려받지 않는다 — 닫기는 끌기가 아니라 누르는 동작이다. */
+  cursor: pointer;
   border: 0;
   border-radius: 50%;
   background: #f4f5f9;
@@ -134,17 +140,106 @@
 }
 .mighty-line.them p { background: #f4f5f9; color: #1c1f26; }
 .mighty-line.me p { background: var(--primary, #5c68ff); color: #fff; }
+.mighty-links { display: flex; flex-wrap: wrap; gap: 6px; max-width: 84%; }
+.mighty-place-cards { display: grid; gap: 7px; width: min(100%, 270px); margin-top: 8px; }
+.mighty-place-card { display: grid; gap: 3px; width: 100%; padding: 11px 12px; border: 1px solid #dfe3f2; border-radius: 12px; background: #fff; color: #17213c; text-align: left; cursor: pointer; }
+.mighty-place-card:hover { border-color: #9ba6ff; background: #f8f9ff; }
+.mighty-place-card strong { font-size: 13px; }
+.mighty-place-card span { color: #7a8499; font-size: 10.5px; }
+.mighty-place-card small { color: #4e5a73; font-size: 11px; line-height: 1.45; }
+.mighty-place-card-image { width: 100%; height: 96px; border-radius: 8px; object-fit: cover; background: #eef0fa; }
+.mighty-place-card-head { display: flex; align-items: baseline; justify-content: space-between; gap: 6px; }
+.mighty-place-card-rating { color: #b8791a; font-size: 10.5px; font-weight: 700; white-space: nowrap; }
+.mighty-place-card-description { color: #7a8499; font-size: 10.5px; line-height: 1.4; margin: 0; }
+
+/* 대기 말풍선. 메신저의 "입력 중…"과 같은 자리 — 상태줄만으로 놓치는 일이 없게 한다. */
+.mighty-typing p { display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 600; }
+.mighty-typing p em { font-style: normal; }
+/* 상담원 연결 대기는 "사람을 기다려야 한다"는 뜻이 달라 색으로도 구분한다. */
+.mighty-typing-handoff p { background: #fff6e9; color: #93650f; }
+.mighty-typing-dots { display: inline-flex; gap: 3px; }
+.mighty-typing-dots i {
+  width: 5px; height: 5px; border-radius: 50%; background: currentColor;
+  opacity: .4; animation: mighty-typing-bounce 1.1s infinite ease-in-out;
+}
+.mighty-typing-handoff .mighty-typing-dots i { color: #c99a3f; }
+.mighty-typing-dots i:nth-child(2) { animation-delay: .15s; }
+.mighty-typing-dots i:nth-child(3) { animation-delay: .3s; }
+@keyframes mighty-typing-bounce {
+  0%, 60%, 100% { opacity: .4; transform: translateY(0); }
+  30% { opacity: 1; transform: translateY(-2px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .mighty-typing-dots i { animation: none; opacity: .7; }
+}
+.mighty-link {
+  padding: 7px 10px; border: 1px solid #cdd2f5; border-radius: 8px;
+  background: #fff; color: var(--primary, #5c68ff); font-size: 12px; font-weight: 700; cursor: pointer;
+}
+.mighty-link:hover { background: #eef0ff; }
+.mighty-link:focus-visible { outline: 2px solid var(--primary, #5c68ff); outline-offset: 2px; }
 
 .mighty-empty { margin: 0; padding: 10px 16px 14px; color: #9aa0b2; font-size: 12.5px; }
 .mighty-empty[hidden] { display: none; }
 
+/* + 버튼으로 펼치는 상담 옵션. 평소에는 대화 영역을 차지하지 않는다. */
+.mighty-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 7px;
+  padding: 10px 16px;
+}
+.mighty-actions[hidden] { display: none; }
+.mighty-action {
+  padding: 7px 12px; border-radius: 8px; font-size: 12px; font-weight: 600;
+  border: 1px solid #e2e5f0; background: #fff; color: #5b6377; cursor: pointer;
+}
+.mighty-action:hover:not(:disabled) { background: #f4f6fc; }
+.mighty-action.primary { border-color: #c2ccf0; color: #3a52a8; background: #eff2fd; }
+.mighty-action.primary:hover:not(:disabled) { background: #e4eafb; }
+.mighty-action:disabled { opacity: .55; cursor: default; }
+.mighty-action[hidden] { display: none; }
+
 .mighty-form {
   display: flex;
+  align-items: center;
   gap: 8px;
   padding: 12px 14px;
   border-top: 1px solid #eceef4;
 }
 .mighty-form[hidden] { display: none; }
+
+/* 화면에는 입력창의 안내 문구만 보이고, 보조기기에는 입력 목적을 별도로 전달한다. */
+.mighty-form label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.mighty-tools {
+  flex: 0 0 38px;
+  width: 38px;
+  height: 38px;
+  padding: 0;
+  border: 1px solid #dfe2ec;
+  border-radius: 10px;
+  background: #fff;
+  color: #596176;
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+}
+.mighty-tools:hover { background: #f4f6fc; }
+.mighty-tools:focus-visible { outline: 2px solid #c9d0f2; outline-offset: 1px; }
+.mighty-tools[aria-expanded="true"] { background: #eef1fc; color: #3a52a8; }
+.mighty-tools[hidden] { display: none; }
 
 .mighty-form input {
   flex: 1;

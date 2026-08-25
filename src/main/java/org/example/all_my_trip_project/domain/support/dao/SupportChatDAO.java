@@ -2,6 +2,7 @@ package org.example.all_my_trip_project.domain.support.dao;
 
 import lombok.RequiredArgsConstructor;
 import org.example.all_my_trip_project.domain.support.dto.SupportChatMessageDTO;
+import org.example.all_my_trip_project.domain.support.dto.SupportChatMessageBlockDTO;
 import org.example.all_my_trip_project.domain.support.dto.SupportChatRoomDTO;
 import org.example.all_my_trip_project.domain.support.mapper.SupportChatMapper;
 import org.springframework.context.annotation.Profile;
@@ -9,6 +10,8 @@ import org.springframework.stereotype.Repository;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @Repository
 @Profile("!ui")
@@ -35,15 +38,34 @@ public class SupportChatDAO {
 
     public int markWaiting(Long roomId) { return mapper.markWaiting(roomId); }
 
+    public int returnToBot(Long roomId) { return mapper.returnToBot(roomId); }
+
     public int closeRoom(Long roomId) { return mapper.closeRoom(roomId); }
 
     public int insertMessage(SupportChatMessageDTO message) { return mapper.insertMessage(message); }
 
-    public Optional<SupportChatMessageDTO> findMessage(Long messageId) { return mapper.findMessage(messageId); }
+    public int insertMessageBlock(SupportChatMessageBlockDTO block) { return mapper.insertMessageBlock(block); }
+
+    public Optional<SupportChatMessageDTO> findMessage(Long messageId) {
+        Optional<SupportChatMessageDTO> message = mapper.findMessage(messageId);
+        message.ifPresent(value -> hydrateBlocks(List.of(value)));
+        return message;
+    }
 
     public int touchRoom(Long roomId) { return mapper.touchRoom(roomId); }
 
     public List<SupportChatMessageDTO> findMessages(Long roomId, int limit) {
-        return mapper.findMessages(roomId, limit);
+        List<SupportChatMessageDTO> messages = mapper.findMessages(roomId, limit);
+        hydrateBlocks(messages);
+        return messages;
+    }
+
+    private void hydrateBlocks(List<SupportChatMessageDTO> messages) {
+        if (messages.isEmpty()) return;
+        Map<Long, List<SupportChatMessageBlockDTO>> blocksByMessage = mapper.findMessageBlocks(
+                        messages.stream().map(SupportChatMessageDTO::getSupportChatMessageId).toList())
+                .stream().collect(Collectors.groupingBy(SupportChatMessageBlockDTO::getSupportChatMessageId));
+        messages.forEach(message -> message.setBlocks(
+                blocksByMessage.getOrDefault(message.getSupportChatMessageId(), List.of())));
     }
 }

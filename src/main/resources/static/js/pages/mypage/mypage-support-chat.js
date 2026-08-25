@@ -12,34 +12,24 @@
  * 인사·후속 답변은 비동기로 저장되므로 받을 방법이 아예 없어져 입력창이 잠긴 채 멈춘다.
  * 그래서 연결돼 있지 않은 동안에는 제한적으로 REST 폴링을 대신 돌린다(연결되면 자동으로 멈춘다).
  */
-const SOCKET_ENDPOINT = "/ws/support-chat";
-const ROOM_TOPIC_PREFIX = "/topic/support-chat/rooms/";
-/* 서버가 복구 가능한 오류를 보내는 본인 전용 큐(설계 문서 §3). */
-const ERROR_QUEUE = "/user/queue/support-chat/errors";
-const RECONNECT_DELAY_MS = 3000;
-/* 연결이 안 되는 동안만 도는 대체 경로. WebSocket이 정상이면 이 주기는 의미가 없다. */
-const FALLBACK_POLL_INTERVAL_MS = 5000;
-
 const statusLabels = {
-  BOT: "상담원을 연결하고 있어요",
+  BOT: "AI 상담봇이 응대하고 있어요",
   WAITING: "담당자를 기다리는 중이에요",
   ASSIGNED: "담당자가 응대 중이에요",
   CLOSED: "종료된 상담이에요",
 };
 const senderLabels = { USER: "나", BOT: "상담봇", ADMIN: "담당자" };
 
-function readCsrfCookie() {
-  const match = document.cookie.match(/(?:^|;\s*)CSRF-TOKEN=([^;]*)/);
-  return match ? decodeURIComponent(match[1]) : "";
-}
-
-function socketAvailable() {
-  return typeof window.SockJS === "function"
-    && typeof window.Stomp === "object" && typeof window.Stomp.over === "function";
-}
-
-
 export function initSupportChat() {
+  const actionLinks = Object.freeze({
+    NEW_TRIP: ["여행 만들기", "/trips/new/plan"], MY_TRIPS: ["내 여행 보기", "/mypage?view=trips"],
+    TRIP_SCHEDULE: ["여행 일정 열기", "/trips/schedule"], RECOMMENDED_PLACES: ["추천 장소 보기", "/guide"],
+    BOOK_FLIGHT: ["항공편 찾기", "/booking/flights?tab=flight"], BOOK_HOTEL: ["숙소 찾기", "/booking/flights?tab=hotel"],
+    BOOK_TICKET: ["티켓·액티비티 보기", "/booking/flights?tab=ticket"], MY_BOOKINGS: ["예약 내역 보기", "/booking/flights?tab=mine"],
+    MY_TICKETS: ["예매한 티켓 보기", "/mypage?view=tickets"], FAVORITES: ["찜한 여행지 보기", "/mypage?view=favorites"],
+    REVIEWS: ["리뷰·후기 보기", "/mypage?view=reviews"], NOTIFICATIONS: ["알림 보기", "/mypage?view=notifications"],
+    ACCOUNT_SETTINGS: ["계정 설정 열기", "/mypage?view=settings"], SUPPORT: ["고객센터 보기", "/mypage?view=support"],
+  });
   const panel = document.querySelector('[data-support-panel="chat"]');
   if (!panel) return;
 
@@ -52,6 +42,10 @@ export function initSupportChat() {
   const form = panel.querySelector("[data-support-chat-form]");
   const input = panel.querySelector("[data-support-chat-input]");
   const send = panel.querySelector("[data-support-chat-send]");
+  const actions = panel.querySelector("[data-support-chat-actions]");
+  const agentButton = panel.querySelector("[data-support-chat-agent]");
+  const returnButton = panel.querySelector("[data-support-chat-return]");
+  const restartButton = panel.querySelector("[data-support-chat-restart]");
   if (!chat || !openButton || !messages || !form) return;
 
   let opened = false;
@@ -63,11 +57,6 @@ export function initSupportChat() {
   let waitingForBot = false;
   let socketDegraded = false;
 
-  let stompClient = null;
-  let subscription = null;
-  let errorSubscription = null;
-  let reconnectTimer = null;
-  let pollTimer = null;
   /*
    * load()를 부를 때마다 하나 늘린다. 응답이 도착했을 때 이 값과 다르면(그 사이 더 최신
    * 조회가 시작됐다는 뜻) 화면에 반영하지 않고 버린다 — 느린 옛 응답이 빠른 새 응답을
@@ -81,6 +70,7 @@ export function initSupportChat() {
     const response = await fetch(url, Object.assign({
       credentials: "same-origin",
       headers: { Accept: "application/json", "Content-Type": "application/json" },
+      allMyTripsLoading: false,
     }, options || {}));
     const payload = await response.json().catch(function () { return null; });
     if (!response.ok || payload?.success === false) {
@@ -118,6 +108,73 @@ export function initSupportChat() {
     when.textContent = time(message.createdAt);
 
     item.append(who, body, when);
+    const actionBlock = Array.isArray(message.blocks)
+      ? message.blocks.find((block) => block?.blockType === "ACTION_GROUP") : null;
+    const blockActions = Array.isArray(actionBlock?.payload?.items) ? actionBlock.payload.items : [];
+    const actionKeys = (blockActions.length ? blockActions : [message.actionKey, message.actionKey2, message.actionKey3])
+      .filter((key, index, keys) => actionLinks[key] && keys.indexOf(key) === index);
+    if (message.senderType === "BOT" && actionKeys.length) {
+      const group = document.createElement("div");
+      group.className = "support-chat-links";
+      actionKeys.forEach(function (key) {
+        const action = actionLinks[key];
+        const link = document.createElement("button");
+        link.type = "button";
+        link.className = "support-chat-link";
+        link.dataset.route = action[1];
+        link.textContent = action[0] + " →";
+        group.appendChild(link);
+      });
+      item.appendChild(group);
+    }
+    const placeBlock = Array.isArray(message.blocks)
+      ? message.blocks.find((block) => block?.blockType === "PLACE_CARDS") : null;
+    const placeCards = Array.isArray(placeBlock?.payload?.items) ? placeBlock.payload.items.slice(0, 3) : [];
+    if (message.senderType === "BOT" && placeCards.length) {
+      const cards = document.createElement("div");
+      cards.className = "support-chat-place-cards";
+      placeCards.forEach(function (place) {
+        if (!Number.isSafeInteger(Number(place?.placeId)) || !place?.name) return;
+        const card = document.createElement("button");
+        card.type = "button";
+        card.className = "support-chat-place-card";
+        card.dataset.route = "/guide/places/" + Number(place.placeId);
+        if (place.imageUrl) {
+          const image = document.createElement("img");
+          image.className = "support-chat-place-card-image";
+          image.src = place.imageUrl;
+          image.alt = place.name;
+          image.loading = "lazy";
+          card.appendChild(image);
+        }
+        const head = document.createElement("div");
+        head.className = "support-chat-place-card-head";
+        const title = document.createElement("strong");
+        title.textContent = place.name;
+        head.appendChild(title);
+        const rating = Number(place.rating);
+        if (Number.isFinite(rating) && rating > 0) {
+          const ratingEl = document.createElement("b");
+          ratingEl.className = "support-chat-place-card-rating";
+          ratingEl.textContent = "★ " + rating.toFixed(1);
+          head.appendChild(ratingEl);
+        }
+        const meta = document.createElement("span");
+        meta.textContent = [place.category, place.address].filter(Boolean).join(" · ");
+        const reasonText = place.reason || place.description || "자세히 보기";
+        const reason = document.createElement("i");
+        reason.textContent = reasonText;
+        card.append(head, meta, reason);
+        if (place.description && place.description !== reasonText) {
+          const description = document.createElement("p");
+          description.className = "support-chat-place-card-description";
+          description.textContent = place.description;
+          card.appendChild(description);
+        }
+        cards.appendChild(card);
+      });
+      if (cards.childElementCount) item.appendChild(cards);
+    }
     return item;
   }
 
@@ -125,12 +182,60 @@ export function initSupportChat() {
     if (waitingForBot && room.status === "BOT") {
       return socketDegraded
         ? "연결이 잠시 끊겼어요. 곧 다시 연결할게요…"
-        : "답변을 준비하고 있습니다...";
+        : "답변을 기다리는 중입니다...";
     }
     return statusLabels[room.status] || room.status;
   }
 
+  /*
+   * 대기 상태를 상태줄 한 줄만으로는 놓치기 쉽다는 피드백이 있었다(QA). 실제 대화창
+   * 안에, 메신저의 "입력 중…" 말풍선과 같은 자리에 표시해 확실히 보이게 한다.
+   *
+   * <p>봇 답변 대기와 상담원 연결 대기는 손님 입장에서 뜻이 다르므로(하나는 곧 봇이
+   * 답한다, 하나는 사람을 기다려야 한다) 문구와 색을 구분한다.
+   */
+  function typingIndicatorRow(kind) {
+    const item = document.createElement("div");
+    item.className = "support-chat-message bot support-chat-typing support-chat-typing-" + kind;
+    item.setAttribute("role", "status");
+    item.setAttribute("aria-live", "polite");
+
+    const label = document.createElement("em");
+    label.textContent = kind === "handoff" ? "상담원 연결 중입니다..." : "답변을 기다리는 중입니다...";
+
+    const dots = document.createElement("span");
+    dots.className = "support-chat-typing-dots";
+    dots.setAttribute("aria-hidden", "true");
+    dots.append(
+      document.createElement("i"),
+      document.createElement("i"),
+      document.createElement("i"),
+    );
+
+    item.append(label, dots);
+    return item;
+  }
+
+  /** 사용자가 맨 아래를 보고 있었는지와 현재 위치를 재렌더링 전에 보관한다. */
+  function captureScroll(container) {
+    const distanceFromBottom = container.scrollHeight - container.scrollTop - container.clientHeight;
+    return {
+      stickToBottom: container.childElementCount === 0 || distanceFromBottom <= 48,
+      scrollTop: container.scrollTop,
+    };
+  }
+
+  function restoreScroll(container, previous) {
+    if (previous.stickToBottom) {
+      container.scrollTop = container.scrollHeight;
+      return;
+    }
+    const maximum = Math.max(0, container.scrollHeight - container.clientHeight);
+    container.scrollTop = Math.min(previous.scrollTop, maximum);
+  }
+
   function render(view) {
+    const previousScroll = captureScroll(messages);
     opened = true;
     chat.hidden = false;
     start.hidden = true;
@@ -154,19 +259,71 @@ export function initSupportChat() {
     send.disabled = closed || waitingForBot;
     input.placeholder = closed ? "종료된 상담이에요" : "궁금한 내용을 입력하세요";
 
+    /*
+     * BOT에서는 AI 대화와 별개로 사람이 직접 상담원 연결을 선택할 수 있다.
+     * WAITING이면 봇으로 되돌릴 수 있고, ASSIGNED면 기존 대화를 뺏지 않고 새 상담만 연다.
+     */
+    const canReturn = room.status === "WAITING";
+    const canRestart = room.status === "WAITING" || room.status === "ASSIGNED";
+    const canRequestAgent = room.status === "BOT";
+    agentButton.hidden = !canRequestAgent;
+    returnButton.hidden = !canReturn;
+    restartButton.hidden = !canRestart;
+    actions.hidden = !canRequestAgent && !canReturn && !canRestart;
+
     messages.replaceChildren();
     roomMessages.forEach(function (message) {
       messages.appendChild(messageRow(message));
     });
-    messages.scrollTop = messages.scrollHeight;
+    /* 대기 중이면 대화 맨 끝에 타이핑 말풍선을 붙인다 — 상태줄과 별개로, 놓칠 수 없는 자리에. */
+    if (waitingForBot) {
+      messages.appendChild(typingIndicatorRow("bot"));
+    } else if (room.status === "WAITING") {
+      messages.appendChild(typingIndicatorRow("handoff"));
+    }
+    restoreScroll(messages, previousScroll);
 
     if (closed) {
-      disconnectSocket();
+      live.stop();
     } else {
-      connectSocket();
-      ensureFallbackPolling();
+      live.start(currentRoomId);
     }
   }
+
+  /*
+   * 두 버튼 모두 서버가 돌려준 방을 그대로 그린다. 낙관적 갱신을 하지 않는 이유는 방 상태가
+   * 경쟁하기 때문이다 — 되돌리려는 순간 관리자가 가져가면 서버가 409로 거절하고, 그때는
+   * 최신 상태를 다시 받아 그려야 한다.
+   */
+  async function act(button, url, failureText) {
+    if (button.disabled) return;
+    agentButton.disabled = true;
+    returnButton.disabled = true;
+    restartButton.disabled = true;
+    try {
+      render(await request(url, { method: "POST" }));
+    } catch (error) {
+      statusText.textContent = error.message || failureText;
+      await load(); /* 거절당했다면 서버가 아는 최신 상태로 화면을 맞춘다. */
+    } finally {
+      agentButton.disabled = false;
+      returnButton.disabled = false;
+      restartButton.disabled = false;
+    }
+  }
+
+  agentButton.addEventListener("click", function () {
+    if (!window.confirm("AI 상담을 종료하고 상담원 연결을 요청할까요?")) return;
+    act(agentButton, "/api/v1/support/chat/request-agent", "상담원 연결을 요청하지 못했어요.");
+  });
+
+  returnButton.addEventListener("click", function () {
+    act(returnButton, "/api/v1/support/chat/return-to-bot", "봇 상담으로 돌아가지 못했어요.");
+  });
+
+  restartButton.addEventListener("click", function () {
+    act(restartButton, "/api/v1/support/chat/restart", "새 상담을 시작하지 못했어요.");
+  });
 
   async function load() {
     const generation = ++loadGeneration;
@@ -186,78 +343,6 @@ export function initSupportChat() {
       chat.hidden = true;
       start.hidden = false;
     }
-  }
-
-  /* ── WebSocket 수신 ── */
-
-  function connectSocket() {
-    if (!socketAvailable() || stompClient || !currentRoomId) return;
-    let socket;
-    try {
-      socket = new window.SockJS(SOCKET_ENDPOINT);
-    } catch (error) {
-      return; /* 정적 미리보기 등 SockJS가 실제로 동작하지 않는 환경. REST만으로 계속 쓸 수 있다. */
-    }
-    const client = window.Stomp.over(socket);
-    client.debug = function () {}; /* 콘솔 소음만 줄인다. */
-    stompClient = client;
-    client.connect(
-      { "X-CSRF-TOKEN": readCsrfCookie() },
-      onSocketConnected,
-      onSocketDown
-    );
-  }
-
-  function onSocketConnected() {
-    socketDegraded = false;
-    if (waitingForBot) statusText.textContent = statusLabel({ status: "BOT" });
-    resubscribe();
-  }
-
-  function onSocketDown() {
-    stompClient = null;
-    subscription = null;
-    errorSubscription = null; /* 끊긴 연결의 구독은 남겨 두면 재연결 뒤 다시 걸지 않는다. */
-    socketDegraded = true;
-    if (waitingForBot) statusText.textContent = statusLabel({ status: "BOT" });
-    scheduleReconnect();
-  }
-
-  function scheduleReconnect() {
-    if (reconnectTimer || !opened || !currentRoomId) return;
-    reconnectTimer = window.setTimeout(function () {
-      reconnectTimer = null;
-      connectSocket();
-    }, RECONNECT_DELAY_MS);
-  }
-
-  /**
-   * 구독을 먼저 걸고, 그다음에 REST로 방 전체를 맞춘다.
-   *
-   * <p>순서가 반대면 REST 응답과 SUBSCRIBE 사이에 저장된 봇 답변을 아무도 받지 못한다.
-   * 화면은 계속 "답변을 준비하고 있습니다..."인 채 입력창이 잠겨 손님이 빠져나올 수 없다.
-   * 먼저 구독해 두면 그 틈이 없다. 동기화 도중 이벤트가 와서 load()가 겹쳐 불려도
-   * loadGeneration이 응답 순서를 정리해 준다 — 느리게 온 옛 응답이 화면을 되돌리지 않는다.
-   */
-  function resubscribe() {
-    if (!currentRoomId || !stompClient || !stompClient.connected) return;
-    const roomId = currentRoomId;
-    if (subscription) { try { subscription.unsubscribe(); } catch (error) { /* 이미 끊긴 연결. */ } }
-    subscription = stompClient.subscribe(
-      ROOM_TOPIC_PREFIX + roomId,
-      function (frame) { handleSocketEvent(JSON.parse(frame.body)); }
-    );
-    subscribeErrors();
-    load();
-  }
-
-  /* 서버가 보내는 복구 가능한 오류를 받을 자리(설계 문서 §3). 없으면 오류가 조용히 사라진다. */
-  function subscribeErrors() {
-    if (errorSubscription || !stompClient || !stompClient.connected) return;
-    errorSubscription = stompClient.subscribe(
-      ERROR_QUEUE,
-      function (frame) { showSocketError(JSON.parse(frame.body)); }
-    );
   }
 
   function showSocketError(error) {
@@ -287,54 +372,30 @@ export function initSupportChat() {
       input.disabled = true;
       send.disabled = true;
       input.placeholder = "종료된 상담이에요";
-      disconnectSocket();
+      live.stop();
       return;
     }
     load();
   }
 
-  /**
-   * WebSocket이 안 붙어 있는 동안만 도는 대체 경로.
-   *
-   * <p>스크립트가 아예 없거나(정적 미리보기) 핸드셰이크·nginx Upgrade 설정이 실패해 연결이
-   * 계속 안 되면, 비동기로 저장되는 봇 첫 인사·후속 답변을 받을 방법이 하나도 없어 손님
-   * 화면이 "답변을 준비하고 있습니다..."에 갇힌다. 매 틱마다 연결 상태를 다시 확인하므로
-   * 시작·중지를 이벤트마다 정교하게 맞출 필요 없이, 연결되면 스스로 조용해진다.
-   */
-  function ensureFallbackPolling() {
-    if (pollTimer || !opened || !currentRoomId) return;
-    pollTimer = window.setInterval(function () {
-      if (!currentRoomId || (stompClient && stompClient.connected)) return;
-      load();
-    }, FALLBACK_POLL_INTERVAL_MS);
-  }
+  const live = window.AllMyTripsSupportChatLive.create({
+    onEvent: handleSocketEvent,
+    onError: showSocketError,
+    onConnected: load,
+    onFallbackPoll: load,
+    onConnectionChange: function (connected) {
+      socketDegraded = !connected;
+      if (waitingForBot) statusText.textContent = statusLabel({ status: "BOT" });
+    },
+  });
 
-  function stopFallbackPolling() {
-    if (pollTimer) window.clearInterval(pollTimer);
-    pollTimer = null;
-  }
-
-  function disconnectSocket() {
-    stopFallbackPolling();
-    if (reconnectTimer) window.clearTimeout(reconnectTimer);
-    reconnectTimer = null;
-    if (subscription) { try { subscription.unsubscribe(); } catch (error) { /* 이미 끊긴 연결. */ } }
-    subscription = null;
-    if (errorSubscription) { try { errorSubscription.unsubscribe(); } catch (error) { /* 이미 끊긴 연결. */ } }
-    errorSubscription = null;
-    if (stompClient) { try { stompClient.disconnect(); } catch (error) { /* 이미 끊긴 연결. */ } }
-    stompClient = null;
-  }
-
-  function stopPolling() {
-    disconnectSocket();
-  }
+  function stopPolling() { live.stop(); }
 
   function deactivateChat() {
     loadGeneration++; /* 탭을 떠나기 전에 시작된 REST 응답이 늦게 와도 render하지 않는다. */
     opened = false;
     currentRoomId = null;
-    stopPolling();
+    live.stop();
   }
 
   /* ── 이벤트 ── */

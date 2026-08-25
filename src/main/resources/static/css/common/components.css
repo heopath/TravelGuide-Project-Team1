@@ -594,3 +594,23 @@
     min-height: 44px;
   }
 }
+
+/* 푸터 버전을 다섯 번 누르면 열리는 팀 크레딧 (js/core/credits.js) */
+.credits-open{overflow:hidden}
+.credits-roll{position:fixed;z-index:1200;inset:0;display:grid;place-items:center;overflow:auto;background:radial-gradient(circle at 50% 18%,#16224d 0%,#070d20 72%);animation:fade .3s ease}
+.credits-canvas{position:absolute;inset:0;display:block;width:100%;height:100%}
+.credits-track{position:relative;padding:64px 24px;text-align:center}
+/* canvas가 흐르는 동안에는 같은 내용을 두 번 보여줄 이유가 없다. 읽어주는 프로그램에만 남긴다. */
+.credits-roll.is-canvas .credits-track{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+.credits-brand{color:#fff;font-size:34px;font-weight:800;letter-spacing:-.04em}
+.credits-tagline{margin-top:10px;color:#aeb7ff;font-size:14px}
+.credits-role{margin-top:56px;color:#8891a8;font-size:12px;letter-spacing:.12em}
+.credits-name{margin-top:12px;color:#fff;font-size:22px;font-weight:700;letter-spacing:-.02em}
+.credits-farewell{margin-top:52px;color:#aeb7ff;font-size:16px}
+.credits-tail{margin-top:40px;color:#68728a;font-size:12px}
+.credits-tail+.credits-tail{margin-top:6px}
+.credits-close{position:absolute;top:18px;right:18px;z-index:1;min-width:44px;min-height:44px;padding:0 16px;border:1px solid rgba(255,255,255,.28);border-radius:999px;background:rgba(7,13,32,.5);color:#fff;font-size:13px}
+
+@media (max-width: 760px) {
+  .credits-brand{font-size:27px}.credits-name{font-size:19px}.credits-role{margin-top:44px}
+}

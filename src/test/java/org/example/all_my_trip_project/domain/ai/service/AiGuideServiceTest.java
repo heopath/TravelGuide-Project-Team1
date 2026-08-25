@@ -36,9 +36,70 @@ class AiGuideServiceTest {
     );
 
     @Test
+    void searchesExpandedKakaoCandidatesForAlternativeRequests() {
+        AiGuideRequest request = new AiGuideRequest("다른 식당도 추천해줘", 12L);
+        AiGuideContext context = new AiGuideContext(null, List.of());
+        AiConversationTurn previous = new AiConversationTurn("서귀포 점심 식당 추천", "이전 추천\n[추천 장소] 기존 식당");
+        RagSearchResult alreadySuggested = new RagSearchResult("place:1", "first", 1L,
+                "기존 식당", "RESTAURANT", "제주 서귀포시", "https://place.map.kakao.com/1");
+        RagSearchResult alternative = new RagSearchResult("place:2", "second", 2L,
+                "새 식당", "RESTAURANT", "제주 서귀포시", "https://place.map.kakao.com/2");
+        AiGuideResponse response = new AiGuideResponse("추천", List.of(new AiGuideDayResponse(1, "DAY 1",
+                List.of(new AiGuideItemResponse("12:00", "새 식당", "점심 추천", 2L,
+                        "RESTAURANT", "제주 서귀포시", "https://place.map.kakao.com/2")))), List.of(), List.of());
+        KakaoPlaceDiscoveryService discoveryService = mock(KakaoPlaceDiscoveryService.class);
+
+        when(conversationHistoryService.load(1L, 12L)).thenReturn(List.of(previous));
+        when(contextService.load(1L, request)).thenReturn(context);
+        when(kakaoPlaceDiscoveryServiceProvider.getIfAvailable()).thenReturn(discoveryService);
+        when(discoveryService.discoverAlternativeAndIndex(org.mockito.ArgumentMatchers.anyString(),
+                org.mockito.ArgumentMatchers.isNull(), org.mockito.ArgumentMatchers.isNull()))
+                .thenReturn(List.of(alreadySuggested, alternative));
+        when(aiModelClient.generate(request, List.of(previous), context, List.of(alternative))).thenReturn(response);
+
+        AiGuideResponse actual = service.generate(request, false, 1L);
+
+        assertThat(actual.days().getFirst().items().getFirst().name()).isEqualTo("새 식당");
+        verify(discoveryService).discoverAlternativeAndIndex(org.mockito.ArgumentMatchers.anyString(),
+                org.mockito.ArgumentMatchers.isNull(), org.mockito.ArgumentMatchers.isNull());
+        verify(discoveryService, never()).discoverAndIndex(org.mockito.ArgumentMatchers.anyString(),
+                org.mockito.ArgumentMatchers.isNull());
+    }
+
+    @Test
+    void excludesOnlyTheImmediatelyPreviousRecommendationForAlternativeRequests() {
+        AiGuideRequest request = new AiGuideRequest("다른 식당 추천해줘", 12L);
+        AiGuideContext context = new AiGuideContext(null, List.of());
+        AiConversationTurn older = new AiConversationTurn("서귀포 식당 추천", "[추천 장소] 첫 식당");
+        AiConversationTurn latest = new AiConversationTurn("다른 식당 추천", "[추천 장소] 직전 식당");
+        RagSearchResult olderPlace = new RagSearchResult("place:1", "older", 1L,
+                "첫 식당", "RESTAURANT", "제주 서귀포시", "");
+        RagSearchResult latestPlace = new RagSearchResult("place:2", "latest", 2L,
+                "직전 식당", "RESTAURANT", "제주 서귀포시", "");
+        RagSearchResult freshPlace = new RagSearchResult("place:3", "fresh", 3L,
+                "새 식당", "RESTAURANT", "제주 서귀포시", "");
+        AiGuideResponse response = new AiGuideResponse("추천", List.of(), List.of(), List.of());
+        KakaoPlaceDiscoveryService discoveryService = mock(KakaoPlaceDiscoveryService.class);
+
+        when(conversationHistoryService.load(1L, 12L)).thenReturn(List.of(older, latest));
+        when(contextService.load(1L, request)).thenReturn(context);
+        when(kakaoPlaceDiscoveryServiceProvider.getIfAvailable()).thenReturn(discoveryService);
+        when(discoveryService.discoverAlternativeAndIndex(org.mockito.ArgumentMatchers.anyString(),
+                org.mockito.ArgumentMatchers.isNull(), org.mockito.ArgumentMatchers.isNull()))
+                .thenReturn(List.of(olderPlace, latestPlace, freshPlace));
+        when(aiModelClient.generate(request, List.of(older, latest), context, List.of(olderPlace, freshPlace)))
+                .thenReturn(response);
+
+        service.generate(request, false, 1L);
+
+        verify(aiModelClient).generate(request, List.of(older, latest), context, List.of(olderPlace, freshPlace));
+    }
+
+    @Test
     void keepsTheReferencedVerifiedPlaceCardWhenRequestingAnotherTime() {
         AiGuideRequest request = new AiGuideRequest(
                 "DAY 3의 서울명예도로 끼리끼리3길을 다른 시간대로 추천해줘", 12L, 65L);
+        AiGuideRequest effectiveRequest = new AiGuideRequest(request.question(), 12L, 3, 65L);
         AiGuideContext context = new AiGuideContext(null, List.of());
         RagSearchResult referencePlace = new RagSearchResult("place:65", "verified", 65L,
                 "서울명예도로 끼리끼리3길", "ATTRACTION", "서울 마포구 연남동 255-30",
@@ -55,7 +116,7 @@ class AiGuideServiceTest {
         when(ragServiceProvider.getIfAvailable()).thenReturn(ragService);
         when(ragService.search(request.question())).thenReturn(List.of());
         when(ragService.findByPlaceId(65L)).thenReturn(Optional.of(referencePlace));
-        when(aiModelClient.generate(request, List.of(), context, List.of(referencePlace))).thenReturn(modelResponse);
+        when(aiModelClient.generate(effectiveRequest, List.of(), context, List.of(referencePlace))).thenReturn(modelResponse);
 
         AiGuideItemResponse item = service.generate(request, false, 1L).days().getFirst().items().getFirst();
 
@@ -87,7 +148,7 @@ class AiGuideServiceTest {
         AiGuideContext context = new AiGuideContext(null, List.of());
         when(conversationHistoryService.load(1L, null)).thenReturn(List.of());
         when(contextService.load(1L, request)).thenReturn(context);
-        when(aiModelClient.generate(request, List.of(), context, List.of())).thenThrow(new AiModelException("Cohere failed"));
+        when(aiModelClient.generate(request, List.of(), context, List.of())).thenThrow(new AiModelException("AI provider failed"));
 
         assertThatThrownBy(() -> service.generate(request, false, 1L))
                 .isInstanceOf(AiModelException.class);
@@ -144,15 +205,15 @@ class AiGuideServiceTest {
         when(conversationHistoryService.load(1L, 12L)).thenReturn(List.of());
         when(contextService.load(1L, request)).thenReturn(context);
         when(ragServiceProvider.getIfAvailable()).thenReturn(ragService);
-        when(ragService.search(request.question())).thenReturn(List.of(indexed));
         when(kakaoPlaceDiscoveryServiceProvider.getIfAvailable()).thenReturn(discoveryService);
         when(discoveryService.discoverAndIndex(request.question(), "Seoul")).thenReturn(List.of(discovered));
-        when(aiModelClient.generate(request, List.of(), context, List.of(discovered, indexed))).thenReturn(response);
+        when(aiModelClient.generate(request, List.of(), context, List.of(discovered))).thenReturn(response);
 
         service.generate(request, false, 1L);
 
         verify(discoveryService).discoverAndIndex(request.question(), "Seoul");
-        verify(aiModelClient).generate(request, List.of(), context, List.of(discovered, indexed));
+        verify(ragService, org.mockito.Mockito.never()).search(request.question());
+        verify(aiModelClient).generate(request, List.of(), context, List.of(discovered));
     }
 
     @Test
@@ -378,6 +439,7 @@ class AiGuideServiceTest {
     @Test
     void replacesUnverifiedMuseumItemWithAVerifiedNearbyAttractionCard() {
         AiGuideRequest request = new AiGuideRequest("DAY 2 빈 시간에 근처 박물관 추천해줘", 12L);
+        AiGuideRequest effectiveRequest = new AiGuideRequest(request.question(), 12L, 2, null);
         AiGuideContext context = new AiGuideContext(null, List.of());
         RagSearchResult verifiedMuseum = new RagSearchResult("place:64", "verified", 64L,
                 "경찰박물관", "ATTRACTION", "서울 종로구", "https://place.map.kakao.com/64");
@@ -390,7 +452,7 @@ class AiGuideServiceTest {
         when(contextService.load(1L, request)).thenReturn(context);
         when(ragServiceProvider.getIfAvailable()).thenReturn(ragService);
         when(ragService.search(request.question())).thenReturn(List.of(verifiedMuseum));
-        when(aiModelClient.generate(request, List.of(), context, List.of(verifiedMuseum))).thenReturn(response);
+        when(aiModelClient.generate(effectiveRequest, List.of(), context, List.of(verifiedMuseum))).thenReturn(response);
 
         AiGuideItemResponse actual = service.generate(request, false, 1L).days().getFirst().items().getFirst();
 
@@ -402,6 +464,7 @@ class AiGuideServiceTest {
     @Test
     void correctsRequestedDayAndReplacesGenericTrailWithVerifiedAttractionCard() {
         AiGuideRequest request = new AiGuideRequest("DAY 3 보고 일정 중간에 넣을만한 일정 추천해줘", 12L);
+        AiGuideRequest effectiveRequest = new AiGuideRequest(request.question(), 12L, 3, null);
         AiGuideContext context = new AiGuideContext(null, List.of());
         RagSearchResult verifiedTrail = new RagSearchResult("place:65", "verified", 65L,
                 "연남동 경의선숲길", "ATTRACTION", "서울 마포구", "https://place.map.kakao.com/65");
@@ -414,7 +477,7 @@ class AiGuideServiceTest {
         when(contextService.load(1L, request)).thenReturn(context);
         when(ragServiceProvider.getIfAvailable()).thenReturn(ragService);
         when(ragService.search(request.question())).thenReturn(List.of(verifiedTrail));
-        when(aiModelClient.generate(request, List.of(), context, List.of(verifiedTrail))).thenReturn(modelResponse);
+        when(aiModelClient.generate(effectiveRequest, List.of(), context, List.of(verifiedTrail))).thenReturn(modelResponse);
 
         AiGuideDayResponse actualDay = service.generate(request, false, 1L).days().getFirst();
         AiGuideItemResponse actualItem = actualDay.items().getFirst();
@@ -447,6 +510,44 @@ class AiGuideServiceTest {
 
         assertThat(actualDay.day()).isEqualTo(2);
         assertThat(actualDay.title()).isEqualTo("DAY 2 저녁");
+    }
+
+    @Test
+    void prefersAnExplicitDayInTheQuestionOverTheCurrentlySelectedDay() {
+        AiGuideRequest request = new AiGuideRequest("DAY 2 전포 점심 식당 추천해줘", 12L, 1, null);
+        AiGuideRequest effectiveRequest = new AiGuideRequest(request.question(), 12L, 2, null);
+        AiGuideContext context = new AiGuideContext(null, List.of());
+        AiGuideResponse modelResponse = new AiGuideResponse("추천", List.of(new AiGuideDayResponse(1, "DAY 1 점심",
+                List.of(new AiGuideItemResponse("12:00", "전포 실제 식당", "점심 식사 추천")))), List.of(), List.of());
+
+        when(conversationHistoryService.load(1L, 12L)).thenReturn(List.of());
+        when(contextService.load(1L, request)).thenReturn(context);
+        when(aiModelClient.generate(effectiveRequest, List.of(), context, List.of())).thenReturn(modelResponse);
+
+        AiGuideDayResponse actualDay = service.generate(request, false, 1L).days().getFirst();
+
+        assertThat(actualDay.day()).isEqualTo(2);
+        assertThat(actualDay.title()).isEqualTo("DAY 2 점심");
+        verify(aiModelClient).generate(effectiveRequest, List.of(), context, List.of());
+    }
+
+    @Test
+    void recognizesKoreanOrdinalDayExpressionOverTheCurrentlySelectedDay() {
+        AiGuideRequest request = new AiGuideRequest("둘째 날에 서귀포 점심 식당 추천해줘", 12L, 1, null);
+        AiGuideRequest effectiveRequest = new AiGuideRequest(request.question(), 12L, 2, null);
+        AiGuideContext context = new AiGuideContext(null, List.of());
+        AiGuideResponse modelResponse = new AiGuideResponse("추천", List.of(new AiGuideDayResponse(1, "DAY 1 점심",
+                List.of(new AiGuideItemResponse("12:00", "서귀포 실제 식당", "점심 식사 추천")))), List.of(), List.of());
+
+        when(conversationHistoryService.load(1L, 12L)).thenReturn(List.of());
+        when(contextService.load(1L, request)).thenReturn(context);
+        when(aiModelClient.generate(effectiveRequest, List.of(), context, List.of())).thenReturn(modelResponse);
+
+        AiGuideDayResponse actualDay = service.generate(request, false, 1L).days().getFirst();
+
+        assertThat(actualDay.day()).isEqualTo(2);
+        assertThat(actualDay.title()).isEqualTo("DAY 2 점심");
+        verify(aiModelClient).generate(effectiveRequest, List.of(), context, List.of());
     }
 
     @Test
@@ -604,6 +705,7 @@ class AiGuideServiceTest {
     @Test
     void usesOnlyScheduledAnchorCandidatesEvenWithoutNearbyWording() {
         AiGuideRequest request = new AiGuideRequest("1일차에 그리다부부에서 커피를 마신 후 구경할 수 있는 곳을 추천해줘", 12L);
+        AiGuideRequest effectiveRequest = new AiGuideRequest(request.question(), 12L, 1, null);
         AiGuideContext.Item scheduledItem = new AiGuideContext.Item(77L, "그리다부부", null, null, "CAFE", null);
         AiGuideContext context = new AiGuideContext(
                 new AiGuideContext.Trip(12L, "부산 여행", "부산", null, null,
@@ -624,11 +726,11 @@ class AiGuideServiceTest {
         when(ragService.search(request.question())).thenReturn(List.of(staleOtherRegionPlace));
         when(kakaoPlaceDiscoveryServiceProvider.getIfAvailable()).thenReturn(discoveryService);
         when(discoveryService.discoverAndIndex(request.question(), "부산", 77L)).thenReturn(List.of(nearbyAttraction));
-        when(aiModelClient.generate(request, List.of(), context, List.of(nearbyAttraction))).thenReturn(response);
+        when(aiModelClient.generate(effectiveRequest, List.of(), context, List.of(nearbyAttraction))).thenReturn(response);
 
         service.generate(request, false, 1L);
 
-        verify(aiModelClient).generate(request, List.of(), context, List.of(nearbyAttraction));
+        verify(aiModelClient).generate(effectiveRequest, List.of(), context, List.of(nearbyAttraction));
     }
 
     @Test
@@ -647,16 +749,14 @@ class AiGuideServiceTest {
 
         when(conversationHistoryService.load(1L, 12L)).thenReturn(List.of(previousTurn));
         when(contextService.load(1L, request)).thenReturn(context);
-        when(ragServiceProvider.getIfAvailable()).thenReturn(ragService);
-        when(ragService.search(previousTurn.question())).thenReturn(List.of());
         when(kakaoPlaceDiscoveryServiceProvider.getIfAvailable()).thenReturn(discoveryService);
-        when(discoveryService.discoverAndIndex(previousTurn.question(), null))
+        when(discoveryService.discoverAlternativeAndIndex(previousTurn.question(), null, null))
                 .thenReturn(List.of(redButton, anotherCafe));
         when(aiModelClient.generate(request, List.of(previousTurn), context, List.of(anotherCafe))).thenReturn(response);
 
         service.generate(request, false, 1L);
 
-        verify(discoveryService).discoverAndIndex(previousTurn.question(), null);
+        verify(discoveryService).discoverAlternativeAndIndex(previousTurn.question(), null, null);
         verify(aiModelClient).generate(request, List.of(previousTurn), context, List.of(anotherCafe));
     }
 
@@ -664,6 +764,7 @@ class AiGuideServiceTest {
     void keepsPreviouslySuggestedPlaceWhenUserRequestsAnotherTimeForIt() {
         AiGuideRequest request = new AiGuideRequest(
                 "DAY 3의 서울명예도로 끼리끼리3길을 현재 일정과 겹치지 않는 다른 시간대로 추천해줘", 12L);
+        AiGuideRequest effectiveRequest = new AiGuideRequest(request.question(), 12L, 3, null);
         AiConversationTurn previousTurn = new AiConversationTurn(
                 "DAY 3 보고 일정 중간에 넣을만한 일정 추천해줘",
                 "추천 일정을 준비했어요.\n[추천 장소] 서울명예도로 끼리끼리3길");
@@ -682,7 +783,7 @@ class AiGuideServiceTest {
         when(ragService.search(request.question())).thenReturn(List.of(previousPlace));
         when(kakaoPlaceDiscoveryServiceProvider.getIfAvailable()).thenReturn(discoveryService);
         when(discoveryService.discoverAndIndex(request.question(), null)).thenReturn(List.of(previousPlace));
-        when(aiModelClient.generate(request, List.of(previousTurn), context, List.of(previousPlace))).thenReturn(response);
+        when(aiModelClient.generate(effectiveRequest, List.of(previousTurn), context, List.of(previousPlace))).thenReturn(response);
 
         AiGuideItemResponse actual = service.generate(request, false, 1L).days().getFirst().items().getFirst();
 
@@ -743,13 +844,41 @@ class AiGuideServiceTest {
         when(ragServiceProvider.getIfAvailable()).thenReturn(ragService);
         when(ragService.search(expectedSearchQuestion)).thenReturn(List.of());
         when(kakaoPlaceDiscoveryServiceProvider.getIfAvailable()).thenReturn(discoveryService);
-        when(discoveryService.discoverAndIndex(expectedSearchQuestion, null)).thenReturn(List.of(restaurant));
+        when(discoveryService.discoverAlternativeAndIndex(expectedSearchQuestion, null, null))
+                .thenReturn(List.of(restaurant));
         when(aiModelClient.generate(request, List.of(previousTurn), context, List.of(restaurant))).thenReturn(response);
 
         service.generate(request, false, 1L);
 
-        verify(discoveryService).discoverAndIndex(expectedSearchQuestion, null);
+        verify(discoveryService).discoverAlternativeAndIndex(expectedSearchQuestion, null, null);
         verify(aiModelClient).generate(request, List.of(previousTurn), context, List.of(restaurant));
+    }
+
+    @Test
+    void keepsThePreviousTravelAreaWhenRequestingAnotherRestaurant() {
+        AiGuideRequest request = new AiGuideRequest("다른 식당 추천해줘", 12L);
+        AiConversationTurn previousTurn = new AiConversationTurn(
+                "첫날은 서귀포로 갈 것 같은데 점심 식당 맛집 추천해줘", "서귀포 식당을 추천합니다.");
+        AiGuideContext context = new AiGuideContext(null, List.of());
+        AiGuideResponse response = new AiGuideResponse("다른 식당", List.of(), List.of(), List.of());
+        org.example.all_my_trip_project.domain.rag.service.PlaceRagService ragService = mock(org.example.all_my_trip_project.domain.rag.service.PlaceRagService.class);
+        KakaoPlaceDiscoveryService discoveryService = mock(KakaoPlaceDiscoveryService.class);
+        RagSearchResult restaurant = new RagSearchResult("place:4", "candidate", 4L,
+                "서귀포 다른 식당", "RESTAURANT", "서귀포", "https://place.map.kakao.com/4");
+        String expectedSearchQuestion = "서귀포 다른 식당 추천해줘";
+
+        when(conversationHistoryService.load(1L, 12L)).thenReturn(List.of(previousTurn));
+        when(contextService.load(1L, request)).thenReturn(context);
+        when(ragServiceProvider.getIfAvailable()).thenReturn(ragService);
+        when(ragService.search(expectedSearchQuestion)).thenReturn(List.of());
+        when(kakaoPlaceDiscoveryServiceProvider.getIfAvailable()).thenReturn(discoveryService);
+        when(discoveryService.discoverAlternativeAndIndex(expectedSearchQuestion, null, null))
+                .thenReturn(List.of(restaurant));
+        when(aiModelClient.generate(request, List.of(previousTurn), context, List.of(restaurant))).thenReturn(response);
+
+        service.generate(request, false, 1L);
+
+        verify(discoveryService).discoverAlternativeAndIndex(expectedSearchQuestion, null, null);
     }
 
     @Test

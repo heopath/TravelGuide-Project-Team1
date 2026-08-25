@@ -33,16 +33,23 @@
     <select id="upsert" resultType="long" affectData="true" flushCache="true">
         INSERT INTO places (
             external_provider, external_place_id, category, name, country_code,
-            address, latitude, longitude, description, phone, website_url, is_active
+            region, city, address, latitude, longitude, description, phone, website_url, is_active
         ) VALUES (
             #{externalProvider}, #{externalPlaceId}, #{category}, #{name},
-            COALESCE(#{countryCode}, 'KR'), #{address}, #{latitude}, #{longitude},
+            COALESCE(#{countryCode}, 'KR'), #{region}, #{city}, #{address}, #{latitude}, #{longitude},
             #{description}, #{phone}, #{websiteUrl}, TRUE
         )
         ON CONFLICT (external_provider, external_place_id) DO UPDATE SET
             category = EXCLUDED.category,
             name = EXCLUDED.name,
             address = EXCLUDED.address,
+            <!--
+              region·city는 관리자가 손으로 고쳐 뒀을 수 있어 덮어쓰지 않는다. 비어 있을
+              때만 채운다. 이 두 컬럼이 INSERT 목록에서 빠져 있던 동안 자동 수집 경로로
+              들어온 장소가 전부 NULL로 쌓였는데, 그 행들이 재수집될 때 회복된다. (V30)
+            -->
+            region = COALESCE(NULLIF(BTRIM(places.region), ''), EXCLUDED.region),
+            city = COALESCE(NULLIF(BTRIM(places.city), ''), EXCLUDED.city),
             latitude = EXCLUDED.latitude,
             longitude = EXCLUDED.longitude,
             description = COALESCE(EXCLUDED.description, places.description),
