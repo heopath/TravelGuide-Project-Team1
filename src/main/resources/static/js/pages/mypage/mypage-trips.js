@@ -5,8 +5,8 @@ import {
 
 const TRIP_PREVIEW_COUNT = 3;
 const TRIP_PAGE_SIZE = 8;
-// 기능을 보완해 다시 공개할 때 이 값만 켜면 기존 화면과 API를 그대로 사용할 수 있다.
-const SHOW_TRAVEL_RECORD_ENTRY = false;
+// 완료한 여행에서는 일정 카드에서도 사진첩 작성 화면으로 바로 들어갈 수 있다.
+const SHOW_TRAVEL_RECORD_ENTRY = true;
 
 const tripStatusLabels = {
     DRAFT: "작성 중",
@@ -847,11 +847,11 @@ function createTripFullCard(
             "";
 
         recordButton.textContent =
-            "여행 기록";
+            "여행 기록 작성";
 
         recordButton.setAttribute(
             "aria-label",
-            `${title.textContent} 여행 기록`,
+            `${title.textContent} 여행 기록 작성`,
         );
 
         recordButton.addEventListener(

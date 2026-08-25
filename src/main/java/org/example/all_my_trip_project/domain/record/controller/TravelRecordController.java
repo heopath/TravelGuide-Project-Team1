@@ -87,7 +87,7 @@ public class TravelRecordController {
             @PathVariable Long travelRecordId,
             @RequestParam("file") MultipartFile file) {
         String storageReference = travelRecordService.uploadImage(requireUserId(principal), travelRecordId, file);
-        return ApiResponse.success("사진이 S3에 업로드되었습니다.", storageReference);
+        return ApiResponse.success("사진이 업로드되었습니다.", storageReference);
     }
 
     @DeleteMapping("/{travelRecordId}")

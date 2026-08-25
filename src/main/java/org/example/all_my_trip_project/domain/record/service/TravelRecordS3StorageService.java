@@ -13,6 +13,8 @@ import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.LocalDate;
 import java.util.Locale;
 import java.util.Set;
@@ -27,11 +29,22 @@ class TravelRecordS3StorageService {
 
     private final ObjectProvider<S3Client> s3ClientProvider;
     private final TravelRecordS3Properties properties;
+    private final TravelRecordLocalStorageProperties localProperties;
 
     String upload(Long userId, Long travelRecordId, MultipartFile file) {
         validate(file);
         String key = normalizedPrefix() + "/" + userId + "/" + travelRecordId + "/"
                 + LocalDate.now() + "/" + UUID.randomUUID() + extension(file.getContentType());
+        if (properties.isEnabled()) {
+            return uploadToS3(key, file);
+        }
+        if (localProperties.isEnabled()) {
+            return uploadLocally(key, file);
+        }
+        throw new BusinessException(ErrorCode.INVALID_RECORD_REQUEST);
+    }
+
+    private String uploadToS3(String key, MultipartFile file) {
         try {
             client().putObject(PutObjectRequest.builder()
                             .bucket(properties.getBucket())
@@ -47,11 +60,66 @@ class TravelRecordS3StorageService {
     }
 
     StoredTravelRecordImage load(String storageReference) {
+        if (storageReference != null && storageReference.startsWith("local://")) {
+            return loadLocal(storageReference);
+        }
         S3Location location = parse(storageReference);
         var response = client().getObject(GetObjectRequest.builder().bucket(location.bucket()).key(location.key()).build(),
                 ResponseTransformer.toBytes());
         String contentType = response.response().contentType();
         return new StoredTravelRecordImage(response.asByteArray(), contentType == null ? "application/octet-stream" : contentType);
+    }
+
+    private String uploadLocally(String key, MultipartFile file) {
+        Path root = localRoot();
+        Path target = root.resolve(key).normalize();
+        if (!target.startsWith(root)) {
+            throw new BusinessException(ErrorCode.INVALID_RECORD_REQUEST);
+        }
+        try {
+            Files.createDirectories(target.getParent());
+            file.transferTo(target);
+            return "local://" + key.replace('\\', '/');
+        } catch (IOException exception) {
+            throw new BusinessException(ErrorCode.INVALID_RECORD_REQUEST);
+        }
+    }
+
+    private StoredTravelRecordImage loadLocal(String storageReference) {
+        if (!localProperties.isEnabled()) {
+            throw new BusinessException(ErrorCode.RECORD_NOT_FOUND);
+        }
+        String key = storageReference.substring("local://".length());
+        Path root = localRoot();
+        Path target = root.resolve(key).normalize();
+        if (key.isBlank() || !target.startsWith(root) || !Files.isRegularFile(target)) {
+            throw new BusinessException(ErrorCode.RECORD_NOT_FOUND);
+        }
+        try {
+            String detected = Files.probeContentType(target);
+            return new StoredTravelRecordImage(
+                    Files.readAllBytes(target),
+                    detected == null ? contentTypeFromName(target.getFileName().toString()) : detected
+            );
+        } catch (IOException exception) {
+            throw new BusinessException(ErrorCode.RECORD_NOT_FOUND);
+        }
+    }
+
+    private Path localRoot() {
+        String directory = localProperties.getDirectory();
+        if (directory == null || directory.isBlank()) {
+            throw new BusinessException(ErrorCode.INVALID_RECORD_REQUEST);
+        }
+        return Path.of(directory).toAbsolutePath().normalize();
+    }
+
+    private String contentTypeFromName(String filename) {
+        String normalized = filename.toLowerCase(Locale.ROOT);
+        if (normalized.endsWith(".png")) return "image/png";
+        if (normalized.endsWith(".webp")) return "image/webp";
+        if (normalized.endsWith(".gif")) return "image/gif";
+        return "image/jpeg";
     }
 
     private void validate(MultipartFile file) {

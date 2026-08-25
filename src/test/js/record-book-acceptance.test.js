@@ -106,6 +106,13 @@ assert.match(recordMarkup, /data-record-book-canvas/, "지면을 그릴 canvas�
 assert.match(recordMarkup, /data-record-book-save/, "저장 버튼이 있어야 한다");
 assert.match(recordMarkup, /data-record-book-gif/, "공유용 GIF 저장 버튼이 있어야 한다");
 assert.match(recordMarkup, /data-record-book-share/, "모바일 파일 공유 버튼이 있어야 한다");
+assert.match(recordMarkup, /data-record-back/, "사진첩에서 이전 화면으로 돌아갈 수 있어야 한다");
+assert.match(recordMarkup, /data-record-step-prev/, "사진첩 제작 단계를 왼쪽으로 돌아갈 수 있어야 한다");
+assert.match(recordMarkup, /data-record-step-next/, "사진첩 제작 단계를 오른쪽으로 진행할 수 있어야 한다");
+assert.equal((recordMarkup.match(/data-record-step-panel=/g) || []).length, 3,
+  "사진 선택·사진 정리·앨범 보기는 세 단계 화면으로 나뉘어야 한다");
+assert.match(recordMarkup, />PNG 저장</, "PNG 저장 버튼 이름은 짧고 분명해야 한다");
+assert.match(recordMarkup, />GIF 저장</, "GIF 저장 버튼 이름은 짧고 분명해야 한다");
 assert.match(recordMarkup, /type="file"/, "사진은 URL 입력 대신 파일 업로드로 받아야 한다");
 assert.match(recordMarkup, /multiple/, "원하는 사진을 한 번에 여러 장 골라야 한다");
 assert.match(recordMarkup, /accept="image\/jpeg,image\/png,image\/webp,image\/gif"/,
@@ -127,5 +134,10 @@ assert.match(recordSource, /images\/upload/, "사진 파일을 S3 업로드 API�
 assert.match(recordSource, /\/booking-summary/, "예약 정보를 자동으로 불러와야 한다");
 assert.match(recordSource, /\/days/, "날짜별 일정을 자동으로 불러와야 한다");
 assert.match(recordSource, /navigator\.share/, "지원하는 기기에서는 GIF 파일 공유를 연결해야 한다");
+assert.match(recordSource, /turnAlbumPage/, "앨범의 이전·다음 페이지 전환을 연결해야 한다");
+assert.match(bookSource, /corners\(ctx, cx, cy, cw, ch\)/,
+  "Canvas 사진에는 실제 앨범처럼 사진 모서리 고정대를 그려야 한다");
+assert.match(bookSource, /grain\(ctx, MARGIN/,
+  "Canvas 지면에는 종이 질감을 그려야 한다");
 
 console.log("record book acceptance checks passed");

@@ -9,7 +9,7 @@
     <link rel="stylesheet" th:href="@{/css/common/reset.css}" href="../../static/css/common/reset.css" />
     <link rel="stylesheet" th:href="@{/css/common/layout.css}" href="../../static/css/common/layout.css" />
     <link rel="stylesheet" th:href="@{/css/common/components.css}" href="../../static/css/common/components.css" />
-    <link rel="stylesheet" th:href="@{/css/pages/trips/record.css(v=20260825-auto-album)}" href="../../static/css/pages/trips/record.css?v=20260825-auto-album" />
+    <link rel="stylesheet" th:href="@{/css/pages/trips/record.css(v=20260825-modern-album)}" href="../../static/css/pages/trips/record.css?v=20260825-modern-album" />
     <link rel="stylesheet" th:href="@{/css/common/mighty.css}" href="../../static/css/common/mighty.css" />
   </head>
   <body class="page-record" data-route="/trips/1/record" th:attr="data-trip-id=${tripId}" data-trip-id="">
@@ -17,15 +17,19 @@
       <div th:replace="~{fragments/header :: header('trips')}"></div>
       <main id="page-content">
         <section class="page-shell album-shell">
+          <button type="button" class="album-back-button" data-record-back data-no-global-loading>
+            <span aria-hidden="true">←</span> 이전 페이지
+          </button>
           <header class="album-hero">
             <div>
-              <span class="album-eyebrow">TRAVEL PHOTO BOOK</span>
+              <span class="album-eyebrow">ALL MY TRIPS · PHOTO ALBUM</span>
               <h1 data-record-trip-title>여행 사진첩</h1>
               <p data-record-trip-period>여행 정보를 불러오는 중입니다…</p>
             </div>
-            <div class="album-hero-stamp" aria-hidden="true">
-              <span>ALL MY</span>
-              <strong>TRIPS</strong>
+            <div class="album-hero-visual" aria-hidden="true">
+              <span>사진</span>
+              <strong>일정</strong>
+              <b>예약</b>
             </div>
           </header>
 
@@ -44,7 +48,22 @@
           </div>
 
           <div class="album-workspace" data-record-app hidden>
-            <section class="album-maker-card">
+            <nav class="album-flow" aria-label="여행 사진첩 만들기 단계">
+              <button type="button" class="is-active" data-record-step-jump="1" aria-current="step">
+                <span>1</span><strong>사진 선택</strong>
+              </button>
+              <i aria-hidden="true"></i>
+              <button type="button" data-record-step-jump="2" disabled>
+                <span>2</span><strong>사진 정리</strong>
+              </button>
+              <i aria-hidden="true"></i>
+              <button type="button" data-record-step-jump="3" disabled>
+                <span>3</span><strong>앨범 보기</strong>
+              </button>
+            </nav>
+
+            <div class="album-wizard" data-record-wizard>
+            <section class="album-maker-card is-active" data-record-step-panel="1">
               <div class="album-maker-copy">
                 <span class="album-step">01 · 사진 고르기</span>
                 <h2>마음에 드는 사진만 골라주세요</h2>
@@ -75,7 +94,7 @@
               <p class="field-error" data-record-image-error role="alert"></p>
             </section>
 
-            <section class="album-photo-manager" data-record-photo-manager hidden>
+            <section class="album-photo-manager" data-record-photo-manager data-record-step-panel="2" aria-hidden="true">
               <div class="album-section-head">
                 <div>
                   <span class="album-step">02 · 사진 정리</span>
@@ -87,7 +106,7 @@
               <div class="record-grid" data-record-image-list></div>
             </section>
 
-            <section class="travel-album" data-record-book hidden>
+            <section class="travel-album" data-record-book data-record-step-panel="3" aria-hidden="true">
               <div class="album-section-head album-preview-head">
                 <div>
                   <span class="album-step">03 · 자동 사진첩</span>
@@ -108,12 +127,19 @@
               <div class="record-book-footer">
                 <p class="record-book-note" data-record-book-note role="status"></p>
                 <div class="record-book-actions">
-                  <button type="button" class="outline-button" data-record-book-save data-no-global-loading>현재 페이지 PNG</button>
-                  <button type="button" class="primary-button" data-record-book-gif data-no-global-loading>움직이는 GIF 저장</button>
+                  <button type="button" class="outline-button" data-record-book-save data-no-global-loading>PNG 저장</button>
+                  <button type="button" class="primary-button" data-record-book-gif data-no-global-loading>GIF 저장</button>
                   <button type="button" class="outline-button" data-record-book-share data-no-global-loading>GIF 공유</button>
                 </div>
               </div>
             </section>
+            </div>
+
+            <div class="album-wizard-actions" aria-label="사진첩 만들기 단계 이동">
+              <button type="button" class="outline-button" data-record-step-prev disabled>← 이전 단계</button>
+              <span data-record-step-label>1 / 3</span>
+              <button type="button" class="primary-button" data-record-step-next>다음 단계 →</button>
+            </div>
 
             <details class="album-settings" data-record-settings>
               <summary>사진첩 설정</summary>
@@ -146,8 +172,8 @@
     </div>
     <div th:replace="~{fragments/scripts :: appScripts}"></div>
     <script src="https://cdn.jsdelivr.net/npm/gif.js.optimized@1.0.1/dist/gif.js"></script>
-    <script th:src="@{/js/pages/trips/record-book.js(v=20260825-auto-album)}" src="../../static/js/pages/trips/record-book.js?v=20260825-auto-album"></script>
-    <script th:src="@{/js/pages/trips/record.js(v=20260825-auto-album)}" src="../../static/js/pages/trips/record.js?v=20260825-auto-album"></script>
+    <script th:src="@{/js/pages/trips/record-book.js(v=20260825-page-album)}" src="../../static/js/pages/trips/record-book.js?v=20260825-page-album"></script>
+    <script th:src="@{/js/pages/trips/record.js(v=20260825-page-album)}" src="../../static/js/pages/trips/record.js?v=20260825-page-album"></script>
     <div th:replace="~{fragments/mighty :: mighty}"></div>
     <script th:src="@{/js/core/mighty.js}" src="../../static/js/core/mighty.js"></script>
   </body>
