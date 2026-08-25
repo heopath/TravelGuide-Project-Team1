@@ -87,6 +87,13 @@ public class AdminApiKeyService {
             throw new BusinessException(ErrorCode.INVALID_API_KEY);
         }
 
+        /* 화면의 저장 버튼 잠금은 우회할 수 있다. PUT API를 직접 호출해도 검증되지 않은 키로
+           정상 키를 덮어쓰지 못하도록 서버가 저장 직전에 다시 연결을 확인한다. */
+        ApiKeyTestResultDTO verification = apiKeyConnectionTester.test(key, trimmed);
+        if (!verification.valid()) {
+            throw new BusinessException(ErrorCode.API_KEY_CONNECTION_TEST_FAILED);
+        }
+
         String before = maskOf(currentValue(key));
         apiKeyStore.save(key.name(), apiKeyCipher.encrypt(trimmed), adminUserId);
         evictAfterCommit(key);

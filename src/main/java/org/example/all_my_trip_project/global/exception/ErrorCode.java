@@ -393,6 +393,11 @@ public enum ErrorCode {
             "API 키를 입력해 주세요."
     ),
 
+    API_KEY_CONNECTION_TEST_FAILED(
+            HttpStatus.BAD_REQUEST,
+            "연결 테스트에 실패한 API 키는 저장할 수 없습니다."
+    ),
+
     /**
      * 마스터 키가 없으면 저장을 거절한다. 평문으로라도 저장하는 대안은 두지 않는다.
      * 한 번 평문으로 들어간 키는 아무도 다시 확인하지 않기 때문이다.
