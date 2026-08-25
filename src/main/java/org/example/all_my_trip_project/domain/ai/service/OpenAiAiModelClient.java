@@ -10,6 +10,8 @@ import org.example.all_my_trip_project.domain.ai.dto.AiGuideItemResponse;
 import org.example.all_my_trip_project.domain.ai.dto.AiGuideRequest;
 import org.example.all_my_trip_project.domain.ai.dto.AiGuideResponse;
 import org.example.all_my_trip_project.domain.rag.dto.RagSearchResult;
+import org.example.all_my_trip_project.global.apikey.ApiKeyProvider;
+import org.example.all_my_trip_project.global.apikey.ManagedApiKey;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Profile;
@@ -27,6 +29,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Supplier;
 import java.util.regex.Pattern;
 
 @Component
@@ -57,25 +60,36 @@ public class OpenAiAiModelClient implements AiModelClient {
 
     private final HttpClient httpClient;
     private final ObjectMapper objectMapper;
-    private final String apiKey;
+    /**
+     * 키를 값이 아니라 "꺼내는 방법"으로 들고 있는다. 관리자가 화면에서 키를 교체하면 재시작
+     * 없이 다음 호출부터 새 키가 쓰인다.
+     */
+    private final Supplier<String> apiKeySupplier;
     private final String model;
     private final Duration requestTimeout;
 
     @Autowired
     public OpenAiAiModelClient(
-            @Value("${openai.api-key}") String apiKey,
+            ApiKeyProvider apiKeyProvider,
             @Value("${openai.chat.model:gpt-5.6-terra}") String model,
             @Value("${openai.chat.timeout-millis:25000}") long timeoutMillis
     ) {
         this(HttpClient.newBuilder().connectTimeout(Duration.ofMillis(timeoutMillis)).build(),
-                new ObjectMapper(), apiKey, model, Duration.ofMillis(timeoutMillis));
+                new ObjectMapper(), () -> apiKeyProvider.resolve(ManagedApiKey.OPENAI),
+                model, Duration.ofMillis(timeoutMillis));
     }
 
+    /** 테스트가 키를 고정값으로 넘기던 방식을 그대로 유지한다. */
     OpenAiAiModelClient(HttpClient httpClient, ObjectMapper objectMapper, String apiKey,
+                        String model, Duration requestTimeout) {
+        this(httpClient, objectMapper, () -> apiKey, model, requestTimeout);
+    }
+
+    OpenAiAiModelClient(HttpClient httpClient, ObjectMapper objectMapper, Supplier<String> apiKeySupplier,
                         String model, Duration requestTimeout) {
         this.httpClient = httpClient;
         this.objectMapper = objectMapper;
-        this.apiKey = apiKey;
+        this.apiKeySupplier = apiKeySupplier;
         this.model = model;
         this.requestTimeout = requestTimeout;
     }
@@ -172,7 +186,7 @@ public class OpenAiAiModelClient implements AiModelClient {
         try {
             HttpRequest request = HttpRequest.newBuilder(CHAT_URI)
                     .timeout(requestTimeout)
-                    .header("Authorization", "Bearer " + apiKey)
+                    .header("Authorization", "Bearer " + apiKeySupplier.get())
                     .header("Content-Type", "application/json")
                     .POST(HttpRequest.BodyPublishers.ofString(objectMapper.writeValueAsString(createRequestBody(prompt))))
                     .build();

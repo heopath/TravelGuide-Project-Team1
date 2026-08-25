@@ -383,6 +383,30 @@ public enum ErrorCode {
             "버전은 0.0.5 또는 v0.0.5 형식으로 입력해 주세요."
     ),
 
+    UNKNOWN_API_KEY(
+            HttpStatus.BAD_REQUEST,
+            "관리 대상이 아닌 API 키입니다."
+    ),
+
+    INVALID_API_KEY(
+            HttpStatus.BAD_REQUEST,
+            "API 키를 입력해 주세요."
+    ),
+
+    /**
+     * 마스터 키가 없으면 저장을 거절한다. 평문으로라도 저장하는 대안은 두지 않는다.
+     * 한 번 평문으로 들어간 키는 아무도 다시 확인하지 않기 때문이다.
+     */
+    API_KEY_ENCRYPTION_UNAVAILABLE(
+            HttpStatus.SERVICE_UNAVAILABLE,
+            "서버에 API_KEY_ENCRYPTION_KEY가 설정되지 않아 키를 저장할 수 없습니다."
+    ),
+
+    API_KEY_NOT_STORED(
+            HttpStatus.NOT_FOUND,
+            "관리자가 저장한 키가 없습니다. 이미 환경변수 값을 쓰고 있습니다."
+    ),
+
     MEMBER_NOT_FOUND(
             HttpStatus.NOT_FOUND,
             "회원을 찾을 수 없습니다."
