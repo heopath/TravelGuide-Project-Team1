@@ -16,6 +16,7 @@ import java.util.List;
 import static org.springframework.test.util.ReflectionTestUtils.setField;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -84,5 +85,16 @@ class TravelRecordImageReplacerTest {
 
         assertThat(captor.getValue().getFirst().getImageUrl())
                 .isEqualTo("s3://private-records/travel-records/7/1/photo.jpg");
+    }
+
+    @Test
+    void rejectsProtectedImageContentUrlThatDoesNotBelongToTheExistingRecordImages() {
+        assertThatThrownBy(() -> replacer.replace(1L, new ReplaceRecordImagesRequest(List.of(
+                new ReplaceRecordImagesRequest.ImageItem(
+                        "/api/v1/travel-records/images/999/content", "대표", true)))))
+                .isInstanceOf(org.example.all_my_trip_project.global.exception.BusinessException.class);
+
+        org.mockito.Mockito.verify(travelRecordImageRepository, org.mockito.Mockito.never())
+                .saveAll(org.mockito.ArgumentMatchers.anyList());
     }
 }

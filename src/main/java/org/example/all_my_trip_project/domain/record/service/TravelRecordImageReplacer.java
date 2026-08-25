@@ -4,6 +4,8 @@ import lombok.RequiredArgsConstructor;
 import org.example.all_my_trip_project.domain.record.dto.ReplaceRecordImagesRequest;
 import org.example.all_my_trip_project.domain.record.entity.TravelRecordImageEntity;
 import org.example.all_my_trip_project.domain.record.repository.TravelRecordImageRepository;
+import org.example.all_my_trip_project.global.exception.BusinessException;
+import org.example.all_my_trip_project.global.exception.ErrorCode;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
@@ -57,6 +59,10 @@ class TravelRecordImageReplacer {
         if (!matcher.matches()) return normalized;
         Long previousImageId = Long.valueOf(matcher.group(1));
         String storedUrl = previousUrls.get(previousImageId);
-        return storedUrl == null ? normalized : storedUrl;
+        // 이전 교체로 이미 사라진 이미지 URL을 다시 저장하면 이후 S3 조회가 불가능해진다.
+        if (storedUrl == null) {
+            throw new BusinessException(ErrorCode.INVALID_RECORD_REQUEST);
+        }
+        return storedUrl;
     }
 }

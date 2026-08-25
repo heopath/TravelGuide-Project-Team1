@@ -535,6 +535,10 @@ document.addEventListener("DOMContentLoaded", function () {
       if (bookNote) bookNote.textContent = "GIF 저장을 완료하지 못했습니다. PNG 저장을 이용해주세요.";
       bookGifButton.disabled = false;
     });
+    gif.on("error", () => {
+      if (bookNote) bookNote.textContent = "GIF 저장 중 오류가 발생했습니다. PNG 저장을 이용해주세요.";
+      bookGifButton.disabled = false;
+    });
     gif.render();
   });
 
