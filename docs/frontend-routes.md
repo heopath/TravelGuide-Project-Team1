@@ -2,7 +2,7 @@
 
 ## 실행
 
-기본 프로필은 `ui`이며 PostgreSQL, Redis, Cohere API 키가 없어도 화면을 확인할 수 있다.
+기본 프로필은 `ui`이며 PostgreSQL, Redis, OpenAI API 키가 없어도 화면을 확인할 수 있다.
 
 ```shell
 ./gradlew bootRun

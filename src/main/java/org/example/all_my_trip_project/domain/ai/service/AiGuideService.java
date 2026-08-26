@@ -555,12 +555,102 @@ public class AiGuideService {
         // An existing itinerary place is an equally reliable local-search anchor even when
         // the user says "after visiting X" instead of explicitly saying "near X".
         // In that case, never merge stale RAG candidates from unrelated regions.
-        if (scheduledAnchorPlaceId != null || requestedDayNumber > 0
-                || !KakaoPlaceDiscoveryService.extractNearbyAnchor(question).isBlank()) {
+        if (scheduledAnchorPlaceId != null
+            || !KakaoPlaceDiscoveryService.extractNearbyAnchor(question).isBlank()) {
             return discoveredResults;
         }
 
+        if (requestedDayNumber > 0) {
+            return filterIndexedResultsByDestinationAndVenue(indexedResults, destination, question);
+        }
+
         return indexedResults;
+    }
+
+    private List<RagSearchResult> filterIndexedResultsByDestinationAndVenue(
+        List<RagSearchResult> indexedResults,
+        String destination,
+        String question
+    ) {
+        if (indexedResults == null || indexedResults.isEmpty()
+            || destination == null || destination.isBlank()) {
+            return List.of();
+        }
+
+        String normalizedDestination = normalizePlaceText(destination)
+            .replaceAll("(특별시|광역시|특별자치시|특별자치도)$", "");
+
+        if (normalizedDestination.isBlank()) {
+            return List.of();
+        }
+
+        return indexedResults.stream()
+            .filter(result -> containsDestination(result.address(), normalizedDestination)
+                || containsDestination(result.content(), normalizedDestination))
+            .filter(result -> matchesRequestedRagVenueType(result, question))
+            .toList();
+    }
+
+    /**
+     * 카카오 검색이 비어 RAG 후보를 사용하는 경우에도, 질문의 업종과 다른 장소를
+     * 실제 일정 카드로 연결하지 않는다. 예: "쇼핑" 요청에 성당·박물관을 추천하지 않는다.
+     */
+    private boolean matchesRequestedRagVenueType(RagSearchResult result, String question) {
+        List<String> requestedTerms = requestedRagVenueTerms(question);
+        if (requestedTerms.isEmpty()) {
+            return true;
+        }
+        String searchable = ((result.placeName() == null ? "" : result.placeName()) + " "
+                + (result.category() == null ? "" : result.category()) + " "
+                + (result.content() == null ? "" : result.content())).toLowerCase(Locale.ROOT);
+        return requestedTerms.stream().anyMatch(searchable::contains);
+    }
+
+    private List<String> requestedRagVenueTerms(String question) {
+        String value = question == null ? "" : question.toLowerCase(Locale.ROOT);
+        java.util.LinkedHashSet<String> terms = new java.util.LinkedHashSet<>();
+        if (containsAny(value, "쇼핑", "편집샵", "소품샵", "빈티지", "의류", "잡화", "기념품", "서점",
+                "레코드", "스니커즈", "백화점", "아울렛", "시장", "패션")) {
+            terms.addAll(List.of("shopping", "편집샵", "소품샵", "빈티지", "의류", "잡화", "기념품", "서점",
+                    "레코드", "스니커즈", "백화점", "아울렛", "시장", "몰", "상점", "패션"));
+        }
+        if (containsAny(value, "베이커리", "빵집", "제과", "도넛", "케이크", "디저트")) {
+            terms.addAll(List.of("bakery", "베이커리", "빵집", "제과", "도넛", "케이크", "디저트"));
+        }
+        if (containsAny(value, "카페", "커피", "로스터리", "티하우스")) {
+            terms.addAll(List.of("cafe", "카페", "커피", "로스터리", "티하우스"));
+        }
+        if (containsAny(value, "술집", "와인바", "칵테일", "lp바", "펍", "호프", "포차", "이자카야", "바 ")) {
+            terms.addAll(List.of("bar", "술집", "와인바", "칵테일", "lp바", "펍", "호프", "포차", "이자카야", "주점"));
+        }
+        if (containsAny(value, "관광", "명소", "놀거리", "박물관", "미술관", "전시", "공원", "산책",
+                "야경", "포토스팟", "체험", "오름", "해수욕장", "전망대", "볼거리", "데이트",
+                "즐길", "놀 수", "할 수 있는", "뭐 할", "갈 곳", "가볼")) {
+            terms.addAll(List.of("attraction", "관광", "명소", "박물관", "미술관", "전시", "공원", "산책",
+                    "야경", "포토스팟", "체험", "오름", "해수욕장", "전망대", "볼거리", "데이트"));
+        }
+        if (containsAny(value, "맛집", "식당", "음식점", "밥집", "점심", "저녁", "식사", "밥 ")) {
+            terms.addAll(List.of("restaurant", "식당", "음식점", "맛집", "한식", "중식", "일식", "양식", "분식"));
+        }
+        return List.copyOf(terms);
+    }
+
+    private boolean containsAny(String value, String... terms) {
+        for (String term : terms) {
+            if (value.contains(term)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean containsDestination(String value, String normalizedDestination) {
+        return value != null
+            && normalizePlaceText(value).contains(normalizedDestination);
+    }
+
+    private String normalizePlaceText(String value) {
+        return value == null ? "" : value.replaceAll("\\s+", "");
     }
 
     private List<RagSearchResult> loadAlternativeRagResults(String question,

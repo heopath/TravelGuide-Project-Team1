@@ -428,6 +428,34 @@ class KakaoPlaceDiscoveryServiceTest {
     }
 
     @Test
+    void searchesAttractionCategoryAroundNamedRegionForGenericActivityRequest() {
+        PlaceDTO gwanganri = PlaceDTO.builder().externalProvider("KAKAO").externalPlaceId("gwanganri")
+                .category("ATTRACTION").name("광안리해수욕장")
+                .address("부산 수영구 광안해변로 219")
+                .longitude(new BigDecimal("129.1180")).latitude(new BigDecimal("35.1530")).build();
+        PlaceDTO attraction = PlaceDTO.builder().externalProvider("KAKAO").externalPlaceId("museum")
+                .category("ATTRACTION").name("광안리 문화공간")
+                .address("부산 수영구 광안동 1")
+                .longitude(new BigDecimal("129.1190")).latitude(new BigDecimal("35.1540")).build();
+        PlaceDTO savedAttraction = PlaceDTO.builder().placeId(95L).externalProvider("KAKAO")
+                .externalPlaceId("museum").category("ATTRACTION").name("광안리 문화공간")
+                .address("부산 수영구 광안동 1").build();
+        when(kakaoClient.search(eq("부산광역시 광안리"), any())).thenReturn(List.of(gwanganri));
+        when(kakaoClient.searchByCategory(eq("AT4"), eq(gwanganri.getLongitude()), eq(gwanganri.getLatitude()), any()))
+                .thenReturn(List.of(attraction));
+        when(placeDAO.upsert(attraction)).thenReturn(95L);
+        when(placeDAO.findById(95L)).thenReturn(Optional.of(savedAttraction));
+        when(placeRagServiceProvider.getIfAvailable()).thenReturn(placeRagService);
+
+        List<RagSearchResult> results = service.discoverAndIndex("광안리에서 놀거리 추천해줘", "부산광역시");
+
+        verify(kakaoClient).searchByCategory(eq("AT4"), eq(gwanganri.getLongitude()), eq(gwanganri.getLatitude()), any());
+        assertThat(results)
+                .extracting(RagSearchResult::placeName)
+                .containsExactly("광안리 문화공간");
+    }
+
+    @Test
     void doesNotExpandWalkingSearchBeyondTwoKilometersWhenNearbySearchIsEmpty() {
         PlaceDTO anchor = PlaceDTO.builder().placeId(77L).name("Anchor")
                 .longitude(new BigDecimal("129.0300")).latitude(new BigDecimal("35.1010")).build();
@@ -447,9 +475,10 @@ class KakaoPlaceDiscoveryServiceTest {
         PlaceDTO anchor = PlaceDTO.builder().placeId(77L).name("Anchor")
                 .longitude(new BigDecimal("129.0300")).latitude(new BigDecimal("35.1010")).build();
         PlaceDTO shoppingPlace = PlaceDTO.builder().externalProvider("KAKAO").externalPlaceId("shop-1")
-                .name("Verified shop").longitude(new BigDecimal("129.0310")).latitude(new BigDecimal("35.1010")).build();
+                .category("ATTRACTION").name("전포 소품샵")
+                .longitude(new BigDecimal("129.0310")).latitude(new BigDecimal("35.1010")).build();
         PlaceDTO savedShoppingPlace = PlaceDTO.builder().placeId(91L).externalProvider("KAKAO")
-                .externalPlaceId("shop-1").name("Verified shop").build();
+                .externalPlaceId("shop-1").category("ATTRACTION").name("전포 소품샵").build();
         when(placeDAO.findById(77L)).thenReturn(Optional.of(anchor));
         when(kakaoClient.searchNearby(eq("\uC1FC\uD551"), eq(anchor.getLongitude()), eq(anchor.getLatitude()), eq(2_000), any()))
                 .thenReturn(List.of(shoppingPlace));
@@ -586,6 +615,27 @@ class KakaoPlaceDiscoveryServiceTest {
                 .contains("애월 놀거리", "애월 관광지", "제주 애월 명소", "제주 애월 박물관");
         assertThat(KakaoPlaceDiscoveryService.searchKeywords("서귀포 편집샵 쇼핑 추천해줘", "제주"))
                 .contains("서귀포 편집샵", "제주 서귀포 시장", "제주 서귀포 아울렛");
+    }
+
+    @Test
+    void expandsPlainShoppingRequestIntoSpecificStoreKeywords() {
+        assertThat(KakaoPlaceDiscoveryService.searchKeywords("전포에서 쇼핑할 곳도 추천해줘", "부산광역시"))
+                .contains("전포 편집샵", "전포 소품샵", "전포 빈티지샵")
+                .noneMatch(keyword -> keyword.startsWith("곳도 "));
+    }
+
+    @Test
+    void expandsDetailedTravelActivitiesIntoKakaoPlaceKeywords() {
+        assertThat(KakaoPlaceDiscoveryService.searchKeywords("경주에서 야경 포토스팟과 박물관을 추천해줘", "경상북도"))
+                .contains("경주 야경", "경주 포토스팟", "경주 박물관");
+        assertThat(KakaoPlaceDiscoveryService.searchKeywords("제주에서 오름과 아쿠아리움 체험할 곳을 추천해줘", "제주특별자치도"))
+                .contains("제주 오름", "제주 아쿠아리움", "제주 체험");
+    }
+
+    @Test
+    void expandsGenericActivityRequestIntoVerifiedAttractionKeywords() {
+        assertThat(KakaoPlaceDiscoveryService.searchKeywords("광안리에서 놀거리 추천해줘", "부산광역시"))
+                .contains("광안리 놀거리", "광안리 관광지");
     }
 
     @Test

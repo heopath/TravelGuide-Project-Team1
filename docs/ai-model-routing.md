@@ -4,9 +4,9 @@
 
 | 기능 | 호출 방식 | 역할 |
 | --- | --- | --- |
-| 여행 AI 가이드 | `CohereAiModelClient`의 Cohere REST API | 여행·일정·실제 장소 기반 추천 |
+| 여행 AI 가이드 | `OpenAiAiModelClient`의 OpenAI Responses API | 여행·일정·실제 장소 기반 추천 |
 | 고객센터 챗봇 | `SupportChatBotClient`의 Gemini REST API | 서비스 이용 문의 응대 및 상담원 전환 |
-| RAG | Spring AI `EmbeddingModel`·`PgVectorStore` | Cohere 임베딩을 pgvector에 저장·검색 |
+| RAG | Spring AI `EmbeddingModel`·`PgVectorStore` | OpenAI `text-embedding-3-small` 임베딩을 pgvector에 저장·검색 |
 
 ## Spring AI `ChatModel`
 
@@ -16,4 +16,4 @@
 
 ## 의존성 원칙
 
-Spring AI는 RAG용 벡터 저장소와 임베딩 인터페이스에만 유지한다. Google GenAI 채팅/임베딩 Starter는 더 이상 사용하지 않으며, Cohere 임베딩은 `CohereEmbeddingModel`이 REST API로 제공한다.
+Spring AI는 RAG용 벡터 저장소와 임베딩 인터페이스에만 유지한다. 채팅 모델은 Spring AI `ChatModel`이 아니라 각 도메인의 REST 클라이언트가 직접 호출하며, `OpenAiEmbeddingModel`이 OpenAI 임베딩 API를 제공한다.

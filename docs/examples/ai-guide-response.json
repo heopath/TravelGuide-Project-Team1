@@ -18,6 +18,6 @@
       { "type": "FLIGHT", "label": "부산 항공권 검색", "url": "https://www.google.com/travel/flights" },
       { "type": "HOTEL", "label": "광안리 숙소 검색", "url": "https://www.google.com/travel/hotels" }
     ],
-    "sources": ["Cohere 질문 기반 생성", "질문: 근처 저녁 맛집을 추천해줘"]
+    "sources": ["OpenAI 질문 기반 생성", "질문: 근처 저녁 맛집을 추천해줘"]
   }
 }
