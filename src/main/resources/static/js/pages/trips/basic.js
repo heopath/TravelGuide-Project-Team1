@@ -86,31 +86,12 @@ document.addEventListener("DOMContentLoaded", function () {
     { label: "경주", value: "경주", countryCode: "KR" },
     { label: "여수", value: "여수", countryCode: "KR" },
     { label: "전주", value: "전주", countryCode: "KR" },
-    { label: "도쿄", value: "도쿄", countryCode: "JP" },
-    { label: "오사카", value: "오사카", countryCode: "JP" },
-    { label: "파리", value: "파리", countryCode: "FR" },
-    { label: "바르셀로나", value: "바르셀로나", countryCode: "ES" },
-    { label: "방콕", value: "방콕", countryCode: "TH" },
-    { label: "다낭", value: "다낭", countryCode: "VN" },
-    { label: "뉴욕", value: "뉴욕", countryCode: "US" },
   ];
   const COUNTRY_NAMES = {
     KR: "대한민국",
-    JP: "일본",
-    FR: "프랑스",
-    ES: "스페인",
-    TH: "태국",
-    VN: "베트남",
-    US: "미국",
   };
   const COUNTRY_TIME_ZONES = {
     KR: "Asia/Seoul",
-    JP: "Asia/Tokyo",
-    FR: "Europe/Paris",
-    ES: "Europe/Madrid",
-    TH: "Asia/Bangkok",
-    VN: "Asia/Ho_Chi_Minh",
-    US: "America/New_York",
   };
 
   function getCountryName(destination) {
@@ -623,22 +604,6 @@ document.addEventListener("DOMContentLoaded", function () {
     });
     searchDestinations("", destinationList);
   }
-  document.querySelectorAll("[data-destination-keyword]").forEach(function (button) {
-    button.addEventListener("click", function () {
-      if (!destinationSearchInput || !destinationList) return;
-      const keyword = button.dataset.destinationKeyword;
-      const destination = DEFAULT_DESTINATIONS.find(function (candidate) {
-        return candidate.label === keyword;
-      });
-      destinationSearchInput.value = keyword;
-      if (destination) {
-        applyDestination(destination);
-      } else {
-        destinationPanel.classList.add("is-active");
-        searchDestinations(keyword, destinationList);
-      }
-    });
-  });
   document.addEventListener("click", function (event) {
     const destinationControl = document.querySelector("#destinationControl");
     if (destinationControl && !destinationControl.contains(event.target) && destinationPanel) {
