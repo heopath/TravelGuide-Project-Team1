@@ -11,7 +11,9 @@ import org.springframework.stereotype.Component;
 class ReportValidator {
 
     void validateTargetStatus(ReportStatus targetStatus) {
-        if (targetStatus != ReportStatus.RESOLVED && targetStatus != ReportStatus.REJECTED) {
+        if (targetStatus != ReportStatus.REVIEWING
+                && targetStatus != ReportStatus.RESOLVED
+                && targetStatus != ReportStatus.REJECTED) {
             throw new BusinessException(ErrorCode.INVALID_REPORT_STATUS_TRANSITION);
         }
     }
