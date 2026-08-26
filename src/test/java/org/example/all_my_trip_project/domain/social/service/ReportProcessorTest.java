@@ -28,6 +28,19 @@ class ReportProcessorTest {
     }
 
     @Test
+    void movesAPendingReportToReviewing() {
+        TravelRecordReportEntity report =
+                TravelRecordReportEntity.create(1L, 9L, ReportReason.ABUSE, "설명");
+
+        processor.process(report, 5L, ReportStatus.REVIEWING, "내용 확인 중");
+
+        assertThat(report.getStatus()).isEqualTo(ReportStatus.REVIEWING.name());
+        assertThat(report.getProcessedBy()).isEqualTo(5L);
+        assertThat(report.getProcessedAt()).isNotNull();
+        assertThat(report.getResolutionNote()).isEqualTo("내용 확인 중");
+    }
+
+    @Test
     void rejectsProcessingAReportThatIsAlreadyResolved() {
         TravelRecordReportEntity report =
                 TravelRecordReportEntity.create(1L, 9L, ReportReason.SPAM, null);

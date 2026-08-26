@@ -13,19 +13,15 @@ class ReportValidatorTest {
     private final ReportValidator validator = new ReportValidator();
 
     @Test
-    void acceptsResolvedAndRejected() {
+    void acceptsReviewingResolvedAndRejected() {
+        assertThatCode(() -> validator.validateTargetStatus(ReportStatus.REVIEWING)).doesNotThrowAnyException();
         assertThatCode(() -> validator.validateTargetStatus(ReportStatus.RESOLVED)).doesNotThrowAnyException();
         assertThatCode(() -> validator.validateTargetStatus(ReportStatus.REJECTED)).doesNotThrowAnyException();
     }
 
     @Test
-    void rejectsPendingAndReviewingAsTargetStatus() {
+    void rejectsPendingAsTargetStatus() {
         assertThatThrownBy(() -> validator.validateTargetStatus(ReportStatus.PENDING))
-                .isInstanceOf(BusinessException.class)
-                .extracting("errorCode")
-                .isEqualTo(ErrorCode.INVALID_REPORT_STATUS_TRANSITION);
-
-        assertThatThrownBy(() -> validator.validateTargetStatus(ReportStatus.REVIEWING))
                 .isInstanceOf(BusinessException.class)
                 .extracting("errorCode")
                 .isEqualTo(ErrorCode.INVALID_REPORT_STATUS_TRANSITION);

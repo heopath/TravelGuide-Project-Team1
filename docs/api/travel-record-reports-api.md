@@ -130,7 +130,7 @@ Cookie: JSESSIONID=세션값(ADMIN)
 
 ## 5. 신고 처리 (관리자)
 
-`RESOLVED` 또는 `REJECTED`로만 전환할 수 있다. 이미 처리된(`RESOLVED`/`REJECTED`) 신고를 다시 처리하려 하면 거부한다.
+`REVIEWING`, `RESOLVED`, `REJECTED`로 전환할 수 있다. 이미 처리된(`RESOLVED`/`REJECTED`) 신고를 다시 처리하려 하면 거부한다.
 
 ### 요청
 
@@ -163,7 +163,7 @@ Cookie: JSESSIONID=세션값(ADMIN)
 | 오류 코드 | HTTP 상태 | 의미 |
 |---|---:|---|
 | VALIDATION_ERROR | 400 | `status` 누락 등 필드 검증 실패 |
-| INVALID_REPORT_STATUS_TRANSITION | 400 | `status`가 `RESOLVED`/`REJECTED`가 아니거나, 이미 처리된 신고를 다시 처리하려는 경우 |
+| INVALID_REPORT_STATUS_TRANSITION | 400 | `status`가 `REVIEWING`/`RESOLVED`/`REJECTED`가 아니거나, 이미 처리된 신고를 다시 처리하려는 경우 |
 | UNAUTHORIZED | 401 | 로그인이 필요함 |
 | FORBIDDEN | 403 | 로그인했지만 ADMIN 권한이 아님 |
 | REPORT_NOT_FOUND | 404 | 대상 신고가 없음 |
