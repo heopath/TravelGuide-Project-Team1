@@ -844,13 +844,171 @@
     });
   }
 
-  /* GIF는 실제 표지·날짜별 일정·예약 페이지를 각각 프레임으로 사용한다. */
+  function renderPageCanvas(page, ratio) {
+    var canvas = document.createElement("canvas");
+    return renderPageData(canvas, page, ratio).then(function (result) {
+      return { canvas: canvas, result: result };
+    });
+  }
+
+  function drawBentSheet(ctx, source, sourceX, sourceWidth, destinationX, destinationWidth, height, lift, outerEdge) {
+    var strips = 20;
+    for (var strip = 0; strip < strips; strip++) {
+      var start = strip / strips;
+      var end = (strip + 1) / strips;
+      var middle = (start + end) / 2;
+      var edgeLift = outerEdge === "right"
+        ? Math.sin(middle * Math.PI / 2)
+        : Math.cos(middle * Math.PI / 2);
+      var y = Math.round(lift * edgeLift);
+      var sx = sourceX + sourceWidth * start;
+      var sw = sourceWidth * (end - start) + 1;
+      var dx = destinationX + destinationWidth * start;
+      var dw = destinationWidth * (end - start) + 1;
+      ctx.drawImage(source, sx, 0, sw, height, dx, y, dw, Math.max(1, height - y * 2));
+    }
+  }
+
+  /*
+   * 한 장의 오른쪽(또는 왼쪽) 종이가 제본선을 중심으로 접혀 넘어가는 프레임을 그린다.
+   * 단순히 전체 Canvas를 흔들지 않고 앞면이 좁아졌다가 뒷면이 반대쪽으로 펼쳐져야
+   * 사용자가 실제 책장을 넘긴다고 느낀다. 웹 애니메이션과 GIF가 이 함수를 함께 쓴다.
+   */
+  function paintPageTurn(output, fromCanvas, toCanvas, progress, direction) {
+    var width = fromCanvas.width;
+    var height = fromCanvas.height;
+    var spine = Math.round(width / 2);
+    var p = Math.max(0, Math.min(1, progress));
+    var forward = direction !== "prev";
+
+    if (output.width !== width || output.height !== height) {
+      output.width = width;
+      output.height = height;
+    }
+    var ctx = output.getContext("2d");
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.clearRect(0, 0, width, height);
+    ctx.drawImage(toCanvas, 0, 0);
+
+    /* 넘어가지 않는 반쪽은 그대로 두고, 움직이는 종이만 제본선에서 접는다. */
+    if (forward) {
+      ctx.drawImage(fromCanvas, 0, 0, spine, height, 0, 0, spine, height);
+    } else {
+      ctx.drawImage(fromCanvas, spine, 0, width - spine, height, spine, 0, width - spine, height);
+    }
+
+    var cosine = Math.cos(Math.PI * p);
+    var sheetWidth = Math.max(1, Math.round(spine * Math.abs(cosine)));
+    var lift = Math.round(Math.sin(Math.PI * p) * height * 0.018);
+    var sheetHeight = Math.max(1, height - lift * 2);
+    var edgeX;
+
+    ctx.save();
+    if (forward && cosine >= 0) {
+      edgeX = spine + sheetWidth;
+      drawBentSheet(ctx, fromCanvas, spine, width - spine, spine, sheetWidth, height, lift, "right");
+    } else if (forward) {
+      edgeX = spine - sheetWidth;
+      drawBentSheet(ctx, toCanvas, 0, spine, edgeX, sheetWidth, height, lift, "left");
+      ctx.fillStyle = "rgba(230,233,255," + (0.12 * Math.sin(Math.PI * p)) + ")";
+      ctx.fillRect(edgeX, lift, sheetWidth, sheetHeight);
+    } else if (cosine >= 0) {
+      edgeX = spine - sheetWidth;
+      drawBentSheet(ctx, fromCanvas, 0, spine, edgeX, sheetWidth, height, lift, "left");
+    } else {
+      edgeX = spine + sheetWidth;
+      drawBentSheet(ctx, toCanvas, spine, width - spine, spine, sheetWidth, height, lift, "right");
+      ctx.fillStyle = "rgba(230,233,255," + (0.12 * Math.sin(Math.PI * p)) + ")";
+      ctx.fillRect(spine, lift, sheetWidth, sheetHeight);
+    }
+    ctx.restore();
+
+    /* 움직이는 종이의 바깥 모서리와 아래 그림자가 접힌 깊이를 보여 준다. */
+    var bend = Math.sin(Math.PI * p);
+    var shadowWidth = Math.max(18, Math.round(spine * 0.11 * bend));
+    var shadow = ctx.createLinearGradient(edgeX - shadowWidth, 0, edgeX + shadowWidth, 0);
+    shadow.addColorStop(0, "rgba(20,27,69,0)");
+    shadow.addColorStop(0.48, "rgba(20,27,69," + (0.24 * bend) + ")");
+    shadow.addColorStop(0.54, "rgba(255,255,255," + (0.48 * bend) + ")");
+    shadow.addColorStop(1, "rgba(20,27,69,0)");
+    ctx.fillStyle = shadow;
+    ctx.fillRect(edgeX - shadowWidth, lift, shadowWidth * 2, sheetHeight);
+
+    ctx.strokeStyle = "rgba(255,255,255," + (0.72 * bend) + ")";
+    ctx.lineWidth = Math.max(1, Math.round(width / 1200));
+    ctx.beginPath();
+    ctx.moveTo(edgeX, lift + 2);
+    ctx.lineTo(edgeX, height - lift - 2);
+    ctx.stroke();
+
+    if (p >= 1) {
+      ctx.clearRect(0, 0, width, height);
+      ctx.drawImage(toCanvas, 0, 0);
+    }
+  }
+
+  function animatePageTurn(canvas, data, fromIndex, toIndex, direction) {
+    var pages = buildPages(data);
+    var from = Math.max(0, Math.min(Number(fromIndex) || 0, pages.length - 1));
+    var to = Math.max(0, Math.min(Number(toIndex) || 0, pages.length - 1));
+    if (from === to) return renderAlbum(canvas, data, to);
+
+    var ratio = Math.min(window.devicePixelRatio || 1, 1.5);
+    return Promise.all([
+      renderPageCanvas(pages[from], ratio),
+      renderPageCanvas(pages[to], ratio)
+    ]).then(function (rendered) {
+      var fromPage = rendered[0];
+      var toPage = rendered[1];
+      var result = Object.assign(toPage.result, {
+        index: to,
+        pageCount: pages.length,
+        kind: pages[to].kind
+      });
+      if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+        paintPageTurn(canvas, fromPage.canvas, toPage.canvas, 1, direction);
+        return result;
+      }
+
+      return new Promise(function (resolve) {
+        var duration = 760;
+        var startedAt = null;
+        var raf = window.requestAnimationFrame || function (callback) {
+          return window.setTimeout(function () { callback(Date.now()); }, 16);
+        };
+        function frame(timestamp) {
+          if (startedAt === null) startedAt = timestamp;
+          var raw = Math.min(1, (timestamp - startedAt) / duration);
+          var eased = 0.5 - Math.cos(Math.PI * raw) / 2;
+          paintPageTurn(canvas, fromPage.canvas, toPage.canvas, eased, direction);
+          if (raw < 1) raf(frame);
+          else resolve(result);
+        }
+        raf(frame);
+      });
+    });
+  }
+
+  /* GIF에도 정지 화면 사이에 같은 종이 접힘 프레임을 넣는다. */
   function renderAll(data) {
     var pages = buildPages(data);
     return Promise.all(pages.map(function (page) {
-      var canvas = document.createElement("canvas");
-      return renderPageData(canvas, page, 0.5).then(function () { return canvas; });
-    }));
+      return renderPageCanvas(page, 0.34);
+    })).then(function (rendered) {
+      var frames = [];
+      rendered.forEach(function (page, pageIndex) {
+        page.canvas.albumFrameDelay = pageIndex === 0 ? 1600 : 1200;
+        frames.push(page.canvas);
+        if (pageIndex >= rendered.length - 1) return;
+        for (var step = 1; step <= 7; step++) {
+          var turn = document.createElement("canvas");
+          paintPageTurn(turn, page.canvas, rendered[pageIndex + 1].canvas, step / 8, "next");
+          turn.albumFrameDelay = 75;
+          frames.push(turn);
+        }
+      });
+      return frames;
+    });
   }
 
   function toBlob(canvas) {
@@ -869,6 +1027,7 @@
   window.AllMyTripsRecordBook = {
     render: render,
     renderAlbum: renderAlbum,
+    animatePageTurn: animatePageTurn,
     renderAll: renderAll,
     buildPages: buildPages,
     toBlob: toBlob,

@@ -101,6 +101,7 @@ assert.match(bookSource, /devicePixelRatio/,
 
 const recordSource = read("../../main/resources/static/js/pages/trips/record.js");
 const recordMarkup = read("../../main/resources/templates/trips/record.html");
+const recordStyles = read("../../main/resources/static/css/pages/trips/record.css");
 
 assert.match(recordMarkup, /data-record-book-canvas/, "지면을 그릴 canvas가 있어야 한다");
 assert.match(recordMarkup, /data-record-book-save/, "저장 버튼이 있어야 한다");
@@ -139,6 +140,20 @@ assert.match(recordSource, /\/booking-summary/, "예약 정보를 자동으로 �
 assert.match(recordSource, /\/days/, "날짜별 일정을 자동으로 불러와야 한다");
 assert.match(recordSource, /navigator\.share/, "지원하는 기기에서는 GIF 파일 공유를 연결해야 한다");
 assert.match(recordSource, /turnAlbumPage/, "앨범의 이전·다음 페이지 전환을 연결해야 한다");
+assert.match(recordSource, /AllMyTripsRecordBook\.animatePageTurn/,
+  "웹 화면은 Canvas 종이 접힘 애니메이션으로 페이지를 넘겨야 한다");
+assert.match(bookSource, /function paintPageTurn/,
+  "웹과 GIF가 함께 쓰는 실제 책장 넘김 프레임을 그려야 한다");
+assert.match(bookSource, /Math\.cos\(Math\.PI \* p\)/,
+  "종이 앞면이 접힌 뒤 뒷면이 펼쳐지는 폭을 계산해야 한다");
+assert.match(bookSource, /function drawBentSheet/,
+  "종이를 세로 조각으로 나눠 바깥 모서리가 휘어 올라오는 곡면을 만들어야 한다");
+assert.match(bookSource, /for \(var step = 1; step <= 7; step\+\+\)/,
+  "GIF의 정지 화면 사이에 여러 장의 페이지 턴 중간 프레임을 넣어야 한다");
+assert.match(recordSource, /frame\.albumFrameDelay/,
+  "GIF는 정지 페이지와 넘김 프레임의 재생 시간을 구분해야 한다");
+assert.doesNotMatch(recordStyles, /is-turning-next|albumPageOutNext/,
+  "Canvas 전체를 살짝 흔드는 기존 CSS 애니메이션을 사용하면 안 된다");
 assert.match(bookSource, /corners\(ctx, cx, cy, cw, ch\)/,
   "Canvas 사진에는 실제 앨범처럼 사진 모서리 고정대를 그려야 한다");
 assert.match(bookSource, /grain\(ctx, MARGIN/,

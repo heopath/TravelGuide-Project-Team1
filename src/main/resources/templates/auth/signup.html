@@ -74,11 +74,31 @@
                data-action="signup"
                data-theme="light"></div>
 
-          <label class="check-line">
-            <input type="checkbox" required />
-            필수 약관에 동의합니다.
-            <button type="button" data-modal="terms">내용 보기</button>
-          </label>
+          <fieldset class="agreement-panel" aria-describedby="agreement-help">
+            <legend>약관 동의</legend>
+
+            <label class="agreement-all">
+              <input id="signup-agree-all" type="checkbox" />
+              <span>
+                <strong>필수 약관 전체 동의</strong>
+                <small>아래 두 항목에 모두 동의합니다.</small>
+              </span>
+            </label>
+
+            <div class="agreement-list">
+              <div class="agreement-row">
+                <input id="signup-terms-agreed" name="termsAgreed" type="checkbox" required />
+                <label for="signup-terms-agreed"><b>필수</b> 서비스 이용약관 동의</label>
+                <button type="button" data-agreement-open="service-terms">내용 보기</button>
+              </div>
+              <div class="agreement-row">
+                <input id="signup-privacy-agreed" name="privacyAgreed" type="checkbox" required />
+                <label for="signup-privacy-agreed"><b>필수</b> 개인정보 수집·이용 동의</label>
+                <button type="button" data-agreement-open="privacy-consent">내용 보기</button>
+              </div>
+            </div>
+            <p id="agreement-help">필수 항목에 모두 동의해야 회원가입할 수 있습니다.</p>
+          </fieldset>
 
           <p id="signup-error" class="notice danger" role="alert" hidden></p>
 
@@ -92,13 +112,91 @@
           </div>
         </form>
       </div>
+
+      <dialog id="agreement-dialog" class="agreement-dialog" aria-labelledby="agreement-dialog-title">
+        <div class="agreement-dialog-head">
+          <div>
+            <span>ALL MY TRIPS POLICY</span>
+            <h2 id="agreement-dialog-title">약관 안내</h2>
+          </div>
+          <button type="button" class="agreement-dialog-close" data-agreement-close aria-label="약관 창 닫기">×</button>
+        </div>
+
+        <div class="agreement-document" data-agreement-document="service-terms" hidden>
+          <p class="agreement-effective-date">서비스 이용약관 · 시행일 2026년 8월 25일</p>
+          <section>
+            <h3>제1조 (목적)</h3>
+            <p>이 약관은 All My Trips 운영팀(이하 “운영팀”)이 제공하는 여행 계획, 장소 추천, 예약 연계, 여행 기록 및 관련 서비스의 이용 조건과 운영팀 및 회원의 권리·의무를 정합니다.</p>
+          </section>
+          <section>
+            <h3>제2조 (계정과 회원가입)</h3>
+            <ol>
+              <li>회원은 정확한 이메일과 닉네임을 사용하고 계정 정보를 안전하게 관리해야 합니다.</li>
+              <li>타인의 정보를 사용하거나 서비스 운영을 방해하기 위한 가입은 제한될 수 있습니다.</li>
+              <li>회원은 계정 도용 또는 무단 사용을 알게 된 경우 고객센터에 알려야 합니다.</li>
+            </ol>
+          </section>
+          <section>
+            <h3>제3조 (제공 서비스)</h3>
+            <p>운영팀은 여행 일정 생성·관리, AI 기반 추천, 항공·숙소 등 예약 정보 조회 및 연계, 여행 사진첩과 기록 저장 등의 기능을 제공합니다. AI 추천과 외부 제공 정보는 참고 자료이며, 실제 운영시간·가격·예약 조건은 최종 예약 단계에서 다시 확인해야 합니다.</p>
+          </section>
+          <section>
+            <h3>제4조 (예약 및 결제)</h3>
+            <ol>
+              <li>항공, 숙소 등 제휴 또는 외부 사업자의 상품에는 해당 판매자가 표시한 운임, 취소, 환불 및 이용 조건이 적용됩니다.</li>
+              <li>회원은 결제 전에 상품, 일정, 인원, 가격과 취소 조건을 확인해야 합니다.</li>
+              <li>운영팀이 직접 판매하거나 중개하는 범위와 책임은 각 예약 화면에 표시된 내용 및 관계 법령에 따릅니다.</li>
+            </ol>
+          </section>
+          <section>
+            <h3>제5조 (회원의 게시물과 사진)</h3>
+            <p>회원이 올린 글과 사진의 권리는 회원에게 있습니다. 회원은 앨범 생성, 저장, 공유 등 선택한 기능을 제공하는 데 필요한 범위에서만 운영팀이 해당 자료를 처리하도록 허용합니다. 타인의 권리나 개인정보를 침해하는 자료는 올릴 수 없습니다.</p>
+          </section>
+          <section>
+            <h3>제6조 (금지 행위)</h3>
+            <p>회원은 서비스의 비정상적 접근, 자동화된 대량 요청, 보안 기능 우회, 타인 계정 도용, 불법 정보 게시, 서비스나 제3자의 권리 침해 행위를 해서는 안 됩니다.</p>
+          </section>
+          <section>
+            <h3>제7조 (서비스 변경 및 중단)</h3>
+            <p>점검, 장애, 재해 또는 외부 서비스 변경 등 불가피한 사유로 기능이 변경되거나 일시 중단될 수 있습니다. 중요한 변경이나 예정된 중단은 합리적인 방법으로 미리 안내합니다.</p>
+          </section>
+          <section>
+            <h3>제8조 (이용 제한 및 탈퇴)</h3>
+            <p>약관 또는 관계 법령을 위반하면 사전 안내 후 이용을 제한할 수 있습니다. 다만 보안 위협 등 긴급한 경우에는 먼저 제한하고 이후 안내할 수 있습니다. 회원은 계정 설정에서 탈퇴를 요청할 수 있습니다.</p>
+          </section>
+          <section>
+            <h3>제9조 (책임 및 분쟁 해결)</h3>
+            <p>운영팀과 회원은 각자의 귀책 사유로 상대방에게 발생한 손해에 대해 관계 법령에 따라 책임을 부담합니다. 이 약관에서 정하지 않은 사항은 대한민국 법령에 따르며, 분쟁은 민사소송법에 따른 관할 법원에서 해결합니다.</p>
+          </section>
+        </div>
+
+        <div class="agreement-document" data-agreement-document="privacy-consent" hidden>
+          <p class="agreement-effective-date">개인정보 수집·이용 동의 · 시행일 2026년 8월 25일</p>
+          <p class="agreement-summary">All My Trips는 회원가입과 계정 제공에 필요한 최소한의 정보만 수집합니다.</p>
+          <div class="privacy-consent-table" role="table" aria-label="개인정보 수집 및 이용 내역">
+            <div role="row"><strong role="rowheader">수집·이용 목적</strong><span role="cell">회원 식별, 계정 생성·관리, 로그인 및 고객 문의 대응</span></div>
+            <div role="row"><strong role="rowheader">수집 항목</strong><span role="cell">이메일, 비밀번호, 닉네임</span></div>
+            <div role="row"><strong role="rowheader">보유·이용 기간</strong><span role="cell"><b>회원 탈퇴 시까지</b>. 다만 관계 법령에 보존 의무가 있거나 분쟁 처리를 위해 필요한 경우에는 해당 기간 동안 별도 보관 후 파기합니다.</span></div>
+            <div role="row"><strong role="rowheader">동의 거부 권리 및 불이익</strong><span role="cell">동의를 거부할 수 있습니다. 다만 위 정보는 회원 계정 제공에 필요한 필수 정보이므로 동의하지 않으면 회원가입이 제한됩니다.</span></div>
+          </div>
+          <section>
+            <h3>안전한 처리</h3>
+            <p>비밀번호는 원문을 그대로 저장하지 않고 단방향 암호화하여 처리합니다. 수집한 정보는 위 목적 범위에서만 이용하며, 보유 기간이 끝나면 복구하기 어려운 방법으로 파기합니다.</p>
+          </section>
+          <p class="agreement-contact">개인정보 관련 문의는 로그인 후 고객센터를 이용해 주세요.</p>
+        </div>
+
+        <div class="agreement-dialog-actions">
+          <button type="button" class="primary-button" data-agreement-close>확인했습니다</button>
+        </div>
+      </dialog>
     </section>
       </main>
       <div th:replace="~{fragments/modals :: modalRoots}"><div id="directory-root"></div><div id="modal-root"></div><div id="toast-root" aria-live="polite"></div></div>
       <div th:replace="~{fragments/footer :: footer}"></div>
     </div>
     <div th:replace="~{fragments/scripts :: appScripts}"></div>
-    <script th:src="@{/js/pages/auth/signup.js}"
-            src="../../static/js/pages/auth/signup.js"></script>
+    <script th:src="@{/js/pages/auth/signup.js(v='20260825-terms')}"
+            src="../../static/js/pages/auth/signup.js?v=20260825-terms"></script>
   </body>
 </html>
