@@ -57,18 +57,30 @@ public class KakaoPlaceDiscoveryService {
     private static final Pattern VISIT_ACTION = Pattern.compile(
             "^(.+?)(?:을|를|으로|로)\\s*(?:먹고|먹은|방문(?:하고|한)?|들르고|갔다가|다녀와서|간 뒤|간후|간 후)"
     );
+    private static final Pattern REGION_ANCHOR = Pattern.compile(
+            "(?:^|\\s)([가-힣0-9]{2,20}?)(?:에서|에)(?=\\s|$)"
+    );
     private static final List<String> BAKERY_TERMS = List.of(
             "제과", "제빵", "제과점", "베이커리", "빵집", "도넛", "케이크", "디저트", "페이스트리", "마카롱"
     );
     private static final List<String> BAR_TERMS = List.of(
             "술집", "와인바", "칵테일바", "lp바", "펍", "호프", "포차", "이자카야", "주점", "바틀샵"
     );
+    private static final List<String> MEAL_TERMS = List.of(
+            "식당", "음식점", "맛집", "밥집", "한식", "중식", "일식", "양식", "분식", "restaurant", "dining"
+    );
     private static final List<String> ATTRACTION_TERMS = List.of(
             "관광", "명소", "구경", "산책", "공원", "박물관", "미술관", "전시", "갤러리", "궁",
-            "사찰", "해수욕장", "바다", "전망대", "문화", "역사관", "테마파크"
+            "사찰", "해수욕장", "바다", "해변", "전망대", "야경", "포토스팟", "랜드마크",
+            "문화", "역사관", "기념관", "테마파크", "놀이공원", "아쿠아리움", "동물원",
+            "수목원", "식물원", "오름", "폭포", "호수", "둘레길", "산책로", "트레킹",
+            "등산", "케이블카", "스카이워크", "체험", "공방", "원데이클래스", "액티비티",
+            "레저", "서핑", "요트", "크루즈", "자전거", "방탈출", "공연", "극장",
+            "놀거리", "볼거리", "데이트", "즐길", "놀 수", "할 수 있는", "뭐 할", "갈 곳", "가볼"
     );
     private static final List<String> SHOPPING_TERMS = List.of(
-            "쇼핑", "편집샵", "백화점", "아울렛", "시장", "몰", "상점", "패션"
+            "쇼핑", "편집샵", "소품샵", "빈티지", "의류", "잡화", "기념품", "서점",
+            "레코드", "스니커즈", "백화점", "아울렛", "시장", "몰", "상점", "패션"
     );
 
     private enum VenueType {
@@ -180,7 +192,7 @@ public class KakaoPlaceDiscoveryService {
         long timeoutMillis = Math.max(1L, totalSearchTimeoutMillis);
         long deadline = System.nanoTime() + Duration.ofMillis(timeoutMillis).toNanos();
         List<PlaceDTO> discovered = new ArrayList<>();
-        boolean nearbyRequest = scheduledPlaceId != null || !extractNearbyAnchor(question).isBlank();
+        boolean nearbyRequest = scheduledPlaceId != null || !resolveSearchAnchor(question, destination).isBlank();
         int searchCount = addNearbyCategoryCandidates(discovered, question, destination, scheduledPlaceId, deadline, page);
         // 일정에 들어 있는 실제 기준 장소는 좌표 반경 검색 결과만 사용한다.
         // 다만 "애월 근처", "서귀포 근처"처럼 지역명만 기준으로 한 요청은 좌표를 얻지
@@ -218,7 +230,7 @@ public class KakaoPlaceDiscoveryService {
 
     private int addNearbyCategoryCandidates(List<PlaceDTO> discovered, String question, String destination,
                                             Long scheduledPlaceId, long deadline, int page) {
-        String anchor = extractNearbyAnchor(question);
+        String anchor = resolveSearchAnchor(question, destination);
         List<String> categoryCodes = extractNearbyCategoryCodes(question);
         List<String> nearbyKeywordTerms = extractNearbyKeywordTerms(question);
         if ((categoryCodes.isEmpty() && nearbyKeywordTerms.isEmpty())
@@ -391,6 +403,45 @@ public class KakaoPlaceDiscoveryService {
                 .findFirst();
     }
 
+    /**
+     * "광안리에서 놀거리"처럼 지역이 곧 검색 반경인 요청도 좌표 기준 카테고리
+     * 검색으로 처리한다. 여행지 전체(예: 부산광역시)만 적힌 경우는 너무 넓으므로
+     * 기존 키워드 검색 흐름을 유지한다.
+     */
+    private String resolveSearchAnchor(String question, String destination) {
+        String nearbyAnchor = extractNearbyAnchor(question);
+        if (!nearbyAnchor.isBlank()) {
+            return nearbyAnchor;
+        }
+
+        // "광안리에서 놀거리"처럼 조사가 지역명에 바로 붙은 경우는 일반 위치
+        // 추출 정규식이 "광안리에서" 전체를 잡을 수 있다. 이 경우에도 카카오
+        // 좌표 반경 검색으로 이어질 수 있도록 지역명만 먼저 분리한다.
+        var regionAnchorMatcher = REGION_ANCHOR.matcher(question == null ? "" : question);
+        while (regionAnchorMatcher.find()) {
+            String regionAnchor = regionAnchorMatcher.group(1).trim();
+            if (!isNonLocationWord(regionAnchor) && !isTravelDestination(regionAnchor, destination)) {
+                return regionAnchor;
+            }
+        }
+
+        List<String> locations = extractLocations(question);
+        if (locations.size() != 1) {
+            return "";
+        }
+
+        String location = locations.getFirst();
+        return isTravelDestination(location, destination) ? "" : location;
+    }
+
+    private boolean isTravelDestination(String location, String destination) {
+        String destinationName = destination == null ? "" : destination.trim();
+        String normalizedDestination = destinationName
+                .replaceAll("(특별시|광역시|특별자치시|특별자치도)$", "")
+                .replaceAll("\\s+", "");
+        return location.equals(destinationName) || location.equals(normalizedDestination);
+    }
+
     private boolean hasCoordinates(PlaceDTO place) {
         return place.getLongitude() != null && place.getLatitude() != null;
     }
@@ -429,9 +480,9 @@ public class KakaoPlaceDiscoveryService {
             return true;
         }
         VenueType actualType = classifyVenueType(place);
-        // 카카오 응답에 그룹과 세부업종이 모두 없는 예외적인 경우에는 검색 결과를
-        // 전부 버리지 않고 AI의 후속 검증 단계에 맡긴다.
-        return actualType == VenueType.UNKNOWN || requestedTypes.contains(actualType);
+        // 업종을 명시한 요청에서는 유형을 판별하지 못한 후보도 실제 일정 카드에
+        // 연결하지 않는다. 다른 업종의 장소가 식당·카페·쇼핑 카드로 보이는 것을 막는다.
+        return requestedTypes.contains(actualType);
     }
 
     private static LinkedHashSet<VenueType> requestedVenueTypes(String question) {
@@ -479,8 +530,13 @@ public class KakaoPlaceDiscoveryService {
             return VenueType.BAR;
         }
         if (searchable.contains("카페") || searchable.contains("커피") || searchable.contains("로스터리")
-                || searchable.contains("티하우스")) {
+                || searchable.contains("티하우스") || searchable.contains("cafe") || searchable.contains("coffee")) {
             return VenueType.CAFE;
+        }
+        // Kakao의 쇼핑·문화 장소는 category_group_code가 없어서 DB에는 ATTRACTION으로
+        // 보관될 수 있다. 이때도 세부업종/상호의 쇼핑 표현을 먼저 확인해야 한다.
+        if (containsAny(searchable, SHOPPING_TERMS)) {
+            return VenueType.SHOPPING;
         }
         if ("CAFE".equalsIgnoreCase(category)) {
             return VenueType.CAFE;
@@ -488,14 +544,14 @@ public class KakaoPlaceDiscoveryService {
         if ("RESTAURANT".equalsIgnoreCase(category)) {
             return VenueType.MEAL;
         }
+        if (containsAny(searchable, MEAL_TERMS)) {
+            return VenueType.MEAL;
+        }
         if ("ATTRACTION".equalsIgnoreCase(category)) {
             return VenueType.ATTRACTION;
         }
         if (containsAny(searchable, ATTRACTION_TERMS)) {
             return VenueType.ATTRACTION;
-        }
-        if (containsAny(searchable, SHOPPING_TERMS)) {
-            return VenueType.SHOPPING;
         }
         return VenueType.UNKNOWN;
     }
@@ -735,6 +791,7 @@ public class KakaoPlaceDiscoveryService {
                 keywords.add(location + " 음식점");
             }
         }
+        addGenericShoppingKeywords(keywords, locations, question);
         for (String location : locations) {
             for (String term : extractVenueSearchTerms(question)) {
                 keywords.add(location + " " + term);
@@ -827,7 +884,7 @@ public class KakaoPlaceDiscoveryService {
         ), question);
         // Compact searches without a particle: "대구 카페", "전주 맛집".
         collectMatches(locations, Pattern.compile(
-                "(?:^|\\s)([가-힣0-9]{2,12})\\s*(?=(?:카페|커피|맛집|식당|음식점|밥집|베이커리|빵집|제과점|도넛|케이크|술집|와인바|칵테일바|바|펍|클럽|놀거리|관광지|명소|공원|박물관|미술관|전시|체험|전망대|해수욕장|쇼핑|편집샵|시장|백화점|아울렛|플리마켓))"
+                "(?:^|\\s)([가-힣0-9]{2,12})\\s*(?=(?:카페|커피|맛집|식당|음식점|밥집|베이커리|빵집|제과점|도넛|케이크|술집|와인바|칵테일바|바|펍|클럽|놀거리|관광지|명소|공원|박물관|미술관|전시|체험|전망대|해수욕장|해변|야경|포토스팟|랜드마크|기념관|테마파크|놀이공원|아쿠아리움|동물원|수목원|식물원|오름|폭포|호수|둘레길|산책로|트레킹|등산|케이블카|스카이워크|공방|원데이클래스|액티비티|레저|서핑|요트|크루즈|자전거|방탈출|공연|극장|쇼핑|편집샵|소품샵|빈티지|의류|잡화|기념품|서점|레코드|스니커즈|시장|백화점|아울렛|플리마켓))"
         ), question);
         return locations.stream()
                 .map(KakaoPlaceDiscoveryService::trimLocationSuffix)
@@ -855,12 +912,41 @@ public class KakaoPlaceDiscoveryService {
                 || value.equals("놀거리") || value.equals("관광지") || value.equals("명소")
                 || value.equals("공원") || value.equals("박물관") || value.equals("미술관")
                 || value.equals("전시") || value.equals("체험") || value.equals("전망대")
-                || value.equals("해수욕장") || value.equals("쇼핑") || value.equals("시장")
+                || value.equals("해수욕장") || value.equals("해변") || value.equals("야경")
+                || value.equals("포토스팟") || value.equals("랜드마크") || value.equals("기념관")
+                || value.equals("테마파크") || value.equals("놀이공원") || value.equals("아쿠아리움")
+                || value.equals("동물원") || value.equals("수목원") || value.equals("식물원")
+                || value.equals("오름") || value.equals("폭포") || value.equals("호수")
+                || value.equals("둘레길") || value.equals("산책로") || value.equals("트레킹")
+                || value.equals("등산") || value.equals("케이블카") || value.equals("스카이워크")
+                || value.equals("공방") || value.equals("원데이클래스") || value.equals("액티비티")
+                || value.equals("레저") || value.equals("서핑") || value.equals("요트")
+                || value.equals("크루즈") || value.equals("자전거") || value.equals("방탈출")
+                || value.equals("공연") || value.equals("극장") || value.equals("쇼핑") || value.equals("시장")
                 || value.equals("편집샵") || value.equals("백화점") || value.equals("아울렛")
+                || value.equals("소품샵") || value.equals("빈티지") || value.equals("의류")
+                || value.equals("잡화") || value.equals("기념품") || value.equals("서점")
+                || value.equals("레코드") || value.equals("스니커즈")
                 || value.equals("플리마켓") || value.equals("근처") || value.equals("주변")
-                || value.equals("여기") || value.equals("이곳") || value.equals("와인")
+                || value.equals("여기") || value.equals("이곳") || value.equals("곳")
+                || value.equals("곳도") || value.equals("와인")
                 || value.equals("칵테일") || value.equals("lp") || value.equals("사")
-                || value.equals("사이") || value.equals("시간");
+                || value.equals("사이") || value.equals("시간")
+                || isPartialVenueType(value);
+    }
+
+    // "아쿠아리움 체험"을 분석할 때 정규식의 짧은 매칭 결과인 "아쿠아리"를
+    // 지역으로 오인하지 않도록, 알려진 업종어의 불완전한 접두어는 제외한다.
+    private static boolean isPartialVenueType(String value) {
+        if (value.length() < 2) {
+            return false;
+        }
+        for (List<String> venueTerms : List.of(BAKERY_TERMS, BAR_TERMS, MEAL_TERMS, ATTRACTION_TERMS, SHOPPING_TERMS)) {
+            if (venueTerms.stream().anyMatch(term -> term.startsWith(value) && !term.equals(value))) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static String trimLocationSuffix(String location) {
@@ -957,9 +1043,43 @@ public class KakaoPlaceDiscoveryService {
         if (value.contains("체험")) terms.add("체험");
         if (value.contains("해수욕장") || value.contains("바다")) terms.add("해수욕장");
         if (value.contains("전망대")) terms.add("전망대");
+        if (value.contains("야경")) terms.add("야경");
+        if (value.contains("포토스팟")) terms.add("포토스팟");
+        if (value.contains("랜드마크")) terms.add("랜드마크");
+        if (value.contains("기념관")) terms.add("기념관");
+        if (value.contains("테마파크")) terms.add("테마파크");
+        if (value.contains("놀이공원")) terms.add("놀이공원");
+        if (value.contains("아쿠아리움")) terms.add("아쿠아리움");
+        if (value.contains("동물원")) terms.add("동물원");
+        if (value.contains("수목원")) terms.add("수목원");
+        if (value.contains("식물원")) terms.add("식물원");
+        if (value.contains("오름")) terms.add("오름");
+        if (value.contains("폭포")) terms.add("폭포");
+        if (value.contains("호수")) terms.add("호수");
+        if (value.contains("둘레길") || value.contains("산책로")) terms.add("산책로");
+        if (value.contains("트레킹") || value.contains("등산")) terms.add("트레킹");
+        if (value.contains("케이블카")) terms.add("케이블카");
+        if (value.contains("스카이워크")) terms.add("스카이워크");
+        if (value.contains("공방")) terms.add("공방");
+        if (value.contains("원데이클래스")) terms.add("원데이클래스");
+        if (value.contains("액티비티") || value.contains("레저")) terms.add("액티비티");
+        if (value.contains("서핑")) terms.add("서핑");
+        if (value.contains("요트")) terms.add("요트");
+        if (value.contains("크루즈")) terms.add("크루즈");
+        if (value.contains("자전거")) terms.add("자전거");
+        if (value.contains("방탈출")) terms.add("방탈출");
+        if (value.contains("공연") || value.contains("극장")) terms.add("공연");
         if (value.contains("시장")) terms.add("시장");
         if (value.contains("플리마켓")) terms.add("플리마켓");
         if (value.contains("편집샵")) terms.add("편집샵");
+        if (value.contains("소품샵")) terms.add("소품샵");
+        if (value.contains("빈티지")) terms.add("빈티지샵");
+        if (value.contains("의류")) terms.add("의류");
+        if (value.contains("잡화")) terms.add("잡화");
+        if (value.contains("기념품")) terms.add("기념품");
+        if (value.contains("서점")) terms.add("서점");
+        if (value.contains("레코드")) terms.add("레코드");
+        if (value.contains("스니커즈")) terms.add("스니커즈");
         if (value.contains("백화점")) terms.add("백화점");
         if (value.contains("아울렛")) terms.add("아울렛");
         return List.copyOf(terms);
@@ -1038,6 +1158,14 @@ public class KakaoPlaceDiscoveryService {
             terms.add("전시");
             terms.add("전망대");
             terms.add("해수욕장");
+            terms.add("야경");
+            terms.add("포토스팟");
+            terms.add("테마파크");
+            terms.add("아쿠아리움");
+            terms.add("수목원");
+            terms.add("오름");
+            terms.add("산책로");
+            terms.add("체험");
         }
         if (containsShoppingIntent(value)) {
             terms.add("편집샵");
@@ -1046,8 +1174,41 @@ public class KakaoPlaceDiscoveryService {
             terms.add("백화점");
             terms.add("아울렛");
             terms.add("플리마켓");
+            terms.add("소품샵");
+            terms.add("빈티지샵");
+            terms.add("의류");
+            terms.add("잡화");
         }
         return List.copyOf(terms);
+    }
+
+    private static void addGenericShoppingKeywords(LinkedHashSet<String> keywords,
+                                                    List<String> locations,
+                                                    String question) {
+        if (locations.isEmpty() || extractDayLocations(question).size() > 1
+                || !containsShoppingIntent(question)
+                || hasSpecificShoppingTerm(question)) {
+            return;
+        }
+
+        // "전포에서 쇼핑할 곳"처럼 쇼핑만 말한 요청에는 카카오에서 상호 후보를
+        // 잘 돌려주는 세부 업종을 먼저 검색한다. 여러 지역/DAY를 한 요청에 쓴
+        // 경우까지 확장하면 호출 예산이 소진되므로 단일 지역 요청에만 적용한다.
+        // 조사와 문장 끝의 "곳도" 같은 단어가 위치 추출 후보에 섞일 수 있으므로,
+        // 여러 DAY가 명시되지 않은 단일 지역 질문은 첫 번째 실제 위치를 기준으로 한다.
+        String location = locations.getFirst();
+        keywords.add(location + " 편집샵");
+        keywords.add(location + " 소품샵");
+        keywords.add(location + " 빈티지샵");
+    }
+
+    private static boolean hasSpecificShoppingTerm(String question) {
+        String value = question == null ? "" : question;
+        return value.contains("편집샵") || value.contains("소품샵") || value.contains("빈티지")
+                || value.contains("의류") || value.contains("잡화") || value.contains("기념품")
+                || value.contains("서점") || value.contains("레코드") || value.contains("스니커즈")
+                || value.contains("백화점") || value.contains("아울렛") || value.contains("시장")
+                || value.contains("플리마켓");
     }
 
     private static boolean isAlternativeSearchQuery(String question) {

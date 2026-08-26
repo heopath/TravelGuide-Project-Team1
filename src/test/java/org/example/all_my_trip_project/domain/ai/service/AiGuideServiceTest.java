@@ -703,6 +703,70 @@ class AiGuideServiceTest {
     }
 
     @Test
+    void usesOnlyDestinationMatchedIndexedCandidatesWhenDaySearchFindsNoFreshPlace() {
+        AiGuideRequest request = new AiGuideRequest("DAY 1 부산 점심 식당 추천해줘", 12L);
+        AiGuideRequest effectiveRequest = new AiGuideRequest(request.question(), 12L, 1, null);
+        AiGuideContext context = new AiGuideContext(
+                new AiGuideContext.Trip(12L, "부산 여행", "부산광역시", null, null,
+                        null, null, null, null, null, null, null, null,
+                        List.of(new AiGuideContext.Day(1, null, "DAY 1", null, List.of()))),
+                List.of());
+        RagSearchResult busanRestaurant = new RagSearchResult("place:88", "장소명: 부산 식당\n주소: 부산광역시 중구",
+                88L, "부산 식당", "RESTAURANT", "부산광역시 중구", "https://place.map.kakao.com/88");
+        RagSearchResult otherRegionRestaurant = new RagSearchResult("place:99", "장소명: 서울 식당\n주소: 서울특별시 종로구",
+                99L, "서울 식당", "RESTAURANT", "서울특별시 종로구", "https://place.map.kakao.com/99");
+        AiGuideResponse response = new AiGuideResponse("추천", List.of(), List.of(), List.of());
+        org.example.all_my_trip_project.domain.rag.service.PlaceRagService ragService = mock(org.example.all_my_trip_project.domain.rag.service.PlaceRagService.class);
+        KakaoPlaceDiscoveryService discoveryService = mock(KakaoPlaceDiscoveryService.class);
+
+        when(conversationHistoryService.load(1L, 12L)).thenReturn(List.of());
+        when(contextService.load(1L, request)).thenReturn(context);
+        when(ragServiceProvider.getIfAvailable()).thenReturn(ragService);
+        when(ragService.search(request.question())).thenReturn(List.of(busanRestaurant, otherRegionRestaurant));
+        when(kakaoPlaceDiscoveryServiceProvider.getIfAvailable()).thenReturn(discoveryService);
+        when(discoveryService.discoverAndIndex(request.question(), "부산광역시")).thenReturn(List.of());
+        when(aiModelClient.generate(effectiveRequest, List.of(), context, List.of(busanRestaurant))).thenReturn(response);
+
+        service.generate(request, false, 1L);
+
+        verify(aiModelClient).generate(effectiveRequest, List.of(), context, List.of(busanRestaurant));
+    }
+
+    @Test
+    void excludesIndexedAttractionWhenShoppingIsRequested() {
+        AiGuideRequest request = new AiGuideRequest("DAY 1 전포에서 쇼핑할 곳 추천해줘", 12L);
+        AiGuideRequest effectiveRequest = new AiGuideRequest(request.question(), 12L, 1, null);
+        AiGuideContext context = new AiGuideContext(
+                new AiGuideContext.Trip(12L, "부산 여행", "부산광역시", null, null,
+                        null, null, null, null, null, null, null, null,
+                        List.of(new AiGuideContext.Day(1, null, "DAY 1", null, List.of()))),
+                List.of());
+        RagSearchResult attraction = new RagSearchResult("place:201",
+                "장소명: 전포성당\n카테고리: 관광·명소\n주소: 부산 부산진구 서전로38번길54",
+                201L, "전포성당", "ATTRACTION", "부산 부산진구 서전로38번길54",
+                "https://place.map.kakao.com/201");
+        RagSearchResult shoppingPlace = new RagSearchResult("place:202",
+                "장소명: 전포 소품샵\n카테고리: 쇼핑\n주소: 부산 부산진구",
+                202L, "전포 소품샵", "SHOPPING", "부산 부산진구",
+                "https://place.map.kakao.com/202");
+        AiGuideResponse response = new AiGuideResponse("추천", List.of(), List.of(), List.of());
+        org.example.all_my_trip_project.domain.rag.service.PlaceRagService ragService = mock(org.example.all_my_trip_project.domain.rag.service.PlaceRagService.class);
+        KakaoPlaceDiscoveryService discoveryService = mock(KakaoPlaceDiscoveryService.class);
+
+        when(conversationHistoryService.load(1L, 12L)).thenReturn(List.of());
+        when(contextService.load(1L, request)).thenReturn(context);
+        when(ragServiceProvider.getIfAvailable()).thenReturn(ragService);
+        when(ragService.search(request.question())).thenReturn(List.of(attraction, shoppingPlace));
+        when(kakaoPlaceDiscoveryServiceProvider.getIfAvailable()).thenReturn(discoveryService);
+        when(discoveryService.discoverAndIndex(request.question(), "부산광역시")).thenReturn(List.of());
+        when(aiModelClient.generate(effectiveRequest, List.of(), context, List.of(shoppingPlace))).thenReturn(response);
+
+        service.generate(request, false, 1L);
+
+        verify(aiModelClient).generate(effectiveRequest, List.of(), context, List.of(shoppingPlace));
+    }
+
+    @Test
     void usesOnlyScheduledAnchorCandidatesEvenWithoutNearbyWording() {
         AiGuideRequest request = new AiGuideRequest("1일차에 그리다부부에서 커피를 마신 후 구경할 수 있는 곳을 추천해줘", 12L);
         AiGuideRequest effectiveRequest = new AiGuideRequest(request.question(), 12L, 1, null);
