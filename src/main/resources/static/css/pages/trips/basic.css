@@ -1248,21 +1248,6 @@ body.page-basic .destination-inline-panel .destination-search button:hover {
   color: #2448df;
 }
 
-body.page-basic .destination-popular {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 7px;
-  margin-top: 12px;
-}
-
-body.page-basic .destination-popular > span {
-  margin-right: 3px;
-  color: var(--basic-muted);
-  font-size: 12px;
-  font-weight: 700;
-}
-
 body.page-basic .destination-inline-panel .destination-list {
   display: none;
   max-height: 210px;

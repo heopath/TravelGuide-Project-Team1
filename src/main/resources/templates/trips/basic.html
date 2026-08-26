@@ -24,20 +24,12 @@
           <div class="destination-control" id="destinationControl">
             <input class="destination-trigger" id="destinationTrigger" type="search"
                    aria-label="목적지 검색" aria-autocomplete="list" aria-controls="destinationInlineList"
-                   aria-expanded="false" placeholder="여행지를 검색해보세요 (예: 파리, 일본, 하와이)" autocomplete="off" />
+                   aria-expanded="false" placeholder="국내 여행지를 검색해보세요 (예: 서울, 부산, 제주)" autocomplete="off" />
             <section class="destination-inline-panel" id="destinationPanel" aria-labelledby="destinationPanelTitle">
               <span class="destination-kicker">DESTINATION</span>
               <h3 id="destinationPanelTitle">어디로 떠나볼까요?</h3>
-              <p>도시나 지역을 검색하고 여행 목적지를 선택하세요.</p>
+              <p>국내 도시나 지역을 검색하고 여행 목적지를 선택하세요.</p>
               <div class="destination-list" id="destinationInlineList" role="listbox" aria-live="polite"></div>
-              <div class="destination-popular" aria-label="인기 검색어">
-                <span>인기 검색어</span>
-                <button type="button" data-destination-keyword="파리">파리</button>
-                <button type="button" data-destination-keyword="도쿄">도쿄</button>
-                <button type="button" data-destination-keyword="다낭">다낭</button>
-                <button type="button" data-destination-keyword="방콕">방콕</button>
-                <button type="button" data-destination-keyword="뉴욕">뉴욕</button>
-              </div>
             </section>
             <input type="hidden" id="destination" name="destination" />
             <span class="sr-only" id="destinationLabel">도시 또는 지역 검색</span>
