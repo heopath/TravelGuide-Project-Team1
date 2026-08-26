@@ -5,6 +5,8 @@ import {
 
 const TRIP_PREVIEW_COUNT = 3;
 const TRIP_PAGE_SIZE = 8;
+// 완료한 여행에서는 일정 카드에서도 사진첩 작성 화면으로 바로 들어갈 수 있다.
+const SHOW_TRAVEL_RECORD_ENTRY = true;
 
 const tripStatusLabels = {
     DRAFT: "작성 중",
@@ -829,7 +831,7 @@ function createTripFullCard(
      * 다녀온 여행에서만 기록으로 갈 수 있다. 카드 전체가 일정으로 가는 링크라
      * 여기서 막지 않으면 기록을 누르려다 일정으로 넘어간다.
      */
-    if (finished) {
+    if (SHOW_TRAVEL_RECORD_ENTRY && finished) {
         const recordButton =
             document.createElement(
                 "button",
@@ -845,11 +847,11 @@ function createTripFullCard(
             "";
 
         recordButton.textContent =
-            "여행 기록";
+            "여행 기록 작성";
 
         recordButton.setAttribute(
             "aria-label",
-            `${title.textContent} 여행 기록`,
+            `${title.textContent} 여행 기록 작성`,
         );
 
         recordButton.addEventListener(

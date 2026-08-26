@@ -13,9 +13,13 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.List;
 
+import static org.springframework.test.util.ReflectionTestUtils.setField;
+
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class TravelRecordImageReplacerTest {
@@ -28,6 +32,7 @@ class TravelRecordImageReplacerTest {
     @BeforeEach
     void setUp() {
         replacer = new TravelRecordImageReplacer(travelRecordImageRepository);
+        when(travelRecordImageRepository.findByTravelRecordIdOrderBySortOrderAsc(1L)).thenReturn(List.of());
     }
 
     @Test
@@ -60,5 +65,36 @@ class TravelRecordImageReplacerTest {
         assertThat(saved.get(1).getSortOrder()).isEqualTo(2);
         assertThat(saved.get(1).getAltText()).isNull();
         assertThat(saved.get(1).getCover()).isFalse();
+    }
+
+    @Test
+    void keepsOriginalS3ReferenceWhenClientSendsProtectedImageContentUrlBack() {
+        TravelRecordImageEntity existing = TravelRecordImageEntity.of(
+                1L, "s3://private-records/travel-records/7/1/photo.jpg", "대표", 1, true);
+        setField(existing, "travelRecordImageId", 5L);
+        when(travelRecordImageRepository.findByTravelRecordIdOrderBySortOrderAsc(1L))
+                .thenReturn(List.of(existing));
+
+        replacer.replace(1L, new ReplaceRecordImagesRequest(List.of(
+                new ReplaceRecordImagesRequest.ImageItem(
+                        "/api/v1/travel-records/images/5/content", "대표", true))));
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<List<TravelRecordImageEntity>> captor = ArgumentCaptor.forClass(List.class);
+        verify(travelRecordImageRepository).saveAll(captor.capture());
+
+        assertThat(captor.getValue().getFirst().getImageUrl())
+                .isEqualTo("s3://private-records/travel-records/7/1/photo.jpg");
+    }
+
+    @Test
+    void rejectsProtectedImageContentUrlThatDoesNotBelongToTheExistingRecordImages() {
+        assertThatThrownBy(() -> replacer.replace(1L, new ReplaceRecordImagesRequest(List.of(
+                new ReplaceRecordImagesRequest.ImageItem(
+                        "/api/v1/travel-records/images/999/content", "대표", true)))))
+                .isInstanceOf(org.example.all_my_trip_project.global.exception.BusinessException.class);
+
+        org.mockito.Mockito.verify(travelRecordImageRepository, org.mockito.Mockito.never())
+                .saveAll(org.mockito.ArgumentMatchers.anyList());
     }
 }

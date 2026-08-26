@@ -63,7 +63,7 @@ class ItineraryItemServiceTest {
                 .build();
         when(tripDayDAO.findById(20L)).thenReturn(Optional.of(day));
         when(tripDAO.findById(10L)).thenReturn(Optional.of(trip));
-        when(itemDAO.countByTripDayId(20L)).thenReturn(3);
+        when(itemDAO.countPlaceItemsByTripDayId(20L)).thenReturn(3);
         when(itemDAO.existsByTripDayIdAndPlaceId(20L, 100L)).thenReturn(false);
         when(itemDAO.nextSortOrderByTripDayId(20L)).thenReturn(3);
         doAnswer(invocation -> {
@@ -86,7 +86,7 @@ class ItineraryItemServiceTest {
         ItineraryItemDTO item = itineraryItem();
         when(tripDayDAO.findById(10L)).thenReturn(Optional.of(day));
         when(tripDAO.findById(11L)).thenReturn(Optional.of(trip));
-        when(itemDAO.countByTripDayId(10L)).thenReturn(4);
+        when(itemDAO.countPlaceItemsByTripDayId(10L)).thenReturn(4);
 
         itineraryItemService.create(42L, item);
 
@@ -100,7 +100,7 @@ class ItineraryItemServiceTest {
         ItineraryItemDTO item = ItineraryItemDTO.builder().tripDayId(20L).title("해운대 산책").build();
         when(tripDayDAO.findById(20L)).thenReturn(Optional.of(day));
         when(tripDAO.findById(10L)).thenReturn(Optional.of(trip));
-        when(itemDAO.countByTripDayId(20L)).thenReturn(5);
+        when(itemDAO.countPlaceItemsByTripDayId(20L)).thenReturn(5);
 
         assertThatThrownBy(() -> itineraryItemService.create(42L, item))
                 .isInstanceOf(BusinessException.class)
@@ -111,6 +111,26 @@ class ItineraryItemServiceTest {
     }
 
     @Test
+    void createAllowsBookingItemAfterDayAlreadyHasFivePlaces() {
+        TripDayDTO day = TripDayDTO.builder().tripDayId(20L).tripId(10L).build();
+        TripDTO trip = TripDTO.builder().tripId(10L).userId(42L).build();
+        ItineraryItemDTO booking = ItineraryItemDTO.builder()
+                .tripDayId(20L)
+                .itemType("ACCOMMODATION")
+                .title("예약 숙소")
+                .build();
+        when(tripDayDAO.findById(20L)).thenReturn(Optional.of(day));
+        when(tripDAO.findById(10L)).thenReturn(Optional.of(trip));
+        when(itemDAO.nextSortOrderByTripDayId(20L)).thenReturn(7);
+
+        itineraryItemService.create(42L, booking);
+
+        verify(itemDAO, never()).countPlaceItemsByTripDayId(20L);
+        verify(itemDAO).insert(booking);
+        assertThat(booking.getSortOrder()).isEqualTo(7);
+    }
+
+    @Test
     void createUsesMaxSortOrderPlusOneAfterMiddleItemWasDeleted() {
         TripDayDTO day = TripDayDTO.builder().tripDayId(20L).tripId(10L).build();
         TripDTO trip = TripDTO.builder().tripId(10L).userId(42L).build();
@@ -118,7 +138,7 @@ class ItineraryItemServiceTest {
                 .itineraryItemId(31L).tripDayId(20L).placeId(101L).title("새 장소").build();
         when(tripDayDAO.findById(20L)).thenReturn(Optional.of(day));
         when(tripDAO.findById(10L)).thenReturn(Optional.of(trip));
-        when(itemDAO.countByTripDayId(20L)).thenReturn(2);
+        when(itemDAO.countPlaceItemsByTripDayId(20L)).thenReturn(2);
         when(itemDAO.existsByTripDayIdAndPlaceId(20L, 101L)).thenReturn(false);
         when(itemDAO.nextSortOrderByTripDayId(20L)).thenReturn(3);
 
@@ -135,7 +155,7 @@ class ItineraryItemServiceTest {
         ItineraryItemDTO item = ItineraryItemDTO.builder().tripDayId(20L).placeId(100L).title("중복 장소").build();
         when(tripDayDAO.findById(20L)).thenReturn(Optional.of(day));
         when(tripDAO.findById(10L)).thenReturn(Optional.of(trip));
-        when(itemDAO.countByTripDayId(20L)).thenReturn(1);
+        when(itemDAO.countPlaceItemsByTripDayId(20L)).thenReturn(1);
         when(itemDAO.existsByTripDayIdAndPlaceId(20L, 100L)).thenReturn(true);
 
         assertThatThrownBy(() -> itineraryItemService.create(42L, item))
@@ -153,7 +173,7 @@ class ItineraryItemServiceTest {
         ItineraryItemDTO item = ItineraryItemDTO.builder().tripDayId(20L).placeId(100L).title("동시 요청 장소").build();
         when(tripDayDAO.findById(20L)).thenReturn(Optional.of(day));
         when(tripDAO.findById(10L)).thenReturn(Optional.of(trip));
-        when(itemDAO.countByTripDayId(20L)).thenReturn(1);
+        when(itemDAO.countPlaceItemsByTripDayId(20L)).thenReturn(1);
         when(itemDAO.existsByTripDayIdAndPlaceId(20L, 100L)).thenReturn(false, true);
         when(itemDAO.nextSortOrderByTripDayId(20L)).thenReturn(1);
         doThrow(new DataIntegrityViolationException("duplicate place"))
@@ -177,7 +197,7 @@ class ItineraryItemServiceTest {
                 .startTime(LocalTime.of(10, 0)).build();
         when(tripDayDAO.findById(20L)).thenReturn(Optional.of(day));
         when(tripDAO.findById(10L)).thenReturn(Optional.of(trip));
-        when(itemDAO.countByTripDayId(20L)).thenReturn(1);
+        when(itemDAO.countPlaceItemsByTripDayId(20L)).thenReturn(1);
         when(itemDAO.existsByTripDayIdAndPlaceId(20L, 101L)).thenReturn(false);
         when(itemDAO.findByTripDayId(20L)).thenReturn(List.of(existing));
         assertThatThrownBy(() -> itineraryItemService.create(42L, candidate))
@@ -200,7 +220,7 @@ class ItineraryItemServiceTest {
                 .startTime(LocalTime.of(10, 0)).build();
         when(tripDayDAO.findById(20L)).thenReturn(Optional.of(day));
         when(tripDAO.findById(10L)).thenReturn(Optional.of(trip));
-        when(itemDAO.countByTripDayId(20L)).thenReturn(1);
+        when(itemDAO.countPlaceItemsByTripDayId(20L)).thenReturn(1);
         when(itemDAO.existsByTripDayIdAndPlaceId(20L, 102L)).thenReturn(false);
         when(itemDAO.findByTripDayId(20L)).thenReturn(List.of(existing));
         when(itemDAO.nextSortOrderByTripDayId(20L)).thenReturn(1);
@@ -228,7 +248,7 @@ class ItineraryItemServiceTest {
                 .startTime(LocalTime.of(10, 0)).build();
         when(tripDayDAO.findById(20L)).thenReturn(Optional.of(day));
         when(tripDAO.findById(10L)).thenReturn(Optional.of(trip));
-        when(itemDAO.countByTripDayId(20L)).thenReturn(1);
+        when(itemDAO.countPlaceItemsByTripDayId(20L)).thenReturn(1);
         when(itemDAO.existsByTripDayIdAndPlaceId(20L, 105L)).thenReturn(false);
         when(itemDAO.findByTripDayId(20L)).thenReturn(List.of(existing));
 
@@ -250,7 +270,7 @@ class ItineraryItemServiceTest {
                 .startTime(LocalTime.of(22, 30)).source("AI").build();
         when(tripDayDAO.findById(20L)).thenReturn(Optional.of(day));
         when(tripDAO.findById(10L)).thenReturn(Optional.of(trip));
-        when(itemDAO.countByTripDayId(20L)).thenReturn(1);
+        when(itemDAO.countPlaceItemsByTripDayId(20L)).thenReturn(1);
         when(itemDAO.existsByTripDayIdAndPlaceId(20L, 103L)).thenReturn(false);
 
         assertThatThrownBy(() -> itineraryItemService.create(42L, candidate))
@@ -270,7 +290,7 @@ class ItineraryItemServiceTest {
                 .startTime(LocalTime.of(22, 0)).source("AI").build();
         when(tripDayDAO.findById(20L)).thenReturn(Optional.of(day));
         when(tripDAO.findById(10L)).thenReturn(Optional.of(trip));
-        when(itemDAO.countByTripDayId(20L)).thenReturn(0);
+        when(itemDAO.countPlaceItemsByTripDayId(20L)).thenReturn(0);
         when(itemDAO.existsByTripDayIdAndPlaceId(20L, 104L)).thenReturn(false);
 
         assertThatThrownBy(() -> itineraryItemService.create(42L, candidate))

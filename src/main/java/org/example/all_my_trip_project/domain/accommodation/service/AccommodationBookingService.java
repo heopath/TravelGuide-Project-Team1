@@ -19,6 +19,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Objects;
+import java.util.UUID;
+import java.util.List;
 
 @Service
 @Profile("!ui")
@@ -45,6 +47,7 @@ public class AccommodationBookingService {
         rejectOverlap(tripId, request);
 
         accommodationBookingMapper.upsertSelection(toDto(userId, tripId, request));
+        tripDAO.clearBookingConfirmation(tripId);
         return getBookings(userId, tripId);
     }
 
@@ -60,6 +63,7 @@ public class AccommodationBookingService {
         requireBookingInTrip(tripId, accommodationBookingId);
 
         accommodationBookingMapper.delete(accommodationBookingId);
+        tripDAO.clearBookingConfirmation(tripId);
         return getBookings(userId, tripId);
     }
 
@@ -130,6 +134,21 @@ public class AccommodationBookingService {
         return TripAccommodationsResponse.from(
                 accommodationBookingMapper.findByTrip(tripId),
                 accommodationOutboundClickMapper.findUnresolvedByTrip(tripId));
+    }
+
+    /** 아직 여행에 연결하지 않은, 사용자가 확정한 숙소 예약. */
+    @Transactional(readOnly = true)
+    public List<AccommodationBookingDTO> getUnlinkedConfirmed(Long userId) {
+        if (userId == null || userId < 1) throw new BusinessException(ErrorCode.UNAUTHORIZED);
+        return accommodationBookingMapper.findUnlinkedConfirmedByUser(userId);
+    }
+
+    /** 여행 저장 전 예약 묶음에 포함된 숙소. 소유자와 묶음 UUID를 함께 검사한다. */
+    @Transactional(readOnly = true)
+    public List<AccommodationBookingDTO> getByBatch(Long userId, UUID bookingBatchId) {
+        if (userId == null || userId < 1) throw new BusinessException(ErrorCode.UNAUTHORIZED);
+        if (bookingBatchId == null) return List.of();
+        return accommodationBookingMapper.findByUserAndBatch(userId, bookingBatchId);
     }
 
     /** 복귀 감지를 놓쳐 clickId가 없는 경로도 있으므로 없으면 조용히 넘어간다. */

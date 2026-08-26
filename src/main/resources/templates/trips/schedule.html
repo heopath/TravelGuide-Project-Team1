@@ -29,8 +29,8 @@
   />
   <link
           rel="stylesheet"
-          th:href="@{/css/pages/trips/schedule.css(v=20260824-mobile-finish)}"
-          href="../../static/css/pages/trips/schedule.css?v=20260824-mobile-finish"
+          th:href="@{/css/pages/trips/schedule.css(v=20260825-booking-collapse)}"
+          href="../../static/css/pages/trips/schedule.css?v=20260825-booking-collapse"
   />
 <link
         rel="stylesheet"
@@ -244,6 +244,40 @@
             <div class="schedule-workspace-body">
               <section class="white-panel schedule-main">
                 <h2 class="sr-only" data-schedule-title>여행 캘린더 / 일정 확인</h2>
+                <section
+                        class="schedule-booking-match-panel"
+                        data-booking-match-panel
+                        aria-labelledby="scheduleBookingMatchTitle"
+                        hidden
+                >
+                  <div class="schedule-booking-match-heading">
+                    <h3 id="scheduleBookingMatchTitle">여행과 일치하는 예약</h3>
+                    <button
+                            type="button"
+                            class="schedule-booking-match-toggle"
+                            data-booking-match-toggle
+                            aria-expanded="false"
+                            aria-controls="scheduleBookingMatchContent"
+                            aria-label="예약 내역 펼치기"
+                    >
+                      <span data-booking-match-count></span>
+                      <span data-booking-match-toggle-icon aria-hidden="true">+</span>
+                    </button>
+                  </div>
+                  <div
+                          id="scheduleBookingMatchContent"
+                          class="schedule-booking-match-content"
+                          data-booking-match-content
+                          hidden
+                  >
+                    <p class="schedule-booking-match-criteria" data-booking-match-criteria></p>
+                    <div class="schedule-booking-match-status" data-booking-match-status hidden>
+                      <p data-booking-match-status-text></p>
+                      <button type="button" class="outline-button" data-booking-match-retry>다시 불러오기</button>
+                    </div>
+                    <div class="schedule-booking-match-list" data-booking-match-list></div>
+                  </div>
+                </section>
                 <div class="schedule-overview-carousel" data-overview-carousel>
                   <button
                           type="button"
@@ -466,8 +500,8 @@
 ></script>
 
 <script
-        th:src="@{/js/pages/trips/schedule.js(v=20260821-title-sync)}"
-        src="../../static/js/pages/trips/schedule.js?v=20260821-title-sync"
+        th:src="@{/js/pages/trips/schedule.js(v=20260825-map-position)}"
+        src="../../static/js/pages/trips/schedule.js?v=20260825-map-position"
 ></script>
 <script
         th:src="@{/js/pages/trips/schedule-ai-guide.js}"

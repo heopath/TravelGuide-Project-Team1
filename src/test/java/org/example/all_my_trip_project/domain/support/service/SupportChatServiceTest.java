@@ -2,6 +2,7 @@ package org.example.all_my_trip_project.domain.support.service;
 
 import org.example.all_my_trip_project.domain.support.dao.SupportChatDAO;
 import org.example.all_my_trip_project.domain.support.dto.SupportChatMessageDTO;
+import org.example.all_my_trip_project.domain.support.dto.SupportChatMessageBlockDTO;
 import org.example.all_my_trip_project.domain.support.dto.SupportChatRoomDTO;
 import org.example.all_my_trip_project.domain.support.dto.SupportChatSocketEvent;
 import org.example.all_my_trip_project.domain.support.dto.SupportChatViewResponse;
@@ -18,6 +19,7 @@ import org.springframework.messaging.simp.SimpMessagingTemplate;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -53,6 +55,30 @@ class SupportChatServiceTest {
         eventPublisher = mock(ApplicationEventPublisher.class);
         service = new SupportChatService(dao, messagingTemplate, eventPublisher);
         when(dao.findMessages(any(), anyInt())).thenReturn(List.of());
+    }
+
+    @Test
+    @DisplayName("액션과 장소 카드는 표현 블록으로 저장하고 기존 액션 컬럼도 유지한다")
+    void storesPresentationBlocksAndLegacyActionsTogether() {
+        when(dao.lockRoom(ROOM_ID)).thenReturn(Optional.of(room("BOT", null)));
+        when(dao.insertMessage(any())).thenAnswer(invocation -> {
+            SupportChatMessageDTO message = invocation.getArgument(0);
+            message.setSupportChatMessageId(MESSAGE_ID);
+            return 1;
+        });
+
+        service.recordBotReply(ROOM_ID, "서울 야경 장소를 골라봤어요.", List.of("RECOMMENDED_PLACES"),
+                List.of(Map.of("placeId", 10L, "name", "남산서울타워")));
+
+        ArgumentCaptor<SupportChatMessageDTO> messageCaptor = ArgumentCaptor.forClass(SupportChatMessageDTO.class);
+        verify(dao).insertMessage(messageCaptor.capture());
+        assertThat(messageCaptor.getValue().getActionKey()).isEqualTo("RECOMMENDED_PLACES");
+
+        ArgumentCaptor<SupportChatMessageBlockDTO> blockCaptor =
+                ArgumentCaptor.forClass(SupportChatMessageBlockDTO.class);
+        verify(dao, times(2)).insertMessageBlock(blockCaptor.capture());
+        assertThat(blockCaptor.getAllValues()).extracting(SupportChatMessageBlockDTO::getBlockType)
+                .containsExactly("ACTION_GROUP", "PLACE_CARDS");
     }
 
     private SupportChatRoomDTO room(String status, Long assignedAdminId) {
@@ -271,22 +297,16 @@ class SupportChatServiceTest {
         verify(dao, never()).markWaiting(any());
     }
 
-    /* 상담원 요청은 봇을 부를 이유가 없다 — 곧장 사람 대기로 넘긴다. */
     @Test
-    @DisplayName("봇 응대 중에 상담원을 찾으면 곧장 대기로 넘기고 봇은 부르지 않는다")
-    void handsOffImmediatelyOnExplicitHumanRequest() {
+    @DisplayName("명시적인 상담원 요청도 코드에서 판정하지 않고 AI에게 맡긴다")
+    void delegatesExplicitHumanRequestToAi() {
         when(dao.findOpenRoomByUser(USER_ID)).thenReturn(Optional.of(room("BOT", null)));
         when(dao.findRoom(ROOM_ID)).thenReturn(Optional.of(room("BOT", null)));
-        when(dao.lockRoom(ROOM_ID)).thenReturn(Optional.of(room("BOT", null)));
-        when(dao.markWaiting(ROOM_ID)).thenReturn(1);
 
         service.sendAsUser(USER_ID, "상담원 연결해 주세요");
 
-        verify(eventPublisher, never()).publishEvent(any());
-        verify(dao).markWaiting(ROOM_ID);
-        ArgumentCaptor<SupportChatMessageDTO> saved = ArgumentCaptor.forClass(SupportChatMessageDTO.class);
-        verify(dao, times(2)).insertMessage(saved.capture());
-        assertThat(saved.getAllValues().get(1).getSenderType()).isEqualTo("BOT");
+        verify(eventPublisher).publishEvent(any(SupportChatBotTriggerEvent.class));
+        verify(dao, never()).markWaiting(any());
     }
 
     @Test
@@ -302,20 +322,18 @@ class SupportChatServiceTest {
     }
 
     @Test
-    @DisplayName("상담원 연결 확인 질문 직후 동의하면 대기로 넘긴다")
-    void handsOffAfterConfirmation() {
+    @DisplayName("연결 확인 질문 직후 동의도 대화 문맥과 함께 AI에게 맡긴다")
+    void delegatesHandoffConfirmationToAi() {
         when(dao.findOpenRoomByUser(USER_ID)).thenReturn(Optional.of(room("BOT", null)));
         when(dao.findRoom(ROOM_ID)).thenReturn(Optional.of(room("BOT", null)));
         when(dao.findMessages(eq(ROOM_ID), anyInt())).thenReturn(List.of(
                 message(1, "BOT", SupportChatService.HUMAN_CONFIRMATION_REPLY),
                 message(2, "USER", "네")));
-        when(dao.lockRoom(ROOM_ID)).thenReturn(Optional.of(room("BOT", null)));
-        when(dao.markWaiting(ROOM_ID)).thenReturn(1);
 
         service.sendAsUser(USER_ID, "네");
 
-        verify(eventPublisher, never()).publishEvent(any());
-        verify(dao).markWaiting(ROOM_ID);
+        verify(eventPublisher).publishEvent(any(SupportChatBotTriggerEvent.class));
+        verify(dao, never()).markWaiting(any());
     }
 
     @Test
@@ -575,6 +593,21 @@ class SupportChatServiceTest {
     }
 
     /* ── 봇으로 돌아가기 / 새 상담 시작 ── */
+
+    @Test
+    @DisplayName("상담원 연결 버튼을 누르면 AI 없이 곧바로 대기 상태로 전환한다")
+    void requestsAgentDirectlyFromButton() {
+        when(dao.findOpenRoomByUser(USER_ID)).thenReturn(Optional.of(room("BOT", null)));
+        when(dao.lockRoom(ROOM_ID)).thenReturn(Optional.of(room("BOT", null)));
+        when(dao.markWaiting(ROOM_ID)).thenReturn(1);
+        when(dao.findRoom(ROOM_ID)).thenReturn(Optional.of(room("WAITING", null)));
+
+        SupportChatViewResponse view = service.requestAgent(USER_ID);
+
+        assertThat(view.room().getStatus()).isEqualTo("WAITING");
+        verify(dao).markWaiting(ROOM_ID);
+        verify(eventPublisher, never()).publishEvent(any(SupportChatBotTriggerEvent.class));
+    }
 
     /*
      * 상태 전환에 → BOT 경로가 없어서, WAITING이 되면 그 손님은 봇을 다시 쓸 방법이 없었다.

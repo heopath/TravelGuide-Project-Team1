@@ -25,8 +25,7 @@ class AiTripPlanServiceTest {
                 "균형있는",
                 "대중교통",
                 "유명 맛집",
-                "호텔",
-                new BigDecimal("1000000")
+                "호텔"
         ));
 
         assertThat(response.title()).isEqualTo("부산 3일 여행 초안");
@@ -48,7 +47,7 @@ class AiTripPlanServiceTest {
         assertThat(response.days().getFirst().items().getFirst().title())
                 .contains("부산", "브런치");
         assertThat(response.days().getFirst().items().get(1).description())
-                .contains("2명", "1,000,000원");
+                .contains("2명");
     }
 
     @Test
@@ -63,8 +62,7 @@ class AiTripPlanServiceTest {
                 "여유로운",
                 "대중교통",
                 "로컬 맛집",
-                "호텔",
-                new BigDecimal("500000")
+                "호텔"
         );
 
         assertThatThrownBy(() -> aiTripPlanService.generate(request))

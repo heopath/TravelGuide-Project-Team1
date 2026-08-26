@@ -104,7 +104,7 @@
 
   <section class="slide on" data-title="여는 장">
     <p class="eyebrow">ALL MY TRIPS</p>
-    <h1>계획부터 현장 입장까지<br />끊기지 않게</h1>
+    <h1>계획부터 현장 입장,<br />여행 사진첩까지</h1>
     <p class="lead">화면에 보이는 흐름 뒤에서 무엇을 어떻게 처리했는지 이야기합니다.</p>
   </section>
 
@@ -170,8 +170,26 @@ redis.call(<span class="s">'ZREMRANGEBYSCORE'</span>, 대기열, <span class="s"
     <p class="note">검표할 때 티켓 행을 잠그고 사용 처리해 <b>동시 중복 입장</b>도 막습니다.</p>
   </section>
 
+  <section class="slide" data-title="여행 사진첩">
+    <p class="eyebrow">03 · 자동 여행 사진첩</p>
+    <h1>사진만 고르면 여행이 한 권이 됩니다</h1>
+    <div class="cols">
+      <div class="card">
+        <span class="tag">EC2 IAM Role + S3</span>
+        <h3>사진 원본을 안전하게 저장</h3>
+        <p>장기 AWS 액세스 키 없이 EC2 역할로 업로드하고, DB에는 저장 위치와 사진 순서를 남깁니다.</p>
+      </div>
+      <div class="card good">
+        <span class="tag good">Canvas + GIF</span>
+        <h3>일정과 예약을 페이지로 조판</h3>
+        <p>날짜별 일정과 항공·숙소·티켓을 사진과 엮고, 휘어지는 책장 중간 프레임을 PNG와 GIF에 재사용합니다.</p>
+      </div>
+    </div>
+    <p class="note">제목·긴 후기·별점을 다시 쓰지 않아도 <b>사진 선택 → 자동 구성 → 공유 파일</b>로 이어집니다.</p>
+  </section>
+
   <section class="slide" data-title="상담 — 봇에서 사람으로">
-    <p class="eyebrow">03 · 실시간 상담</p>
+    <p class="eyebrow">04 · 실시간 상담</p>
     <h1>봇이 먼저 받고, 못 하면 사람에게</h1>
     <div class="flow">
       <div class="step"><b>봇 응대 중</b><span>방이 이 상태로 시작합니다</span></div>
@@ -184,44 +202,13 @@ redis.call(<span class="s">'ZREMRANGEBYSCORE'</span>, 대기열, <span class="s"
     <p class="note">봇이 스스로 "이건 사람이 봐야 한다"고 판단하면 표시를 붙여 넘깁니다. 응답이 늦어도 손님을 기다리게 두지 않고 대기로 넘어갑니다.</p>
   </section>
 
-  <section class="slide" data-title="책 지면 — 조판">
-    <p class="eyebrow">04 · 여행 기록</p>
-    <h1>사진이 몇 장 올지 모른 채 지면을 짠다</h1>
-    <p class="lead">자리를 좌표로 박아두면 3장일 때와 7장일 때 같은 지면이 나옵니다. 장수와 사진 비율을 보고 배치를 고르게 만들었습니다.</p>
-    <div class="flow">
-      <div class="step"><b>1장</b><span>가로 사진이면 가로 자리, 세로면 세로 자리</span></div>
-      <div class="step"><b>3장</b><span>큰 것 하나 + 작은 것 둘</span></div>
-      <div class="step"><b>6장</b><span>큰 것 하나 + 다섯</span></div>
-      <div class="step"><b>7장~</b><span>3×3, 넘치면 "외 N장"</span></div>
-    </div>
-    <p class="note">첫 글자를 크게 놓고 <b>본문이 그 옆을 감싸 흐르게</b> 했습니다. 줄마다 시작점을 다르게 주는 방식입니다.</p>
-  </section>
-
-  <section class="slide" data-title="책 지면 — 부딪힌 문제">
-    <p class="eyebrow">04 · 여행 기록</p>
-    <h1>사진 한 장 때문에 저장이 통째로 막혔다</h1>
-    <div class="cols">
-      <div class="card bad">
-        <span class="tag bad">그냥 그리면</span>
-        <h3>브라우저가 내보내기를 막는다</h3>
-        <p>다른 도메인 사진을 캔버스에 그리면 "오염"으로 표시하고, 이미지로 뽑는 것 자체를 거부합니다. 사진 한 장 때문에 지면 전체를 저장할 수 없습니다.</p>
-      </div>
-      <div class="card good">
-        <span class="tag good">허락받은 것만 그리면</span>
-        <h3>못 받은 자리만 비운다</h3>
-        <p>허락을 받아 불러오고, 실패한 사진은 그 자리만 빈칸으로 둡니다. 나머지는 정상적으로 저장됩니다. 왜 비었는지도 화면에 알려줍니다.</p>
-      </div>
-    </div>
-    <p class="note">직접 만들다 <b>부딪혀야 알 수 있는 제약</b>이었습니다.</p>
-  </section>
-
   <section class="slide" data-title="보이지 않는 것들">
     <p class="eyebrow">05 · 눈에 안 보이는 것</p>
     <h1>계속 돌아가게 만드는 것들</h1>
     <div class="facts">
-      <div class="fact"><b>29</b><span>Flyway 마이그레이션<br />DB 변경을 코드로 관리</span></div>
-      <div class="fact"><b>108</b><span>서버 테스트 클래스<br />회귀를 자동으로 확인</span></div>
-      <div class="fact"><b>37</b><span>화면 수용 테스트 파일</span></div>
+      <div class="fact"><b>V36</b><span>Flyway 적용 버전<br />DB 변경을 코드로 관리</span></div>
+      <div class="fact"><b>115</b><span>서버 테스트 클래스<br />회귀를 자동으로 확인</span></div>
+      <div class="fact"><b>44</b><span>화면 테스트 파일</span></div>
       <div class="fact"><b>0</b><span>배포 시 로그아웃<br />세션을 Redis에 저장</span></div>
     </div>
     <p class="note">밀어 넣을 때마다 GitHub Actions가 <b>빌드·테스트·보안 검사(CodeQL)</b>를 돌리고 EC2에 자동 배포합니다.</p>
@@ -231,7 +218,7 @@ redis.call(<span class="s">'ZREMRANGEBYSCORE'</span>, 대기열, <span class="s"
   <section class="slide" data-title="맺음">
     <p class="eyebrow">ALL MY TRIPS</p>
     <h1>여기까지 봐주셔서<br />감사합니다</h1>
-    <p class="lead">계획부터 현장 입장까지 실제로 이어지는 흐름을 만드는 데 집중했습니다.</p>
+    <p class="lead">계획부터 현장 입장, 여행 후 사진첩까지 실제로 이어지는 흐름을 만드는 데 집중했습니다.</p>
   </section>
 
 </main>

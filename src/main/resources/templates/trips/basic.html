@@ -91,19 +91,6 @@
           </div>
           <p class="field-error" id="companionError" aria-live="polite"></p>
 
-          <h2><label for="totalBudget">예상 예산</label></h2>
-          <div class="budget-input">
-            <input class="input-button text-input" id="totalBudget" name="totalBudget" type="number"
-                   min="0" max="1000000000" step="10000" inputmode="numeric" placeholder="예: 3000000" />
-            <span>원</span>
-          </div>
-          <input id="budgetPerPerson" name="budgetPerPerson" type="hidden" />
-          <div class="budget-presets" aria-label="예산 빠른 선택">
-            <button type="button" data-budget="100000">~10만원</button>
-            <button type="button" data-budget="300000">10~30만원</button>
-            <button type="button" data-budget="500000">30~50만원</button>
-            <button type="button" data-budget="1000000">50만원 이상</button>
-          </div>
           <div class="traveler-count-row">
             <div>
               <strong>여행 인원</strong>
@@ -113,10 +100,8 @@
               <button type="button" id="travelerCountMinus" aria-label="여행 인원 줄이기">−</button>
               <output id="travelerCountValue" for="travelerCountMinus travelerCountPlus">1명</output>
               <button type="button" id="travelerCountPlus" aria-label="여행 인원 늘리기">+</button>
-              <p class="budget-per-person" id="budgetPerPersonHint" aria-live="polite">1인당 약 0원</p>
             </div>
           </div>
-          <p class="field-error" id="budgetError" aria-live="polite"></p>
         </div>
         <p class="form-message" id="basicFormMessage" tabindex="-1" aria-live="polite"></p>
         <button class="primary-button form-next" id="basicNextButton" type="submit">다음으로 →</button>

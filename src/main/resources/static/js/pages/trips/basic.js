@@ -1,6 +1,9 @@
 /* 여행 기본 정보 입력과 초안 저장 */
 document.addEventListener("DOMContentLoaded", function () {
   const DRAFT_KEY = "tripDraft";
+  const PENDING_BOOKING_KEY = "allMyTrips.pendingBooking";
+  const BOOKING_RESUME_DRAFT_BACKUP_KEY = "allMyTrips.bookingResumeDraftBackup";
+  const bookingResume = new URLSearchParams(window.location.search).get("bookingResume") === "1";
   const form = document.querySelector("#tripBasicForm");
   if (!form) return;
 
@@ -10,9 +13,6 @@ document.addEventListener("DOMContentLoaded", function () {
     destinationTrigger: document.querySelector("#destinationTrigger"),
     startDate: document.querySelector("#startDate"),
     endDate: document.querySelector("#endDate"),
-    totalBudget: document.querySelector("#totalBudget"),
-    budgetPerPerson: document.querySelector("#budgetPerPerson"),
-    budgetPerPersonHint: document.querySelector("#budgetPerPersonHint"),
     travelerCountValue: document.querySelector("#travelerCountValue"),
     travelerCountMinus: document.querySelector("#travelerCountMinus"),
     travelerCountPlus: document.querySelector("#travelerCountPlus"),
@@ -26,9 +26,6 @@ document.addEventListener("DOMContentLoaded", function () {
     fields.destinationTrigger,
     fields.startDate,
     fields.endDate,
-    fields.totalBudget,
-    fields.budgetPerPerson,
-    fields.budgetPerPersonHint,
     fields.travelerCountValue,
     fields.travelerCountMinus,
     fields.travelerCountPlus,
@@ -40,6 +37,7 @@ document.addEventListener("DOMContentLoaded", function () {
   let selectedCompanion = "";
   let selectedDestination = null;
   let saving = false;
+  let bookingResumeCompleted = false;
   let calendarViewDate = new Date();
   let destinationSearchTimer = null;
   let travelerCount = 1;
@@ -137,6 +135,19 @@ document.addEventListener("DOMContentLoaded", function () {
     sessionStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
   }
 
+  function discardAbandonedBookingResume() {
+    if (!bookingResume || bookingResumeCompleted) return;
+    sessionStorage.removeItem(PENDING_BOOKING_KEY);
+    const previousDraft = sessionStorage.getItem(BOOKING_RESUME_DRAFT_BACKUP_KEY);
+    if (previousDraft) sessionStorage.setItem(DRAFT_KEY, previousDraft);
+    else sessionStorage.removeItem(DRAFT_KEY);
+    sessionStorage.removeItem(BOOKING_RESUME_DRAFT_BACKUP_KEY);
+  }
+
+  /* 예약에서 시작한 베이직 입력은 정상 제출 전까지만 임시 데이터다. 다른 페이지 이동,
+     뒤로가기, 탭 닫기 시에는 예약 대기 정보와 이 화면에서 고른 값을 남기지 않는다. */
+  window.addEventListener("pagehide", discardAbandonedBookingResume);
+
   function isAiPlan() {
     return (readDraft().plan || {}).mode === "AI";
   }
@@ -207,12 +218,8 @@ document.addEventListener("DOMContentLoaded", function () {
     fields.duration.textContent = nights + "박 " + (nights + 1) + "일";
   }
 
-  function updateBudgetSummary() {
-    const totalBudget = Number(fields.totalBudget.value) || 0;
-    const budgetPerPerson = Math.floor(totalBudget / travelerCount);
-    fields.budgetPerPerson.value = String(budgetPerPerson);
+  function updateTravelerCount() {
     fields.travelerCountValue.textContent = travelerCount + "명";
-    fields.budgetPerPersonHint.textContent = "1인당 약 " + budgetPerPerson.toLocaleString("ko-KR") + "원";
     fields.travelerCountMinus.disabled = travelerCount <= 1;
     fields.travelerCountPlus.disabled = selectedCompanion === "ALONE" || travelerCount >= MAX_TRAVELERS;
   }
@@ -308,7 +315,7 @@ document.addEventListener("DOMContentLoaded", function () {
       candidate.classList.toggle("selected", selected);
       candidate.setAttribute("aria-pressed", String(selected));
     });
-    updateBudgetSummary();
+    updateTravelerCount();
     setError("companionError", "");
   }
 
@@ -383,13 +390,11 @@ document.addEventListener("DOMContentLoaded", function () {
 
   function validate() {
     let valid = true;
-    ["destinationError", "startDateError", "endDateError", "companionError", "budgetError"].forEach(function (id) {
+    ["destinationError", "startDateError", "endDateError", "companionError"].forEach(function (id) {
       setError(id, "");
     });
     fields.message.textContent = "";
     fields.message.classList.remove("is-error", "is-success");
-    const budgetInput = document.querySelector(".budget-input");
-    if (budgetInput) budgetInput.classList.remove("is-error");
 
     if (!fields.destination.value.trim()) {
       setError("destinationError", "여행 목적지를 입력해주세요.");
@@ -424,13 +429,6 @@ document.addEventListener("DOMContentLoaded", function () {
       setError("companionError", "동행자 유형을 선택해주세요.");
       valid = false;
     }
-    const budgetValue = fields.totalBudget.value.trim();
-    const budget = Number(budgetValue);
-    if (!budgetValue || !Number.isFinite(budget) || budget < 0) {
-      if (budgetInput) budgetInput.classList.add("is-error");
-      setError("budgetError", "");
-      valid = false;
-    }
     if (!Number.isInteger(travelerCount) || travelerCount < 1 || travelerCount > MAX_TRAVELERS) {
       setError("companionError", "여행 인원은 1명부터 최대 20명까지 선택할 수 있습니다.");
       valid = false;
@@ -452,8 +450,6 @@ document.addEventListener("DOMContentLoaded", function () {
       endDate: fields.endDate.value,
       companion: selectedCompanion,
       travelerCount: travelerCount,
-      totalBudget: Number(fields.totalBudget.value),
-      budgetPerPerson: Number(fields.budgetPerPerson.value),
     };
   }
 
@@ -490,9 +486,6 @@ document.addEventListener("DOMContentLoaded", function () {
 
       // 직접 계획하기에서는 스타일 입력 단계를 거치지 않음
       purpose: null,
-
-      budgetAmount:
-          Number(basic.totalBudget || 0),
 
       currencyCode: "KRW",
 
@@ -592,7 +585,7 @@ document.addEventListener("DOMContentLoaded", function () {
           candidate.classList.remove("selected");
           candidate.setAttribute("aria-pressed", "false");
         });
-        updateBudgetSummary();
+        updateTravelerCount();
         return;
       }
       selectCompanion(button, true);
@@ -653,37 +646,18 @@ document.addEventListener("DOMContentLoaded", function () {
       if (fields.destinationTrigger) fields.destinationTrigger.setAttribute("aria-expanded", "false");
     }
   });
-  document.querySelectorAll("[data-budget]").forEach(function (button) {
-    button.addEventListener("click", function () {
-      fields.totalBudget.value = button.dataset.budget;
-      document.querySelectorAll("[data-budget]").forEach(function (candidate) {
-        candidate.classList.toggle("is-selected", candidate === button);
-      });
-      updateBudgetSummary();
-      setError("budgetError", "");
-      fields.totalBudget.closest(".budget-input").classList.remove("is-error");
-    });
-  });
-  fields.totalBudget.addEventListener("input", function () {
-    document.querySelectorAll("[data-budget]").forEach(function (candidate) {
-      candidate.classList.remove("is-selected");
-    });
-    updateBudgetSummary();
-    setError("budgetError", "");
-    fields.totalBudget.closest(".budget-input").classList.remove("is-error");
-  });
   fields.travelerCountMinus.addEventListener("click", function () {
     travelerCount = Math.max(1, travelerCount - 1);
-    updateBudgetSummary();
+    updateTravelerCount();
   });
   fields.travelerCountPlus.addEventListener("click", function () {
     if (selectedCompanion === "ALONE") {
       travelerCount = 1;
-      updateBudgetSummary();
+      updateTravelerCount();
       return;
     }
     travelerCount = Math.min(MAX_TRAVELERS, travelerCount + 1);
-    updateBudgetSummary();
+    updateTravelerCount();
   });
   const rangePrev = document.querySelector("#rangeCalendarPrev");
   const rangeNext = document.querySelector("#rangeCalendarNext");
@@ -742,11 +716,21 @@ document.addEventListener("DOMContentLoaded", function () {
 
         writeDraft(draft);
 
-        // 기본정보 저장 후 바로 일정 화면으로 이동
-        window.location.href =
-            "/trips/" +
-            tripId +
-            "/schedule";
+        /* 예약은 스케줄을 최종 저장하기 전까지 여행과 분리한다. 여기서는 DRAFT 여행만
+           만들고, 예약 묶음은 스케줄의 "여행 저장하기" 성공 시점에 연결한다. */
+        if (bookingResume && sessionStorage.getItem(PENDING_BOOKING_KEY)) {
+          bookingResumeCompleted = true;
+          window.location.href =
+              "/trips/" +
+              encodeURIComponent(tripId) +
+              "/schedule?resumeBooking=1";
+        } else {
+          // 기본정보 저장 후 바로 일정 화면으로 이동
+          window.location.href =
+              "/trips/" +
+              tripId +
+              "/schedule";
+        }
 
         return;
       }
@@ -785,6 +769,8 @@ document.addEventListener("DOMContentLoaded", function () {
   });
 
   const saved = readDraft().basic || {};
+  /* 예약에서 넘어온 인원 수로 동행 관계를 추측하지 않고 매번 사용자가 직접 선택한다. */
+  if (bookingResume) saved.companion = "";
   updateFlowUi();
   if (!saved.title || saved.titleAutoGenerated !== false) {
     saved.title = buildAutoTitle(saved.destinationLabel || saved.destination, saved.startDate);
@@ -811,13 +797,12 @@ document.addEventListener("DOMContentLoaded", function () {
   fields.startDate.value = saved.startDate || "";
   fields.endDate.value = saved.endDate || "";
   travelerCount = Math.min(MAX_TRAVELERS, Math.max(1, Number(saved.travelerCount) || 1));
-  fields.totalBudget.value = saved.totalBudget ?? "";
   if (saved.companion) {
     const savedButton = document.querySelector('[data-companion="' + saved.companion + '"]');
     if (savedButton) selectCompanion(savedButton, false);
   }
   updateDuration();
-  updateBudgetSummary();
+  updateTravelerCount();
   if (fields.startDate.value) {
     const savedStart = parseDate(fields.startDate.value);
     calendarViewDate = new Date(savedStart.getFullYear(), savedStart.getMonth(), 1);

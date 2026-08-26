@@ -73,8 +73,7 @@ class CsrfSecurityIntegrationTest {
                   "startDate": "2026-08-10",
                   "endDate": "2026-08-12",
                   "companionType": "COUPLE",
-                  "companionCount": 2,
-                  "budgetAmount": 300000
+                  "companionCount": 2
                 }
                 """;
 

@@ -3,21 +3,21 @@
 <mapper namespace="org.example.all_my_trip_project.domain.trip.mapper.TripMapper">
     <sql id="columns">
         trip_id, user_id, title, destination_name, start_date, end_date,
-        companion_type, companion_count, purpose, budget_amount, currency_code,
+        companion_type, companion_count, purpose, currency_code,
         transport_preference, food_preference, pace, accommodation_style,
-        status, source, created_at, updated_at, deleted_at
+        status, source, booking_confirmed_at, created_at, updated_at, deleted_at
     </sql>
 
     <insert id="insert" useGeneratedKeys="true" keyProperty="tripId" keyColumn="trip_id">
         INSERT INTO trips (
             user_id, title, destination_name, start_date, end_date,
-            companion_type, companion_count, purpose, budget_amount, currency_code,
+            companion_type, companion_count, purpose, currency_code,
             transport_preference, food_preference, pace, accommodation_style,
             status, source
         ) VALUES (
             #{userId}, #{title}, #{destinationName}, #{startDate}, #{endDate},
             #{companionType}, COALESCE(#{companionCount}, 1), #{purpose},
-            #{budgetAmount}, COALESCE(#{currencyCode}, 'KRW'),
+            COALESCE(#{currencyCode}, 'KRW'),
             #{transportPreference}, #{foodPreference}, #{pace},
             #{accommodationStyle}, COALESCE(#{status}, 'DRAFT'),
             COALESCE(#{source}, 'MANUAL')
@@ -41,12 +41,25 @@
         SET title = #{title}, destination_name = #{destinationName},
             start_date = #{startDate}, end_date = #{endDate},
             companion_type = #{companionType}, companion_count = #{companionCount},
-            purpose = #{purpose}, budget_amount = #{budgetAmount},
-            currency_code = #{currencyCode},
+            purpose = #{purpose}, currency_code = #{currencyCode},
             transport_preference = #{transportPreference},
             food_preference = #{foodPreference}, pace = #{pace},
             accommodation_style = #{accommodationStyle}, status = #{status},
             updated_at = CURRENT_TIMESTAMP(6)
+        WHERE trip_id = #{tripId} AND deleted_at IS NULL
+    </update>
+
+    <update id="confirmBooking">
+        UPDATE trips
+        SET booking_confirmed_at = CURRENT_TIMESTAMP,
+            updated_at = CURRENT_TIMESTAMP
+        WHERE trip_id = #{tripId} AND deleted_at IS NULL
+    </update>
+
+    <update id="clearBookingConfirmation">
+        UPDATE trips
+        SET booking_confirmed_at = NULL,
+            updated_at = CURRENT_TIMESTAMP
         WHERE trip_id = #{tripId} AND deleted_at IS NULL
     </update>
 

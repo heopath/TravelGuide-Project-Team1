@@ -67,7 +67,7 @@ function loadModule(w, handlers) {
   return w.__initTickets;
 }
 
-async function boot(responder, toasts) {
+async function bootPreview(responder, toasts) {
   const dom = new JSDOM(fs.readFileSync(HTML, "utf8"), {
     url: "http://localhost/mypage", runScripts: "outside-only",
   });
@@ -101,6 +101,7 @@ async function bootHistory(responder, toasts) {
   const w = dom.window;
   w.eval(fs.readFileSync(DIALOG, "utf8"));
   w.eval(fs.readFileSync(PAYMENT_METHODS, "utf8"));
+  w.eval(fs.readFileSync(CHECKOUT, "utf8"));
   const calls = [];
   loadModule(w, {
     request: async (url, options = {}) => {
@@ -134,6 +135,7 @@ const picks = (d) => [...d.querySelectorAll("[data-ticket-pick]")];
 const detailText = (d) => d.querySelector("[data-ticket-detail]")?.textContent || "";
 
 const rows = (d) => [...d.querySelectorAll("[data-ticket-row]")];
+const previewRows = (d) => [...d.querySelectorAll("[data-ticket-list] .mypage-ticket-item")];
 
 async function run() {
   /* ── 마크업 ── */
@@ -147,37 +149,40 @@ async function run() {
   /* ── 목록 ── */
   {
     const toasts = [];
-    const { d, calls } = await boot((url) => {
-      if (url.startsWith("/api/v1/ticket-reservations")) return [ticket()];
-      if (url.startsWith("/api/v1/trips")) return { items: [trip()] };
+    const { d, calls } = await bootPreview((url) => {
+      if (url === "/api/v1/my-bookings") return { items: [{
+        type: "TICKET", referenceId: "5", title: "제주 아쿠아리움 입장권",
+        detail: "성인 입장권 · 2매", status: "CONFIRMED", statusLabel: "결제 완료",
+        usageDate: "2026-09-15", amount: 40000, currency: "KRW", tripTitle: null,
+      }] };
       return null;
     }, toasts);
 
     test("여행별이 아니라 사용자 기준으로 부른다",
-      calls.some((c) => c.url === "/api/v1/ticket-reservations"),
+      calls.some((c) => c.url === "/api/v1/my-bookings"),
       calls.map((c) => c.url).join(" | "));
     test("tripId를 붙이지 않는다",
-      !calls.some((c) => c.url.includes("ticket-reservations?tripId")));
-    test("티켓 한 건을 보여준다", rows(d).length === 1);
+      !calls.some((c) => c.url.includes("?tripId")));
+    test("티켓 한 건을 보여준다", previewRows(d).length === 1);
     test("상품명·옵션·이용일·수량·금액을 보여준다",
-      rows(d)[0].textContent.includes("제주 아쿠아리움 입장권")
-      && rows(d)[0].textContent.includes("성인 입장권")
-      && rows(d)[0].textContent.includes("2026.09.15 10:00")
-      && rows(d)[0].textContent.includes("2매")
-      && rows(d)[0].textContent.includes("40,000원"));
-    test("예약번호를 보여준다",
-      rows(d)[0].textContent.includes("AMT-TKT-ABC123DEF456"));
+      previewRows(d)[0].textContent.includes("제주 아쿠아리움 입장권")
+      && previewRows(d)[0].textContent.includes("성인 입장권")
+      && previewRows(d)[0].textContent.includes("2026-09-15")
+      && previewRows(d)[0].textContent.includes("2매")
+      && previewRows(d)[0].textContent.includes("40,000원"));
+    test("아직 여행에 연결되지 않은 예약임을 보여준다",
+      previewRows(d)[0].textContent.includes("여행 일정에 연결되지 않음"));
     test("상태를 사람 말로 보여준다",
-      rows(d)[0].querySelector("[data-ticket-status]").textContent === "결제 완료");
+      previewRows(d)[0].querySelector("[data-ticket-status]").textContent === "결제 완료");
     test("입장 코드는 보여주지 않는다",
-      !rows(d)[0].textContent.includes("입장 코드"));
+      !previewRows(d)[0].textContent.includes("입장 코드"));
   }
 
   /* ── 여행 연결 ── */
   {
     const toasts = [];
     let patched = null;
-    const { d, calls } = await boot((url, options) => {
+    const { d, calls } = await bootHistory((url, options) => {
       if (url.includes("/trip") && options.method === "PATCH") {
         patched = JSON.parse(options.body);
         return {};
@@ -207,7 +212,7 @@ async function run() {
   /* ── 이용일에 맞는 여행이 없을 때 ── */
   {
     const toasts = [];
-    const { d } = await boot((url) => {
+    const { d } = await bootHistory((url) => {
       if (url.startsWith("/api/v1/ticket-reservations")) return [ticket()];
       /* 8월 여행뿐이라 9월 티켓을 붙일 수 없다. */
       if (url.startsWith("/api/v1/trips")) {
@@ -225,7 +230,7 @@ async function run() {
   /* ── 끝난 티켓 ── */
   {
     const toasts = [];
-    const { d } = await boot((url) => {
+    const { d } = await bootHistory((url) => {
       if (url.startsWith("/api/v1/ticket-reservations")) return [ticket({ status: "CANCELLED" })];
       if (url.startsWith("/api/v1/trips")) return { items: [trip()] };
       return null;
@@ -246,7 +251,7 @@ async function run() {
       /* 취소된 티켓은 섞여 있어도 QR을 만들면 안 된다. */
       { issuedTicketId: 13, ticketNumber: "AMT-TKN-000000000013", status: "CANCELLED" },
     ];
-    const { d, calls } = await boot((url, options) => {
+    const { d, calls } = await bootHistory((url, options) => {
       if (url.includes("/qr") && options.method === "POST") {
         const id = Number(url.match(/tickets\/(\d+)\/qr/)[1]);
         return {
@@ -288,7 +293,7 @@ async function run() {
   }
   {
     const toasts = [];
-    const { d } = await boot((url) => {
+    const { d } = await bootHistory((url) => {
       if (url.startsWith("/api/v1/ticket-reservations")) return [ticket({ status: "PENDING" })];
       if (url.startsWith("/api/v1/trips")) return { items: [] };
       return null;
@@ -308,7 +313,7 @@ async function run() {
       status: "PENDING",
       expiresAt: new Date(Date.now() + 9 * 60 * 1000).toISOString(),
     });
-    const { d, calls } = await boot((url, options) => {
+    const { d, calls } = await bootHistory((url, options) => {
       if (url.includes("/payment") && options.method === "POST") {
         paid = JSON.parse(options.body);
         return {};
@@ -377,7 +382,7 @@ async function run() {
     let paidDirectly = false;
     let qrIssued = 0;
     let approved = false;
-    const { d } = await boot((url, options) => {
+    const { d } = await bootHistory((url, options) => {
       if (url.includes("/payment/qr") && options.method === "POST") {
         qrIssued += 1;
         const now = new Date();
@@ -442,7 +447,7 @@ async function run() {
     /* 창을 닫으면 더 묻지 않는다. 남겨 두면 화면을 떠난 뒤에도 계속 요청이 나간다. */
     const toasts = [];
     let ticketCalls = 0;
-    const { d } = await boot((url, options) => {
+    const { d } = await bootHistory((url, options) => {
       if (url.includes("/payment/qr") && options.method === "POST") {
         const now = new Date();
         return {
@@ -475,7 +480,7 @@ async function run() {
   {
     /* 만료 시각이 지난 예약은 자리가 이미 반납됐을 수 있다. 그 사실을 밝힌다. */
     const toasts = [];
-    const { d } = await boot((url) => {
+    const { d } = await bootHistory((url) => {
       if (url.startsWith("/api/v1/ticket-reservations")) {
         return [ticket({ status: "PENDING", expiresAt: new Date(Date.now() - 1000).toISOString() })];
       }
@@ -490,32 +495,31 @@ async function run() {
   /* ── 빈 목록과 실패 ── */
   {
     const toasts = [];
-    const { d } = await boot((url) => {
+    const { d } = await bootHistory((url) => {
       if (url.startsWith("/api/v1/ticket-reservations")) return [];
       if (url.startsWith("/api/v1/trips")) return { items: [] };
       return null;
     }, toasts);
 
     test("티켓이 없으면 안내를 띄운다",
-      d.querySelector("[data-ticket-empty]").hidden === false
-      && d.querySelector("[data-ticket-empty-title]").textContent.includes("아직 예약 내역이 없어요"));
+      d.querySelector("[data-ticket-picker]").textContent.includes("아직 예약 내역이 없어요"));
   }
   {
     const toasts = [];
-    const { d } = await boot((url) => {
+    const { d } = await bootHistory((url) => {
       if (url.startsWith("/api/v1/ticket-reservations")) throw new Error("불러오지 못했습니다");
       return null;
     }, toasts);
 
     /* "없음"과 "실패"가 같은 화면으로 보이면 안 된다. */
     test("불러오기 실패는 없음과 다르게 알린다",
-      d.querySelector("[data-ticket-empty-title]").textContent.includes("불러오지 못했어요"));
+      d.querySelector("[data-ticket-picker]").textContent.includes("불러오지 못했어요"));
   }
 
   /* ── 여행 목록 조회가 실패해도 티켓은 보인다 ── */
   {
     const toasts = [];
-    const { d } = await boot((url) => {
+    const { d } = await bootHistory((url) => {
       if (url.startsWith("/api/v1/ticket-reservations")) return [ticket()];
       if (url.startsWith("/api/v1/trips")) throw new Error("여행 목록 실패");
       return null;

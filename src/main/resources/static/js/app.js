@@ -379,16 +379,6 @@ const ALL_MY_TRIPS_SCREENS = [
     "마이페이지 · 계정 설정",
     "mypage"
   ],
-  [
-    /*
-     * 기록 화면은 schedule과 달리 tripId 없이 여는 경로가 없고, record.js도
-     * 여행 목록에서 대신 골라주지 않는다(없으면 "잘못된 여행 정보입니다"를 띄운다).
-     * 그래서 실제 번호로 둔다. 여행이 하나도 없는 환경에서는 안내 문구가 보인다.
-     */
-    "/trips/1/record",
-    "여행 기록",
-    "trips"
-  ],
   /* 관리자 진입 주소는 오늘 처리할 업무를 모은 운영 홈을 연다. */
   [
     "/admin",
@@ -453,6 +443,11 @@ const ALL_MY_TRIPS_SCREENS = [
     "admin"
   ],
   [
+    "/admin?panel=apikeys",
+    "관리자 · API 키 관리",
+    "admin"
+  ],
+  [
     "/admin?panel=members",
     "관리자 · 회원 관리",
     "admin"
@@ -468,7 +463,6 @@ const MODALS = {
   destination: ["M01", "목적지 검색", "도시, 국가 또는 공항을 검색하세요.", "파리, 바르셀로나, 도쿄 중 원하는 목적지를 선택할 수 있습니다."],
   date: ["M02", "날짜 선택", "최대 30일까지 선택할 수 있어요.", "2026.08.12 → 2026.08.19 · 7박 8일"],
   guests: ["M03", "인원 선택", "여행 인원과 객실 수를 선택하세요.", "성인 2명 · 아동 0명 · 객실 1개"],
-  terms: ["M04", "약관 상세", "서비스 이용 전 필수 내용을 확인해 주세요.", "서비스 이용 및 개인정보 처리 약관입니다."],
   "new-trip": ["M05", "새 여행 만들기", "여행 이름과 기간을 정해 주세요.", "2026 여름 부산 여행"],
   "add-place": ["M06", "일정에 장소 추가", "원하는 날짜와 시간에 장소를 추가하세요.", "해운대 블루라인파크 · DAY 1"],
   conflict: ["M07", "일정 충돌 경고", "시간이 겹치는 일정이 있어 확인이 필요합니다.", "감천문화마을을 16:30으로 이동하는 것을 추천합니다."],
@@ -559,7 +553,105 @@ function showToast(message) {
   window.setTimeout(function () { root.innerHTML = ""; }, 2400);
 }
 
-function openDirectory() {
+/*
+ * ☰ 메뉴.
+ *
+ * 좁은 화면(<=760px)에서는 헤더의 nav·아바타·로그인 버튼이 전부 숨겨져(components.css)
+ * 이 메뉴가 유일한 길이 된다. 그래서 여기에는 "실제로 갈 곳"만 둔다.
+ *
+ * 화면 목록(ALL_MY_TRIPS_SCREENS)은 검수·시연용이라 이 메뉴에서 뺐다. 주소에
+ * ?screens=1을 붙이면 종전 목록이 그대로 열린다 — openDirectory 참고.
+ *
+ * prefix는 현재 위치 표시에 쓴다. 경로를 그대로 비교하면 /trips/new/basic에 있을 때
+ * "여행 계획"이 꺼진 것처럼 보인다. 헤더 nav도 같은 방식(data-prefix)을 쓴다.
+ *
+ * 로그아웃은 넣지 않는다. 헤더의 로그아웃 버튼은 좁은 화면에서도 숨겨지지 않는다.
+ */
+const ALL_MY_TRIPS_MENU = [
+  {
+    title: "둘러보기",
+    items: [
+      { name: "메인", path: "/home", prefix: "/home" },
+      { name: "여행 계획", path: "/trips/new/plan", prefix: "/trips" },
+      { name: "추천 장소", path: "/guide", prefix: "/guide" },
+      { name: "예약", path: "/booking", prefix: "/booking" },
+    ],
+  },
+  {
+    title: "내 계정",
+    items: [
+      { name: "로그인", path: "/auth/login", prefix: "/auth/login", guest: true },
+      { name: "회원가입", path: "/auth/signup", prefix: "/auth/signup", guest: true },
+      { name: "마이 페이지", path: "/mypage", prefix: "/mypage", member: true },
+    ],
+  },
+  {
+    title: "관리",
+    items: [
+      { name: "관리자", path: "/admin", prefix: "/admin", admin: true },
+    ],
+  },
+];
+
+function menuGroupsFor(isAuthenticated, userRole) {
+  return ALL_MY_TRIPS_MENU
+    .map(function (group) {
+      const items = group.items.filter(function (item) {
+        if (item.guest) return !isAuthenticated;
+        if (item.member) return isAuthenticated;
+        if (item.admin) return isAuthenticated && userRole === "ADMIN";
+        return true;
+      });
+      return { title: group.title, items: items };
+    })
+    // 관리 그룹은 관리자가 아니면 항목이 전부 빠진다. 제목만 남기면 빈 칸이 생긴다.
+    .filter(function (group) { return group.items.length > 0; });
+}
+
+function openMenu() {
+  const root = roots().directory;
+  if (!root) return;
+
+  const isAuthenticated =
+      document.documentElement.dataset.authenticated === "true";
+
+  const userRole =
+      document.documentElement.dataset.userRole || "";
+
+  const groups = menuGroupsFor(isAuthenticated, userRole);
+  const current = document.body.dataset.route || "";
+
+  root.innerHTML = `
+    <div class="drawer-backdrop">
+      <aside class="screen-directory">
+        <div class="drawer-head">
+          <div>
+            <span>MENU</span>
+            <h2>메뉴</h2>
+          </div>
+          <button data-directory-close>×</button>
+        </div>
+        ${groups.map(function (group) {
+    return "<section><h3>" + group.title + "</h3>" + group.items.map(function (item) {
+      const active = current === item.path || current.indexOf(item.prefix + "/") === 0
+          || current === item.prefix;
+      return '<button class="' + (active ? "active" : "") + '" data-route="' + item.path
+          + '"><span>•</span><b>' + item.name + "</b><em>›</em></button>";
+    }).join("") + "</section>";
+  }).join("")}
+      </aside>
+    </div>
+  `;
+}
+
+/**
+ * 검수·시연용 전체 화면 목록. 주소에 ?screens=1이 있을 때만 연다.
+ *
+ * 여기 담긴 경로에는 쿼리 변형(?panel= 등)과 고정 번호(/booking/tickets/1)가 섞여 있다.
+ * 열어 보라고 만든 목록이라 없는 자료를 가리키면 화면이 안내 문구를 띄운다. 그래서
+ * 손님이 쓰는 메뉴와는 따로 둔다.
+ */
+function openScreenDirectory() {
   const root = roots().directory;
   if (!root) return;
 
@@ -614,6 +706,13 @@ function openDirectory() {
       </aside>
     </div>
   `;
+}
+
+/** ☰가 여는 것. 평소에는 메뉴, ?screens=1일 때만 전체 화면 목록. */
+function openDirectory() {
+  const screensMode =
+      new URLSearchParams(window.location.search).get("screens") === "1";
+  return screensMode ? openScreenDirectory() : openMenu();
 }
 
 function closeDirectory() {

@@ -4,9 +4,13 @@
 
 | 기능 | 호출 방식 | 역할 |
 | --- | --- | --- |
-| 여행 AI 가이드 | `OpenAiAiModelClient`의 OpenAI Responses API | 여행·일정·실제 장소 기반 추천 |
+| 여행 AI 가이드 | `OpenAiAiModelClient`의 OpenAI Responses API (`/v1/responses`) | 여행·일정·실제 장소 기반 추천 |
 | 고객센터 챗봇 | `SupportChatBotClient`의 Gemini REST API | 서비스 이용 문의 응대 및 상담원 전환 |
 | RAG | Spring AI `EmbeddingModel`·`PgVectorStore` | OpenAI `text-embedding-3-small` 임베딩을 pgvector에 저장·검색 |
+
+모델과 시간 제한은 설정으로 바꾼다. 여행 가이드는 `openai.chat.model`, 임베딩은 `openai.embedding.model`·`openai.embedding.dimensions`이며 기본값은 `application-ai.properties`와 `application-*-ai-rag.properties`에 있다. API 키는 `OPENAI_API_KEY`·`GEMINI_API_KEY` 환경변수로 넣는다.
+
+두 기능이 서로 다른 공급자를 쓰는 이유는 성격이 달라서다. 여행 가이드는 일정·장소를 다루는 긴 추론과 정해진 형식의 응답이 필요하고, 고객센터 챗봇은 짧은 문의 응대와 상담원 전환 판단이 필요하다. 프롬프트·응답 형식·장애 처리 정책이 함께 가지 않으므로 한 클라이언트로 묶지 않는다.
 
 ## Spring AI `ChatModel`
 
@@ -16,4 +20,6 @@
 
 ## 의존성 원칙
 
-Spring AI는 RAG용 벡터 저장소와 임베딩 인터페이스에만 유지한다. 채팅 모델은 Spring AI `ChatModel`이 아니라 각 도메인의 REST 클라이언트가 직접 호출하며, `OpenAiEmbeddingModel`이 OpenAI 임베딩 API를 제공한다.
+Spring AI는 RAG용 벡터 저장소와 임베딩 인터페이스에만 유지한다. 채팅 모델은 Spring AI `ChatModel`이 아니라 각 도메인의 REST 클라이언트가 직접 호출하며, Google GenAI 채팅/임베딩 Starter는 사용하지 않는다. OpenAI 임베딩은 `OpenAiEmbeddingModel`이 REST API로 제공한다.
+
+임베딩 모델을 바꾸면 벡터 차원이 달라진다. pgvector 열의 차원과 이미 저장된 벡터가 함께 어긋나므로, 모델 교체는 재색인 계획을 세운 뒤에 진행한다.

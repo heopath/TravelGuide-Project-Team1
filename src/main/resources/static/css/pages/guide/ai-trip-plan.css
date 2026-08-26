@@ -68,6 +68,19 @@ body.page-ai-trip-plan .page-shell.ai-plan-shell { width: min(1480px, calc(100vw
 .plan-loading { min-height: 378px; display: grid; place-items: center; align-content: center; gap: 10px; color: var(--muted); font-size: 13px; text-align: center; }
 .plan-loading span { color: var(--primary); font-size: 29px; animation: plan-pulse 1s ease-in-out infinite; }
 .plan-loading p { margin: 0; }
+
+/* 진행률 막대. 초안 만들기(예상)와 저장 중 장소 확인(실제)이 같은 모양을 쓴다. */
+.plan-progress { width: min(280px, 100%); display: flex; align-items: center; gap: 10px; }
+.plan-progress-bar { flex: 1; height: 6px; border-radius: 999px; background: rgba(0, 0, 0, .08); overflow: hidden; }
+.plan-progress-bar > span { display: block; width: 0; height: 100%; border-radius: inherit; background: var(--primary); transition: width .25s ease; }
+/* 0으로 되돌릴 때는 전환을 끈다. 안 끄면 막대가 뒤로 미끄러져 되감기는 것처럼 보인다. */
+.plan-progress-bar > span.plan-progress-instant { transition: none; }
+.plan-progress > strong { min-width: 46px; color: var(--navy); font-size: 12px; font-variant-numeric: tabular-nums; text-align: right; }
+.plan-progress-note { color: var(--muted); font-size: 11px; }
+
+/* 저장 버튼 아래. 누르기 전에는 자리를 차지하지 않는다. */
+.plan-save-progress { margin-top: 10px; display: flex; justify-content: center; }
+.plan-save-progress[hidden] { display: none !important; }
 .plan-error { margin: 80px auto; padding: 22px; border-radius: 14px; background: #fff0f2; color: var(--danger); text-align: center; }
 .plan-error p { margin: 8px 0 16px; color: #a35a66; font-size: 13px; }
 .plan-error .outline-button { min-height: 40px; border-color: #e6a3ad; color: var(--danger); }

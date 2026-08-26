@@ -169,6 +169,9 @@ public class TicketService {
                 .build();
         ticketDAO.insertReservation(reservation);
         ticketDAO.insertReservationItem(reservation);
+        if (request.tripId() != null) {
+            tripDAO.clearBookingConfirmation(request.tripId());
+        }
         return reservation;
     }
 
@@ -202,6 +205,7 @@ public class TicketService {
         }
         TicketReservationDTO reservation = ticketDAO.findForCancel(userId, reservationId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.TICKET_RESERVATION_NOT_FOUND));
+        Long previousTripId = reservation.getTripId();
         /* 취소된 예약을 여행에 붙이면 일정에 없는 티켓이 얹힌다. */
         if ("CANCELLED".equals(reservation.getStatus()) || "EXPIRED".equals(reservation.getStatus())) {
             throw new BusinessException(ErrorCode.TICKET_CANCEL_NOT_ALLOWED);
@@ -214,6 +218,12 @@ public class TicketService {
         }
         if (ticketDAO.updateReservationTrip(userId, reservationId, tripId) != 1) {
             throw new BusinessException(ErrorCode.TICKET_RESERVATION_NOT_FOUND);
+        }
+        if (previousTripId != null) {
+            tripDAO.clearBookingConfirmation(previousTripId);
+        }
+        if (tripId != null && !tripId.equals(previousTripId)) {
+            tripDAO.clearBookingConfirmation(tripId);
         }
         reservation.setTripId(tripId);
         return reservation;
@@ -288,9 +298,14 @@ public class TicketService {
         if ("CANCELLED".equals(reservation.getStatus())) {
             return new TicketCancelResponse(reservation, false, 0);
         }
-        if ("PENDING".equals(reservation.getStatus())) return cancelPending(reservation);
-        if ("CONFIRMED".equals(reservation.getStatus())) return refund(reservation);
-        throw new BusinessException(ErrorCode.TICKET_CANCEL_NOT_ALLOWED);
+        TicketCancelResponse response;
+        if ("PENDING".equals(reservation.getStatus())) response = cancelPending(reservation);
+        else if ("CONFIRMED".equals(reservation.getStatus())) response = refund(reservation);
+        else throw new BusinessException(ErrorCode.TICKET_CANCEL_NOT_ALLOWED);
+        if (reservation.getTripId() != null) {
+            tripDAO.clearBookingConfirmation(reservation.getTripId());
+        }
+        return response;
     }
 
     private TicketCancelResponse cancelPending(TicketReservationDTO reservation) {

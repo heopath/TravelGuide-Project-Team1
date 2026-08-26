@@ -12,6 +12,7 @@ import org.example.all_my_trip_project.domain.ai.dto.AiTripPlanSaveResult;
 import org.example.all_my_trip_project.domain.trip.dao.ItineraryItemDAO;
 import org.example.all_my_trip_project.domain.place.dao.PlaceDAO;
 import org.example.all_my_trip_project.domain.place.dto.PlaceDTO;
+import org.example.all_my_trip_project.domain.place.service.KoreanAddress;
 import org.example.all_my_trip_project.domain.trip.dao.TripDAO;
 import org.example.all_my_trip_project.domain.trip.dao.TripDayDAO;
 import org.example.all_my_trip_project.domain.trip.dto.ItineraryItemDTO;
@@ -80,7 +81,6 @@ public class AiTripPlanPersistenceService {
                 .companionType(companionType(conditions.companion()))
                 .companionCount(conditions.travelers())
                 .purpose(requiredText(conditions.purpose(), "여행 목적", 500))
-                .budgetAmount(conditions.budgetAmount())
                 .currencyCode("KRW")
                 .transportPreference(requiredText(conditions.transportPreference(), "이동 선호", 100))
                 .foodPreference(requiredText(conditions.foodPreference(), "음식 선호", 255))
@@ -176,6 +176,10 @@ public class AiTripPlanPersistenceService {
                 .category(placeCategory(resolved.category(), recommendation.category()))
                 .name(requiredText(resolved.name(), "장소명", 150))
                 .countryCode("KR")
+                // 카카오 검색 경로와 같은 규칙으로 끊는다. 여기서 비워 보내면 AI 일정으로
+                // 들어온 장소만 지역 필터 검색에서 빠진다.
+                .region(KoreanAddress.region(resolved.address()))
+                .city(KoreanAddress.city(resolved.address()))
                 .address(resolved.address())
                 .latitude(resolved.latitude())
                 .longitude(resolved.longitude())

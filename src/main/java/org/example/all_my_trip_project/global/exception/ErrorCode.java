@@ -39,6 +39,20 @@ public enum ErrorCode {
             "새 비밀번호는 현재 비밀번호와 다르게 설정해주세요."
     ),
 
+    PASSWORD_TOO_SHORT(
+            HttpStatus.BAD_REQUEST,
+            "비밀번호는 8자 이상이어야 합니다."
+    ),
+
+    /*
+     * 만료·사용됨·없는 토큰을 하나로 묶는다. 왜 안 되는지 갈라 알려주면, 토큰을 넣어 보며
+     * 어떤 것이 존재하는지 떠볼 수 있다.
+     */
+    PASSWORD_RESET_TOKEN_INVALID(
+            HttpStatus.BAD_REQUEST,
+            "링크가 만료되었거나 이미 사용되었습니다. 비밀번호 찾기를 다시 시도해 주세요."
+    ),
+
     UNAUTHORIZED(
             HttpStatus.UNAUTHORIZED,
             "로그인이 필요합니다."
@@ -126,7 +140,7 @@ public enum ErrorCode {
 
     ITINERARY_ITEM_LIMIT_EXCEEDED(
             HttpStatus.BAD_REQUEST,
-            "하루 일정은 최대 5개까지 추가할 수 있습니다."
+            "하루 장소는 최대 5곳까지 추가할 수 있습니다."
     ),
 
     ITINERARY_PLACE_ALREADY_ADDED(
@@ -383,6 +397,35 @@ public enum ErrorCode {
             "버전은 0.0.5 또는 v0.0.5 형식으로 입력해 주세요."
     ),
 
+    UNKNOWN_API_KEY(
+            HttpStatus.BAD_REQUEST,
+            "관리 대상이 아닌 API 키입니다."
+    ),
+
+    INVALID_API_KEY(
+            HttpStatus.BAD_REQUEST,
+            "API 키를 입력해 주세요."
+    ),
+
+    API_KEY_CONNECTION_TEST_FAILED(
+            HttpStatus.BAD_REQUEST,
+            "연결 테스트에 실패한 API 키는 저장할 수 없습니다."
+    ),
+
+    /**
+     * 마스터 키가 없으면 저장을 거절한다. 평문으로라도 저장하는 대안은 두지 않는다.
+     * 한 번 평문으로 들어간 키는 아무도 다시 확인하지 않기 때문이다.
+     */
+    API_KEY_ENCRYPTION_UNAVAILABLE(
+            HttpStatus.SERVICE_UNAVAILABLE,
+            "서버에 API_KEY_ENCRYPTION_KEY가 설정되지 않아 키를 저장할 수 없습니다."
+    ),
+
+    API_KEY_NOT_STORED(
+            HttpStatus.NOT_FOUND,
+            "관리자가 저장한 키가 없습니다. 이미 환경변수 값을 쓰고 있습니다."
+    ),
+
     MEMBER_NOT_FOUND(
             HttpStatus.NOT_FOUND,
             "회원을 찾을 수 없습니다."
@@ -483,6 +526,31 @@ public enum ErrorCode {
     TICKET_USAGE_DATE_PASSED(
             HttpStatus.CONFLICT,
             "이용일이 지나 취소할 수 없습니다."
+    ),
+
+    BOOKING_SELECTION_INCOMPLETE(
+            HttpStatus.CONFLICT,
+            "가는 편·오는 편·숙소·티켓을 모두 선택한 뒤 예약을 확정해 주세요."
+    ),
+
+    BOOKING_BATCH_NOT_FOUND(
+            HttpStatus.NOT_FOUND,
+            "확정한 항공·숙소 예약 내역을 찾을 수 없습니다."
+    ),
+
+    BOOKING_BATCH_ALREADY_LINKED(
+            HttpStatus.CONFLICT,
+            "이 예약 내역은 이미 다른 여행에 연결되어 있습니다."
+    ),
+
+    BOOKING_BATCH_TRIP_CONFLICT(
+            HttpStatus.CONFLICT,
+            "여행에 다른 항공·숙소 예약이 이미 연결되어 있습니다."
+    ),
+
+    BOOKING_BATCH_PERIOD_MISMATCH(
+            HttpStatus.CONFLICT,
+            "예약 날짜가 여행 기간에 포함되지 않아 연결할 수 없습니다."
     ),
 
     SUPPORT_CHAT_ROOM_NOT_FOUND(

@@ -360,6 +360,193 @@ body.page-schedule #page-content {
   background: linear-gradient(180deg, #fff 0%, #f7f9ff 100%);
 }
 
+/* 베이직 조건과 일치하는 예약은 일정 목록보다 먼저 확인할 수 있게 보여준다. */
+.schedule-booking-match-panel {
+  margin: 0 0 18px;
+  padding: 13px 18px;
+  border: 1px solid #d9e1f8;
+  border-radius: 16px;
+  background: #f8faff;
+}
+
+.schedule-booking-match-panel[hidden] {
+  display: none;
+}
+
+.schedule-booking-match-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.schedule-booking-match-heading h3 {
+  margin: 0;
+  color: var(--navy);
+  font-size: 16px;
+  line-height: 1.35;
+}
+
+.schedule-booking-match-content {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid #d9e1f8;
+}
+
+.schedule-booking-match-content[hidden] {
+  display: none;
+}
+
+.schedule-booking-match-criteria {
+  margin: 0 0 10px;
+  color: #7784a2;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.schedule-booking-match-toggle {
+  flex: 0 0 auto;
+  min-height: 24px;
+  padding: 0 9px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  border: 0;
+  border-radius: 999px;
+  background: #e9edff;
+  color: var(--primary);
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.schedule-booking-match-toggle:hover {
+  background: #dde3ff;
+}
+
+.schedule-booking-match-toggle:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+.schedule-booking-match-toggle [data-booking-match-toggle-icon] {
+  min-width: 9px;
+  font-size: 14px;
+  line-height: 1;
+}
+
+.schedule-booking-match-list {
+  display: grid;
+  gap: 8px;
+}
+
+.schedule-booking-match-status {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 10px;
+  padding: 12px 14px;
+  border: 1px solid #e0e5f4;
+  border-radius: 12px;
+  background: #f7f8fc;
+}
+
+.schedule-booking-match-status[hidden] {
+  display: none;
+}
+
+.schedule-booking-match-status p {
+  margin: 0;
+  color: #586685;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.schedule-booking-match-status .outline-button {
+  min-height: 32px;
+  flex: 0 0 auto;
+  padding: 0 12px;
+  font-size: 11px;
+}
+
+.schedule-booking-match-row {
+  min-width: 0;
+  padding: 10px 10px 10px 12px;
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid #e0e6f6;
+  border-radius: 12px;
+  background: #fff;
+}
+
+.schedule-booking-match-icon {
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  border-radius: 9px;
+  background: #eef1ff;
+  color: var(--primary);
+  font-size: 16px;
+}
+
+.schedule-booking-match-copy {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.schedule-booking-match-copy strong,
+.schedule-booking-match-copy span,
+.schedule-booking-match-copy small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.schedule-booking-match-copy strong {
+  color: var(--navy);
+  font-size: 13px;
+}
+
+.schedule-booking-match-copy span,
+.schedule-booking-match-copy small {
+  color: #687694;
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.schedule-booking-match-copy small {
+  color: #8a95ad;
+}
+
+.schedule-booking-match-add {
+  min-width: 92px;
+  min-height: 34px;
+  padding: 0 11px;
+  font-size: 11px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.schedule-booking-match-add:disabled {
+  border-color: #dfe4f2;
+  background: #f3f5fa;
+  color: #8d97ad;
+  cursor: default;
+}
+
+.timeline .schedule-item-booking .schedule-item-tag {
+  border-color: #d9e1ff;
+  background: #f1f3ff;
+  color: var(--primary);
+}
+
 .schedule-title-row {
   align-items: flex-start;
 }
@@ -1367,6 +1554,14 @@ body.map-modal-open {
   border-radius: 12px;
   background: #fff;
   box-shadow: 0 16px 36px rgba(37, 48, 94, 0.16), 0 3px 10px rgba(37, 48, 94, 0.08);
+}
+
+.timeline .schedule-item .schedule-time-editor.is-arrival-only .schedule-time-options {
+  display: none !important;
+}
+
+.timeline .schedule-item .schedule-time-editor.is-arrival-only .schedule-time-actions {
+  margin-top: 4px;
 }
 
 .timeline .schedule-item .schedule-time-editor.align-right {
@@ -3867,6 +4062,11 @@ body.place-search-open {
   line-height: 1.25;
 }
 
+.page-schedule .timeline .schedule-item .schedule-item-time.is-arrival-only .schedule-time-end {
+  color: #56617e;
+  font-weight: 800;
+}
+
 .page-schedule .timeline .schedule-item .schedule-item-time.is-complete:hover {
   color: #172344;
 }
@@ -4692,21 +4892,32 @@ body.place-search-open {
   gap: 10px;
 }
 
-.page-schedule .schedule-workspace-footer .schedule-back-button {
-  min-width: 112px;
-  min-height: 44px;
-  padding: 0 18px;
-  display: inline-flex !important;
+.page-schedule .schedule-workspace-footer > .schedule-back-button,
+.page-schedule .schedule-workspace-footer > .schedule-save-button,
+.page-schedule .schedule-workspace-footer > .schedule-booking-button {
+  height: 48px;
+  min-height: 48px;
+  padding-block: 0;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  border: 1px solid #cfd7ec;
+  box-sizing: border-box;
   border-radius: 12px;
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 1;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.page-schedule .schedule-workspace-footer .schedule-back-button {
+  min-width: 112px;
+  padding: 0 18px;
+  display: inline-flex !important;
+  border: 1px solid #cfd7ec;
   background: #fff;
   color: #4f5d7e;
   box-shadow: 0 8px 20px rgba(43, 57, 108, .08);
-  font-size: 12px;
-  font-weight: 900;
-  white-space: nowrap;
 }
 
 .page-schedule .schedule-workspace-footer .schedule-back-button:hover,
@@ -4722,11 +4933,17 @@ body.place-search-open {
     gap: 8px;
   }
 
+  .page-schedule .schedule-workspace-footer > .schedule-back-button,
+  .page-schedule .schedule-workspace-footer > .schedule-save-button,
+  .page-schedule .schedule-workspace-footer > .schedule-booking-button {
+    height: 44px;
+    min-height: 44px;
+    font-size: 12px;
+  }
+
   .page-schedule .schedule-workspace-footer .schedule-back-button {
     min-width: 96px;
-    min-height: 42px;
     padding-inline: 13px;
-    font-size: 11px;
   }
 }
 

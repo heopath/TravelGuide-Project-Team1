@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.example.all_my_trip_project.domain.admin.mapper.ApiKeySettingMapper">
+
+    <select id="findByName" resultType="org.example.all_my_trip_project.global.apikey.ApiKeySetting">
+        SELECT api_key_name, encrypted_value, updated_by, updated_at
+        FROM api_key_settings
+        WHERE api_key_name = #{apiKeyName}
+    </select>
+
+    <select id="findAll" resultType="org.example.all_my_trip_project.global.apikey.ApiKeySetting">
+        SELECT api_key_name, encrypted_value, updated_by, updated_at
+        FROM api_key_settings
+        ORDER BY api_key_name
+    </select>
+
+    <!-- 행이 없어도 관리자가 저장 한 번으로 만들 수 있게 upsert한다. service_settings와 같은 방식이다. -->
+    <insert id="upsert">
+        INSERT INTO api_key_settings (api_key_name, encrypted_value, updated_by)
+        VALUES (#{apiKeyName}, #{encryptedValue}, #{updatedBy})
+        ON CONFLICT (api_key_name) DO UPDATE
+        SET encrypted_value = EXCLUDED.encrypted_value,
+            updated_by = EXCLUDED.updated_by
+    </insert>
+
+    <delete id="delete">
+        DELETE FROM api_key_settings
+        WHERE api_key_name = #{apiKeyName}
+    </delete>
+
+</mapper>

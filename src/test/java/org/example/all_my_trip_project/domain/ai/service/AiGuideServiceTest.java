@@ -166,7 +166,7 @@ class AiGuideServiceTest {
         AiGuideRequest request = new AiGuideRequest("Seongsu cafe", 12L);
         AiGuideContext context = new AiGuideContext(
                 new AiGuideContext.Trip(12L, "Seoul trip", "Seoul", null, null,
-                        null, null, null, null, null, null, null, null, null, List.of()),
+                        null, null, null, null, null, null, null, null, List.of()),
                 List.of()
         );
         AiGuideResponse response = new AiGuideResponse("Cafe result", List.of(), List.of(), List.of());
@@ -193,7 +193,7 @@ class AiGuideServiceTest {
         AiGuideRequest request = new AiGuideRequest("Seongsu restaurant", 12L);
         AiGuideContext context = new AiGuideContext(
                 new AiGuideContext.Trip(12L, "Seoul trip", "Seoul", null, null,
-                        null, null, null, null, null, null, null, null, null, List.of()),
+                        null, null, null, null, null, null, null, null, List.of()),
                 List.of()
         );
         AiGuideResponse response = new AiGuideResponse("Restaurant result", List.of(), List.of(), List.of());
@@ -250,7 +250,7 @@ class AiGuideServiceTest {
         AiGuideRequest request = new AiGuideRequest("부산 해운대해수욕장 추천해줘", 12L);
         AiGuideContext context = new AiGuideContext(
                 new AiGuideContext.Trip(12L, "부산 여행", "부산", null, null,
-                        null, null, null, null, null, null, null, null, null, List.of()),
+                        null, null, null, null, null, null, null, null, List.of()),
                 List.of());
         KakaoPlaceDiscoveryService discoveryService = mock(KakaoPlaceDiscoveryService.class);
         RagSearchResult beach = new RagSearchResult("place:101", "verified", 101L,
@@ -581,7 +581,7 @@ class AiGuideServiceTest {
         AiGuideContext.Item scheduledItem = new AiGuideContext.Item(77L, "이재모피자 본점", null, null, "FOOD", null);
         AiGuideContext context = new AiGuideContext(
                 new AiGuideContext.Trip(12L, "부산 여행", "부산", null, null,
-                        null, null, null, null, null, null, null, null, null,
+                        null, null, null, null, null, null, null, null,
                         List.of(new AiGuideContext.Day(1, null, "DAY 1", null, List.of(scheduledItem)))),
                 List.of());
         AiGuideResponse response = new AiGuideResponse("추천", List.of(), List.of(), List.of());
@@ -610,7 +610,7 @@ class AiGuideServiceTest {
         AiGuideContext.Item dayTwoLunch = new AiGuideContext.Item(88L, "DAY 2 점심 식당", LocalTime.of(12, 30), null, "FOOD", null);
         AiGuideContext context = new AiGuideContext(
                 new AiGuideContext.Trip(12L, "서울 여행", "서울", null, null,
-                        null, null, null, null, null, null, null, null, null,
+                        null, null, null, null, null, null, null, null,
                         List.of(
                                 new AiGuideContext.Day(1, null, "DAY 1", null, List.of(dayOneItem)),
                                 new AiGuideContext.Day(2, null, "DAY 2", null, List.of(dayTwoLunch))
@@ -643,7 +643,7 @@ class AiGuideServiceTest {
         AiGuideContext.Item dayTwoRestaurant = new AiGuideContext.Item(88L, "식당", LocalTime.of(12, 30), null, "FOOD", null);
         AiGuideContext context = new AiGuideContext(
                 new AiGuideContext.Trip(12L, "서울 여행", "서울", null, null,
-                        null, null, null, null, null, null, null, null, null,
+                        null, null, null, null, null, null, null, null,
                         List.of(
                                 new AiGuideContext.Day(1, null, "DAY 1", null, List.of(dayOneRestaurant)),
                                 new AiGuideContext.Day(2, null, "DAY 2", null, List.of(dayTwoRestaurant))
@@ -680,7 +680,7 @@ class AiGuideServiceTest {
         AiGuideContext.Item scheduledItem = new AiGuideContext.Item(77L, "\uC774\uC7AC\uBAA8\uD53C\uC790", null, null, "FOOD", null);
         AiGuideContext context = new AiGuideContext(
                 new AiGuideContext.Trip(12L, "\uBD80\uC0B0 \uC5EC\uD589", "\uBD80\uC0B0", null, null,
-                        null, null, null, null, null, null, null, null, null,
+                        null, null, null, null, null, null, null, null,
                         List.of(new AiGuideContext.Day(1, null, "DAY 1", null, List.of(scheduledItem)))),
                 List.of());
         RagSearchResult indexed = new RagSearchResult("place:88", "indexed", 88L,
@@ -708,7 +708,7 @@ class AiGuideServiceTest {
         AiGuideRequest effectiveRequest = new AiGuideRequest(request.question(), 12L, 1, null);
         AiGuideContext context = new AiGuideContext(
                 new AiGuideContext.Trip(12L, "부산 여행", "부산광역시", null, null,
-                        null, null, null, null, null, null, null, null, null,
+                        null, null, null, null, null, null, null, null,
                         List.of(new AiGuideContext.Day(1, null, "DAY 1", null, List.of()))),
                 List.of());
         RagSearchResult busanRestaurant = new RagSearchResult("place:88", "장소명: 부산 식당\n주소: 부산광역시 중구",
@@ -738,7 +738,7 @@ class AiGuideServiceTest {
         AiGuideRequest effectiveRequest = new AiGuideRequest(request.question(), 12L, 1, null);
         AiGuideContext context = new AiGuideContext(
                 new AiGuideContext.Trip(12L, "부산 여행", "부산광역시", null, null,
-                        null, null, null, null, null, null, null, null, null,
+                        null, null, null, null, null, null, null, null,
                         List.of(new AiGuideContext.Day(1, null, "DAY 1", null, List.of()))),
                 List.of());
         RagSearchResult attraction = new RagSearchResult("place:201",
@@ -773,7 +773,7 @@ class AiGuideServiceTest {
         AiGuideContext.Item scheduledItem = new AiGuideContext.Item(77L, "그리다부부", null, null, "CAFE", null);
         AiGuideContext context = new AiGuideContext(
                 new AiGuideContext.Trip(12L, "부산 여행", "부산", null, null,
-                        null, null, null, null, null, null, null, null, null,
+                        null, null, null, null, null, null, null, null,
                         List.of(new AiGuideContext.Day(1, null, "DAY 1", null, List.of(scheduledItem)))),
                 List.of());
         RagSearchResult staleOtherRegionPlace = new RagSearchResult("place:1", "indexed", 1L,
@@ -863,7 +863,7 @@ class AiGuideServiceTest {
                 77L, "이미 저장된 카페", null, null, "CAFE", null);
         AiGuideContext context = new AiGuideContext(
                 new AiGuideContext.Trip(12L, "부산 여행", "부산", null, null,
-                        null, null, null, null, null, null, null, null, null,
+                        null, null, null, null, null, null, null, null,
                         List.of(new AiGuideContext.Day(1, null, "DAY 1", null, List.of(scheduledItem)))),
                 List.of());
         RagSearchResult alreadySavedFromKakao = new RagSearchResult("kakao:77", "candidate", 77L,
@@ -979,7 +979,7 @@ class AiGuideServiceTest {
                 77L, "이미 저장된 카페", null, null, "CAFE", null);
         AiGuideContext context = new AiGuideContext(
                 new AiGuideContext.Trip(12L, "부산 여행", "부산", null, null,
-                        null, null, null, null, null, null, null, null, null,
+                        null, null, null, null, null, null, null, null,
                         List.of(new AiGuideContext.Day(1, null, "DAY 1", null, List.of(scheduledItem)))),
                 List.of());
         AiGuideResponse modelResponse = new AiGuideResponse("추천", List.of(new AiGuideDayResponse(1, "DAY 1",
@@ -1007,7 +1007,7 @@ class AiGuideServiceTest {
                 77L, "이미 저장된 카페", null, null, "CAFE", null);
         AiGuideContext context = new AiGuideContext(
                 new AiGuideContext.Trip(12L, "부산 여행", "부산", null, null,
-                        null, null, null, null, null, null, null, null, null,
+                        null, null, null, null, null, null, null, null,
                         List.of(new AiGuideContext.Day(1, null, "DAY 1", null, List.of(scheduledItem)))),
                 List.of());
         AiGuideResponse modelResponse = new AiGuideResponse("추천", List.of(new AiGuideDayResponse(1, "DAY 1",

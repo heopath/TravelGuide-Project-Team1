@@ -9,6 +9,7 @@ import org.example.all_my_trip_project.domain.flight.type.BookingStatus;
 
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
+import java.util.UUID;
 
 /**
  * 구간별 항공 예약 기록.
@@ -25,11 +26,14 @@ public class FlightBookingDTO {
 
     private Long flightBookingId;
     private Long tripId;
+    private UUID bookingBatchId;
     private Long userId;
     private Integer leg;
     private String offerId;
     private String provider;
 
+    private String origin;
+    private String destination;
     private String carrierCode;
     private String carrierName;
     private String flightNumber;

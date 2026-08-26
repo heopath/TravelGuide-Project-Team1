@@ -40,8 +40,8 @@
 
   <link
           rel="stylesheet"
-          th:href="@{/css/pages/mypage/mypage.css}"
-          href="../../static/css/pages/mypage/mypage.css"
+          th:href="@{/css/pages/mypage/mypage.css(v=20260825-records-album)}"
+          href="../../static/css/pages/mypage/mypage.css?v=20260825-records-album"
   />
 <link
         rel="stylesheet"
@@ -114,6 +114,14 @@
             >
               <span aria-hidden="true">▤</span>
               <span>내 여행</span>
+            </button>
+
+            <button
+                    type="button"
+                    data-open-records
+            >
+              <span aria-hidden="true">▧</span>
+              <span>여행 기록</span>
             </button>
 
             <button
@@ -298,7 +306,7 @@
                       class="outline-button wide mypage-panel-foot"
                       data-open-tickets
               >
-                예매한 티켓 전체 보기 →
+                예약 내역 전체 보기 →
               </button>
             </section>
 
@@ -455,6 +463,36 @@
             ></nav>
           </section>
 
+          <!-- 완료 여행으로 만든 사진첩. 기록이 없는 완료 여행은 내 여행 화면에서 먼저 기록을 만들 수 있다. -->
+          <section class="white-panel mypage-records-view" data-records-view hidden>
+            <div class="mypage-view-head mypage-records-head">
+              <div class="mypage-view-title">
+                <button type="button" class="mypage-back-button" data-close-records>← 이전 화면</button>
+                <div>
+                  <span class="mypage-records-kicker">MY TRAVEL ALBUM</span>
+                  <h2>여행 기록 사진첩</h2>
+                  <p>완료된 여행의 일정과 예약, 내가 고른 사진을 한 권의 앨범으로 간직하세요.</p>
+                </div>
+              </div>
+              <div class="mypage-records-count" aria-live="polite">
+                <strong data-records-count>–</strong>
+                <span>완료 여행</span>
+              </div>
+            </div>
+
+            <div class="mypage-records-guide">
+              <span class="mypage-records-guide-icon" aria-hidden="true">✦</span>
+              <div>
+                <strong>사진만 고르면 여행의 흐름이 자동으로 완성돼요</strong>
+                <p>날짜별 일정과 항공·숙소·티켓 정보가 앨범 페이지에 함께 담깁니다.</p>
+              </div>
+              <span class="mypage-records-guide-tags" aria-label="지원 기능">Canvas · PNG · GIF</span>
+            </div>
+            <div class="travel-record-album-list" data-records-list aria-live="polite">
+              <p class="mypage-state">여행 기록을 불러오는 중입니다.</p>
+            </div>
+          </section>
+
           <!-- =================================================
                찜한 여행지 전체보기
                ================================================= -->
@@ -587,7 +625,7 @@
 
                 <div>
                   <span class="mypage-eyebrow">MY TICKETS</span>
-                  <h2>예매한 티켓</h2>
+                  <h2>예약 내역</h2>
                   <p>예약 정보와 이용 방법을 한곳에서 확인하세요.</p>
                 </div>
               </div>
@@ -744,11 +782,10 @@
               <div class="support-chat" data-support-chat hidden>
                 <p class="support-chat-status" data-support-chat-status role="status"></p>
                 <div class="support-chat-messages" data-support-chat-messages></div>
-                <!--
-                  상담원 대기·응대 중일 때만 뜨는 탈출구. WAITING이면 봇으로 되돌릴 수 있고,
-                  사람이 이미 붙은 ASSIGNED면 새 상담만 열 수 있다.
-                -->
+                <!-- BOT에서는 직접 상담원을 요청하고, 사람 상담 상태에서는 대화 탈출구를 제공한다. -->
                 <div class="support-chat-actions" data-support-chat-actions hidden>
+                  <button type="button" class="support-chat-action primary"
+                          data-support-chat-agent hidden>상담원 연결</button>
                   <button type="button" class="support-chat-action primary"
                           data-support-chat-return hidden>봇에게 다시 물어보기</button>
                   <button type="button" class="support-chat-action"
@@ -1288,8 +1325,8 @@
 
 <script
         type="module"
-        th:src="@{/js/pages/mypage/mypage.js}"
-        src="../../static/js/pages/mypage/mypage.js"
+        th:src="@{/js/pages/mypage/mypage.js(v=20260825-records-album)}"
+        src="../../static/js/pages/mypage/mypage.js?v=20260825-records-album"
 ></script>
 
 <div th:replace="~{fragments/mighty :: mighty}"></div>
