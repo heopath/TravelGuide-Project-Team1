@@ -40,7 +40,7 @@ prod,ai,prod-ai-rag
 운영 데이터베이스 `all_my_trip`에는 Flyway `V10__vector_store.sql`이 먼저 적용되어야 한다.
 `application-prod-ai-rag.properties`는 `initialize-schema=false`를 유지한다. 운영 기동 중 테이블·인덱스를 자동 생성하거나 전체 재색인하지 않는다.
 
-기존 Cohere 벡터와 OpenAI 벡터는 같은 `1536` 차원을 사용해도 서로 다른 의미 공간이다. 공급자 전환 직후에는 운영자가 `AI_RAG_REINDEX_ON_STARTUP=true`로 한 번만 실행하여 모든 장소를 OpenAI 임베딩으로 재색인해야 한다.
+공급자 전환 전에 생성된 벡터와 OpenAI 벡터는 같은 `1536` 차원을 사용해도 서로 다른 의미 공간일 수 있다. 공급자 전환 직후에는 운영자가 `AI_RAG_REINDEX_ON_STARTUP=true`로 한 번만 실행하여 모든 장소를 OpenAI 임베딩으로 재색인해야 한다.
 
 ## 장애 처리
 
