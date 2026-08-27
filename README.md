@@ -8,12 +8,7 @@
 <br />
 
 [![Demo](https://img.shields.io/badge/🌐_바로_써보기-4FACFE?style=for-the-badge)](https://www.allmytrip.click)
-<!--
-  영상을 올린 뒤 아래 주석을 풀고 주소를 채웁니다. 주소가 빈 채로 두면 눌렀을 때
-  아무 데도 가지 않아 미완성으로 보입니다.
-
-[![Video](https://img.shields.io/badge/🎬_시연_영상-FF0000?style=for-the-badge&logo=youtube&logoColor=white)](영상-주소)
--->
+[![Video](https://img.shields.io/badge/🎬_시연_영상-FF0000?style=for-the-badge&logo=youtube&logoColor=white)](https://youtu.be/HHS_6rQ8duA)
 [![Wiki](https://img.shields.io/badge/📖_문서-181717?style=for-the-badge&logo=github&logoColor=white)](https://github.com/heopath/TravelGuide-Project-Team1/wiki)
 [![Slides](https://img.shields.io/badge/🖥️_기술_설명-4FACFE?style=for-the-badge)](https://heopath.github.io/TravelGuide-Project-Team1/video/technical-slides.html)
 
@@ -22,61 +17,52 @@
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-4169E1?style=flat-square&logo=postgresql&logoColor=white)
 ![Redis](https://img.shields.io/badge/Redis-DC382D?style=flat-square&logo=redis&logoColor=white)
 ![AWS](https://img.shields.io/badge/AWS_EC2-FF9900?style=flat-square&logo=amazonec2&logoColor=white)
-![Version](https://img.shields.io/badge/version-v0.0.7-00C9A7?style=flat-square)
+![Version](https://img.shields.io/badge/version-v0.0.8-00C9A7?style=flat-square)
 
 </div>
 
 ---
-
-<!--
-  시연 영상과 화면 GIF. 준비되면 이 주석을 풀어 아래 `🔑 둘러보기` 위에 둡니다.
-
-  ─ 영상을 올린 뒤
-
-  GitHub README에는 YouTube 플레이어가 박히지 않습니다. 썸네일 이미지에 링크를 거는 것이
-  유일한 방법입니다. 아래 VIDEO_ID 두 자리를 실제 값으로 바꾸면 됩니다.
-
-  챕터 목록을 함께 두는 이유는, 보는 사람이 12분을 다 볼지 결정하기 전에 무엇이 들어
-  있는지 알 수 있어서입니다. 각 줄의 `&t=` 초를 실제 시각으로 맞추면 눌러서 바로 갑니다.
-  챕터 구성은 위키의 [기능별 챕터 영상 촬영 계획]을 보세요.
-
-  ─ GIF
-
-  docs/video/gif/ 에 파일을 넣어야 표시됩니다. 없는 채로 주석을 풀면 깨진 이미지가
-  보입니다. 만드는 방법은 그 폴더의 README에 있습니다.
-
-  영상과 GIF는 역할이 다릅니다. GIF는 스크롤하다 눈에 걸리는 것이고, 영상은 마음먹고
-  보는 것입니다. 둘 다 두는 편이 낫습니다.
 
 ## 🎬 이렇게 동작합니다
 
 <div align="center">
 
-[<img src="https://img.youtube.com/vi/VIDEO_ID/maxresdefault.jpg" width="640" />](https://www.youtube.com/watch?v=VIDEO_ID)
+[<img src="https://img.youtube.com/vi/HHS_6rQ8duA/maxresdefault.jpg" width="640" />](https://youtu.be/HHS_6rQ8duA)
 
-**기능 시연 영상 (12분)** — 눌러서 봅니다
+**전체 기능 시연 (18분 37초)** — 눌러서 봅니다
 
 </div>
 
 | 시각 | 챕터 | 시각 | 챕터 |
 |---:|---|---:|---|
-| [00:00](https://www.youtube.com/watch?v=VIDEO_ID&t=0s) | 여는 장 | [06:30](https://www.youtube.com/watch?v=VIDEO_ID&t=390s) | 입장 QR·현장 검표 |
-| [01:10](https://www.youtube.com/watch?v=VIDEO_ID&t=70s) | 여행 계획 만들기 | [07:20](https://www.youtube.com/watch?v=VIDEO_ID&t=440s) | 실시간 상담 |
-| [03:10](https://www.youtube.com/watch?v=VIDEO_ID&t=190s) | 일정 편집·경로 최적화 | [08:00](https://www.youtube.com/watch?v=VIDEO_ID&t=480s) | 관리자 운영 |
-| [04:00](https://www.youtube.com/watch?v=VIDEO_ID&t=240s) | 항공·숙소 예약 | [09:10](https://www.youtube.com/watch?v=VIDEO_ID&t=550s) | API 키 관리 |
-| [04:50](https://www.youtube.com/watch?v=VIDEO_ID&t=290s) | 티켓 예매·대기열 | [09:50](https://www.youtube.com/watch?v=VIDEO_ID&t=590s) | 기술 판단과 검증 |
+| [00:00](https://youtu.be/HHS_6rQ8duA?t=0) | 오프닝 | [09:25](https://youtu.be/HHS_6rQ8duA?t=565) | 추천 장소 · 후기 · 찜 |
+| [00:20](https://youtu.be/HHS_6rQ8duA?t=20) | 회원가입 · 로그인 | [10:46](https://youtu.be/HHS_6rQ8duA?t=646) | 마이페이지 |
+| [01:35](https://youtu.be/HHS_6rQ8duA?t=95) | 직접 여행 계획 | [11:56](https://youtu.be/HHS_6rQ8duA?t=716) | 여행 기록 사진첩 |
+| [03:50](https://youtu.be/HHS_6rQ8duA?t=230) | AI 여행 계획 | [12:59](https://youtu.be/HHS_6rQ8duA?t=779) | 1:1 문의 |
+| [05:56](https://youtu.be/HHS_6rQ8duA?t=356) | 항공 · 숙소 예약 | [14:20](https://youtu.be/HHS_6rQ8duA?t=860) | 실시간 상담 |
+| [06:46](https://youtu.be/HHS_6rQ8duA?t=406) | 티켓 상품 · 재고 등록 | [15:14](https://youtu.be/HHS_6rQ8duA?t=914) | 관리자 예약 · 회원 관리 |
+| [07:50](https://youtu.be/HHS_6rQ8duA?t=470) | 티켓 구매 · 결제 | [16:14](https://youtu.be/HHS_6rQ8duA?t=974) | 관리자 시스템 |
+| [08:21](https://youtu.be/HHS_6rQ8duA?t=501) | QR 발급 · 현장 검표 | [16:29](https://youtu.be/HHS_6rQ8duA?t=989) | Cloudflare 운영 · 보안 |
+| [09:06](https://youtu.be/HHS_6rQ8duA?t=546) | 관리자 추천 장소 등록 | [18:21](https://youtu.be/HHS_6rQ8duA?t=1101) | 마무리 |
+
+<!--
+  화면 GIF 2개는 아직 없습니다. docs/video/gif/ 에 파일을 넣은 뒤 이 주석을 풉니다.
+  파일이 없는 채로 풀면 깨진 이미지가 보입니다. 만드는 방법은 그 폴더의 README에 있습니다.
+
+  영상과 GIF는 역할이 다릅니다. GIF는 스크롤하다 눈에 걸리는 것이고, 영상은 마음먹고
+  보는 것입니다. 둘 다 두는 편이 낫습니다.
 
 <div align="center">
 
-| 예약부터 현장 입장까지 |
-|:---:|
-| <img src="docs/video/gif/booking-to-checkin.gif" width="640" /> |
-| 예약 → 결제 → 티켓 발급 → 알림 → QR 검표 |
+| 예약부터 현장 입장까지 | 여행 기록을 책 지면으로 |
+|:---:|:---:|
+| <img src="docs/video/gif/booking-to-checkin.gif" width="420" /> | <img src="docs/video/gif/record-book.gif" width="420" /> |
+| 예약 → 결제 → 티켓 발급 → 알림 → QR 검표 | 사진 개수에 따라 지면 배치가 바뀝니다 |
 
 </div>
+-->
 
 ---
--->
 
 ## 🔑 둘러보기
 
@@ -830,7 +816,7 @@ Milvus
 
 [📄 All My Trips 통합 DDL 보기](database/schema/all_my_trips_schema.sql)
 
-[🧩 PostgreSQL V1~V7 마이그레이션·로컬 seed·검증 실행 안내](database/README.md)
+[🧩 PostgreSQL V1~V35 마이그레이션·로컬 seed·검증 실행 안내](database/README.md)
 
 </details>
 
@@ -859,35 +845,32 @@ Milvus
 <br>
 
 ```text
-AllMyTrips/
+TravelGuide-Project-Team1/
 │
-├── backend/
-│   ├── controller/
-│   ├── service/
-│   ├── repository/
-│   ├── domain/
-│   └── config/
-│
-├── frontend/
-│
-├── ai/
-│   ├── llm/
-│   ├── rag/
-│   └── embedding/
+├── src/
+│   ├── main/
+│   │   ├── java/org/example/all_my_trip_project/
+│   │   │   ├── domain/        # 기능별 묶음 21개 (여행·예약·결제·상담·관리자 등)
+│   │   │   ├── global/        # 보안·설정·공통 처리
+│   │   │   └── presentation/  # 화면을 띄우는 컨트롤러
+│   │   └── resources/
+│   │       ├── templates/     # Thymeleaf 화면 31개 (조각 5개 포함)
+│   │       ├── static/        # JS · CSS · 이미지
+│   │       └── mapper/        # MyBatis SQL
+│   └── test/
+│       ├── java/              # 서버 테스트 750개
+│       └── js/                # 화면 수용 테스트 40개 파일
 │
 ├── database/
+│   ├── migration/             # Flyway V1~V35
+│   ├── schema/                # 통합 DDL
+│   ├── seed/                  # 시연·로컬용 데이터
 │   ├── init/
-│   ├── migration/
-│   ├── seed/
-│   ├── validation/
-│   └── README.md
+│   └── validation/
 │
-├── docs/
-│   ├── database/
-│   ├── planning/
-│   ├── screen-design/
-│   ├── flowchart/
-│   └── erd/
+├── docs/                      # API · QA · 설계 문서
+├── load-test/                 # k6 예약 대기열 부하 테스트
+├── config/ · scripts/ · tools/
 │
 └── README.md
 ```
@@ -962,7 +945,7 @@ AllMyTrips/
 | 구분 | 링크 |
 |:---:|---|
 | 🌐 배포 | [www.allmytrip.click](https://www.allmytrip.click) |
-| 🎬 시연 영상 | _촬영 후 추가_ ([촬영 계획](https://github.com/heopath/TravelGuide-Project-Team1/wiki/기능별-챕터-영상-촬영-계획)) |
+| 🎬 시연 영상 | [유튜브에서 보기](https://youtu.be/HHS_6rQ8duA) — 전체 기능 18분 37초 |
 | 📖 위키 | [바로가기](https://github.com/heopath/TravelGuide-Project-Team1/wiki) |
 | 🎨 Figma | [바로가기](https://www.figma.com/design/byqjrBMhrQzNsuE7AWJCfd/All-My-Trips-%E2%80%94-AI-%EB%A7%9E%EC%B6%A4-%EC%97%AC%ED%96%89-%ED%94%8C%EB%9E%AB%ED%8F%BC-%EC%A0%84%EC%B2%B4-%ED%99%94%EB%A9%B4--%ED%97%88%EB%AF%BC%EC%9E%AC-%ED%8C%80-?node-id=3-4310) |
 | 📝 Notion | [바로가기](https://app.notion.com/p/chhak0503/1-3b17537e85eb80d09a97df02653cc676) |
