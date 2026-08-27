@@ -207,7 +207,7 @@ Redis는 캐시만이 아니라 **세션 저장소**와 **예약 대기열**로�
 
 | DB 마이그레이션 | 서버 테스트 | 화면 테스트 | 화면 |
 |:---:|:---:|:---:|:---:|
-| **35** | **750개** | **40개 파일** | **26** |
+| **36** | **770개** | **44개 파일** | **28** |
 
 </div>
 
@@ -816,7 +816,7 @@ Milvus
 
 [📄 All My Trips 통합 DDL 보기](database/schema/all_my_trips_schema.sql)
 
-[🧩 PostgreSQL V1~V35 마이그레이션·로컬 seed·검증 실행 안내](database/README.md)
+[🧩 PostgreSQL V1~V36 마이그레이션·로컬 seed·검증 실행 안내](database/README.md)
 
 </details>
 
@@ -850,19 +850,19 @@ TravelGuide-Project-Team1/
 ├── src/
 │   ├── main/
 │   │   ├── java/org/example/all_my_trip_project/
-│   │   │   ├── domain/        # 기능별 묶음 21개 (여행·예약·결제·상담·관리자 등)
+│   │   │   ├── domain/        # 기능별 묶음 23개 (여행·예약·결제·상담·관리자 등)
 │   │   │   ├── global/        # 보안·설정·공통 처리
 │   │   │   └── presentation/  # 화면을 띄우는 컨트롤러
 │   │   └── resources/
-│   │       ├── templates/     # Thymeleaf 화면 31개 (조각 5개 포함)
+│   │       ├── templates/     # Thymeleaf 화면 33개 (조각 5개 포함)
 │   │       ├── static/        # JS · CSS · 이미지
 │   │       └── mapper/        # MyBatis SQL
 │   └── test/
-│       ├── java/              # 서버 테스트 750개
-│       └── js/                # 화면 수용 테스트 40개 파일
+│       ├── java/              # 서버 테스트 770개
+│       └── js/                # 화면 수용 테스트 44개 파일
 │
 ├── database/
-│   ├── migration/             # Flyway V1~V35
+│   ├── migration/             # Flyway V1~V36
 │   ├── schema/                # 통합 DDL
 │   ├── seed/                  # 시연·로컬용 데이터
 │   ├── init/
