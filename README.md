@@ -45,22 +45,14 @@
 | [08:21](https://youtu.be/HHS_6rQ8duA?t=501) | QR 발급 · 현장 검표 | [16:29](https://youtu.be/HHS_6rQ8duA?t=989) | Cloudflare 운영 · 보안 |
 | [09:06](https://youtu.be/HHS_6rQ8duA?t=546) | 관리자 추천 장소 등록 | [18:21](https://youtu.be/HHS_6rQ8duA?t=1101) | 마무리 |
 
-<!--
-  화면 GIF 2개는 아직 없습니다. docs/video/gif/ 에 파일을 넣은 뒤 이 주석을 풉니다.
-  파일이 없는 채로 풀면 깨진 이미지가 보입니다. 만드는 방법은 그 폴더의 README에 있습니다.
-
-  영상과 GIF는 역할이 다릅니다. GIF는 스크롤하다 눈에 걸리는 것이고, 영상은 마음먹고
-  보는 것입니다. 둘 다 두는 편이 낫습니다.
-
 <div align="center">
 
-| 예약부터 현장 입장까지 | 여행 기록을 책 지면으로 |
+| 결제부터 현장 입장까지 | 여행 기록을 책 지면으로 |
 |:---:|:---:|
 | <img src="docs/video/gif/booking-to-checkin.gif" width="420" /> | <img src="docs/video/gif/record-book.gif" width="420" /> |
-| 예약 → 결제 → 티켓 발급 → 알림 → QR 검표 | 사진 개수에 따라 지면 배치가 바뀝니다 |
+| 결제 → 입장용 QR 발급 → 현장 검표 → 입장 승인 | 사진 개수에 따라 지면 배치가 바뀝니다 |
 
 </div>
--->
 
 ---
 
