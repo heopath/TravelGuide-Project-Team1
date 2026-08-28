@@ -8,6 +8,7 @@ import org.example.all_my_trip_project.domain.rag.dto.RagSearchResult;
 import org.springframework.ai.document.Document;
 import org.springframework.ai.vectorstore.SearchRequest;
 import org.springframework.ai.vectorstore.VectorStore;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
 
@@ -32,6 +33,16 @@ public class PlaceRagService {
     private final PlaceDAO placeDAO;
     private final VectorStore vectorStore;
     private final AtomicLong rateLimitedUntilMillis = new AtomicLong();
+
+    /**
+     * {@code LOCAL_SEED} 장소도 추천 후보로 쓸지. local-ai 프로필의 seed 데이터는 "RAG 검색
+     * 테스트용"이라는 문서화된 목적이 있는데, 아래 {@link #search}가 이를 무조건 걸러내
+     * 실제로는 절대 추천되지 않았다 — 로컬에서 진짜 카드를 볼 방법이 없었던 원인이다.
+     * prod-ai-rag에서는 기본값 false로 실서비스에 테스트 장소가 노출되지 않게 막고,
+     * application-local-ai.properties에서만 true로 켠다.
+     */
+    @Value("${ai.rag.include-seed-places:false}")
+    private boolean includeSeedPlaces;
 
     /** 관리자·개발자만 명시적으로 호출하는 전체 장소 재색인 작업이다. */
     public int reindexAllPlaces() {
@@ -76,7 +87,8 @@ public class PlaceRagService {
         }
         try {
             return vectorStore.similaritySearch(SearchRequest.builder().query(question).topK(TOP_K).build()).stream()
-                    .filter(document -> !"LOCAL_SEED".equals(document.getMetadata().get("externalProvider")))
+                    .filter(document -> includeSeedPlaces
+                            || !"LOCAL_SEED".equals(document.getMetadata().get("externalProvider")))
                     .map(document -> new RagSearchResult(
                             String.valueOf(document.getMetadata().getOrDefault("source", "place")),
                             document.getText(),
