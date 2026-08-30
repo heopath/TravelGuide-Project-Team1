@@ -7,7 +7,6 @@
 
 <br />
 
-[![Demo](https://img.shields.io/badge/🌐_바로_써보기-4FACFE?style=for-the-badge)](https://www.allmytrip.click)
 [![Video](https://img.shields.io/badge/🎬_시연_영상-FF0000?style=for-the-badge&logo=youtube&logoColor=white)](https://youtu.be/HHS_6rQ8duA)
 [![Wiki](https://img.shields.io/badge/📖_문서-181717?style=for-the-badge&logo=github&logoColor=white)](https://github.com/heopath/TravelGuide-Project-Team1/wiki)
 [![Slides](https://img.shields.io/badge/🖥️_기술_설명-4FACFE?style=for-the-badge)](https://heopath.github.io/TravelGuide-Project-Team1/video/technical-slides.html)
@@ -58,7 +57,7 @@
 
 ## 🔑 둘러보기
 
-**[www.allmytrip.click](https://www.allmytrip.click)** 에 배포 환경을 구성했습니다.
+AWS EC2·RDS와 Cloudflare를 연결해 운영 배포까지 진행했습니다. 현재 공개 시연은 아래 영상으로 제공합니다.
 
 공개 저장소에는 체험 계정의 비밀번호를 남기지 않습니다. 시연은 아래 영상에서 전체 흐름을 확인할 수 있습니다.
 
@@ -930,7 +929,7 @@ TravelGuide-Project-Team1/
 
 | 구분 | 링크 |
 |:---:|---|
-| 🌐 배포 | [www.allmytrip.click](https://www.allmytrip.click) |
+| 🌐 배포 경험 | AWS EC2·RDS, Cloudflare, GitHub Actions 기반 운영 배포 |
 | 🎬 시연 영상 | [유튜브에서 보기](https://youtu.be/HHS_6rQ8duA) — 전체 기능 18분 37초 |
 | 📖 위키 | [바로가기](https://github.com/heopath/TravelGuide-Project-Team1/wiki) |
 | 🎨 Figma | [바로가기](https://www.figma.com/design/byqjrBMhrQzNsuE7AWJCfd/All-My-Trips-%E2%80%94-AI-%EB%A7%9E%EC%B6%A4-%EC%97%AC%ED%96%89-%ED%94%8C%EB%9E%AB%ED%8F%BC-%EC%A0%84%EC%B2%B4-%ED%99%94%EB%A9%B4--%ED%97%88%EB%AF%BC%EC%9E%AC-%ED%8C%80-?node-id=3-4310) |
