@@ -58,19 +58,13 @@
 
 ## 🔑 둘러보기
 
-**[www.allmytrip.click](https://www.allmytrip.click)** 에서 바로 써볼 수 있습니다. 아래 계정으로 로그인하세요.
+**[www.allmytrip.click](https://www.allmytrip.click)** 에 배포 환경을 구성했습니다.
 
-<div align="center">
+공개 저장소에는 체험 계정의 비밀번호를 남기지 않습니다. 시연은 아래 영상에서 전체 흐름을 확인할 수 있습니다.
 
-| 이메일 | 비밀번호 |
-|---|---|
-| `demo@allmytrip.click` | `AllMyTrips2026!` |
+[▶ 시연 영상 보기](https://youtu.be/HHS_6rQ8duA)
 
-</div>
-
-이 계정은 **둘러보라고 공개해 둔 것**이라 비밀번호를 가리지 않았습니다. 대신 일반 사용자 권한만 있고, 다른 사람이 만든 여행이나 예약은 보이지 않습니다.
-
-**관리자 화면은 이 계정으로 열리지 않습니다.** `/admin` 앞에 Cloudflare Access가 한 단계 더 있고, 통과하더라도 관리자 권한이 따로 필요합니다. 엣지와 애플리케이션 권한을 나눠 둔 구조라, 계정 하나가 새어도 운영 화면까지 열리지 않습니다.
+관리자 화면은 `/admin` 앞의 Cloudflare Access와 애플리케이션 관리자 권한을 각각 통과해야 접근할 수 있도록 분리했습니다.
 
 > 처음이라면 **여행 계획 만들기 → 예약하러 가기 → 티켓 예매**를 순서대로 눌러보세요. 계획에 넣은 목적지와 날짜가 예약 화면으로 그대로 이어집니다.
 
@@ -96,13 +90,13 @@
 <tr>
 <td width="50%" valign="top">
 
-### 재고를 정확히 지키기
+### 예약 순서와 재고를 함께 지키기
 
-인기 티켓은 같은 회차에 동시에 몰립니다. **재고를 확인하고 빼는 두 동작이 갈라지면** 그 사이에 다른 요청이 끼어들어 한 자리를 두 사람에게 팔게 됩니다.
+예약 요청의 순서와 상태는 **Redis Sorted Set과 Lua 스크립트**로 관리했습니다. 실제 티켓 재고는 **PostgreSQL 재고 행 잠금과 잔여 수량 조건부 UPDATE**를 적용해 초과 판매를 방지했습니다.
 
-Redis Lua 스크립트로 **한 덩어리로 실행**해 틈을 없앴습니다. k6 부하 테스트로 확인했습니다.
+재고 10개에 사용자 30명이 동시에 요청하는 k6 테스트에서 **예약 성공 10건·재고 소진 20건·요청 실패율 0%**를 확인했습니다.
 
-`RedisBookingQueueStore` · `load-test/booking-queue.js`
+`RedisBookingQueueStore` · `TicketMapper.xml` · `load-test/booking-queue.js`
 
 </td>
 <td width="50%" valign="top">
