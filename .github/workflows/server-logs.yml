@@ -1,13 +1,7 @@
 name: Server Logs
 
-# EC2에 직접 들어가지 않고 운영 로그를 보기 위한 워크플로.
-# 배포는 SSH가 아니라 SSM으로 하므로 조회도 같은 경로를 쓴다.
-#
-# 실행할 명령을 입력으로 받지 않는다. 받으면 저장소에 쓰기 권한이 있는 사람이
-# 운영 서버에서 아무 명령이나 돌릴 수 있게 된다. 미리 정한 조회만 고르게 한다.
-#
-# 출력은 저장소를 읽을 수 있는 사람이 모두 본다. 그래서 조회 종류와 무관하게
-# 같은 가림 규칙을 마지막에 한 번 더 통과시킨다.
+# 임의 명령은 받지 않고 미리 정한 조회만 Oracle Cloud 앱 서버에서 실행합니다.
+# 출력은 GitHub Actions 로그에 남으므로 마지막 단계에서 토큰과 개인정보를 가립니다.
 
 on:
   workflow_dispatch:
@@ -18,11 +12,11 @@ on:
         type: choice
         default: gemini
         options:
-          - gemini        # AI 여행계획 생성 실패 원인 (#234)
-          - error         # ERROR/WARN 전반
-          - startup       # 기동 로그와 활성 프로필
-          - env           # 환경 변수 "이름"과 설정 여부 (값은 가림)
-          - recent        # 최근 로그 — 범위가 넓어 요청 로그를 제외한다
+          - gemini
+          - error
+          - startup
+          - env
+          - recent
       lines:
         description: "몇 줄을 볼지"
         required: false
@@ -32,116 +26,93 @@ on:
 
 jobs:
   logs:
-    name: Read logs through SSM
+    name: Read logs from Oracle Cloud
     runs-on: ubuntu-latest
-    # 운영 서버를 건드리므로 배포와 같은 보호 규칙(승인 등)을 적용받는다.
     environment: production
 
     permissions:
-      id-token: write
       contents: read
 
     steps:
-      - name: Configure AWS credentials with OIDC
-        uses: aws-actions/configure-aws-credentials@v6
-        with:
-          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
-          aws-region: ${{ vars.AWS_REGION }}
-          allowed-account-ids: "719152986655"
-          role-session-name: all-my-trips-github-logs
-
-      - name: Run diagnostic through SSM
+      - name: Configure Oracle Cloud SSH
         shell: bash
         env:
+          OCI_SSH_PRIVATE_KEY: ${{ secrets.OCI_SSH_PRIVATE_KEY }}
+          OCI_KNOWN_HOSTS: ${{ secrets.OCI_KNOWN_HOSTS }}
+        run: |
+          set -euo pipefail
+          test -n "$OCI_SSH_PRIVATE_KEY"
+          test -n "$OCI_KNOWN_HOSTS"
+          install -d -m 700 "$HOME/.ssh"
+          printf '%s\n' "$OCI_SSH_PRIVATE_KEY" | tr -d '\r' > "$HOME/.ssh/oci_deploy_key"
+          printf '%s\n' "$OCI_KNOWN_HOSTS" | tr -d '\r' > "$HOME/.ssh/known_hosts"
+          chmod 600 "$HOME/.ssh/oci_deploy_key" "$HOME/.ssh/known_hosts"
+
+      - name: Read and mask logs
+        shell: bash
+        env:
+          OCI_APP_HOST: ${{ vars.OCI_APP_HOST }}
+          OCI_APP_USER: ${{ vars.OCI_APP_USER }}
           TARGET: ${{ inputs.target }}
           LINES: ${{ inputs.lines }}
         run: |
           set -euo pipefail
-          INSTANCE_ID="${{ vars.AWS_EC2_INSTANCE_ID }}"
-          UNIT="all-my-trips"
-          # SSM의 StandardOutputContent는 24KB에서 잘린다. 그 아래로 받아
-          # 잘렸는지 여부를 원격에서 직접 알려주도록 한다.
-          MAX_BYTES=18000
+          test -n "$OCI_APP_HOST"
+          test -n "$OCI_APP_USER"
 
-          # 두 입력 모두 원격 셸 명령 문자열에 들어간다.
-          # 화면에서 choice로 보이는 것과 무관하게 실행 요청은 API/CLI로도 오므로,
-          # UI 선택지를 보안 경계로 삼지 않고 여기서 허용 목록을 다시 확인한다.
           case "$LINES" in
             100|200|500) ;;
             *) echo "::error::허용되지 않은 줄 수: $LINES"; exit 1 ;;
           esac
 
-          # 조회별 필터. 목록 밖의 TARGET은 아래 기본 분기에서 거절한다.
           case "$TARGET" in
-            gemini)
-              FILTER="grep -i -E 'gemini|여행 초안' || echo '(Gemini 관련 로그 없음)'" ;;
-            error)
-              FILTER="grep -E 'ERROR|WARN|Exception' || echo '(ERROR/WARN 없음)'" ;;
-            startup)
-              FILTER="grep -E 'Starting|Started|profile|APPLICATION FAILED|Tomcat' || echo '(기동 로그 없음)'" ;;
-            recent)
-              # 범위가 가장 넓다. 요청 단위 로그에는 세션·토큰·개인정보가 섞이므로
-              # 애플리케이션 로그만 남기고 접근 로그성 줄은 걷어낸다.
-              FILTER="grep -v -E 'Authorization|Bearer |Cookie|JSESSIONID|GET /|POST /|PUT /|DELETE /' || echo '(로그 없음)'" ;;
-            env)
-              FILTER="" ;;
-            *)
-              echo "알 수 없는 조회: $TARGET"; exit 1 ;;
+            gemini|error|startup|env|recent) ;;
+            *) echo "::error::허용되지 않은 조회: $TARGET"; exit 1 ;;
           esac
 
-          if [ "$TARGET" = "env" ]; then
-            # 값은 찍지 않는다. 이름과 설정 여부만 남긴다.
-            BODY="systemctl show $UNIT -p Environment | tr ' ' '\n' | sed -E 's/^(Environment=)?([A-Z_][A-Z0-9_]*)=.*/\2 = <설정됨>/' | grep -E '= <설정됨>' | sort || echo '(환경 변수 없음)'"
-          else
-            BODY="journalctl -u $UNIT -n $LINES --no-pager | $FILTER"
+          SSH=(ssh -i "$HOME/.ssh/oci_deploy_key" -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes)
+          "${SSH[@]}" "${OCI_APP_USER}@${OCI_APP_HOST}" \
+            "sudo bash -s -- '$TARGET' '$LINES'" \
+            < <(cat <<'REMOTE_SCRIPT'
+          set -euo pipefail
+          TARGET="$1"
+          LINES="$2"
+          UNIT="all-my-trips.service"
+
+          case "$LINES" in
+            100|200|500) ;;
+            *) exit 2 ;;
+          esac
+
+          if [[ "$TARGET" == "env" ]]; then
+            systemctl show "$UNIT" -p Environment \
+              | tr ' ' '\n' \
+              | sed -E 's/^(Environment=)?([A-Z_][A-Z0-9_]*)=.*/\2 = <설정됨>/' \
+              | grep -E '= <설정됨>' \
+              | sort || true
+            exit 0
           fi
 
-          # 잘림 여부를 원격에서 판단해 명시한다. 조용히 잘리면 없는 줄로 오해한다.
-          REMOTE="OUT=\$(mktemp); { $BODY ; } > \"\$OUT\" 2>&1; SIZE=\$(wc -c < \"\$OUT\"); if [ \"\$SIZE\" -gt $MAX_BYTES ]; then echo \"[잘림] 전체 \${SIZE}바이트 중 뒤 ${MAX_BYTES}바이트만 표시합니다. 줄 수를 줄여 다시 조회하세요.\"; fi; tail -c $MAX_BYTES \"\$OUT\"; rm -f \"\$OUT\""
-
-          jq -Rn --arg script "$REMOTE" '{commands: [$script]}' > ssm-params.json
-
-          COMMAND_ID=$(aws ssm send-command \
-            --instance-ids "$INSTANCE_ID" \
-            --document-name "AWS-RunShellScript" \
-            --comment "Read $TARGET logs" \
-            --parameters file://ssm-params.json \
-            --query "Command.CommandId" \
-            --output text)
-
-          set +e
-          aws ssm wait command-executed --command-id "$COMMAND_ID" --instance-id "$INSTANCE_ID"
-          set -e
-
-          INVOCATION=$(aws ssm get-command-invocation \
-            --command-id "$COMMAND_ID" --instance-id "$INSTANCE_ID" --output json)
-
-          STATUS=$(jq -r '.Status' <<< "$INVOCATION")
-          echo "상태: $STATUS"
-          echo "----- 결과 ($TARGET, 최근 ${LINES}줄) -----"
-
-          # 조회 종류와 무관하게 같은 가림 규칙을 통과시킨다.
-          #   - JWT, Bearer/Authorization, 쿠키와 세션 식별자
-          #   - key/token/secret/password 형태의 질의 문자열
-          #   - Google API 키(AIza…)와 그에 준하는 긴 토큰
-          #   - 이메일 주소
-          MASK='s/eyJ[A-Za-z0-9_-]{6,}\.[A-Za-z0-9_-]{6,}\.[A-Za-z0-9_-]+/<가림:JWT>/g;
-                s/([Bb]earer|[Aa]uthorization:?)[[:space:]]+[A-Za-z0-9._~+\/=-]{8,}/\1 <가림>/g;
-                s/(JSESSIONID|SESSION|[Cc]ookie)=[^;[:space:]]+/\1=<가림>/g;
-                s/((api[_-]?key|access[_-]?token|token|secret|password|passwd|pwd)["'"'"']?[=:][[:space:]]*["'"'"']?)[A-Za-z0-9._~+\/-]{6,}/\1<가림>/gI;
-                s/AIza[A-Za-z0-9_-]{10,}/<가림:APIKEY>/g;
-                s/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/<가림:이메일>/g'
-
-          jq -r '.StandardOutputContent' <<< "$INVOCATION" | sed -E "$MASK"
-
-          REMOTE_ERR=$(jq -r '.StandardErrorContent' <<< "$INVOCATION")
-          if [ -n "$REMOTE_ERR" ]; then
-            echo "----- 원격 에러 -----"
-            sed -E "$MASK" <<< "$REMOTE_ERR"
-          fi
-
-          # 원격 명령이 실패했는데 워크플로가 성공으로 보이면 안 된다.
-          if [ "$STATUS" != "Success" ]; then
-            echo "::error::SSM 명령이 '$STATUS' 상태로 끝났습니다."
-            exit 1
-          fi
+          case "$TARGET" in
+            gemini)
+              journalctl -u "$UNIT" -n "$LINES" --no-pager \
+                | grep -i -E 'gemini|여행 초안' || echo '(Gemini 관련 로그 없음)' ;;
+            error)
+              journalctl -u "$UNIT" -n "$LINES" --no-pager \
+                | grep -E 'ERROR|WARN|Exception' || echo '(ERROR/WARN 없음)' ;;
+            startup)
+              journalctl -u "$UNIT" -n "$LINES" --no-pager \
+                | grep -E 'Starting|Started|profile|APPLICATION FAILED|Tomcat' || echo '(기동 로그 없음)' ;;
+            recent)
+              journalctl -u "$UNIT" -n "$LINES" --no-pager \
+                | grep -v -E 'Authorization|Bearer |Cookie|JSESSIONID|GET /|POST /|PUT /|DELETE /' \
+                || echo '(로그 없음)' ;;
+            *) exit 2 ;;
+          esac
+          REMOTE_SCRIPT
+          ) | tail -c 18000 | sed -E '
+            s/eyJ[A-Za-z0-9_-]{6,}\.[A-Za-z0-9_-]{6,}\.[A-Za-z0-9_-]+/<가림:JWT>/g;
+            s/([Bb]earer|[Aa]uthorization:?)[[:space:]]+[A-Za-z0-9._~+\/-]{8,}/\1 <가림>/g;
+            s/(JSESSIONID|SESSION|[Cc]ookie)=[^;[:space:]]+/\1=<가림>/g;
+            s/AIza[A-Za-z0-9_-]{10,}/<가림:APIKEY>/g;
+            s/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/<가림:이메일>/g'
