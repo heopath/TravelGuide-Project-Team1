@@ -90,106 +90,65 @@ jobs:
           if-no-files-found: error
 
   deploy:
-    name: Deploy to EC2
+    name: Deploy to Oracle Cloud
     needs: [build, frontend]
     runs-on: ubuntu-latest
     environment: production
 
     permissions:
       contents: read
-      id-token: write
 
     steps:
+      - name: Checkout deployment script
+        uses: actions/checkout@v6
+
       - name: Download JAR artifact
         uses: actions/download-artifact@v7
         with:
           name: spring-boot-jar
           path: deployment
 
-      - name: Configure AWS credentials with OIDC
-        uses: aws-actions/configure-aws-credentials@v6
-        with:
-          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
-          aws-region: ${{ vars.AWS_REGION }}
-          allowed-account-ids: "719152986655"
-          role-session-name: all-my-trips-github-deploy
+      - name: Configure Oracle Cloud SSH
+        shell: bash
+        env:
+          OCI_SSH_PRIVATE_KEY: ${{ secrets.OCI_SSH_PRIVATE_KEY }}
+          OCI_KNOWN_HOSTS: ${{ secrets.OCI_KNOWN_HOSTS }}
+        run: |
+          set -euo pipefail
+          test -n "$OCI_SSH_PRIVATE_KEY"
+          test -n "$OCI_KNOWN_HOSTS"
+          install -d -m 700 "$HOME/.ssh"
+          printf '%s\n' "$OCI_SSH_PRIVATE_KEY" | tr -d '\r' > "$HOME/.ssh/oci_deploy_key"
+          printf '%s\n' "$OCI_KNOWN_HOSTS" | tr -d '\r' > "$HOME/.ssh/known_hosts"
+          chmod 600 "$HOME/.ssh/oci_deploy_key" "$HOME/.ssh/known_hosts"
 
-      - name: Check AWS identity
-        run: aws sts get-caller-identity
+      - name: Upload release to Oracle Cloud
+        shell: bash
+        env:
+          OCI_APP_HOST: ${{ vars.OCI_APP_HOST }}
+          OCI_APP_USER: ${{ vars.OCI_APP_USER }}
+        run: |
+          set -euo pipefail
+          test -n "$OCI_APP_HOST"
+          test -n "$OCI_APP_USER"
+          REMOTE_JAR="/tmp/all-my-trips-${GITHUB_SHA}.jar"
+          REMOTE_SCRIPT="/tmp/deploy-all-my-trips-${GITHUB_SHA}.sh"
+          SSH=(ssh -i "$HOME/.ssh/oci_deploy_key" -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes)
+          SCP=(scp -i "$HOME/.ssh/oci_deploy_key" -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes)
 
-      - name: Upload JAR to S3
-        id: upload
+          "${SCP[@]}" deployment/app.jar \
+            "${OCI_APP_USER}@${OCI_APP_HOST}:${REMOTE_JAR}"
+          "${SCP[@]}" deploy/oci/deploy-github-actions.sh \
+            "${OCI_APP_USER}@${OCI_APP_HOST}:${REMOTE_SCRIPT}"
+
+          "${SSH[@]}" "${OCI_APP_USER}@${OCI_APP_HOST}" \
+            "sudo bash '${REMOTE_SCRIPT}' '${REMOTE_JAR}' '${GITHUB_SHA}'"
+
+      - name: Verify public site
         shell: bash
         run: |
-          S3_KEY="releases/${GITHUB_SHA}.jar"
-          S3_URI="s3://${{ vars.AWS_S3_BUCKET }}/${S3_KEY}"
-
-          aws s3 cp deployment/app.jar "$S3_URI" \
-            --only-show-errors
-
-          echo "s3_uri=$S3_URI" >> "$GITHUB_OUTPUT"
-          echo "업로드 완료: $S3_URI"
-
-      - name: Deploy through SSM
-        shell: bash
-        run: |
-          S3_URI="${{ steps.upload.outputs.s3_uri }}"
-          INSTANCE_ID="${{ vars.AWS_EC2_INSTANCE_ID }}"
-
-          # deploy.sh 출력을 그대로 흘리지 않고 원격에서 파일로 받은 뒤 뒷부분만 돌려준다.
-          # SSM의 StandardOutputContent는 24KB에서 잘리는데, S3 다운로드 진행률이 그 한도를
-          # 다 채워 정작 뒤에 찍히는 실패 원인이 날아갔다(#136). 앞이 아니라 뒤를 남겨야 한다.
-          # 실패했을 때만 systemd 로그를 덧붙인다. 기동 실패는 deploy.sh 출력이 아니라
-          # journalctl에만 남아서, 지금까지는 EC2에 직접 들어가야 원인을 알 수 있었다.
-          cat > remote-deploy.sh <<REMOTE_SCRIPT
-          LOG=\$(mktemp)
-          /opt/all-my-trips/shared/deploy.sh ${S3_URI} > "\$LOG" 2>&1
-          rc=\$?
-          tail -n 200 "\$LOG" | tail -c 12000
-          if [ "\$rc" -ne 0 ]; then
-            echo
-            echo "----- systemd 로그 (all-my-trips, 최근 50줄) -----"
-            journalctl -u all-my-trips -n 50 --no-pager 2>&1 | tail -c 8000
-          fi
-          rm -f "\$LOG"
-          exit "\$rc"
-          REMOTE_SCRIPT
-
-          # 따옴표가 많아 문자열로 조립하면 깨지기 쉽다. jq로 JSON을 만들어 파일로 넘긴다.
-          jq -Rn --rawfile script remote-deploy.sh \
-            '{commands: ($script | rtrimstr("\n") | split("\n"))}' > ssm-params.json
-
-          COMMAND_ID=$(aws ssm send-command \
-            --instance-ids "$INSTANCE_ID" \
-            --document-name "AWS-RunShellScript" \
-            --comment "Deploy All My Trips ${GITHUB_SHA}" \
-            --parameters file://ssm-params.json \
-            --query "Command.CommandId" \
-            --output text)
-
-          echo "SSM 명령 ID: $COMMAND_ID"
-
-          set +e
-          aws ssm wait command-executed \
-            --command-id "$COMMAND_ID" \
-            --instance-id "$INSTANCE_ID"
-          WAIT_RESULT=$?
-          set -e
-
-          INVOCATION=$(aws ssm get-command-invocation \
-            --command-id "$COMMAND_ID" \
-            --instance-id "$INSTANCE_ID" \
-            --output json)
-
-          # JSON 한 덩어리로 찍으면 줄바꿈이 \n으로 escape되어 로그에서 읽을 수 없다.
-          echo "상태: $(jq -r '.Status' <<< "$INVOCATION")"
-          echo "----- 원격 출력 -----"
-          jq -r '.StandardOutputContent' <<< "$INVOCATION"
-
-          REMOTE_ERR=$(jq -r '.StandardErrorContent' <<< "$INVOCATION")
-          if [ -n "$REMOTE_ERR" ]; then
-            echo "----- 원격 에러 -----"
-            echo "$REMOTE_ERR"
-          fi
-
-          exit "$WAIT_RESULT"
+          set -euo pipefail
+          curl --fail --silent --show-error \
+            --retry 5 --retry-all-errors --retry-delay 3 \
+            https://allmytrip.click/ > /dev/null
+          echo "Oracle Cloud 배포와 공개 HTTPS 응답을 확인했습니다."
