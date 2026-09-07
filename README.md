@@ -7,6 +7,7 @@
 
 <br />
 
+[![Service](https://img.shields.io/badge/서비스_보기-00C9A7?style=for-the-badge)](https://allmytrip.click)
 [![Video](https://img.shields.io/badge/🎬_시연_영상-FF0000?style=for-the-badge&logo=youtube&logoColor=white)](https://youtu.be/HHS_6rQ8duA)
 [![Wiki](https://img.shields.io/badge/📖_문서-181717?style=for-the-badge&logo=github&logoColor=white)](https://github.com/heopath/TravelGuide-Project-Team1/wiki)
 [![Slides](https://img.shields.io/badge/🖥️_기술_설명-4FACFE?style=for-the-badge)](https://heopath.github.io/TravelGuide-Project-Team1/video/technical-slides.html)
@@ -16,7 +17,7 @@
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-4169E1?style=flat-square&logo=postgresql&logoColor=white)
 ![Redis](https://img.shields.io/badge/Redis-DC382D?style=flat-square&logo=redis&logoColor=white)
 ![AWS](https://img.shields.io/badge/AWS_EC2-FF9900?style=flat-square&logo=amazonec2&logoColor=white)
-![Version](https://img.shields.io/badge/version-v0.0.8-00C9A7?style=flat-square)
+[![Latest release](https://img.shields.io/github/v/release/heopath/TravelGuide-Project-Team1?style=flat-square)](https://github.com/heopath/TravelGuide-Project-Team1/releases/latest)
 
 </div>
 
@@ -57,7 +58,11 @@
 
 ## 🔑 둘러보기
 
-AWS EC2·RDS와 Cloudflare를 연결해 운영 배포까지 진행했습니다. 현재 공개 시연은 아래 영상으로 제공합니다.
+AWS EC2·RDS와 Cloudflare를 연결해 배포한 뒤, PostgreSQL 데이터를 Oracle Cloud Infrastructure(OCI) 가상서버로 이관했습니다. 현재는 OCI 앱·DB 서버를 분리해 포트폴리오용 서비스를 공개하고 있습니다.
+
+[🌐 서비스 바로가기](https://allmytrip.click) · [OCI 배포 문서](deploy/oci/README.md)
+
+공개 사이트와 시연 영상은 버전이 다를 수 있습니다. 최신 소스 릴리스는 상단의 릴리스 링크를 참고하세요.
 
 공개 저장소에는 체험 계정의 비밀번호를 남기지 않습니다. 시연은 아래 영상에서 전체 흐름을 확인할 수 있습니다.
 
@@ -93,7 +98,9 @@ AWS EC2·RDS와 Cloudflare를 연결해 운영 배포까지 진행했습니다. 
 
 예약 요청의 순서와 상태는 **Redis Sorted Set과 Lua 스크립트**로 관리했습니다. 실제 티켓 재고는 **PostgreSQL 재고 행 잠금과 잔여 수량 조건부 UPDATE**를 적용해 초과 판매를 방지했습니다.
 
-재고 10개에 사용자 30명이 동시에 요청하는 k6 테스트에서 **예약 성공 10건·재고 소진 20건·요청 실패율 0%**를 확인했습니다.
+로컬 PostgreSQL·Redis 환경에서 재고 10개에 사용자 30명이 동시에 요청하는 k6 테스트로 **예약 성공 10건·재고 소진 20건·초과 판매 및 서버 오류 0건**을 확인했습니다. 재고 소진 응답은 예상 결과로 처리했습니다. 이 수치는 OCI 운영 서버의 처리 성능을 측정한 결과가 아닙니다.
+
+[테스트 환경과 결과](docs/qa/booking-queue-load-test-results.md)
 
 `RedisBookingQueueStore` · `TicketMapper.xml` · `load-test/booking-queue.js`
 
@@ -196,7 +203,9 @@ Redis는 캐시만이 아니라 **세션 저장소**와 **예약 대기열**로�
 
 </div>
 
-밀어 넣을 때마다 GitHub Actions가 **빌드 · 테스트 · CodeQL 보안 검사**를 돌리고, 통과하면 EC2에 자동 배포됩니다.
+`main` 변경 시 GitHub Actions의 **서버 빌드·테스트와 화면 테스트**가 통과하면 OCI 앱 서버에 배포됩니다. CodeQL 보안 분석은 별도 워크플로로 실행됩니다. 배포 스크립트는 상태 확인 실패 시 직전 릴리스로 되돌리도록 구성했습니다.
+
+[배포 워크플로](.github/workflows/deploy.yml) · [OCI 배포 안내](deploy/oci/README.md)
 
 ---
 
@@ -212,7 +221,7 @@ docker compose up -d          # PostgreSQL + Redis
 
 http://localhost:8080 으로 접속합니다. 자세한 준비 과정은 [실행 시나리오](https://github.com/heopath/TravelGuide-Project-Team1/wiki/프로젝트-실행-시나리오)를 보세요.
 
-로그인해서 볼 계정이 필요하면 위 `🔑 둘러보기`의 체험 계정을 로컬에도 만들 수 있습니다.
+로컬 시연 계정이 필요하면 아래 seed SQL의 내용을 확인한 뒤 로컬 DB에 적용할 수 있습니다.
 
 ```bash
 docker compose exec -T postgres psql -U allmytrips -d all_my_trips \
@@ -247,6 +256,7 @@ docker compose exec -T postgres psql -U allmytrips -d all_my_trips \
 ![Redis](https://img.shields.io/badge/Redis-DC382D?style=flat-square&logo=redis&logoColor=white)
 ![Flyway](https://img.shields.io/badge/Flyway-CC0200?style=flat-square&logo=flyway&logoColor=white)
 ![AWS](https://img.shields.io/badge/EC2_·_RDS-FF9900?style=flat-square&logo=amazonwebservices&logoColor=white)
+![OCI](https://img.shields.io/badge/Oracle_Cloud-DF3B30?style=flat-square)
 ![GitHub Actions](https://img.shields.io/badge/GitHub_Actions-2088FF?style=flat-square&logo=githubactions&logoColor=white)
 ![Cloudflare](https://img.shields.io/badge/Cloudflare-F38020?style=flat-square&logo=cloudflare&logoColor=white)
 
@@ -929,7 +939,8 @@ TravelGuide-Project-Team1/
 
 | 구분 | 링크 |
 |:---:|---|
-| 🌐 배포 경험 | AWS EC2·RDS, Cloudflare, GitHub Actions 기반 운영 배포 |
+| 🌐 공개 서비스 | [allmytrip.click](https://allmytrip.click) — OCI 포트폴리오 환경 |
+| ☁️ 배포 경험 | AWS EC2·RDS 배포 후 OCI 이관, 앱·DB 분리, Nginx·HTTPS·GitHub Actions |
 | 🎬 시연 영상 | [유튜브에서 보기](https://youtu.be/HHS_6rQ8duA) — 전체 기능 18분 37초 |
 | 📖 위키 | [바로가기](https://github.com/heopath/TravelGuide-Project-Team1/wiki) |
 | 🎨 Figma | [바로가기](https://www.figma.com/design/byqjrBMhrQzNsuE7AWJCfd/All-My-Trips-%E2%80%94-AI-%EB%A7%9E%EC%B6%A4-%EC%97%AC%ED%96%89-%ED%94%8C%EB%9E%AB%ED%8F%BC-%EC%A0%84%EC%B2%B4-%ED%99%94%EB%A9%B4--%ED%97%88%EB%AF%BC%EC%9E%AC-%ED%8C%80-?node-id=3-4310) |
